@@ -21,10 +21,10 @@ namespace {
 
 renodx::mods::shader::CustomShaders custom_shaders = {
     CustomShaderEntry(0x20133A8B),  // Final
-    //CustomShaderEntry(0x08AB345C),  // IDK
-    //CustomShaderEntry(0xBB832AC0),   // IDK
-    CustomShaderEntry(0xF70A0EED),  // Lutbuilder
-    CustomShaderEntry(0x99D271BE)   // Tonemapping
+    //CustomShaderEntry(0xF369BD33),  // SSAO1
+    //CustomShaderEntry(0x1920DC80),  // SSAO2
+   //CustomShaderEntry(0x08AB345C),  // Sunshafts
+    CustomShaderEntry(0x99D271BE)   // Lutsample
 };
 
 ShaderInjectData shader_injection;
@@ -86,18 +86,18 @@ renodx::utils::settings::Settings settings = {
         .key = "ToneMapHueProcessor",
         .binding = &RENODX_TONE_MAP_HUE_PROCESSOR,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
+        .default_value = 1.f,
         .label = "Hue Processor",
         .section = "Tone Mapping",
         .tooltip = "Selects hue processor",
-        .labels = {"OKLab", "ICtCp", "darkTable UCS"},
+        .labels = {"OKLab", "ICtCp"},
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE >= 1; },
         .is_visible = []() { return settings[0]->GetValue() >= 2; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapHueShift",
         .binding = &RENODX_TONE_MAP_HUE_SHIFT,
-        .default_value = 100.f,
+        .default_value = 50.f,
         .label = "Hue Shift",
         .section = "Tone Mapping",
         .tooltip = "Hue-shift emulation strength.",
@@ -285,16 +285,6 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.02f; },
     },
     new renodx::utils::settings::Setting{
-        .key = "FxMotionBlur",
-        .binding = &CUSTOM_MOTION_BLUR,
-        .default_value = 100.f,
-        .label = "Motion Blur",
-        .section = "Effects",
-        .max = 100.f,
-        .parse = [](float value) { return value * 0.01f; },
-        .is_visible = []() { return settings[0]->GetValue() >= 1; },
-    },
-    new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Reset All",
         .section = "Options",
@@ -421,12 +411,13 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       reshade::unregister_addon(h_module);
       break;
   }
-
+  
   renodx::utils::settings::Use(fdw_reason, &settings, &OnPresetOff);
 
   renodx::mods::swapchain::Use(fdw_reason, &shader_injection);
 
   renodx::mods::shader::Use(fdw_reason, custom_shaders, &shader_injection);
 
+ 
   return TRUE;
 }
