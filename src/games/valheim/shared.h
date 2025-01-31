@@ -19,6 +19,8 @@
 #define RENODX_TONE_MAP_HUE_PROCESSOR        shader_injection.tone_map_hue_processor
 #define RENODX_TONE_MAP_PER_CHANNEL          shader_injection.tone_map_per_channel
 #define RENODX_GAMMA_CORRECTION              shader_injection.gamma_correction
+#define RENODX_SWAP_CHAIN_DECODING           0
+#define RENODX_INTERMEDIATE_ENCODING         0
 #define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
 #define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
 #define CUSTOM_LUT_TETRAHEDRAL               shader_injection.custom_lut_tetrahedral
