@@ -1,4 +1,4 @@
-[![CMake (Ninja)](https://github.com/clshortfuse/renodx/actions/workflows/cmake-ninja.yml/badge.svg)](https://github.com/clshortfuse/renodx/actions/workflows/cmake-ninja.yml) [![CMake (Visual Studio)](https://github.com/clshortfuse/renodx/actions/workflows/cmake-visual-studio.yml/badge.svg)](https://github.com/clshortfuse/renodx/actions/workflows/cmake-visual-studio.yml) [![Discord](https://img.shields.io/discord/1161035767917850784?logo=discord&logoColor=%23fff&label=Discord&labelColor=%235865F2)](https://discord.gg/5WZXDpmbpP)
+[![CMake (Ninja)](https://github.com/OopyDoopy/renodx/actions/workflows/cmake-ninja.yml/badge.svg)](https://github.com/OopyDoopy/renodx/actions/workflows/cmake-ninja.yml) [![CMake (Visual Studio)](https://github.com/OopyDoopy/renodx/actions/workflows/cmake-visual-studio.yml/badge.svg)](https://github.com/OopyDoopy/renodx/actions/workflows/cmake-visual-studio.yml) [![Discord](https://img.shields.io/discord/1161035767917850784?logo=discord&logoColor=%23fff&label=Discord&labelColor=%235865F2)](https://discord.gg/5WZXDpmbpP)
 
 
 # renodx
@@ -11,6 +11,6 @@ RenoDX, short for "Renovation Engine for DirectX Games", is a toolset to mod gam
 
 # Utilities
 
-* [renodx-devkit.addon64](https://clshortfuse.github.io/renodx/renodx-devkit.addon64) &ndash; Developer kit to help build addons
-* [decomp.exe](https://clshortfuse.github.io/renodx/decomp.exe) &ndash; Shader Model 6.0+ Decompiler
+* [renodx-devkit.addon64](https://OopyDoopy.github.io/renodx/renodx-devkit.addon64) &ndash; Developer kit to help build addons
+* [decomp.exe](https://OopyDoopy.github.io/renodx/decomp.exe) &ndash; Shader Model 6.0+ Decompiler
 
