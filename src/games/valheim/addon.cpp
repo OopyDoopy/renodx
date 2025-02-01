@@ -284,11 +284,42 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .parse = [](float value) { return value * 0.02f; },
     },
+
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Fantasy HDR",
+        .section = "Presets",
+        .group = "button-line-1",
+        .tint = 0xeb141e,
+        .on_change = []() {
+            renodx::utils::settings::UpdateSetting("ToneMapType", 3.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueProcessor", 1.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueShift", 50.f);
+            renodx::utils::settings::UpdateSetting("ToneMapWorkingColorSpace", 2.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueCorrection", 100.f);
+            renodx::utils::settings::UpdateSetting("GammaCorrection", 1.f);
+            renodx::utils::settings::UpdateSetting("ToneMapScaling", 0.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeExposure", 1.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeHighlights", 62.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeShadows", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeContrast", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeSaturation", 65.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeHighlightSaturation", 43.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeFlare", 36.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeLUTStrength", 95.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeLUTScaling", 100.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeLUTSampling", 1.f);
+            renodx::utils::settings::UpdateSetting("FxChromaticAberration", 50.f);
+            renodx::utils::settings::UpdateSetting("FxBloom", 50.f);
+        }
+    },
+
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Reset All",
         .section = "Options",
-        .group = "button-line-1",
+        .group = "button-line-2",
         .on_change = []() {
           for (auto setting : settings) {
             if (setting->key.empty()) continue;
@@ -297,40 +328,35 @@ renodx::utils::settings::Settings settings = {
           }
         },
     },
+    
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
-        .label = "HDR Look",
-        .section = "Options",
-        .group = "button-line-1",
-        .on_change = []() {
-          for (auto setting : settings) {
-            if (setting->key.empty()) continue;
-            if (!setting->can_reset) continue;
-            if (setting->key == "ColorGradeSaturation" || setting->key == "ColorGradeContrast" || setting->key == "ColorGradeBlowout") {
-              renodx::utils::settings::UpdateSetting(setting->key, 80.f);
-            } else {
-              renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
-            }
-          }
-        },
-    },
-    new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
-        .label = "Discord",
-        .section = "Options",
-        .group = "button-line-2",
+        .label = "Discord Thread",
+        .section = "Links",
+        .group = "button-line-3",
         .tint = 0x5865F2,
         .on_change = []() {
           renodx::utils::platform::Launch(
-              "https://discord.gg/"
-              "5WZXDpmbpP");
+              "https://discord.com/channels/1161035767917850784/1335008139980050454");
         },
     },
+
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "More RenoDX Mods",
+        .section = "Links",
+        .group = "button-line-3",
+        .on_change = []() {
+          renodx::utils::platform::Launch(
+              "https://github.com/clshortfuse/renodx/wiki/Mods");
+        },
+    },
+
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Github",
-        .section = "Options",
-        .group = "button-line-2",
+        .section = "Links",
+        .group = "button-line-3",
         .on_change = []() {
           renodx::utils::platform::Launch("https://github.com/clshortfuse/renodx");
         },
