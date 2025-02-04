@@ -18,8 +18,9 @@ cbuffer cb0 : register(b0)
 // 3Dmigoto declarations
 #define cmp -
 
-
 void main(
+    // r4 is image color info
+
   float4 v0 : SV_POSITION0,
   float2 v1 : TEXCOORD0,
   float2 w1 : TEXCOORD1,
