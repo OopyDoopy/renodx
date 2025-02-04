@@ -154,10 +154,7 @@ void main(
 
   float3 outputColor;
   if (RENODX_TONE_MAP_TYPE == 0.f) {
-    outputColor = renodx::lut::Sample(
-        saturate(untonemapped),
-        lut_config,
-        t5);
+    outputColor = tonemapped_bt709;
   } else {
     outputColor = renodx::draw::ToneMapPass(
         untonemapped,
@@ -166,6 +163,8 @@ void main(
             lut_config,
             t5));
   }
-  o0.rgb = renodx::draw::RenderIntermediatePass(outputColor);
+
+  // o0.rgb = renodx::draw::RenderIntermediatePass(outputColor);
+  o0.rgb = outputColor;
   return;
 }
