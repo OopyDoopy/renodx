@@ -40,8 +40,6 @@ void main(
   uint4 bitmask, uiDest;
   float4 fDest;
 
-
-
   r0.xy = v1.xy * cb0[4].xy + cb0[4].zw;
   r1.xyzw = t0.Sample(s0_s, r0.xy).xyzw;
   r0.z = dot(r1.xyz, r1.xyz);
@@ -90,7 +88,8 @@ void main(
   r0.w = 0;
   r1.w = 0;
 
-  //r += 10;
+  // r2.w += 10;
+
   while (true) {
     r2.w = cmp((int)r1.w >= asint(cb0[5].x));
     if (r2.w != 0) break;
@@ -132,7 +131,10 @@ void main(
     r2.w = cb1[8].w * r2.w + r4.w;
     r3.zw = r3.zw / r2.ww;
     r3.zw = float2(1,1) + r3.zw;
+
     r4.yz = float2(0.5,0.5) * r3.zw;
+    //r4.yz = float2(1, 1) * r3.zw;
+
     r4.yz = r4.yz * cb0[4].xy + cb0[4].zw;
     r5.xyzw = t1.Sample(s1_s, r4.yz).xyzw;
     r2.w = cb1[7].x * r5.x;
@@ -151,7 +153,7 @@ void main(
     r4.y = r4.y + r4.z;
     r4.y = 100000000 * r4.y;
     r5.z = r2.w * cb1[5].z + r4.y;
-    r3.zw = -cb2[8].xy + r3.zw;
+    r3.zw = -cb2[8].xy * 10 + r3.zw;
     r3.zw = float2(-1,-1) + r3.zw;
     r3.zw = r3.zw / r3.xy;
     r2.w = 1 + -r5.z;
