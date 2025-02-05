@@ -386,6 +386,68 @@ renodx::utils::settings::Settings settings = {
 
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Vanilla SDR",
+        .section = "Presets",
+        .group = "button-line-1",
+        .tint = 0xb5b2b1,
+        .on_change = []() {
+            renodx::utils::settings::UpdateSetting("ToneMapType", 0.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueProcessor", 0.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueShift", 50.f);
+            renodx::utils::settings::UpdateSetting("ToneMapWorkingColorSpace", 0.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueCorrection", 100.f);
+            renodx::utils::settings::UpdateSetting("GammaCorrection", 0.f);
+            renodx::utils::settings::UpdateSetting("ToneMapScaling", 0.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeExposure", 1.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeHighlights", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeShadows", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeContrast", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeSaturation", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeHighlightSaturation", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 60.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeFlare", 0.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeLUTStrength", 100.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeLUTScaling", 100.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeLUTSampling", 1.f);
+            renodx::utils::settings::UpdateSetting("FxChromaticAberration", 50.f);
+            renodx::utils::settings::UpdateSetting("FxBloom", 50.f);
+            renodx::utils::settings::UpdateSetting("FxSunShafts", 13.f);
+        }
+    },
+
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Vanilla+ SDR",
+        .section = "Presets",
+        .group = "button-line-1",
+        .tint = 0xb5b2b1,
+        .on_change = []() {
+            renodx::utils::settings::UpdateSetting("ToneMapType", 3.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueProcessor", 0.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueShift", 50.f);
+            renodx::utils::settings::UpdateSetting("ToneMapWorkingColorSpace", 0.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueCorrection", 100.f);
+            renodx::utils::settings::UpdateSetting("GammaCorrection", 0.f);
+            renodx::utils::settings::UpdateSetting("ToneMapScaling", 0.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeExposure", 1.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeHighlights", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeShadows", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeContrast", 58.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeSaturation", 51.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeHighlightSaturation", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 60.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeFlare", 0.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeLUTStrength", 100.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeLUTScaling", 100.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeLUTSampling", 1.f);
+            renodx::utils::settings::UpdateSetting("FxChromaticAberration", 50.f);
+            renodx::utils::settings::UpdateSetting("FxBloom", 50.f);
+            renodx::utils::settings::UpdateSetting("FxSunShafts", 13.f);
+        }
+    },
+
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Reset All",
         .section = "Options",
         .group = "button-line-2",
