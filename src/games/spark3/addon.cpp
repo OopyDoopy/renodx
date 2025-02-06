@@ -20,7 +20,8 @@
 namespace {
 
 renodx::mods::shader::CustomShaders custom_shaders = {
-    CustomShaderEntry(0xA34705B5)  // Uber
+    CustomShaderEntry(0xF9B0D779),  // Uber
+    CustomShaderEntry(0xFE41EA26)   // Uber2
 };
 
 ShaderInjectData shader_injection;
@@ -260,16 +261,6 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .labels = {"Trilinear", "Tetrahedral"},
         .is_visible = []() { return settings[0]->GetValue() >= 2; },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "FxChromaticAberration",
-        .binding = &CUSTOM_CHROMATIC_ABERRATION,
-        .default_value = 50.f,
-        .label = "Chromatic Aberration",
-        .section = "Effects",
-        .tooltip = "Adjust the intensity of color fringing.",
-        .max = 100.f,
-        .parse = [](float value) { return value * 0.02f; },
     },
     // new renodx::utils::settings::Setting{
     //     .key = "FxNoise",
