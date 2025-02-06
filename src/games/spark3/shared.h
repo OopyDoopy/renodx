@@ -1,5 +1,5 @@
-#ifndef SRC_XFEXTREMEFORMULA_SHARED_H_
-#define SRC_XFEXTREMEFORMULA_SHARED_H_
+#ifndef SRC_SPARK3_SHARED_H_
+#define SRC_SPARK3_SHARED_H_
 
 #define RENODX_PEAK_WHITE_NITS               shader_injection.peak_white_nits
 #define RENODX_DIFFUSE_WHITE_NITS            shader_injection.diffuse_white_nits
@@ -23,7 +23,8 @@
 #define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
 #define CUSTOM_LUT_TETRAHEDRAL               shader_injection.custom_lut_tetrahedral
 #define CUSTOM_NOISE                         shader_injection.custom_noise
-#define CUSTOM_CHROMATIC_ABERRATION          shader_injection.custom_chromatic_aberration
+#define CUSTOM_SCREEN_GLOW                   shader_injection.custom_screen_glow
+#define CUSTOM_MOTION_BLUR                   shader_injection.custom_motion_blur
 
 // Must be 32bit aligned
 // Should be 4x32
@@ -50,7 +51,8 @@ struct ShaderInjectData {
   float custom_lut_strength;
   float custom_lut_tetrahedral;
   float custom_noise;
-  float custom_chromatic_aberration;
+  float custom_screen_glow;
+  float custom_motion_blur;
 };
 
 #ifndef __cplusplus
@@ -62,4 +64,4 @@ cbuffer cb13 : register(b13) {
 
 #endif
 
-#endif  // SRC_XFEXTREMEFORMULA_SHARED_H_
+#endif  // SRC_SPARK3_SHARED_H_
