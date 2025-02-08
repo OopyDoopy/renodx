@@ -20,7 +20,7 @@
 namespace {
 
 renodx::mods::shader::CustomShaders custom_shaders = {
-    CustomShaderEntry(0xA34705B5)  // Uber
+    CustomShaderEntry(0x41B1FF38)  // Uber
 };
 
 ShaderInjectData shader_injection;
@@ -261,16 +261,6 @@ renodx::utils::settings::Settings settings = {
         .labels = {"Trilinear", "Tetrahedral"},
         .is_visible = []() { return settings[0]->GetValue() >= 2; },
     },
-    new renodx::utils::settings::Setting{
-        .key = "FxChromaticAberration",
-        .binding = &CUSTOM_CHROMATIC_ABERRATION,
-        .default_value = 50.f,
-        .label = "Chromatic Aberration",
-        .section = "Effects",
-        .tooltip = "Adjust the intensity of color fringing.",
-        .max = 100.f,
-        .parse = [](float value) { return value * 0.02f; },
-    },
     // new renodx::utils::settings::Setting{
     //     .key = "FxNoise",
     //     .binding = &CUSTOM_NOISE,
@@ -395,7 +385,7 @@ void OnInitSwapchain(reshade::api::swapchain* swapchain) {
 }  // namespace
 
 extern "C" __declspec(dllexport) constexpr const char* NAME = "RenoDX";
-extern "C" __declspec(dllexport) constexpr const char* DESCRIPTION = "RenoDX for XF Extreme Formula";
+extern "C" __declspec(dllexport) constexpr const char* DESCRIPTION = "RenoDX for Tunic";
 
 BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   switch (fdw_reason) {
