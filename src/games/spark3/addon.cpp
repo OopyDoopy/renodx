@@ -386,7 +386,7 @@ void OnInitSwapchain(reshade::api::swapchain* swapchain) {
 }  // namespace
 
 extern "C" __declspec(dllexport) constexpr const char* NAME = "RenoDX";
-extern "C" __declspec(dllexport) constexpr const char* DESCRIPTION = "RenoDX for Tunic";
+extern "C" __declspec(dllexport) constexpr const char* DESCRIPTION = "RenoDX for Spark the Electric Jester 3";
 
 BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   switch (fdw_reason) {

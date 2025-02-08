@@ -1,5 +1,5 @@
-#ifndef SRC_XFEXTREMEFORMULA_SHARED_H_
-#define SRC_XFEXTREMEFORMULA_SHARED_H_
+#ifndef SRC_STRANGEROFPARADISE_SHARED_H_
+#define SRC_STRANGEROFPARADISE_SHARED_H_
 
 #define RENODX_PEAK_WHITE_NITS               shader_injection.peak_white_nits
 #define RENODX_DIFFUSE_WHITE_NITS            shader_injection.diffuse_white_nits
@@ -19,8 +19,6 @@
 #define RENODX_TONE_MAP_HUE_PROCESSOR        shader_injection.tone_map_hue_processor
 #define RENODX_TONE_MAP_PER_CHANNEL          shader_injection.tone_map_per_channel
 #define RENODX_GAMMA_CORRECTION              shader_injection.gamma_correction
-#define RENODX_SWAP_CHAIN_DECODING           0
-#define RENODX_INTERMEDIATE_ENCODING         0
 #define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
 #define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
 #define CUSTOM_LUT_TETRAHEDRAL               shader_injection.custom_lut_tetrahedral
@@ -64,4 +62,4 @@ cbuffer cb13 : register(b13) {
 
 #endif
 
-#endif  // SRC_XFEXTREMEFORMULA_SHARED_H_
+#endif  // SRC_STRANGEROFPARADISE_SHARED_H_
