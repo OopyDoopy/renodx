@@ -156,12 +156,17 @@ void main(
   if (RENODX_TONE_MAP_TYPE == 0.f) {
     outputColor = tonemapped_bt709;
   } else {
-    outputColor = renodx::draw::ToneMapPass(
-        untonemapped,
-        renodx::lut::Sample(
-            renodx::tonemap::renodrt::NeutralSDR(untonemapped),
-            lut_config,
-            t5));
+    if (RENODX_TONE_MAP_TYPE == 3.f && CUSTOM_TONE_MAP_CONFIGURATION == 1.f) {
+      outputColor = renodx::draw::ToneMapPass(
+          untonemapped,
+          renodx::lut::Sample(
+              renodx::tonemap::renodrt::NeutralSDR(untonemapped),
+              lut_config,
+              t5));
+    }
+    else {
+      outputColor = renodx::draw::ToneMapPass(untonemapped, tonemapped_bt709);
+    }
   }
 
   // o0.rgb = renodx::draw::RenderIntermediatePass(outputColor);
