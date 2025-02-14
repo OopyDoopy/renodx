@@ -5,6 +5,7 @@
 #define RENODX_DIFFUSE_WHITE_NITS            shader_injection.diffuse_white_nits
 #define RENODX_GRAPHICS_WHITE_NITS           shader_injection.graphics_white_nits
 #define RENODX_TONE_MAP_TYPE                 shader_injection.tone_map_type
+#define CUSTOM_TONE_MAP_CONFIGURATION        shader_injection.custom_tone_map_configuration
 #define RENODX_TONE_MAP_EXPOSURE             shader_injection.tone_map_exposure
 #define RENODX_TONE_MAP_HIGHLIGHTS           shader_injection.tone_map_highlights
 #define RENODX_TONE_MAP_SHADOWS              shader_injection.tone_map_shadows
@@ -21,10 +22,9 @@
 #define RENODX_GAMMA_CORRECTION              shader_injection.gamma_correction
 #define RENODX_SWAP_CHAIN_DECODING           0
 #define RENODX_INTERMEDIATE_ENCODING         0
-#define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
-#define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
-#define CUSTOM_LUT_TETRAHEDRAL               shader_injection.custom_lut_tetrahedral
-#define CUSTOM_NOISE                         shader_injection.custom_noise
+// #define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
+// #define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
+// #define CUSTOM_LUT_TETRAHEDRAL               shader_injection.custom_lut_tetrahedral
 #define CUSTOM_CHROMATIC_ABERRATION          shader_injection.custom_chromatic_aberration
 
 // Must be 32bit aligned
@@ -34,6 +34,7 @@ struct ShaderInjectData {
   float diffuse_white_nits;
   float graphics_white_nits;
   float tone_map_type;
+  float custom_tone_map_configuration;
   float tone_map_exposure;
   float tone_map_highlights;
   float tone_map_shadows;
@@ -48,10 +49,9 @@ struct ShaderInjectData {
   float tone_map_hue_processor;
   float tone_map_per_channel;
   float gamma_correction;
-  float custom_lut_scaling;
-  float custom_lut_strength;
-  float custom_lut_tetrahedral;
-  float custom_noise;
+  // float custom_lut_scaling;
+  // float custom_lut_strength;
+  // float custom_lut_tetrahedral;
   float custom_chromatic_aberration;
 };
 

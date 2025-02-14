@@ -48,6 +48,19 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return settings[0]->GetValue() >= 1; },
     },
     new renodx::utils::settings::Setting{
+        .key = "ToneMapConfiguration",
+        .binding = &CUSTOM_TONE_MAP_CONFIGURATION,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .can_reset = true,
+        .label = "Tonemapping Expansion",
+        .section = "Tone Mapping",
+        .tooltip = "Choose to honor the blownout look of the SDR presentation or to expand the tonemapping range.",
+        .labels = {"Vanilla", "Expanded"},
+        //.is_enabled = []() { return RENODX_TONE_MAP_TYPE == 3; },
+        //.is_visible = []() { return settings[1]->GetValue() == 3; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",
         .binding = &RENODX_PEAK_WHITE_NITS,
         .default_value = 1000.f,
@@ -231,36 +244,36 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 3; },
         .parse = [](float value) { return value * 0.01f; },
     },
-    new renodx::utils::settings::Setting{
-        .key = "ColorGradeLUTStrength",
-        .binding = &CUSTOM_LUT_STRENGTH,
-        .default_value = 100.f,
-        .label = "LUT Strength",
-        .section = "Color Grading",
-        .max = 100.f,
-        .parse = [](float value) { return value * 0.01f; },
-        .is_visible = []() { return settings[0]->GetValue() >= 1; },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "ColorGradeLUTScaling",
-        .binding = &CUSTOM_LUT_SCALING,
-        .default_value = 100.f,
-        .label = "LUT Scaling",
-        .section = "Color Grading",
-        .tooltip = "Scales the color grade LUT to full range when size is clamped.",
-        .max = 100.f,
-        .parse = [](float value) { return value * 0.01f; },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "ColorGradeLUTSampling",
-        .binding = &CUSTOM_LUT_TETRAHEDRAL,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
-        .label = "LUT Sampling",
-        .section = "Color Grading",
-        .labels = {"Trilinear", "Tetrahedral"},
-        .is_visible = []() { return settings[0]->GetValue() >= 2; },
-    },
+    // new renodx::utils::settings::Setting{
+    //     .key = "ColorGradeLUTStrength",
+    //     .binding = &CUSTOM_LUT_STRENGTH,
+    //     .default_value = 100.f,
+    //     .label = "LUT Strength",
+    //     .section = "Color Grading",
+    //     .max = 100.f,
+    //     .parse = [](float value) { return value * 0.01f; },
+    //     .is_visible = []() { return settings[0]->GetValue() >= 1; },
+    // },
+    // new renodx::utils::settings::Setting{
+    //     .key = "ColorGradeLUTScaling",
+    //     .binding = &CUSTOM_LUT_SCALING,
+    //     .default_value = 100.f,
+    //     .label = "LUT Scaling",
+    //     .section = "Color Grading",
+    //     .tooltip = "Scales the color grade LUT to full range when size is clamped.",
+    //     .max = 100.f,
+    //     .parse = [](float value) { return value * 0.01f; },
+    // },
+    // new renodx::utils::settings::Setting{
+    //     .key = "ColorGradeLUTSampling",
+    //     .binding = &CUSTOM_LUT_TETRAHEDRAL,
+    //     .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+    //     .default_value = 1.f,
+    //     .label = "LUT Sampling",
+    //     .section = "Color Grading",
+    //     .labels = {"Trilinear", "Tetrahedral"},
+    //     .is_visible = []() { return settings[0]->GetValue() >= 2; },
+    // },
     new renodx::utils::settings::Setting{
         .key = "FxChromaticAberration",
         .binding = &CUSTOM_CHROMATIC_ABERRATION,
@@ -387,8 +400,8 @@ void OnInitSwapchain(reshade::api::swapchain* swapchain) {
   fired_on_init_swapchain = true;
   auto peak = renodx::utils::swapchain::GetPeakNits(swapchain);
   if (peak.has_value()) {
-    settings[2]->default_value = peak.value();
-    settings[2]->can_reset = true;
+    settings[3]->default_value = peak.value();
+    settings[3]->can_reset = true;
   }
 }
 
