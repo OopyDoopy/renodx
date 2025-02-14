@@ -1,11 +1,10 @@
-#ifndef SRC_VALHEIM_SHARED_H_
-#define SRC_VALHEIM_SHARED_H_
+#ifndef SRC_DEATHSDOOR_SHARED_H_
+#define SRC_DEATHSDOOR_SHARED_H_
 
 #define RENODX_PEAK_WHITE_NITS               shader_injection.peak_white_nits
 #define RENODX_DIFFUSE_WHITE_NITS            shader_injection.diffuse_white_nits
 #define RENODX_GRAPHICS_WHITE_NITS           shader_injection.graphics_white_nits
 #define RENODX_TONE_MAP_TYPE                 shader_injection.tone_map_type
-#define CUSTOM_TONE_MAP_CONFIGURATION        shader_injection.custom_tone_map_configuration
 #define RENODX_TONE_MAP_EXPOSURE             shader_injection.tone_map_exposure
 #define RENODX_TONE_MAP_HIGHLIGHTS           shader_injection.tone_map_highlights
 #define RENODX_TONE_MAP_SHADOWS              shader_injection.tone_map_shadows
@@ -25,10 +24,9 @@
 #define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
 #define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
 #define CUSTOM_LUT_TETRAHEDRAL               shader_injection.custom_lut_tetrahedral
-#define CUSTOM_CHROMATIC_ABERRATION          shader_injection.custom_chromatic_aberration
-#define CUSTOM_BLOOM                         shader_injection.custom_bloom
-#define CUSTOM_SUN_SHAFTS                    shader_injection.custom_sun_shafts
-//#define CUSTOM_SSAO_FILTER                   shader_injection.custom_ssao_filter
+#define CUSTOM_NOISE                         shader_injection.custom_noise
+#define CUSTOM_SCREEN_GLOW                   shader_injection.custom_screen_glow
+#define CUSTOM_MOTION_BLUR                   shader_injection.custom_motion_blur
 
 // Must be 32bit aligned
 // Should be 4x32
@@ -37,7 +35,6 @@ struct ShaderInjectData {
   float diffuse_white_nits;
   float graphics_white_nits;
   float tone_map_type;
-  float custom_tone_map_configuration;
   float tone_map_exposure;
   float tone_map_highlights;
   float tone_map_shadows;
@@ -55,10 +52,9 @@ struct ShaderInjectData {
   float custom_lut_scaling;
   float custom_lut_strength;
   float custom_lut_tetrahedral;
-  float custom_chromatic_aberration;
-  float custom_bloom;
-  float custom_sun_shafts;
-  //bool custom_ssao_filter;
+  float custom_noise;
+  float custom_screen_glow;
+  float custom_motion_blur;
 };
 
 #ifndef __cplusplus
@@ -70,4 +66,4 @@ cbuffer cb13 : register(b13) {
 
 #endif
 
-#endif  // SRC_VALHEIM_SHARED_H_
+#endif  // SRC_DEATHSDOOR_SHARED_H_
