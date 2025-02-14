@@ -210,25 +210,27 @@ void main(
 
   float3 tonemapped_bt709 = o0.rgb;
 
-  renodx::lut::Config lut_config = renodx::lut::config::Create();
-  lut_config.lut_sampler = s6_s;
-  lut_config.strength = CUSTOM_LUT_STRENGTH;
-  lut_config.scaling = CUSTOM_LUT_SCALING;
-  lut_config.precompute = cb0[36].xyz;
-  lut_config.tetrahedral = CUSTOM_LUT_TETRAHEDRAL == 1.f;
-  lut_config.type_input = renodx::lut::config::type::ARRI_C1000_NO_CUT;
-  lut_config.type_output = renodx::lut::config::type::LINEAR;
+  // renodx::lut::Config lut_config = renodx::lut::config::Create();
+  // lut_config.lut_sampler = s6_s;
+  // lut_config.strength = CUSTOM_LUT_STRENGTH;
+  // lut_config.scaling = CUSTOM_LUT_SCALING;
+  // lut_config.precompute = cb0[36].xyz;
+  // lut_config.tetrahedral = CUSTOM_LUT_TETRAHEDRAL == 1.f;
+  // lut_config.type_input = renodx::lut::config::type::ARRI_C1000_NO_CUT;
+  // lut_config.type_output = renodx::lut::config::type::LINEAR;
 
   float3 outputColor;
   if (RENODX_TONE_MAP_TYPE == 0.f) {
     outputColor = tonemapped_bt709;
   } else {
-    outputColor = renodx::draw::ToneMapPass(
-        untonemapped,
-        renodx::lut::Sample(
-            renodx::tonemap::renodrt::NeutralSDR(untonemapped),
-            lut_config,
-            t6));
+    if (CUSTOM_TONE_MAP_CONFIGURATION == 1.f) {
+      outputColor = renodx::draw::ToneMapPass(
+          untonemapped,
+          tonemapped_bt709);
+    }
+    else {
+      outputColor = renodx::draw::ToneMapPass(untonemapped, saturate(tonemapped_bt709));
+    }
   }
   o0.rgb = renodx::draw::RenderIntermediatePass(outputColor);
   return;
