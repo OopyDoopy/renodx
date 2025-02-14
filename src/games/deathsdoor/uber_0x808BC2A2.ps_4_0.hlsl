@@ -63,7 +63,10 @@ void main(
   r0.yz = v1.xy * float2(2,2) + float2(-1,-1);
   r0.w = dot(r0.yz, r0.yz);
   r0.yz = r0.yz * r0.ww;
-  r0.yz = cb0[35].ww * r0.yz; //chromatic aberration
+
+  r0.yz = cb0[35].ww * r0.yz;  // chromatic aberration
+  r0.yz *= CUSTOM_CHROMATIC_ABERRATION;
+
   r1.xy = cb0[31].zw * -r0.yz;
   r1.xy = float2(0.5,0.5) * r1.xy;
   r0.w = dot(r1.xy, r1.xy);
@@ -110,7 +113,10 @@ void main(
   r2.xyzw = r3.xyzw + r2.xyzw;
   r0.xyzw = t3.Sample(s3_s, r0.zw).xyzw;
   r0.xyzw = r2.xyzw + r0.xyzw;
+
   r0.xyzw = cb0[34].yyyy * r0.xyzw; //Bloom
+  r0.xyzw *= CUSTOM_BLOOM;
+
   r2.xy = v1.xy * cb0[33].xy + cb0[33].zw;
   r2.xyzw = t4.Sample(s4_s, r2.xy).xyzw;
   r3.xyz = float3(0.25,0.25,0.25) * r0.xyz;
@@ -217,25 +223,19 @@ void main(
 
   float3 tonemapped_bt709 = o0.xyz;
 
-  renodx::lut::Config lut_config = renodx::lut::config::Create();
-  lut_config.lut_sampler = s6_s;
-  lut_config.strength = CUSTOM_LUT_STRENGTH;
-  lut_config.scaling = CUSTOM_LUT_SCALING;
-  lut_config.precompute = cb0[36].xyz;
-  lut_config.tetrahedral = CUSTOM_LUT_TETRAHEDRAL == 1.f;
-  lut_config.type_input = renodx::lut::config::type::ARRI_C1000_NO_CUT;
-  lut_config.type_output = renodx::lut::config::type::LINEAR;
+  // renodx::lut::Config lut_config = renodx::lut::config::Create();
+  // lut_config.lut_sampler = s6_s;
+  // lut_config.strength = CUSTOM_LUT_STRENGTH;
+  // lut_config.scaling = CUSTOM_LUT_SCALING;
+  // lut_config.precompute = cb0[36].xyz;
+  // lut_config.tetrahedral = CUSTOM_LUT_TETRAHEDRAL == 1.f;
+  // lut_config.type_input = renodx::lut::config::type::ARRI_C1000_NO_CUT;
+  // lut_config.type_output = renodx::lut::config::type::LINEAR;
 
   float3 outputColor;
   if (RENODX_TONE_MAP_TYPE == 0.f) {
     outputColor = tonemapped_bt709;
   } else {
-    // outputColor = renodx::draw::ToneMapPass(
-    //     untonemapped,
-    //     renodx::lut::Sample(
-    //         renodx::tonemap::renodrt::NeutralSDR(tonemapped_bt709),
-    //         lut_config,
-    //         t6));
     outputColor = renodx::draw::ToneMapPass(untonemapped, tonemapped_bt709);
     
   }
