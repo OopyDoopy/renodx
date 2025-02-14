@@ -21,12 +21,11 @@
 #define RENODX_GAMMA_CORRECTION              shader_injection.gamma_correction
 #define RENODX_SWAP_CHAIN_DECODING           0
 #define RENODX_INTERMEDIATE_ENCODING         0
-#define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
-#define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
-#define CUSTOM_LUT_TETRAHEDRAL               shader_injection.custom_lut_tetrahedral
-#define CUSTOM_NOISE                         shader_injection.custom_noise
-#define CUSTOM_SCREEN_GLOW                   shader_injection.custom_screen_glow
-#define CUSTOM_MOTION_BLUR                   shader_injection.custom_motion_blur
+//#define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
+//#define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
+//#define CUSTOM_LUT_TETRAHEDRAL               shader_injection.custom_lut_tetrahedral
+#define CUSTOM_BLOOM                         shader_injection.custom_bloom
+#define CUSTOM_CHROMATIC_ABERRATION          shader_injection.custom_chromatic_aberration
 
 // Must be 32bit aligned
 // Should be 4x32
@@ -49,12 +48,11 @@ struct ShaderInjectData {
   float tone_map_hue_processor;
   float tone_map_per_channel;
   float gamma_correction;
-  float custom_lut_scaling;
-  float custom_lut_strength;
-  float custom_lut_tetrahedral;
-  float custom_noise;
-  float custom_screen_glow;
-  float custom_motion_blur;
+  //float custom_lut_scaling;
+  //float custom_lut_strength;
+  //float custom_lut_tetrahedral;
+  float custom_bloom;
+  float custom_chromatic_aberration;
 };
 
 #ifndef __cplusplus
