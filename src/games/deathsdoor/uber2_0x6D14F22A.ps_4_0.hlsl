@@ -137,7 +137,7 @@ void main(
   r2.xyz = r0.xyz * r0.www + r1.yzw;
   r0.xyzw = cb0[36].zzzz * r2.xyzw;
 
-  float3 untonemapped = r0.gbr;
+  float3 untonemapped = r0.xyz;
 
   //linear to log
   r0.xyz = r0.xyz * float3(5.55555582,5.55555582,5.55555582) + float3(0.0479959995,0.0479959995,0.0479959995);
