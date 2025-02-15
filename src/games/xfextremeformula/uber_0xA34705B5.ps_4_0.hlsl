@@ -176,13 +176,11 @@ void main(
   r1.x = 0.5 * cb0[36].x;
   r0.xyz = r0.xyz * cb0[36].xxx + r1.xxx;
   r1.xyzw = t6.Sample(s6_s, r0.xyz).xyzw;
+
   r0.xy = v1.xy * cb0[30].xy + cb0[30].zw;
   r2.xyzw = t0.Sample(s0_s, r0.xy).xyzw;
   r0.x = r2.w * 2 + -1;
-
   r0.y = saturate(r0.x * 3.40282347e+038 + 0.5);
-  //r0.y = r0.x * 3.40282347e+038 + 0.5;
-
   r0.y = r0.y * 2 + -1;
   r0.x = 1 + -abs(r0.x);
   r0.x = sqrt(r0.x);
