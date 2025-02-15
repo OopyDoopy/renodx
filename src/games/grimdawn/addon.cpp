@@ -324,9 +324,35 @@ renodx::utils::settings::Settings settings = {
     // },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Grim Dark",
+        .section = "Presets",
+        .group = "button-line-1",
+        .tint = 0x2f4858,
+        .on_change = []() {
+            renodx::utils::settings::UpdateSetting("ToneMapType", 3.f);
+            renodx::utils::settings::UpdateSetting("ToneMapConfiguration", 1.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueProcessor", 1.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueShift", 0.f);
+            renodx::utils::settings::UpdateSetting("ToneMapWorkingColorSpace", 1.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueCorrection", 0.f);
+            renodx::utils::settings::UpdateSetting("GammaCorrection", 1.f);
+            renodx::utils::settings::UpdateSetting("ToneMapScaling", 1.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeExposure", 0.80);
+            renodx::utils::settings::UpdateSetting("ColorGradeHighlights", 60.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeShadows", 53.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeContrast", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeSaturation", 60.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeHighlightSaturation", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 70.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeFlare", 68.f);
+            renodx::utils::settings::UpdateSetting("FxColorGrading", 50.f);
+        }
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Reset All",
         .section = "Options",
-        .group = "button-line-1",
+        .group = "button-line-2",
         .on_change = []() {
           for (auto setting : settings) {
             if (setting->key.empty()) continue;
@@ -356,7 +382,7 @@ renodx::utils::settings::Settings settings = {
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Discord",
         .section = "Options",
-        .group = "button-line-2",
+        .group = "button-line-3",
         .tint = 0x5865F2,
         .on_change = []() {
           renodx::utils::platform::Launch(
@@ -368,7 +394,7 @@ renodx::utils::settings::Settings settings = {
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Github",
         .section = "Options",
-        .group = "button-line-2",
+        .group = "button-line-3",
         .on_change = []() {
           renodx::utils::platform::Launch("https://github.com/clshortfuse/renodx");
         },
