@@ -2,8 +2,7 @@
 
 // ---- Created with 3Dmigoto v1.3.16 on Tue Feb 11 16:39:33 2025
 
-cbuffer heynottoorough : register(b0)
-{
+cbuffer heynottoorough : register(b0) {
   float dofDistance : packoffset(c0);
   float dofRange : packoffset(c0.y);
   float brightnessAdjustment : packoffset(c0.z);
@@ -115,43 +114,48 @@ cbuffer heynottoorough : register(b0)
 SamplerState baseSampler_s : register(s0);
 Texture2D<float4> baseSampler : register(t0);
 
-
 // 3Dmigoto declarations
 #define cmp -
 
-
 void main(
-  float4 v0 : SV_Position0,
-  float4 v1 : COLOR0,
-  float2 v2 : TEXCOORD0,
-  out float4 o0 : SV_Target0)
-{
-  float4 r0,r1,r2;
+    float4 v0: SV_Position0,
+    float4 v1: COLOR0,
+    float2 v2: TEXCOORD0,
+    out float4 o0: SV_Target0) {
+  float4 r0, r1, r2;
   uint4 bitmask, uiDest;
   float4 fDest;
 
   r0.xyzw = baseSampler.Sample(baseSampler_s, v2.xy).xyzw;
-  r1.x = dot(r0.xyz, float3(0.300000012,0.589999974,0.109999999));
+
+  float3 ungraded = r0.xyz;
+
+  r1.x = dot(r0.xyz, float3(0.300000012, 0.589999974, 0.109999999));
   r1.xyz = r1.xxx + -r0.xyz;
   r1.xyz = saturationAdjustment * r1.xyz + r0.xyz;
-  r2.xyz = float3(-0.5,-0.5,-0.5) + r1.xyz;
+  r2.xyz = float3(-0.5, -0.5, -0.5) + r1.xyz;
   r1.xyz = r2.xyz * contrastAdjustment + r1.xyz;
 
-  //original output code
-  //r0.xyz = saturate(brightnessAdjustment + r1.xyz);
-  //o0.xyzw = v1.xyzw * r0.xyzw; //original
+  // original output code
+  // r0.xyz = saturate(brightnessAdjustment + r1.xyz);
+  // o0.xyzw = v1.xyzw * r0.xyzw;
 
+  if (CUSTOM_TONE_MAP_CONFIGURATION == 1) {
+    r0.xyz = brightnessAdjustment + r1.xyz;
+  } else {
+    r0.xyz = saturate(brightnessAdjustment + r1.xyz);
+  }
+  o0.xyzw = v1.xyzw * r0.xyzw;
+  float3 graded = o0.rgb;
+  graded = lerp(ungraded, graded, CUSTOM_COLOR_GRADING);
 
   float3 outputColor;
   if (RENODX_TONE_MAP_TYPE == 0.f) {
-    r0.xyz = saturate(brightnessAdjustment + r1.xyz);
-    o0.xyzw = v1.xyzw * r0.xyzw;
-    outputColor = renodx::color::srgb::Decode(o0.rgb);
+    outputColor = renodx::color::srgb::DecodeSafe(graded);
   } else {
-    r0.xyz = brightnessAdjustment + r1.xyz;
-    o0.xyzw = v1.xyzw * r0.xyzw;
-    outputColor = renodx::color::srgb::Decode(o0.rgb);
-    outputColor = renodx::draw::ToneMapPass(outputColor);
+    outputColor = renodx::draw::ToneMapPass(
+        renodx::color::srgb::DecodeSafe(ungraded.rgb),
+        renodx::color::srgb::DecodeSafe(graded.rgb));
   }
 
   o0.rgb = renodx::draw::RenderIntermediatePass(outputColor);
