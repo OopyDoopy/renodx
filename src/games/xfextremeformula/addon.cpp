@@ -58,7 +58,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Choose to honor the blownout look of the SDR presentation or to expand the tonemapping range.",
         .labels = {"Vanilla", "Expanded"},
         //.is_enabled = []() { return RENODX_TONE_MAP_TYPE == 3; },
-        //.is_visible = []() { return settings[1]->GetValue() == 3; },
+        .is_visible = []() { return settings[0]->GetValue() >= 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",

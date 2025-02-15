@@ -74,7 +74,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Set whether the RenoDRT Tonemapper behaves like an upgraded Vanilla tonemapper or uses Custom properties.",
         .labels = {"Vanilla", "Custom"},
         //.is_enabled = []() { return RENODX_TONE_MAP_TYPE == 3; },
-        .is_visible = []() { return settings[1]->GetValue() == 3; },
+        .is_visible = []() { return (settings[1]->GetValue() == 3 && settings[0]->GetValue() >= 1); },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",

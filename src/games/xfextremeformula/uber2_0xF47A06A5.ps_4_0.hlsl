@@ -162,10 +162,13 @@ void main(
   r0.xyz = r0.xyz * float3(5.55555582,5.55555582,5.55555582) + float3(0.0479959995,0.0479959995,0.0479959995);
   r0.xyz = log2(r0.xyz);
   r0.xyz = saturate(r0.xyz * float3(0.0734997839,0.0734997839,0.0734997839) + float3(0.386036009,0.386036009,0.386036009));
+
+
   r0.xyz = cb0[36].yyy * r0.xyz;
   r1.x = 0.5 * cb0[36].x;
   r0.xyz = r0.xyz * cb0[36].xxx + r1.xxx;
   r1.xyzw = t5.Sample(s5_s, r0.xyz).wxyz;
+
   r0.x = cmp(0.5 < cb0[42].x);
   if (r0.x != 0) {
     r0.xyz = saturate(r1.yzw);
@@ -185,7 +188,7 @@ void main(
   // lut_config.tetrahedral = CUSTOM_LUT_TETRAHEDRAL == 1.f;
   // lut_config.type_input = renodx::lut::config::type::ARRI_C1000_NO_CUT;
   // lut_config.type_output = renodx::lut::config::type::LINEAR;
-
+  
   float3 outputColor;
   if (RENODX_TONE_MAP_TYPE == 0.f) {
     outputColor = tonemapped_bt709;
