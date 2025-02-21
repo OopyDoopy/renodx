@@ -51,14 +51,14 @@ renodx::utils::settings::Settings settings = {
         .key = "ToneMapConfiguration",
         .binding = &CUSTOM_TONE_MAP_CONFIGURATION,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
+        .default_value = 1.f,
         .can_reset = true,
         .label = "Tonemapping Expansion",
         .section = "Tone Mapping",
         .tooltip = "Choose to honor the blownout look of the SDR presentation or to expand the tonemapping range.",
         .labels = {"Vanilla", "Expanded"},
         //.is_enabled = []() { return RENODX_TONE_MAP_TYPE == 3; },
-        .is_visible = []() { return settings[0]->GetValue() >= 1; },
+        .is_visible = []() { return settings[0]->GetValue() >= 2; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",
@@ -71,6 +71,18 @@ renodx::utils::settings::Settings settings = {
         .min = 48.f,
         .max = 4000.f,
     },
+    // new renodx::utils::settings::Setting{
+    //     .key = "ToneMapWhiteClip",
+    //     .binding = &RENODX_RENO_DRT_WHITE_CLIP,
+    //     .default_value = 4000.f,
+    //     .can_reset = false,
+    //     .label = "White Clip",
+    //     .section = "Tone Mapping",
+    //     .tooltip = "Sets the value of peak white in nits",
+    //     .min = 100.f,
+    //     .max = 10000.f,
+    //     .parse = [](float value) { return value * 0.001f; },
+    // },
     new renodx::utils::settings::Setting{
         .key = "ToneMapGameNits",
         .binding = &RENODX_DIFFUSE_WHITE_NITS,
@@ -95,7 +107,7 @@ renodx::utils::settings::Settings settings = {
         .key = "ToneMapHueProcessor",
         .binding = &RENODX_TONE_MAP_HUE_PROCESSOR,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
+        .default_value = 0.f,
         .label = "Hue Processor",
         .section = "Tone Mapping",
         .tooltip = "Selects hue processor",
@@ -226,12 +238,12 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ColorGradeBlowout",
         .binding = &RENODX_TONE_MAP_BLOWOUT,
-        .default_value = 0.f,
+        .default_value = 33.f,
         .label = "Blowout",
         .section = "Color Grading",
         .tooltip = "Controls highlight desaturation due to overexposure.",
         .max = 100.f,
-        .parse = [](float value) { return value * 0.01f; },
+        .parse = [](float value) { return max(value * 0.01f, 0.000001f); },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeFlare",
@@ -331,12 +343,12 @@ renodx::utils::settings::Settings settings = {
         .on_change = []() {
             renodx::utils::settings::UpdateSetting("ToneMapType", 3.f);
             renodx::utils::settings::UpdateSetting("ToneMapConfiguration", 1.f);
-            renodx::utils::settings::UpdateSetting("ToneMapHueProcessor", 1.f);
-            renodx::utils::settings::UpdateSetting("ToneMapHueShift", 0.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueProcessor", 0.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueShift", 50.f);
             renodx::utils::settings::UpdateSetting("ToneMapWorkingColorSpace", 1.f);
-            renodx::utils::settings::UpdateSetting("ToneMapHueCorrection", 0.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueCorrection", 100.f);
             renodx::utils::settings::UpdateSetting("GammaCorrection", 1.f);
-            renodx::utils::settings::UpdateSetting("ToneMapScaling", 1.f);
+            renodx::utils::settings::UpdateSetting("ToneMapScaling", 0.f);
             renodx::utils::settings::UpdateSetting("ColorGradeExposure", 0.80);
             renodx::utils::settings::UpdateSetting("ColorGradeHighlights", 60.f);
             renodx::utils::settings::UpdateSetting("ColorGradeShadows", 53.f);
@@ -443,7 +455,7 @@ void OnInitSwapchain(reshade::api::swapchain* swapchain) {
 }  // namespace
 
 extern "C" __declspec(dllexport) constexpr const char* NAME = "RenoDX";
-extern "C" __declspec(dllexport) constexpr const char* DESCRIPTION = "RenoDX for XF Extreme Formula";
+extern "C" __declspec(dllexport) constexpr const char* DESCRIPTION = "RenoDX for Grim Dawn";
 
 BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   switch (fdw_reason) {
