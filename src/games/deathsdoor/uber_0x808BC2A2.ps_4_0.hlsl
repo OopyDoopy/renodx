@@ -220,6 +220,7 @@ void main(
   r0.xyz = cmp(float3(0.0404499993,0.0404499993,0.0404499993) >= r0.xyz);
   o0.xyz = r0.xyz ? r1.xyz : r2.xyz;
   o0.w = r0.w;
+  //o0.w = min(r0.w, 1);
 
   float3 tonemapped_bt709 = o0.xyz;
 

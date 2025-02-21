@@ -1,4 +1,4 @@
-#include "./shared.h"
+#include "./common.hlsl"
 
 // ---- Created with 3Dmigoto v1.3.16 on Tue Feb 11 16:39:33 2025
 
@@ -156,6 +156,8 @@ void main(
     outputColor = renodx::draw::ToneMapPass(
         renodx::color::srgb::DecodeSafe(ungraded.rgb),
         renodx::color::srgb::DecodeSafe(graded.rgb));
+    // outputColor = renodx::draw::ToneMapPass(
+    //     renodx::color::srgb::DecodeSafe(ungraded.rgb));
   }
 
   o0.rgb = renodx::draw::RenderIntermediatePass(outputColor);
