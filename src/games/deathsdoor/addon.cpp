@@ -22,6 +22,7 @@ namespace {
 renodx::mods::shader::CustomShaders custom_shaders = {
      CustomShaderEntry(0x808BC2A2),  // Uber
      CustomShaderEntry(0x6D14F22A),  // Uber2
+     CustomShaderEntry(0x2B868B21),  // UI
 };
 
 ShaderInjectData shader_injection;
@@ -94,7 +95,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ToneMapHueShift",
         .binding = &RENODX_TONE_MAP_HUE_SHIFT,
-        .default_value = 50.f,
+        .default_value = 0.f,
         .label = "Hue Shift",
         .section = "Tone Mapping",
         .tooltip = "Hue-shift emulation strength.",
@@ -118,7 +119,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ToneMapHueCorrection",
         .binding = &RENODX_TONE_MAP_HUE_CORRECTION,
-        .default_value = 100.f,
+        .default_value = 0.f,
         .label = "Hue Correction",
         .section = "Tone Mapping",
         .tooltip = "Hue retention strength.",
@@ -219,7 +220,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .tooltip = "Controls highlight desaturation due to overexposure.",
         .max = 100.f,
-        .parse = [](float value) { return value * 0.01f; },
+        .parse = [](float value) { return max(value * 0.01f, 0.000001f); },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeFlare",
@@ -294,9 +295,35 @@ renodx::utils::settings::Settings settings = {
     // },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Vanilla+",
+        .section = "Presets",
+        .group = "button-line-1",
+        .tint = 0x2f4858,
+        .on_change = []() {
+            renodx::utils::settings::UpdateSetting("ToneMapType", 3.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueProcessor", 1.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueShift", 0.f);
+            renodx::utils::settings::UpdateSetting("ToneMapWorkingColorSpace", 0.f);
+            renodx::utils::settings::UpdateSetting("ToneMapHueCorrection", 0.f);
+            renodx::utils::settings::UpdateSetting("GammaCorrection", 1.f);
+            renodx::utils::settings::UpdateSetting("ToneMapScaling", 0.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeExposure", 1.00);
+            renodx::utils::settings::UpdateSetting("ColorGradeHighlights", 57.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeShadows", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeContrast", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeSaturation", 50.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeHighlightSaturation", 65.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 0.f);
+            renodx::utils::settings::UpdateSetting("ColorGradeFlare", 63.f);
+            renodx::utils::settings::UpdateSetting("FxBloom", 50.f);
+            renodx::utils::settings::UpdateSetting("FxChromaticAberration", 50.f);
+        }
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Reset All",
         .section = "Options",
-        .group = "button-line-1",
+        .group = "button-line-2",
         .on_change = []() {
           for (auto setting : settings) {
             if (setting->key.empty()) continue;
@@ -326,7 +353,7 @@ renodx::utils::settings::Settings settings = {
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Discord",
         .section = "Options",
-        .group = "button-line-2",
+        .group = "button-line-3",
         .tint = 0x5865F2,
         .on_change = []() {
           renodx::utils::platform::Launch(
@@ -338,7 +365,7 @@ renodx::utils::settings::Settings settings = {
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Github",
         .section = "Options",
-        .group = "button-line-2",
+        .group = "button-line-3",
         .on_change = []() {
           renodx::utils::platform::Launch("https://github.com/clshortfuse/renodx");
         },
