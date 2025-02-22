@@ -164,6 +164,7 @@ void main(
   }
   r0.xyzw = cb0[36].zzzz * r2.xyzw;
 
+  // float3 untonemapped = renodx::color::bt709::clamp::BT709(r0.rgb);
   float3 untonemapped = r0.rgb;
 
   //linear to log
@@ -177,6 +178,9 @@ void main(
   r0.xyz = r0.xyz * cb0[36].xxx + r1.xxx;
   r1.xyzw = t6.Sample(s6_s, r0.xyz).xyzw;
 
+  float3 graded_bt709 = r1.xyz;
+
+  //Dithering
   r0.xy = v1.xy * cb0[30].xy + cb0[30].zw;
   r2.xyzw = t0.Sample(s0_s, r0.xy).xyzw;
   r0.x = r2.w * 2 + -1;
@@ -206,28 +210,31 @@ void main(
   o0.xyz = r0.xyz ? r1.xyz : r2.xyz;
   o0.w = r0.w;
 
-  float3 tonemapped_bt709 = o0.rgb;
+  float3 dithered_output = o0.rgb;
 
-  // renodx::lut::Config lut_config = renodx::lut::config::Create();
-  // lut_config.lut_sampler = s6_s;
-  // lut_config.strength = CUSTOM_LUT_STRENGTH;
-  // lut_config.scaling = CUSTOM_LUT_SCALING;
-  // lut_config.precompute = cb0[36].xyz;
-  // lut_config.tetrahedral = CUSTOM_LUT_TETRAHEDRAL == 1.f;
-  // lut_config.type_input = renodx::lut::config::type::ARRI_C1000_NO_CUT;
-  // lut_config.type_output = renodx::lut::config::type::LINEAR;
+  renodx::lut::Config lut_config = renodx::lut::config::Create();
+  lut_config.lut_sampler = s6_s;
+  lut_config.strength = CUSTOM_LUT_STRENGTH;
+  lut_config.scaling = CUSTOM_LUT_SCALING;
+  lut_config.precompute = cb0[36].xyz;
+  lut_config.tetrahedral = CUSTOM_LUT_TETRAHEDRAL == 1.f;
+  lut_config.type_input = renodx::lut::config::type::ARRI_C1000_NO_CUT;
+  lut_config.type_output = renodx::lut::config::type::LINEAR;
 
   float3 outputColor;
   if (RENODX_TONE_MAP_TYPE == 0.f) {
-    outputColor = tonemapped_bt709;
-  } else {
+    outputColor = dithered_output;
+  }
+  else {
     if (CUSTOM_TONE_MAP_CONFIGURATION == 1.f) {
       outputColor = renodx::draw::ToneMapPass(
           untonemapped,
-          tonemapped_bt709);
+          renodx::lut::Sample(renodx::tonemap::renodrt::NeutralSDR(untonemapped), lut_config, t6));
     }
     else {
-      outputColor = renodx::draw::ToneMapPass(untonemapped, saturate(tonemapped_bt709));
+      outputColor = renodx::draw::ToneMapPass(
+          untonemapped,
+          saturate(graded_bt709));
     }
   }
   o0.rgb = renodx::draw::RenderIntermediatePass(outputColor);
