@@ -158,15 +158,15 @@ void main(
   r0.x = r0.x * cb0[12].z + -r0.y;
   r0.yzw = r1.xyz + -r3.xyz;
 
-  //o0.xyz = saturate(r0.xxx * r0.yzw + r3.xyz);
-  o0.xyz = r0.xxx * r0.yzw + r3.xyz;
+  o0.xyz = saturate(r0.xxx * r0.yzw + r3.xyz);
+  //o0.xyz = r0.xxx * r0.yzw + r3.xyz;
 
-  //o0.w = 1;
+  o0.w = 1;
 
   float3 tonemapped_bt709 = o0.rgb;
 
   renodx::lut::Config lut_config = renodx::lut::config::Create();
-  lut_config.lut_sampler = s3_s;
+  lut_config.lut_sampler = s4_s;
   lut_config.strength = CUSTOM_LUT_STRENGTH;
   lut_config.scaling = CUSTOM_LUT_SCALING;
   lut_config.precompute = cb0[12].xyz;
@@ -196,7 +196,7 @@ void main(
         renodx::lut::Sample(
             renodx::tonemap::renodrt::NeutralSDR(untonemapped),
             lut_config,
-            t3));
+            t4));
   }
 
   o0.rgb = renodx::draw::RenderIntermediatePass(outputColor);
