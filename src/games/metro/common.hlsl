@@ -14,5 +14,5 @@ float3 CustomTonemap(float3 untonemapped, float3 tonemapped_bt709) {
 //       } else {
 //         outputColor = renodx::draw::ToneMapPass(untonemapped, tonemapped_bt709);
 //       }
-  return outputColor;
+  return renodx::draw::RenderIntermediatePass(outputColor);
 }

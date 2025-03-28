@@ -1,4 +1,5 @@
 #include "./common.hlsl"
+//#include "./shared.h"
 
 // ---- Created with 3Dmigoto v1.3.16 on Thu Aug 29 12:09:45 2024
 
@@ -211,7 +212,24 @@ void main(
 
   float3 tonemapped_bt709 = max(float3(0, 0, 0), o0.xyz);
 
-  o0.rgb = renodx::draw::RenderIntermediatePass(CustomTonemap(untonemapped, tonemapped_bt709));
+  // float3 outputColor;
+  // if (RENODX_TONE_MAP_TYPE == 0.f) {
+  //   outputColor = renodx::color::srgb::DecodeSafe(tonemapped_bt709);
+  // } else {
+  //   outputColor = renodx::draw::ToneMapPass(
+  //       renodx::color::srgb::DecodeSafe(untonemapped),
+  //       renodx::color::srgb::DecodeSafe(tonemapped_bt709));
+  // }
+  // //   if (RENODX_TONE_MAP_TYPE == 0.f) {
+  // //         outputColor = untonemapped;
+  // //       } else {
+  // //         outputColor = renodx::draw::ToneMapPass(untonemapped, tonemapped_bt709);
+  // //       }
+  // o0.rgb = renodx::draw::RenderIntermediatePass(outputColor);
+
+  o0.rgb = CustomTonemap(untonemapped, tonemapped_bt709);
+  //renodx::draw::SwapChainPass(o0.rgb);
+  //o0.rgb = tonemapped_bt709;
   
   // new
   //o0.xyz = max(float3(0,0,0), r0.xyz);
