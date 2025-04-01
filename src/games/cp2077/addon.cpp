@@ -426,6 +426,7 @@ void OnPresetOff() {
 
 void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
   last_is_hdr = renodx::utils::swapchain::IsHDRColorSpace(swapchain);
+
   if (!last_is_hdr) {
     settings[1]->default_value = 80.f;
     settings[2]->default_value = 80.f;
