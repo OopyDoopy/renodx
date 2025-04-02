@@ -18,5 +18,6 @@ float3 CustomTonemap(float3 untonemapped, float3 tonemapped_bt709, renodx::lut::
     }
   }
 
-  return renodx::draw::RenderIntermediatePass(outputColor);
+  //return renodx::draw::RenderIntermediatePass(outputColor);
+  return outputColor;
 }
