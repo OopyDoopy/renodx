@@ -103,6 +103,9 @@ void main(
   r0.xyzw = t2.Sample(s2_s, r0.zw).xyzw;
   r0.xyzw = r2.xyzw + r0.xyzw;
   r0.xyzw = cb0[34].yyyy * r0.xyzw;
+
+  r0.xyz *= CUSTOM_BLOOM;
+
   r2.xy = v1.xy * cb0[33].xy + cb0[33].zw;
   r2.xyzw = t3.Sample(s3_s, r2.xy).xyzw;
   r3.xyz = float3(0.25,0.25,0.25) * r0.xyz;
@@ -156,12 +159,12 @@ void main(
   }
   r0.xyzw = cb0[36].zzzz * r2.xyzw;
 
+  float3 untonemapped = r0.xyz;
+
   //linear to log
   r0.xyz = r0.xyz * float3(5.55555582,5.55555582,5.55555582) + float3(0.0479959995,0.0479959995,0.0479959995);
   r0.xyz = log2(r0.xyz);
   r0.xyz = saturate(r0.xyz * float3(0.0734997839,0.0734997839,0.0734997839) + float3(0.386036009,0.386036009,0.386036009));
-
-  float3 untonemapped = r0.xyz;
 
   r0.xyz = cb0[36].yyy * r0.xyz;
   r1.x = 0.5 * cb0[36].x;

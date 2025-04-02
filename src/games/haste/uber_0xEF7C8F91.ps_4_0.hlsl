@@ -43,6 +43,7 @@ void main(
   uint4 bitmask, uiDest;
   float4 fDest;
 
+  // Bloom
   r0.xyzw = t1.Sample(s1_s, v1.xy).xyzw;
   r1.xyzw = t0.Sample(s0_s, w1.xy).xyzw;
   r1.xyz = r1.xyz * r0.xxx;
@@ -60,11 +61,15 @@ void main(
   r0.xyzw = t2.Sample(s2_s, r0.zw).xyzw;
   r0.xyzw = r2.xyzw + r0.xyzw;
   r0.xyzw = cb0[34].yyyy * r0.xyzw;
+
+  r0.xyz *= CUSTOM_BLOOM;
+
+  // ??? uses 1x1 texture
   r2.xy = v1.xy * cb0[33].xy + cb0[33].zw;
   r2.xyzw = t3.Sample(s3_s, r2.xy).xyzw;
   r3.xyz = float3(0.25,0.25,0.25) * r0.xyz;
   r2.xyz = cb0[34].zzz * r2.xyz;
-  r0.xyzw = float4(0.25,0.25,0.25,1) * r0.xyzw;
+  r0.xyzw = float4(0.25, 0.25, 0.25, 1) * r0.xyzw;
   r4.xyz = cb0[35].xyz * r0.xyz;
   r4.w = 0.25 * r0.w;
   r0.xyzw = r4.xyzw + r1.xyzw;
