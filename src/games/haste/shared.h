@@ -28,10 +28,12 @@
 #define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
 #define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
 #define CUSTOM_LUT_TETRAHEDRAL               1
+#define CUSTOM_COLOR_GRADING                 shader_injection.custom_color_grading
 #define CUSTOM_CHROMATIC_ABERRATION          shader_injection.custom_chromatic_aberration
 #define CUSTOM_VIGNETTE                      shader_injection.custom_vignette
 #define CUSTOM_BLOOM                         shader_injection.custom_bloom
 #define CUSTOM_DOF                           shader_injection.custom_dof
+#define CUSTOM_SPEED_LINES                   shader_injection.custom_speed_lines
 
 // Must be 32bit aligned
 // Should be 4x32
@@ -59,10 +61,12 @@ struct ShaderInjectData {
   float custom_lut_scaling;
   float custom_lut_strength;
   //float custom_lut_tetrahedral;
+  float custom_color_grading;
   float custom_chromatic_aberration;
   float custom_vignette;
   float custom_bloom;
   float custom_dof;
+  float custom_speed_lines;
 };
 
 #ifndef __cplusplus

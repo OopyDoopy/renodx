@@ -23,6 +23,8 @@ renodx::mods::shader::CustomShaders custom_shaders = {
     CustomShaderEntry(0xEF7C8F91),  // Uber
     CustomShaderEntry(0xF47A06A5),  // Uber2
     CustomShaderEntry(0x366EE13E),  // Final Post
+    CustomShaderEntry(0xF4969CCA),  // Custom Colors
+    CustomShaderEntry(0xBC91F40D),  // Speed
 };
 
 ShaderInjectData shader_injection;
@@ -316,6 +318,16 @@ renodx::utils::settings::Settings settings = {
     //     .labels = {"Trilinear", "Tetrahedral"},
     //     .is_visible = []() { return settings[0]->GetValue() >= 1 && settings[2]->GetValue() == 1; },
     // },
+    new renodx::utils::settings::Setting{
+        .key = "FxColorGrading",
+        .binding = &CUSTOM_COLOR_GRADING,
+        .default_value = 100.f,
+        .label = "Color Grading",
+        .section = "Effects",
+        .tooltip = "Adjust the intensity of the second Color Grading pass.",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.01f; },
+    },
     // new renodx::utils::settings::Setting{
     //     .key = "FxChromaticAberration",
     //     .binding = &CUSTOM_CHROMATIC_ABERRATION,
@@ -336,16 +348,16 @@ renodx::utils::settings::Settings settings = {
     //     .max = 100.f,
     //     .parse = [](float value) { return value * 0.02f; },
     // },
-    // new renodx::utils::settings::Setting{
-    //     .key = "FxBloom",
-    //     .binding = &CUSTOM_BLOOM,
-    //     .default_value = 50.f,
-    //     .label = "Bloom",
-    //     .section = "Effects",
-    //     .tooltip = "Adjust the intensity of bloom.",
-    //     .max = 100.f,
-    //     .parse = [](float value) { return value * 0.02f; },
-    // },
+    new renodx::utils::settings::Setting{
+        .key = "FxBloom",
+        .binding = &CUSTOM_BLOOM,
+        .default_value = 50.f,
+        .label = "Bloom",
+        .section = "Effects",
+        .tooltip = "Adjust the intensity of bloom.",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.02f; },
+    },
     // new renodx::utils::settings::Setting{
     //     .key = "FxDOF",
     //     .binding = &CUSTOM_DOF,
@@ -356,6 +368,16 @@ renodx::utils::settings::Settings settings = {
     //     .max = 100.f,
     //     .parse = [](float value) { return value * 0.01f; },
     // },
+    new renodx::utils::settings::Setting{
+        .key = "FxSpeedLines",
+        .binding = &CUSTOM_SPEED_LINES,
+        .default_value = 50.f,
+        .label = "Speed Lines",
+        .section = "Effects",
+        .tooltip = "Adjust the intensity of Speed Lines.",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.02f; },
+    },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Vanilla+",
