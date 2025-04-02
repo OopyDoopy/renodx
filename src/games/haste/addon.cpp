@@ -49,6 +49,15 @@ const std::unordered_map<std::string, float> CUSTOM_VALUES = {
     {"ColorGradeFlare", 63.f},
 };
 
+const std::unordered_map<std::string, float> CANNOT_PRESET_VALUES = {
+    {"ToneMapPeakNits", 0},
+    {"ToneMapGameNits", 0},
+    {"ToneMapUINits", 0},
+    {"GammaCorrection", 0},
+    {"FxBloom", 0},
+    {"FxSpeedLines", 0},
+};
+
 renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "SettingsMode",
@@ -288,6 +297,16 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return settings[0]->GetValue() >= 1 && settings[2]->GetValue() == 1; },
     },
     new renodx::utils::settings::Setting{
+        .key = "FxColorGrading",
+        .binding = &CUSTOM_COLOR_GRADING,
+        .default_value = 100.f,
+        .label = "Color Grading",
+        .section = "Color Grading",
+        .tooltip = "Adjust the intensity of the second Color Grading pass.",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.01f; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "SwapChainCustomColorSpace",
         .binding = &shader_injection.swap_chain_custom_color_space,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -318,16 +337,7 @@ renodx::utils::settings::Settings settings = {
     //     .labels = {"Trilinear", "Tetrahedral"},
     //     .is_visible = []() { return settings[0]->GetValue() >= 1 && settings[2]->GetValue() == 1; },
     // },
-    new renodx::utils::settings::Setting{
-        .key = "FxColorGrading",
-        .binding = &CUSTOM_COLOR_GRADING,
-        .default_value = 100.f,
-        .label = "Color Grading",
-        .section = "Effects",
-        .tooltip = "Adjust the intensity of the second Color Grading pass.",
-        .max = 100.f,
-        .parse = [](float value) { return value * 0.01f; },
-    },
+
     // new renodx::utils::settings::Setting{
     //     .key = "FxChromaticAberration",
     //     .binding = &CUSTOM_CHROMATIC_ABERRATION,
@@ -389,6 +399,7 @@ renodx::utils::settings::Settings settings = {
               if (setting->key.empty()) continue;
               if (!setting->can_reset) continue;
               if (setting->is_global) continue;
+              if (CANNOT_PRESET_VALUES.contains(setting->key)) continue;
               if (VANILLA_PLUS_VALUES.contains(setting->key)) {
                 renodx::utils::settings::UpdateSetting(setting->key, VANILLA_PLUS_VALUES.at(setting->key));
               } else {
@@ -408,6 +419,7 @@ renodx::utils::settings::Settings settings = {
             if (setting->key.empty()) continue;
             if (!setting->can_reset) continue;
             if (setting->is_global) continue;
+            if (CANNOT_PRESET_VALUES.contains(setting->key)) continue;
             if (CUSTOM_VALUES.contains(setting->key)) {
               renodx::utils::settings::UpdateSetting(setting->key, CUSTOM_VALUES.at(setting->key));
             } else {
