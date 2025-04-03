@@ -22,6 +22,7 @@ namespace {
 renodx::mods::shader::CustomShaders custom_shaders = {
     CustomShaderEntry(0xEF7C8F91),  // Uber
     CustomShaderEntry(0xF47A06A5),  // Uber2
+    CustomShaderEntry(0x769A74FB),  // Uber3
     CustomShaderEntry(0x366EE13E),  // Final Post
     CustomShaderEntry(0xF4969CCA),  // Custom Colors
     CustomShaderEntry(0xBC91F40D),  // Speed
@@ -36,15 +37,16 @@ const std::unordered_map<std::string, float> VANILLA_PLUS_VALUES = {
     {"ColorGradeContrast", 57.f},
     {"ColorGradeHighlightSaturation", 60.f},
     {"ColorGradeFlare", 63.f},
+    {"ColorGradeStrength", 93.f},
 };
 
 const std::unordered_map<std::string, float> CUSTOM_VALUES = {
     {"ToneMapConfiguration", 1.f},
-    {"ToneMapHueProcessor", 0.f},
-    {"ToneMapHueShift", 0.f},
+    {"ToneMapScaling", 1.f},
     {"ColorGradeHighlights", 58.f},
     {"ColorGradeContrast", 65.f},
-    {"ColorGradeSaturation", 55.f},
+    {"ColorGradeSaturation", 60.f},
+    {"ColorGradeHighlightSaturation", 42.f},
     {"ColorGradeBlowout", 40.f},
     {"ColorGradeFlare", 63.f},
 };
@@ -89,9 +91,9 @@ renodx::utils::settings::Settings settings = {
         .can_reset = true,
         .label = "Tonemapping Style",
         .section = "Tone Mapping",
-        .tooltip = "Choose to honor the blownout look of the SDR presentation or to expand the tonemapping range.",
-        .labels = {"Vanilla", "Custom"},
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE >= 1; },
+        .tooltip = "Choose to honor the original tonemapping or use an experimental tonemapper.",
+        .labels = {"Vanilla", "Experimental"},
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE >= 2; },
         .is_visible = []() { return settings[0]->GetValue() >= 1; },
     },
     new renodx::utils::settings::Setting{
@@ -139,14 +141,14 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ToneMapHueShift",
         .binding = &RENODX_TONE_MAP_HUE_SHIFT,
-        .default_value = 50.f,
+        .default_value = 0.f,
         .label = "Hue Shift",
         .section = "Tone Mapping",
         .tooltip = "Hue-shift emulation strength.",
         .min = 0.f,
         .max = 100.f,
         .parse = [](float value) { return value * 0.01f; },
-        .is_visible = []() { return settings[0]->GetValue() >= 2; },
+        .is_visible = []() { return settings[0]->GetValue() >= 2 && settings[2]->GetValue() == 0; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapWorkingColorSpace",
@@ -276,6 +278,19 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return settings[0]->GetValue() >= 1; },
     },
     new renodx::utils::settings::Setting{
+        .key = "ColorGradeStrength",
+        .binding = &shader_injection.tone_map_color_grade_strength,
+        .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+        .default_value = 100.f,
+        .label = "Pre Tonemapping Grading",
+        .section = "Color Grading",
+        .tooltip = "Chooses strength of original color grading.",
+        .max = 100.f,
+        .is_enabled = []() { return shader_injection.tone_map_type == 3; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return settings[0]->GetValue() >= 1; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "ColorGradeLUTStrength",
         .binding = &CUSTOM_LUT_STRENGTH,
         .default_value = 100.f,
@@ -297,14 +312,15 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return settings[0]->GetValue() >= 1 && settings[2]->GetValue() == 1; },
     },
     new renodx::utils::settings::Setting{
-        .key = "FxColorGrading",
+        .key = "FxPostColorGrading",
         .binding = &CUSTOM_COLOR_GRADING,
         .default_value = 100.f,
-        .label = "Color Grading",
+        .label = "Post Tonemapping Grading",
         .section = "Color Grading",
         .tooltip = "Adjust the intensity of the second Color Grading pass.",
         .max = 100.f,
         .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return settings[0]->GetValue() >= 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "SwapChainCustomColorSpace",
@@ -410,7 +426,7 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
-        .label = "Custom",
+        .label = "Experimental",
         .section = "Presets",
         .group = "button-line-1",
         .tint = 0x2f4858,

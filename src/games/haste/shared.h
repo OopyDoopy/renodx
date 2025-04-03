@@ -28,6 +28,7 @@
 #define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
 #define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
 #define CUSTOM_LUT_TETRAHEDRAL               1
+#define RENODX_COLOR_GRADE_STRENGTH          shader_injection.tone_map_color_grade_strength
 #define CUSTOM_COLOR_GRADING                 shader_injection.custom_color_grading
 #define CUSTOM_CHROMATIC_ABERRATION          shader_injection.custom_chromatic_aberration
 #define CUSTOM_VIGNETTE                      shader_injection.custom_vignette
@@ -61,6 +62,7 @@ struct ShaderInjectData {
   float custom_lut_scaling;
   float custom_lut_strength;
   //float custom_lut_tetrahedral;
+  float tone_map_color_grade_strength;
   float custom_color_grading;
   float custom_chromatic_aberration;
   float custom_vignette;
