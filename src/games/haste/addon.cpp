@@ -44,7 +44,7 @@ const std::unordered_map<std::string, float> CUSTOM_VALUES = {
     {"ToneMapConfiguration", 1.f},
     {"ToneMapScaling", 1.f},
     {"ColorGradeHighlights", 58.f},
-    {"ColorGradeContrast", 65.f},
+    {"ColorGradeContrast", 67.f},
     {"ColorGradeSaturation", 60.f},
     {"ColorGradeHighlightSaturation", 42.f},
     {"ColorGradeBlowout", 40.f},
