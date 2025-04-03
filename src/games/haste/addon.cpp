@@ -290,16 +290,16 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return settings[0]->GetValue() >= 1; },
     },
-    new renodx::utils::settings::Setting{
-        .key = "ColorGradeLUTStrength",
-        .binding = &CUSTOM_LUT_STRENGTH,
-        .default_value = 100.f,
-        .label = "LUT Strength",
-        .section = "Color Grading",
-        .max = 100.f,
-        .parse = [](float value) { return value * 0.01f; },
-        .is_visible = []() { return settings[0]->GetValue() >= 1 && settings[2]->GetValue() == 1; },
-    },
+    // new renodx::utils::settings::Setting{
+    //     .key = "ColorGradeLUTStrength",
+    //     .binding = &CUSTOM_LUT_STRENGTH,
+    //     .default_value = 100.f,
+    //     .label = "LUT Strength",
+    //     .section = "Color Grading",
+    //     .max = 100.f,
+    //     .parse = [](float value) { return value * 0.01f; },
+    //     .is_visible = []() { return settings[0]->GetValue() >= 1 && settings[2]->GetValue() == 1; },
+    // },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeLUTScaling",
         .binding = &CUSTOM_LUT_SCALING,
@@ -535,10 +535,10 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("ColorGradeLUTStrength", 100.f);
   renodx::utils::settings::UpdateSetting("ColorGradeLUTScaling", 0.f);
   renodx::utils::settings::UpdateSetting("ColorGradeLUTSampling", 0.f);
-  renodx::utils::settings::UpdateSetting("FxChromaticAberration", 50.f);
-  renodx::utils::settings::UpdateSetting("FxVignette", 50.f);
+  renodx::utils::settings::UpdateSetting("FxColorGradeStrength", 100.f);
+  renodx::utils::settings::UpdateSetting("FxPostColorGrading", 100.f);
   renodx::utils::settings::UpdateSetting("FxBloom", 50.f);
-  renodx::utils::settings::UpdateSetting("FxDOF", 100.f);
+  renodx::utils::settings::UpdateSetting("FxSpeedLines", 50.f);
 }
 
 bool fired_on_init_swapchain = false;
