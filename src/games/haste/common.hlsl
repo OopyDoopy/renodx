@@ -9,9 +9,10 @@ float3 CustomTonemap(float3 untonemapped, float3 tonemapped_bt709, renodx::lut::
       outputColor = renodx::draw::ToneMapPass(
           untonemapped,
           renodx::lut::Sample(
-              renodx::tonemap::renodrt::NeutralSDR(untonemapped),
+              renodx::tonemap::renodrt::NeutralSDR(untonemapped, true),
               lut_config,
               lut));
+      outputColor = renodx::color::correct::Hue(outputColor, tonemapped_bt709, RENODX_TONE_MAP_HUE_CORRECTION, RENODX_TONE_MAP_HUE_PROCESSOR);
     }
     else {
       outputColor = renodx::draw::ToneMapPass(untonemapped, tonemapped_bt709);
