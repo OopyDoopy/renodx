@@ -25,7 +25,8 @@
 #define RENODX_SWAP_CHAIN_CUSTOM_COLOR_SPACE shader_injection.swap_chain_custom_color_space
 #define RENODX_SWAP_CHAIN_DECODING           0
 #define RENODX_INTERMEDIATE_ENCODING         0
-#define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
+//#define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
+#define CUSTOM_LUT_STRENGTH                  1.f
 #define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
 #define CUSTOM_LUT_TETRAHEDRAL               1
 #define RENODX_COLOR_GRADE_STRENGTH          shader_injection.tone_map_color_grade_strength
