@@ -23,13 +23,14 @@
 #define RENODX_TONE_MAP_PER_CHANNEL          shader_injection.tone_map_per_channel
 #define RENODX_GAMMA_CORRECTION              shader_injection.gamma_correction
 #define RENODX_SWAP_CHAIN_CUSTOM_COLOR_SPACE shader_injection.swap_chain_custom_color_space
-#define RENODX_SWAP_CHAIN_DECODING           1
-#define RENODX_INTERMEDIATE_ENCODING         1
+//#define RENODX_SWAP_CHAIN_DECODING           1
+//#define RENODX_INTERMEDIATE_ENCODING         1
 //#define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
 #define CUSTOM_LUT_STRENGTH                  1.f
 #define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
 #define CUSTOM_LUT_TETRAHEDRAL               1
 #define RENODX_COLOR_GRADE_STRENGTH          shader_injection.tone_map_color_grade_strength
+#define RENODX_COLOR_GRADE_STRENGTH_TWO     shader_injection.tone_map_color_grade_strength_two
 #define CUSTOM_AUTO_EXPOSURE                 shader_injection.custom_auto_exposure
 #define CUSTOM_CHROMATIC_ABERRATION          shader_injection.custom_chromatic_aberration
 #define CUSTOM_VIGNETTE                      shader_injection.custom_vignette
@@ -65,6 +66,7 @@ struct ShaderInjectData {
   float custom_lut_strength;
   //float custom_lut_tetrahedral;
   float tone_map_color_grade_strength;
+  float tone_map_color_grade_strength_two;
   float custom_auto_exposure;
   float custom_chromatic_aberration;
   float custom_vignette;

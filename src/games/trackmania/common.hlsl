@@ -32,6 +32,16 @@ float3 CustomTonemap(float3 untonemapped, float3 tonemapped_bt709) {
     outputColor = renodx::draw::ToneMapPass(untonemapped, tonemapped_bt709);
   }
 
-  return renodx::draw::RenderIntermediatePass(outputColor);
-  //return outputColor;
+  //return renodx::draw::RenderIntermediatePass(outputColor);
+  return outputColor;
+}
+
+float3 HDRSaturate(float3 value) {
+  if (RENODX_TONE_MAP_TYPE == 0.f) {
+    return saturate(value);
+  }
+  value = max(0, value);
+  value = min(RENODX_PEAK_WHITE_NITS, value);
+  // value = renodx::tonemap::renodrt::NeutralSDR(value);
+  return value;
 }
