@@ -20,8 +20,10 @@
 namespace {
 
 renodx::mods::shader::CustomShaders custom_shaders = {
-    CustomShaderEntry(0x9AD01C26),  // Grading
+    CustomShaderEntry(0x9AD01C26), // Tonemapping
     CustomShaderEntry(0xADC96AE9), // Bloom + Anamorphic Flare
+    CustomShaderEntry(0xB456B938), // Intermediate
+    CustomShaderEntry(0x20E947AC), // Grading
 };
 
 ShaderInjectData shader_injection;
@@ -36,16 +38,16 @@ const std::unordered_map<std::string, float> VANILLA_PLUS_VALUES = {
     {"ColorGradeStrength", 70.f},
 };
 
-const std::unordered_map<std::string, float> CUSTOM_VALUES = {
-    {"ToneMapConfiguration", 1.f},
-    {"ToneMapScaling", 1.f},
-    {"ColorGradeHighlights", 58.f},
-    {"ColorGradeContrast", 65.f},
-    {"ColorGradeSaturation", 67.f},
-    {"ColorGradeHighlightSaturation", 42.f},
-    {"ColorGradeBlowout", 40.f},
-    {"ColorGradeFlare", 63.f},
-};
+// const std::unordered_map<std::string, float> CUSTOM_VALUES = {
+//     {"ToneMapConfiguration", 1.f},
+//     {"ToneMapScaling", 1.f},
+//     {"ColorGradeHighlights", 58.f},
+//     {"ColorGradeContrast", 65.f},
+//     {"ColorGradeSaturation", 67.f},
+//     {"ColorGradeHighlightSaturation", 42.f},
+//     {"ColorGradeBlowout", 40.f},
+//     {"ColorGradeFlare", 63.f},
+// };
 
 const std::unordered_map<std::string, float> CANNOT_PRESET_VALUES = {
     {"ToneMapPeakNits", 0},
@@ -278,9 +280,22 @@ renodx::utils::settings::Settings settings = {
         .binding = &shader_injection.tone_map_color_grade_strength,
         .value_type = renodx::utils::settings::SettingValueType::FLOAT,
         .default_value = 100.f,
-        .label = "Color Grading Strength",
+        .label = "Pre-Tonemapping Grade",
         .section = "Color Grading",
-        .tooltip = "Chooses strength of original color grading.",
+        .tooltip = "Adjust the strength of original tonemappers color grading.",
+        .max = 100.f,
+        .is_enabled = []() { return shader_injection.tone_map_type == 3; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return settings[0]->GetValue() >= 1; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeStrengthTwo",
+        .binding = &shader_injection.tone_map_color_grade_strength_two,
+        .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+        .default_value = 100.f,
+        .label = "Post-Tonemapping Grade",
+        .section = "Color Grading",
+        .tooltip = "Adjust the strength of the second grading pass. Only used in some tracks.",
         .max = 100.f,
         .is_enabled = []() { return shader_injection.tone_map_type == 3; },
         .parse = [](float value) { return value * 0.01f; },
@@ -544,7 +559,8 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("FxColorGradeStrength", 100.f);
   renodx::utils::settings::UpdateSetting("FxPostColorGrading", 100.f);
   renodx::utils::settings::UpdateSetting("FxBloom", 50.f);
-  renodx::utils::settings::UpdateSetting("FxSpeedLines", 50.f);
+  renodx::utils::settings::UpdateSetting("FxAnamorphicFlare", 50.f);
+  renodx::utils::settings::UpdateSetting("FxAutoExposure", 50.f);
 }
 
 bool fired_on_init_swapchain = false;
