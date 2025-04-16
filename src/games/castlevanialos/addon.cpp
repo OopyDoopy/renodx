@@ -468,7 +468,7 @@ void OnPresetOff() {
   // renodx::utils::settings::UpdateSetting("ColorGradeHighlightSaturation", 1.f);
   // renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 1.f);
   // renodx::utils::settings::UpdateSetting("ColorGradeFlare", 1.f);
-  renodx::utils::settings::UpdateSetting("FxBloom", 50.f);
+  renodx::utils::settings::UpdateSetting("FxCustomExposure", 50.f);
   renodx::utils::settings::UpdateSetting("FxFilmGrainStrength", 0.f);
 }
 
