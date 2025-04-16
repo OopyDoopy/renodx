@@ -26,13 +26,15 @@
 //#define RENODX_SWAP_CHAIN_DECODING           0
 //#define RENODX_INTERMEDIATE_ENCODING         0
 //#define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
-#define CUSTOM_LUT_STRENGTH                   1.f
-#define CUSTOM_LUT_SCALING                    shader_injection.custom_lut_scaling
-#define CUSTOM_LUT_TETRAHEDRAL                1
-//#define CUSTOM_BLOOM                         shader_injection.custom_bloom
-#define CUSTOM_FILM_GRAIN_STRENGTH             shader_injection.custom_film_grain_strength
-#define CUSTOM_RANDOM                          shader_injection.custom_random
-#define CUSTOM_EXPOSURE                        shader_injection.custom_exposure
+#define CUSTOM_LUT_STRENGTH                  1.f
+#define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
+#define CUSTOM_LUT_TETRAHEDRAL               1
+#define CUSTOM_BLOOM                         shader_injection.custom_bloom
+#define CUSTOM_SUN_RAY_INTENSITY             shader_injection.custom_sun_ray_intensity
+#define CUSTOM_SUN_RAY_LENGTH                shader_injection.custom_sun_ray_length
+#define CUSTOM_FILM_GRAIN_STRENGTH           shader_injection.custom_film_grain_strength
+#define CUSTOM_RANDOM                        shader_injection.custom_random
+#define CUSTOM_EXPOSURE                      shader_injection.custom_exposure
 
 // Must be 32bit aligned
 // Should be 4x32
@@ -62,6 +64,8 @@ struct ShaderInjectData {
   float custom_lut_strength;
   //float custom_lut_tetrahedral;
   float custom_bloom;
+  float custom_sun_ray_intensity;
+  float custom_sun_ray_length;
   float custom_film_grain_strength;
   float custom_random;
   float custom_exposure;

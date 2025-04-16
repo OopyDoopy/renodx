@@ -1,3 +1,5 @@
+#include "./shared.h"
+
 // ---- Created with 3Dmigoto v1.4.1 on Wed Apr 16 00:10:52 2025
 Texture2D<float4> t1 : register(t1);
 
@@ -43,9 +45,14 @@ void main(
   //r0.xyzw = (int4)r0.xyzw & asint(cb3[44].xyzw);
   //r0.xyzw = (int4)r0.xyzw | asint(cb3[45].xyzw);
   r1.xyzw = t1.Sample(s1_s, v5.xy).xyzw;
-  //r1.xyzw = (int4)r1.xyzw & asint(cb3[46].xyzw);
-  //r1.xyzw = (int4)r1.xyzw | asint(cb3[47].xyzw);
+  // r1.xyzw = (int4)r1.xyzw & asint(cb3[46].xyzw);
+  // r1.xyzw = (int4)r1.xyzw | asint(cb3[47].xyzw);
+
+  //r0.xyz = renodx::draw::RenderIntermediatePass(renodx::draw::InvertIntermediatePass(r0.xyz));
+
   o0.xyzw = r1.xyzw + r0.xyzw;
+
+  //o0.rgb = renodx::draw::RenderIntermediatePass(renodx::draw::InvertIntermediatePass(o0.rgb));
 
   float3 untonemapped = r1.rgb;
   float3 sdr_color = o0.rgb;

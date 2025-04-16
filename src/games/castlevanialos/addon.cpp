@@ -35,6 +35,8 @@ renodx::mods::shader::CustomShaders custom_shaders = {
     CustomShaderEntry(0x476C8032),  // gamma
     CustomShaderEntry(0xC3A894A3),  // video
     CustomShaderEntry(0x53C984D4),  // subtitles
+    CustomShaderEntry(0xD45FAC70),  // sunrays
+    CustomShaderEntry(0xD50CABBC),  // bloom
 
     //UpgradeRTVShader(0x880A17D3),
     //UpgradeRTVReplaceShader(0x476C8032),
@@ -302,7 +304,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "FxFilmGrainStrength",
         .binding = &CUSTOM_FILM_GRAIN_STRENGTH,
-        .default_value = 50.f,
+        .default_value = 30.f,
         .label = "Film Grain Strength",
         .section = "Effects",
         .max = 100.f,
@@ -329,16 +331,36 @@ renodx::utils::settings::Settings settings = {
     //     .max = 100.f,
     //     .parse = [](float value) { return value * 0.02f; },
     // },
-    // new renodx::utils::settings::Setting{
-    //     .key = "FxBloom",
-    //     .binding = &CUSTOM_BLOOM,
-    //     .default_value = 50.f,
-    //     .label = "Bloom",
-    //     .section = "Effects",
-    //     .tooltip = "Adjust the intensity of bloom.",
-    //     .max = 100.f,
-    //     .parse = [](float value) { return value * 0.02f; },
-    // },
+    new renodx::utils::settings::Setting{
+        .key = "FxBloom",
+        .binding = &CUSTOM_BLOOM,
+        .default_value = 50.f,
+        .label = "Bloom",
+        .section = "Effects",
+        .tooltip = "Adjust the intensity of bloom.",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.02f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "FxSunRayIntensity",
+        .binding = &CUSTOM_SUN_RAY_INTENSITY,
+        .default_value = 50.f,
+        .label = "Sun Ray Intensity",
+        .section = "Effects",
+        .tooltip = "Adjust the intensity of Sun Rays.",
+        .max = 200.f,
+        .parse = [](float value) { return value * 0.02f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "FxSunRayLength",
+        .binding = &CUSTOM_SUN_RAY_LENGTH,
+        .default_value = 100.f,
+        .label = "Sun Ray Length",
+        .section = "Effects",
+        .tooltip = "Adjust the length of Sun Rays. 100 is full screen.",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.01f; },
+    },
     // new renodx::utils::settings::Setting{
     //     .key = "FxDOF",
     //     .binding = &CUSTOM_DOF,
@@ -469,6 +491,8 @@ void OnPresetOff() {
   // renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 1.f);
   // renodx::utils::settings::UpdateSetting("ColorGradeFlare", 1.f);
   renodx::utils::settings::UpdateSetting("FxCustomExposure", 50.f);
+  renodx::utils::settings::UpdateSetting("FxSunShaftIntensity", 50.f);
+  renodx::utils::settings::UpdateSetting("FxSunShaftLength", 100.f);
   renodx::utils::settings::UpdateSetting("FxFilmGrainStrength", 0.f);
 }
 

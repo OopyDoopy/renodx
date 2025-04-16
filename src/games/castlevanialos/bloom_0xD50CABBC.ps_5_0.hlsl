@@ -1,3 +1,5 @@
+#include "./shared.h"
+
 // ---- Created with 3Dmigoto v1.4.1 on Tue Apr 15 09:35:48 2025
 Texture2D<float4> t0 : register(t0);
 
@@ -112,8 +114,10 @@ void main(
   r0.xyzw = cb4[36].xyzw * r1.xyzw + r0.xyzw;
   r1.xy = v5.xy + cb4[22].xy;
   r1.xyzw = t0.Sample(s0_s, r1.xy).xyzw;
- //r1.xyzw = (int4)r1.xyzw & asint(cb3[44].xyzw);
- //r1.xyzw = (int4)r1.xyzw | asint(cb3[45].xyzw);
+  // r1.xyzw = (int4)r1.xyzw & asint(cb3[44].xyzw);
+  // r1.xyzw = (int4)r1.xyzw | asint(cb3[45].xyzw);
+
   o0.xyzw = cb4[37].xyzw * r1.xyzw + r0.xyzw;
+  //o0.xyzw = cb4[37].xyzw * r1.xyzw + (r0.xyzw * CUSTOM_BLOOM);
   return;
 }
