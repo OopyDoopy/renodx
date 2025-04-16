@@ -35,8 +35,10 @@ renodx::mods::shader::CustomShaders custom_shaders = {
     CustomShaderEntry(0x476C8032),  // gamma
     CustomShaderEntry(0xC3A894A3),  // video
     CustomShaderEntry(0x53C984D4),  // subtitles
-    CustomShaderEntry(0xD45FAC70),  // sunrays
+    CustomShaderEntry(0xD45FAC70),  // sunrays2
     CustomShaderEntry(0xD50CABBC),  // bloom
+    CustomShaderEntry(0xF7BE1DE7),  // sunrays1
+    CustomShaderEntry(0x35D82084),  // sunrays3
 
     //UpgradeRTVShader(0x880A17D3),
     //UpgradeRTVReplaceShader(0x476C8032),
@@ -491,8 +493,8 @@ void OnPresetOff() {
   // renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 1.f);
   // renodx::utils::settings::UpdateSetting("ColorGradeFlare", 1.f);
   renodx::utils::settings::UpdateSetting("FxCustomExposure", 50.f);
-  renodx::utils::settings::UpdateSetting("FxSunShaftIntensity", 50.f);
-  renodx::utils::settings::UpdateSetting("FxSunShaftLength", 100.f);
+  renodx::utils::settings::UpdateSetting("FxSunRayIntensity", 50.f);
+  renodx::utils::settings::UpdateSetting("FxSunRayLength", 100.f);
   renodx::utils::settings::UpdateSetting("FxFilmGrainStrength", 0.f);
 }
 
