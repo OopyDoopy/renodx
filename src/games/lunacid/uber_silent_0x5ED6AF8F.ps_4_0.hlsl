@@ -52,6 +52,8 @@ void main(
   float4 fDest;
 
   r0.xyzw = t1.Sample(s1_s, w1.xy).xyzw;
+
+  // srgb to linear
   r1.xyz = float3(0.0549999997,0.0549999997,0.0549999997) + r0.xyz;
   r1.xyz = float3(0.947867334,0.947867334,0.947867334) * r1.xyz;
   r1.xyz = max(float3(1.1920929e-07,1.1920929e-07,1.1920929e-07), abs(r1.xyz));
@@ -61,6 +63,9 @@ void main(
   r2.xyz = float3(0.0773993805,0.0773993805,0.0773993805) * r0.xyz;
   r3.xyz = cmp(float3(0.0404499993,0.0404499993,0.0404499993) >= r0.xyz);
   r1.xyz = r3.xyz ? r2.xyz : r1.xyz;
+
+  //r1.xyz = renodx::color::srgb::DecodeSafe(r0.xyz);
+
   r2.xyzw = t2.Sample(s2_s, v1.xy).xyzw;
   r0.xyz = r2.xxx * r1.xyz;
   r1.xyzw = float4(-1,-1,1,1) * cb0[32].xyxy;
@@ -95,9 +100,15 @@ void main(
   r2.xyzw = t6.Sample(s6_s, r1.yz).xyzw;
   r1.yzw = r2.xyz * r0.xyz;
   r1.yzw = cb0[40].www * r1.yzw;
-  r0.xyz = saturate(r1.yzw * r1.xxx + r0.xyz);
+
+  // r0.xyz = saturate(r1.yzw * r1.xxx + r0.xyz);
+  r0.xyz = r1.yzw * r1.xxx + r0.xyz;
+
   r0.w = saturate(r0.w);
   o0.w = r0.w;
+
+  float3 untonemapped = r0.rgb;
+  r0.xyz = saturate(untonemapped);
 
   // linear to srgb
   r1.xyz = max(float3(1.1920929e-07,1.1920929e-07,1.1920929e-07), r0.zxy);
@@ -109,7 +120,7 @@ void main(
   r0.xyz = cmp(float3(0.00313080009,0.00313080009,0.00313080009) >= r0.zxy);
   r0.xyz = r0.xyz ? r2.xyz : r1.xyz;
 
-
+ // LUT Sampling
   r0.yzw = cb0[36].zzz * r0.xyz;
   r0.y = floor(r0.y);
   r0.x = r0.x * cb0[36].z + -r0.y;
@@ -123,12 +134,12 @@ void main(
   r2.xyzw = t5.Sample(s5_s, r0.yz).xyzw;
   r0.yzw = r2.xyz + -r1.xyz;
   r0.xyz = r0.xxx * r0.yzw + r1.xyz;
-  r1.xyz = float3(0.0549999997,0.0549999997,0.0549999997) + r0.xyz;
-  r1.xyz = float3(0.947867334,0.947867334,0.947867334) * r1.xyz;
 
-  float3 untonemapped = renodx::color::srgb::DecodeSafe(r1.rgb);
+  float3 tonemapped_bt709 = renodx::color::srgb::DecodeSafe(r1.rgb);
 
   // srgb to linear (srgb decode)
+  r1.xyz = float3(0.0549999997, 0.0549999997, 0.0549999997) + r0.xyz;
+  r1.xyz = float3(0.947867334, 0.947867334, 0.947867334) * r1.xyz;
   r1.xyz = max(float3(1.1920929e-07,1.1920929e-07,1.1920929e-07), abs(r1.xyz));
   r1.xyz = log2(r1.xyz);
   r1.xyz = float3(2.4000001,2.4000001,2.4000001) * r1.xyz;
@@ -161,6 +172,6 @@ void main(
 
   float3 sdr_color = renodx::color::srgb::DecodeSafe(o0.rgb);
 
-  o0.rgb = CustomTonemapClip(untonemapped, sdr_color);
+  o0.rgb = CustomTonemap(untonemapped, tonemapped_bt709, sdr_color);
   return;
 }
