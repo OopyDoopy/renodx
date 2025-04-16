@@ -92,7 +92,7 @@ void main(
   r5.xyz = cmp(float3(0.0404499993,0.0404499993,0.0404499993) >= r1.xyz);
   r3.xyz = r5.xyz ? r4.xyz : r3.xyz;
 
-  // bloom
+  // bloom????
   r4.xyzw = t2.Sample(s2_s, v1.xy).xyzw;
   r1.xyz = r4.xxx * r3.xyz;
   r1.xyzw = r1.xyzw + r2.xyzw;
