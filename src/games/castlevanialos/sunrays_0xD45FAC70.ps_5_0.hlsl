@@ -1,3 +1,5 @@
+#include "./shared.h"
+
 // ---- Created with 3Dmigoto v1.4.1 on Wed Apr 16 00:59:22 2025
 Texture2D<float4> t0 : register(t0);
 
@@ -41,9 +43,13 @@ void main(
   float4 fDest;
 
   r0.xyzw = t0.Sample(s0_s, v5.xy).xyzw;
-  //r0.xyzw = (int4)r0.xyzw & asint(cb3[44].xyzw);
-  //r0.xyzw = (int4)r0.xyzw | asint(cb3[45].xyzw);
+  // r0.xyzw = (int4)r0.xyzw & asint(cb3[44].xyzw);
+  // r0.xyzw = (int4)r0.xyzw | asint(cb3[45].xyzw);
+
+  // Sun Ray Direction
   r1.xy = -v5.xy + cb4[8].xy;
+
+
   r2.z = dot(r1.xy, r1.xy);
   r1.z = 0 + r2.z;
   r2.y = rsqrt(abs(r1.z));
@@ -58,7 +64,11 @@ void main(
   r4.xyz = max(int3(0,0,-2147483648), (int3)r4.xyz);
   while (true) {
     if (r4.x == 0) break;
-    r3.xy = r1.xy * cb4[8].ww + r3.xy;
+
+    // Sun Ray Length
+    //r3.xy = r1.xy * cb4[8].ww + r3.xy;
+    r3.xy = r1.xy * (cb4[8].ww * CUSTOM_SUN_RAY_LENGTH) + r3.xy;
+
     r5.xyzw = t0.Sample(s0_s, r3.xy).xyzw;
     //r5.xyzw = (int4)r5.xyzw & asint(cb3[44].xyzw);
     //r5.xyzw = (int4)r5.xyzw | asint(cb3[45].xyzw);
@@ -66,7 +76,11 @@ void main(
     r4.x = (int)r4.x + -1;
   }
   r0.x = saturate(1.5 + -r1.z);
-  r0.x = cb4[8].z * r0.x;
+
+  // Sun Ray Intensity
+  //r0.x = cb4[8].z * r0.x;
+  r0.x = (cb4[8].z * CUSTOM_SUN_RAY_INTENSITY) * r0.x;
+
   r0.xyzw = r2.xyzw * r0.xxxx;
   o0.xyzw = float4(0.0500000007,0.0500000007,0.0500000007,0.0500000007) * r0.xyzw;
   return;

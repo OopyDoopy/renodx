@@ -43,11 +43,10 @@ void main(
   r0.xyzw = t0.Sample(s0_s, v5.xy).xyzw;
   //r0.xyzw = (int4)r0.xyzw & asint(cb3[44].xyzw);
   //r0.xyzw = (int4)r0.xyzw | asint(cb3[45].xyzw);
+
   o0.xyz = v2.xyz * r0.xyz;
   r0.x = v2.w * cb4[8].x + -cb4[8].x;
   r0.x = 1 + r0.x;
   o0.w = r0.w * r0.x;
-
-  //o0.rgb += 10;
   return;
 }
