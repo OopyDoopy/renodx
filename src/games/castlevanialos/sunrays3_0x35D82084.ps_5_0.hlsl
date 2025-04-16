@@ -47,15 +47,12 @@ void main(
   r1.xyzw = t1.Sample(s1_s, v5.xy).xyzw;
   // r1.xyzw = (int4)r1.xyzw & asint(cb3[46].xyzw);
   // r1.xyzw = (int4)r1.xyzw | asint(cb3[47].xyzw);
-
-  //r0.xyz = renodx::draw::RenderIntermediatePass(renodx::draw::InvertIntermediatePass(r0.xyz));
-
   o0.xyzw = r1.xyzw + r0.xyzw;
 
-  //o0.rgb = renodx::draw::RenderIntermediatePass(renodx::draw::InvertIntermediatePass(o0.rgb));
-
-  float3 untonemapped = r1.rgb;
-  float3 sdr_color = o0.rgb;
-  //o0.rgb = untonemapped;
+  if (RENODX_TONE_MAP_TYPE != 0) {
+    //o0.xyz = renodx::tonemap::dice::BT709(renodx::color::srgb::DecodeSafe(o0.xyz), RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS);
+    o0.xyz = renodx::tonemap::ExponentialRollOff(renodx::color::srgb::DecodeSafe(o0.xyz), RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS);
+    o0.xyz = renodx::color::srgb::EncodeSafe(o0.xyz);
+  }
   return;
 }
