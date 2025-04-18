@@ -8,7 +8,8 @@ float3 CustomTonemap(float3 untonemapped, float3 sdr_color, float2 texcords) {
     outputColor = sdr_color;
   } 
   else {
-    outputColor = renodx::draw::ToneMapPass(untonemapped, sdr_color);
+    outputColor = renodx::draw::ToneMapPass(untonemapped);
+    //outputColor = renodx::draw::ToneMapPass(untonemapped, sdr_color);
   }
 
   outputColor = renodx::effects::ApplyFilmGrain(
