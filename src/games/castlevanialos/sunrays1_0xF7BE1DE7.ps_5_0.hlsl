@@ -44,8 +44,8 @@ void main(
   //r0.xyz = renodx::draw::InvertIntermediatePass(r0.xyz);
   //r0.xyz = renodx::color::srgb::EncodeSafe(r0.xyz);
 
-  r0.xyz = renodx::color::srgb::DecodeSafe(r0.xyz);
-  r0.xyz = renodx::draw::RenderIntermediatePass(r0.xyz);
+  //r0.xyz = renodx::color::srgb::DecodeSafe(r0.xyz);
+  //r0.xyz = renodx::draw::RenderIntermediatePass(r0.xyz);
   //r0.rgb = renodx::draw::RenderIntermediatePass(renodx::draw::InvertIntermediatePass(r0.rgb));
 
   o0.xyz = r0.xyz * r0.www;

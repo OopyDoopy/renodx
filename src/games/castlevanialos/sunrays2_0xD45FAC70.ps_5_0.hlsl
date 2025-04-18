@@ -43,8 +43,8 @@ void main(
   float4 fDest;
 
   r0.xyzw = t0.Sample(s0_s, v5.xy).xyzw;
-  // r0.xyzw = (int4)r0.xyzw & asint(cb3[44].xyzw);
-  // r0.xyzw = (int4)r0.xyzw | asint(cb3[45].xyzw);
+  ////r0.xyzw = (int4)r0.xyzw & asint(cb3[44].xyzw);
+  ////r0.xyzw = (int4)r0.xyzw | asint(cb3[45].xyzw);
 
   // Sun Ray Direction
   r1.xy = -v5.xy + cb4[8].xy;

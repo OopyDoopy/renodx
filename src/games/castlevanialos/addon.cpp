@@ -28,17 +28,36 @@ namespace {
 
 ShaderInjectData shader_injection;
 
+int executed_shader_count = 0;  // Counter for executed post-process shaders
+
+bool UpdateTonemappedState(reshade::api::command_list* cmd_list) {
+  ++executed_shader_count;
+
+  // Value updates before shader is run,
+  // so set `isTonemapped` to 1.f only after the second shader is found
+  if (executed_shader_count >= 2) {
+    IS_TONEMAPPED = 1.f;
+  }
+  return true;  // Allow the shader to execute
+}
+
+void ResetShaderCount() {
+  executed_shader_count = 0;            // Reset the counter
+  IS_TONEMAPPED = 0.f;  // Reset tonemapped state
+}
+
 
 renodx::mods::shader::CustomShaders custom_shaders = {
     CustomShaderEntry(0xB9D8E2E6),  // book
-    CustomShaderEntry(0x2C4D7C55),  // game
+    CustomShaderEntryCallback(0x2C4D7C55, &UpdateTonemappedState),  // exposure
     CustomShaderEntry(0x476C8032),  // gamma
     CustomShaderEntry(0xC3A894A3),  // video
     CustomShaderEntry(0x53C984D4),  // subtitles
     CustomShaderEntry(0xD45FAC70),  // sunrays2
-    CustomShaderEntry(0xD50CABBC),  // bloom
-    CustomShaderEntry(0xF7BE1DE7),  // sunrays1
-    CustomShaderEntry(0x35D82084),  // sunrays3
+    //CustomShaderEntry(0xD50CABBC),  // bloom
+    //CustomShaderEntry(0xF7BE1DE7),  // sunrays1
+    CustomShaderEntryCallback(0x35D82084, &UpdateTonemappedState),  // sunrays3
+    CustomShaderEntry(0x8B7E874F),  // ui
 
     //UpgradeRTVShader(0x880A17D3),
     //UpgradeRTVReplaceShader(0x476C8032),
@@ -86,8 +105,8 @@ renodx::utils::settings::Settings settings = {
         .label = "Tone Mapper",
         .section = "Tone Mapping",
         .tooltip = "Sets the tone mapper type",
-        .labels = {"Vanilla", "RenoDRT"},
-        .parse = [](float value) { return value * 3.f; },
+        .labels = {"Vanilla", "None", "ACES", "RenoDRT"},
+        .parse = [](float value) { return value; },
         .is_visible = []() { return settings[0]->GetValue() >= 2; },
     },
     new renodx::utils::settings::Setting{
@@ -517,6 +536,7 @@ void OnPresent(
     const reshade::api::rect* dest_rect,
     uint32_t dirty_rect_count,
     const reshade::api::rect* dirty_rects) {
+    ResetShaderCount();
     static std::mt19937 random_generator(std::chrono::system_clock::now().time_since_epoch().count());
     static auto random_range = static_cast<float>(std::mt19937::max() - std::mt19937::min());
   CUSTOM_RANDOM = static_cast<float>(random_generator() + std::mt19937::min()) / random_range;
