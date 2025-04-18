@@ -81,7 +81,7 @@ void main(
 
   float3 untonemapped = renodx::color::srgb::DecodeSafe(o0.rgb);
   float3 sdr_color = saturate(untonemapped);
-  sdr_color = renodx::tonemap::uncharted2::BT709(untonemapped);
+  //sdr_color = renodx::tonemap::uncharted2::BT709(untonemapped);
   o0.rgb = CustomTonemap(untonemapped, sdr_color, v5.xy);
 
   o0.w = 1;

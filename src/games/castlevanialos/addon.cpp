@@ -70,12 +70,15 @@ const std::string build_time = __TIME__;
 
 const std::unordered_map<std::string, float> HDR_LOOK_VALUES = {
     {"ToneMapHueProcessor", 1.f},
-    {"ColorGradeHighlights", 55.f},
-    {"ColorGradeContrast", 58.f},
-    {"ColorGradeSaturation", 70.f},
-    {"ColorGradeBlowout", 70.f},
+    {"ColorGradeHighlights", 60.f},
+    {"ColorGradeContrast", 50.f},
+    {"ColorGradeSaturation", 80.f},
+    {"ColorGradeHighlightSaturation", 45.f},
+    {"ColorGradeBlowout", 75.f},
+    {"ColorGradeFlare", 60.f},
     {"FxCustomExposure", 75.f},
     {"ToneMapWhiteClip", 20.f},
+    {"FxSunRayIntensity", 100.f},
 };
 
 const std::unordered_map<std::string, float> CANNOT_PRESET_VALUES = {
@@ -100,7 +103,7 @@ renodx::utils::settings::Settings settings = {
         .key = "ToneMapType",
         .binding = &RENODX_TONE_MAP_TYPE,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
+        .default_value = 3.f,
         .can_reset = true,
         .label = "Tone Mapper",
         .section = "Tone Mapping",
@@ -144,7 +147,7 @@ renodx::utils::settings::Settings settings = {
         .key = "ToneMapHueProcessor",
         .binding = &RENODX_TONE_MAP_HUE_PROCESSOR,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
+        .default_value = 1.f,
         .label = "Hue Processor",
         .section = "Tone Mapping",
         .tooltip = "Selects hue processor",
