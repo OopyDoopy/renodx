@@ -1,4 +1,4 @@
-#include "./shared.h"
+#include "./common.hlsl"
 
 // ---- Created with 3Dmigoto v1.4.1 on Wed Apr 16 00:10:52 2025
 Texture2D<float4> t1 : register(t1);
@@ -45,14 +45,18 @@ void main(
   //r0.xyzw = (int4)r0.xyzw & asint(cb3[44].xyzw);
   //r0.xyzw = (int4)r0.xyzw | asint(cb3[45].xyzw);
   r1.xyzw = t1.Sample(s1_s, v5.xy).xyzw;
-  // r1.xyzw = (int4)r1.xyzw & asint(cb3[46].xyzw);
-  // r1.xyzw = (int4)r1.xyzw | asint(cb3[47].xyzw);
+  ////r1.xyzw = (int4)r1.xyzw & asint(cb3[46].xyzw);
+  ////r1.xyzw = (int4)r1.xyzw | asint(cb3[47].xyzw);
+
+  //r1.xyz = renodx::draw::InvertIntermediatePass(r1.xyz);
+  //r1.xyz = renodx::color::srgb::EncodeSafe(r1.xyz);
+
   o0.xyzw = r1.xyzw + r0.xyzw;
 
-  if (RENODX_TONE_MAP_TYPE != 0) {
-    //o0.xyz = renodx::tonemap::dice::BT709(renodx::color::srgb::DecodeSafe(o0.xyz), RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS);
-    o0.xyz = renodx::tonemap::ExponentialRollOff(renodx::color::srgb::DecodeSafe(o0.xyz), RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS);
-    o0.xyz = renodx::color::srgb::EncodeSafe(o0.xyz);
-  }
+  float3 untonemapped = renodx::color::srgb::DecodeSafe(o0.rgb);
+  float3 sdr_color = saturate(untonemapped);
+
+  //o0.rgb = CustomTonemap(untonemapped, sdr_color, v5.xy);
+
   return;
 }

@@ -36,6 +36,8 @@
 #define CUSTOM_RANDOM                        shader_injection.custom_random
 #define CUSTOM_EXPOSURE                      shader_injection.custom_exposure
 
+#define IS_TONEMAPPED                        shader_injection.isTonemapped
+
 // Must be 32bit aligned
 // Should be 4x32
 struct ShaderInjectData {
@@ -69,6 +71,7 @@ struct ShaderInjectData {
   float custom_film_grain_strength;
   float custom_random;
   float custom_exposure;
+  float isTonemapped;
 };
 
 #ifndef __cplusplus

@@ -65,8 +65,9 @@ void main(
   o0.w = 1;
 
   float3 untonemapped = renodx::color::srgb::DecodeSafe(o0.rgb);
-  float3 sdr_color = renodx::color::srgb::DecodeSafe(saturate(o0.rgb));
+  float3 sdr_color = saturate(untonemapped);
 
-  o0.rgb = CustomTonemap(untonemapped, sdr_color);
+  o0.rgb = CustomTonemap(untonemapped, sdr_color, v5.xy);
+  //o0.rgb = renodx::draw::RenderIntermediatePass(o0.rgb);
   return;
 }
