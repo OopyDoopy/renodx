@@ -20,5 +20,6 @@ void main(
   r0.xy = (int2)v1.xy;
   r0.zw = float2(0,0);
   o0.xyzw = t0.Load(r0.xyz).xyzw;
+  //o0.rgb = 10;
   return;
 }

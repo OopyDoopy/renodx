@@ -48,19 +48,11 @@ void ResetShaderCount() {
 
 
 renodx::mods::shader::CustomShaders custom_shaders = {
-    CustomShaderEntry(0xB9D8E2E6),  // book
-    CustomShaderEntryCallback(0x2C4D7C55, &UpdateTonemappedState),  // exposure
-    CustomShaderEntry(0x476C8032),  // gamma
+    CustomShaderEntry(0x0BBBF840), 
+    CustomShaderEntry(0x0E1E3B4D),
+    CustomShaderEntry(0x880A17D3),
     CustomShaderEntry(0xC3A894A3),  // video
-    CustomShaderEntry(0x53C984D4),  // subtitles
-    CustomShaderEntry(0xD45FAC70),  // sunrays2
-    //CustomShaderEntry(0xD50CABBC),  // bloom
-    //CustomShaderEntry(0xF7BE1DE7),  // sunrays1
-    CustomShaderEntryCallback(0x35D82084, &UpdateTonemappedState),  // sunrays3
-    CustomShaderEntry(0x8B7E874F),  // ui
-
-    //UpgradeRTVShader(0x880A17D3),
-    //UpgradeRTVReplaceShader(0x476C8032),
+    CustomShaderEntry(0xC9D34264), 
 };
 
 
