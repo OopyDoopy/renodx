@@ -61,6 +61,18 @@ renodx::mods::shader::CustomShaders custom_shaders = {
 
     //UpgradeRTVShader(0x880A17D3),
     //UpgradeRTVReplaceShader(0x476C8032),
+    //------LoS2------//
+    CustomShaderEntry(0xC39D4062),  // videos
+    CustomShaderEntry(0xEF036E36),  // subtitles
+    CustomShaderEntry(0x0BBBF840),  // tonemap
+    CustomShaderEntry(0x3DC8491D),  // tonemap
+    CustomShaderEntry(0x8EFA952B),  // tonemap
+    CustomShaderEntry(0x09E1F794),  // tonemap
+    CustomShaderEntry(0x86DAD59B),  // tonemap
+    CustomShaderEntry(0xB9E4C979),  // tonemap
+    CustomShaderEntry(0xC9D34264),  // tonemap
+    CustomShaderEntry(0x0E1E3B4D),  // sharpen
+    CustomShaderEntry(0x450587EA),  // gamma
 };
 
 
