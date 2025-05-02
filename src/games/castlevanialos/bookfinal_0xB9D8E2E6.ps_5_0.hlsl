@@ -53,7 +53,8 @@ void main(
   ////r1.xyzw = (int4)r1.xyzw & asint(cb3[48].xyzw);
   ////r1.xyzw = (int4)r1.xyzw | asint(cb3[49].xyzw);
   r0.xyz = r0.xyz * cb4[8].xxx + r1.xyz;
-  r0.w = dot(r0.xyz, float3(0.298999995,0.587000012,0.114));
+  //r0.w = dot(r0.xyz, float3(0.298999995,0.587000012,0.114));
+  r0.w = renodx::color::y::from::NTSC1953(r0.xyz);
   r1.xyz = r0.www * cb4[9].xyz + -r0.xyz;
   r0.w = 1 + -r0.w;
   r0.w = saturate(cb4[9].w * r0.w);
