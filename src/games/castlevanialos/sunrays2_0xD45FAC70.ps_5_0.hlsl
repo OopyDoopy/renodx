@@ -51,17 +51,18 @@ void main(
 
 
   r2.z = dot(r1.xy, r1.xy);
-  r1.z = 0 + r2.z;
+  /*r1.z = 0 + r2.z;
   r2.y = rsqrt(abs(r1.z));
   r2.x = cmp((int)r2.y == 0x7f800000);
   r1.z = r2.x ? 99999999 : r2.y;
-  r2.y = cmp(0 < abs(r1.z));
+  /*r2.y = cmp(0 < abs(r1.z));
   r2.x = rcp(r1.z);
-  r1.z = saturate(r2.y ? r2.x : 99999999);
+  r1.z = saturate(r2.y ? r2.x : 99999999);*/
+  r1.z = sqrt(r2.z);
   r2.xyzw = r0.xyzw;
   r3.xy = v5.xy;
   r4.xyz = float3(19,0,0);
-  r4.xyz = max(int3(0,0,-2147483648), (int3)r4.xyz);
+  r4.xyz = max(int3(0,0,-128), (int3)r4.xyz);
   while (true) {
     if (r4.x == 0) break;
 
@@ -82,6 +83,6 @@ void main(
   r0.x = (cb4[8].z * CUSTOM_SUN_RAY_INTENSITY) * r0.x;
 
   r0.xyzw = r2.xyzw * r0.xxxx;
-  o0.xyzw = float4(0.0500000007,0.0500000007,0.0500000007,0.0500000007) * r0.xyzw;
+  o0.xyzw = float4(0.05,0.05,0.05,0.05) * r0.xyzw;
   return;
 }
