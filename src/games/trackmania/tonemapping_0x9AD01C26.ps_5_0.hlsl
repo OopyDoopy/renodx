@@ -133,7 +133,8 @@ void main(
   if (r0.z != 0) {
     r0.z = TMapAvgLumi_KeyValue.Sample(SGbxClamp_Point_s, LoadFx_CB.Base.TcAutoScale.xy).z;
     // r1.xyz = r1.xyz * r0.zzz;
-    r1.xyz = r1.xyz * (r0.zzz * CUSTOM_AUTO_EXPOSURE);
+    // r1.xyz = r1.xyz * (r0.zzz * CUSTOM_AUTO_EXPOSURE);
+    r1.xyz = r1.xyz * lerp(1.f, r0.zzz, CUSTOM_AUTO_EXPOSURE);
   }
 
   float3 untonemapped = r1.rgb;
@@ -175,5 +176,6 @@ void main(
     outputColor = renodx::draw::ToneMapPass(untonemapped, tonemapped_bt709);
   }
   o0.rgb = renodx::draw::RenderIntermediatePass(outputColor);
+  //o0.rgb = renodx::draw::RenderIntermediatePass(untonemapped);
   return;
 }
