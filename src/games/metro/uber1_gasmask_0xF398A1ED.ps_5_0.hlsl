@@ -1,3 +1,5 @@
+#include "./common.hlsl"
+
 // ---- Created with 3Dmigoto v1.3.16 on Thu Aug 29 12:45:15 2024
 
 cbuffer cb_screen : register(b2)
@@ -210,21 +212,29 @@ void main(
   r0.x = pp_gasmask.w * 5 + 1;
   r1.xyz = r1.xyz * r0.xxx + float3(1,1,1);
   r0.xyz = r3.xyz * r1.xyz + r0.yzw;
+
+  float3 untonemapped = r0.xyz;
+
   r1.xyz = r3.xyz * r1.xyz;
   r1.xyz = float3(0.125,0.125,0.125) * r1.xyz;
-  r0.xyz = max(float3(0,0,0), r0.xyz);
-  //r3.xyz = r0.xyz * float3(0.150000006,0.150000006,0.150000006) + float3(0.0500000007,0.0500000007,0.0500000007);
-  //r3.xyz = r0.xyz * r3.xyz + float3(0.00400000019,0.00400000019,0.00400000019);
-  //r4.xyz = r0.xyz * float3(0.150000006,0.150000006,0.150000006) + float3(0.5,0.5,0.5);
-  //r0.xyz = r0.xyz * r4.xyz + float3(0.0600000024,0.0600000024,0.0600000024);
-  //r0.xyz = r3.xyz / r0.xyz;
-  //r0.xyz = float3(-0.0666666627,-0.0666666627,-0.0666666627) + r0.xyz;
-  //r0.xyz = r0.xyz * float3(4.53191471,4.53191471,4.53191471) + r1.xyz;
+  r3.xyz = r0.xyz * float3(0.150000006,0.150000006,0.150000006) + float3(0.0500000007,0.0500000007,0.0500000007);
+  r3.xyz = r0.xyz * r3.xyz + float3(0.00400000019,0.00400000019,0.00400000019);
+  r4.xyz = r0.xyz * float3(0.150000006,0.150000006,0.150000006) + float3(0.5,0.5,0.5);
+  r0.xyz = r0.xyz * r4.xyz + float3(0.0600000024,0.0600000024,0.0600000024);
+  r0.xyz = r3.xyz / r0.xyz;
+  r0.xyz = float3(-0.0666666627,-0.0666666627,-0.0666666627) + r0.xyz;
+  r0.xyz = r0.xyz * float3(4.53191471,4.53191471,4.53191471) + r1.xyz;
+
+  //r0.rgb = renodx::color::bt709::clamp::BT2020(r0.rgb);
+  // float3 tonemapped_bt709 = r0.rgb;
+  // r0.rgb = CustomTonemap(untonemapped, tonemapped_bt709);
+
   r1.xy = float2(-0.5,-0.5) + r2.xy;
   r0.w = r2.z * r2.z;
   r1.z = 1;
   r1.w = dot(r1.xyz, r1.xyz);
   r1.w = rsqrt(r1.w);
+
   r1.xyz = r1.xyz * r1.www;
   r1.x = dot(-pp_gasmask.xyz, r1.xyz);
   r1.x = r1.x * 0.5 + 0.5;
@@ -232,12 +242,24 @@ void main(
   r1.x = max(0.100000001, r1.x);
   r1.xyz = pp_gasmask_c.xyz * r1.xxx;
   r0.xyz = r0.www * r1.xyz + r0.xyz;
+
+  float3 ungraded_color = r0.xyz;
+
   r1.xyz = t_grade.Sample(s_clamp_bi_s, r0.zyx).xyz;
-  //r0.xyz = saturate(r0.xyz);
+  // r0.xyz = saturate(r0.xyz);
   r0.xyz = r1.zyx * float3(2,2,2) + r0.xyz;
   r0.xyz = float3(-1,-1,-1) + r0.xyz;
   r0.w = dot(r0.xyz, float3(0.298999995,0.587000012,0.114));
   o0.xyz = r0.xyz;
   o0.w = sqrt(r0.w);
+
+  float3 tonemapped_bt709 = o0.rgb;
+  o0.rgb = CustomTonemap(untonemapped, tonemapped_bt709);
+
+  //o0.rgb = lerp(ungraded_color, o0.rgb, CUSTOM_COLOR_GRADE_TWO);
+  //o0.rgb = renodx::color::bt709::clamp::BT2020(o0.rgb);
+  o0.rgb = CustomPostProcessing(o0.rgb, r0.xy);
+  o0.rgb = CustomIntermediatePass(o0.rgb);
+  //o0.w = saturate(o0.w);
   return;
 }
