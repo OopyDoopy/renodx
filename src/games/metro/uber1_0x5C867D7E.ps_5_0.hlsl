@@ -191,8 +191,8 @@ void main(
   r1.xyz = r1.xyz * r0.zzz + float3(1,1,1);
   r0.xyz = r2.xyz * r1.xyz + r0.xyw;
 
-  float3 untonemapped = r0.xyz;
-
+  float3 untonemapped = r0.rgb;
+  
   r1.xyz = r2.xyz * r1.xyz;
   r1.xyz = float3(0.125, 0.125, 0.125) * r1.xyz;
   r2.xyz = r0.xyz * float3(0.150000006,0.150000006,0.150000006) + float3(0.0500000007,0.0500000007,0.0500000007);
@@ -201,7 +201,13 @@ void main(
   r0.xyz = r0.xyz * r3.xyz + float3(0.0600000024,0.0600000024,0.0600000024);
   r0.xyz = r2.xyz / r0.xyz;
   r0.xyz = float3(-0.0666666627,-0.0666666627,-0.0666666627) + r0.xyz;
-  r0.xyz = r0.xyz * float3(4.53191471,4.53191471,4.53191471) + r1.xyz;
+  r0.xyz = r0.xyz * float3(4.53191471, 4.53191471, 4.53191471) + r1.xyz;
+
+  // float3 tonemapped_bt709 = r0.rgb;
+  // r0.rgb = CustomTonemap(untonemapped, tonemapped_bt709);
+
+  float3 ungraded_color = r0.rgb;
+
   r1.xyz = t_grade.Sample(s_clamp_bi_s, r0.zyx).xyz;
   //r0.xyz = saturate(r0.xyz);
   r0.xyz = r1.zyx * float3(2,2,2) + r0.xyz;
@@ -210,31 +216,12 @@ void main(
   o0.xyz = r0.xyz;
   o0.w = sqrt(r0.w);
 
-  float3 tonemapped_bt709 = max(float3(0, 0, 0), o0.xyz);
-
-  // float3 outputColor;
-  // if (RENODX_TONE_MAP_TYPE == 0.f) {
-  //   outputColor = renodx::color::srgb::DecodeSafe(tonemapped_bt709);
-  // } else {
-  //   outputColor = renodx::draw::ToneMapPass(
-  //       renodx::color::srgb::DecodeSafe(untonemapped),
-  //       renodx::color::srgb::DecodeSafe(tonemapped_bt709));
-  // }
-  // //   if (RENODX_TONE_MAP_TYPE == 0.f) {
-  // //         outputColor = untonemapped;
-  // //       } else {
-  // //         outputColor = renodx::draw::ToneMapPass(untonemapped, tonemapped_bt709);
-  // //       }
-  // o0.rgb = renodx::draw::RenderIntermediatePass(outputColor);
-
+  float3 tonemapped_bt709 = o0.rgb;
   o0.rgb = CustomTonemap(untonemapped, tonemapped_bt709);
-  //renodx::draw::SwapChainPass(o0.rgb);
-  //o0.rgb = tonemapped_bt709;
-  
-  // new
-  //o0.xyz = max(float3(0,0,0), r0.xyz);
 
-  //o0.xyz *= 999.f;
-  
+  //o0.rgb = lerp(ungraded_color, o0.rgb, CUSTOM_COLOR_GRADE_TWO);
+  o0.rgb = CustomPostProcessing(o0.rgb, r1.xy);
+  o0.rgb = CustomIntermediatePass(o0.rgb);
+  //o0.w = saturate(o0.w);
   return;
 }
