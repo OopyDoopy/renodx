@@ -201,6 +201,10 @@ void main(
   r1.xyz = float3(5,5,5) * r1.xyz;
   r0.w = pp_gasmask.w * 5 + 1;
   r1.xyz = r1.xyz * r0.www + float3(1,1,1);
+
+  //r1.xyz *= CUSTOM_LENS_DIRT;
+  //r2.xyz *= CUSTOM_BLOOM_STRENGTH;
+
   r3.xyz = r2.xyz * r1.xyz;
   r0.xyz = r2.xyz * r1.xyz + r0.xyz;
   r0.xyz = max(float3(0,0,0), r0.xyz);
@@ -537,8 +541,8 @@ void main(
 
   //o0.rgb = lerp(ungraded_color, o0.rgb, CUSTOM_COLOR_GRADE_TWO);
   //o0.rgb = renodx::color::bt709::clamp::BT2020(o0.rgb);
-  o0.rgb = CustomPostProcessing(o0.rgb, r0.xy);
-  o0.rgb = CustomIntermediatePass(o0.rgb);
+  //o0.rgb = CustomPostProcessing(o0.rgb, r0.xy);
+  //o0.rgb = CustomIntermediatePass(o0.rgb);
   //o0.w = saturate(o0.w);
   return;
 }
