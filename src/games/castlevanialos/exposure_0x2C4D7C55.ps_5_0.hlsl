@@ -81,10 +81,12 @@ void main(
   //o0.xyz = saturate(cb4[11].xxx * r0.xyz + r1.xxx);
   o0.xyz = cb4[11].xxx * r0.xyz + r1.xxx;
 
+  if (!CUSTOM_SUNSHAFT_CHECK) {
   float3 untonemapped = renodx::color::srgb::DecodeSafe(o0.rgb);
   float3 sdr_color = saturate(untonemapped);
   //sdr_color = renodx::tonemap::uncharted2::BT709(untonemapped);
   o0.rgb = CustomTonemap(untonemapped, sdr_color, v5.xy);
+  }
 
   o0.w = 1;
   return;
