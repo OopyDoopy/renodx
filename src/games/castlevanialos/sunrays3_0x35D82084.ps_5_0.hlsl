@@ -52,11 +52,12 @@ void main(
   //r1.xyz = renodx::color::srgb::EncodeSafe(r1.xyz);
 
   o0.xyzw = r1.xyzw + r0.xyzw;
+  if (CUSTOM_SUNSHAFT_CHECK == CUSTOM_SUNSHAFT_COUNT) {
     float3 untonemapped = renodx::color::srgb::DecodeSafe(o0.rgb);
     float3 sdr_color = saturate(untonemapped);
     // sdr_color = renodx::tonemap::uncharted2::BT709(untonemapped);
     o0.rgb = CustomTonemap(untonemapped, sdr_color, v5.xy);
-
+  } else {}
   /*if (RENODX_TONE_MAP_TYPE == 0.f) {
     o0.rgb = renodx::color::srgb::DecodeSafe(o0.rgb);
   }
