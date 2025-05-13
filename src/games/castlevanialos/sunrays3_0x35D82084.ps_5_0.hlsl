@@ -48,18 +48,23 @@ void main(
   ////r1.xyzw = (int4)r1.xyzw & asint(cb3[46].xyzw);
   ////r1.xyzw = (int4)r1.xyzw | asint(cb3[47].xyzw);
 
-  r1.xyz = renodx::draw::InvertIntermediatePass(r1.xyz);
-  r1.xyz = renodx::color::srgb::EncodeSafe(r1.xyz);
+  //r1.xyz = renodx::draw::InvertIntermediatePass(r1.xyz);
+  //r1.xyz = renodx::color::srgb::EncodeSafe(r1.xyz);
 
   o0.xyzw = r1.xyzw + r0.xyzw;
-
-  if (RENODX_TONE_MAP_TYPE == 0.f) {
+  if (CUSTOM_SUNSHAFT_CHECK == CUSTOM_SUNSHAFT_COUNT) {
+    float3 untonemapped = renodx::color::srgb::DecodeSafe(o0.rgb);
+    float3 sdr_color = saturate(untonemapped);
+    // sdr_color = renodx::tonemap::uncharted2::BT709(untonemapped);
+    o0.rgb = CustomTonemap(untonemapped, sdr_color, v5.xy);
+  } else {}
+  /*if (RENODX_TONE_MAP_TYPE == 0.f) {
     o0.rgb = renodx::color::srgb::DecodeSafe(o0.rgb);
   }
   else {
     o0.rgb = renodx::tonemap::ExponentialRollOff(renodx::color::srgb::DecodeSafe(o0.rgb), 0.2f, RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS);
   }
 
-  o0.rgb = renodx::draw::RenderIntermediatePass(o0.rgb);
+  o0.rgb = renodx::draw::RenderIntermediatePass(o0.rgb);*/
   return;
 }

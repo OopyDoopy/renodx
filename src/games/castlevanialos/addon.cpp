@@ -28,7 +28,7 @@ namespace {
 
 ShaderInjectData shader_injection;
 
-int executed_shader_count = 0;  // Counter for executed post-process shaders
+/*int executed_shader_count = 0;  // Counter for executed post-process shaders
 
 bool UpdateTonemappedState(reshade::api::command_list* cmd_list) {
   ++executed_shader_count;
@@ -44,23 +44,40 @@ bool UpdateTonemappedState(reshade::api::command_list* cmd_list) {
 void ResetShaderCount() {
   executed_shader_count = 0;            // Reset the counter
   IS_TONEMAPPED = 0.f;  // Reset tonemapped state
-}
+}*/
 
+float sunshaft_check = 0.f;
+//int sunshaft_count = 0;
 
 renodx::mods::shader::CustomShaders custom_shaders = {
     CustomShaderEntry(0xB9D8E2E6),  // book
-    CustomShaderEntryCallback(0x2C4D7C55, &UpdateTonemappedState),  // exposure
+    CustomShaderEntry(0x2C4D7C55),  // exposure
     CustomShaderEntry(0x476C8032),  // gamma
     CustomShaderEntry(0xC3A894A3),  // video
     CustomShaderEntry(0x53C984D4),  // subtitles
     CustomShaderEntry(0xD45FAC70),  // sunrays2
     //CustomShaderEntry(0xD50CABBC),  // bloom
     //CustomShaderEntry(0xF7BE1DE7),  // sunrays1
-    CustomShaderEntryCallback(0x35D82084, &UpdateTonemappedState),  // sunrays3
+    CustomShaderEntryCallback(0x35D82084, [](reshade::api::command_list* cmd_list) {  // sunrays3
+    sunshaft_check += 1.f;
+    shader_injection.custom_sunshaft_count += 1.f;
+    return true;
+    }),
     CustomShaderEntry(0x8B7E874F),  // ui
-
     //UpgradeRTVShader(0x880A17D3),
     //UpgradeRTVReplaceShader(0x476C8032),
+    //------LoS2------//
+    CustomShaderEntry(0xC39D4062),  // videos
+    CustomShaderEntry(0xEF036E36),  // subtitles
+    CustomShaderEntry(0x0BBBF840),  // tonemap
+    CustomShaderEntry(0x3DC8491D),  // tonemap
+    CustomShaderEntry(0x8EFA952B),  // tonemap
+    CustomShaderEntry(0x09E1F794),  // tonemap
+    CustomShaderEntry(0x86DAD59B),  // tonemap
+    CustomShaderEntry(0xB9E4C979),  // tonemap
+    CustomShaderEntry(0xC9D34264),  // tonemap
+    CustomShaderEntry(0x0E1E3B4D),  // sharpen
+    CustomShaderEntry(0x450587EA),  // gamma
 };
 
 
@@ -480,7 +497,7 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "Game mod by Jon (OopyDoopy/Kickfister) and NotVoosh",
+        .label = "Game mod by Jon (OopyDoopy/Kickfister) and Voosh",
         .section = "About",
     },
     new renodx::utils::settings::Setting{
@@ -539,17 +556,20 @@ void OnPresent(
     const reshade::api::rect* dest_rect,
     uint32_t dirty_rect_count,
     const reshade::api::rect* dirty_rects) {
-    ResetShaderCount();
+    //ResetShaderCount();
     static std::mt19937 random_generator(std::chrono::system_clock::now().time_since_epoch().count());
     static auto random_range = static_cast<float>(std::mt19937::max() - std::mt19937::min());
   CUSTOM_RANDOM = static_cast<float>(random_generator() + std::mt19937::min()) / random_range;
+  shader_injection.custom_sunshaft_check = sunshaft_check;
+  sunshaft_check = 0.f;
+  shader_injection.custom_sunshaft_count = 0.f;
 }
 
 
 }  // namespace
 
 extern "C" __declspec(dllexport) constexpr const char* NAME = "RenoDX";
-extern "C" __declspec(dllexport) constexpr const char* DESCRIPTION = "RenoDX for Castlevania Lords of Shadow";
+extern "C" __declspec(dllexport) constexpr const char* DESCRIPTION = "RenoDX for Castlevania Lords of Shadow 1 & 2";
 
 BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   switch (fdw_reason) {

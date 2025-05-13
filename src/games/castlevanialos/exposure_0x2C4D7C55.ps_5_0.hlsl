@@ -60,15 +60,17 @@ void main(
   r1.xyzw = t1.Sample(s1_s, float2(0.5,0.5)).xyzw;
   ////r1.xyzw = (int4)r1.xyzw & asint(cb3[46].xyzw);
   ////r1.xyzw = (int4)r1.xyzw | asint(cb3[47].xyzw);
-  r2.y = cmp(0 < abs(r1.x));
+  /*r2.y = cmp(0 < abs(r1.x));
   r2.x = rcp(r1.x);
-  r0.w = r2.y ? r2.x : 99999999;//33815812510711506376257961984;
+  r0.w = r2.y ? r2.x : 9999999933815812510711506376257961984;*/
+  r0.w = renodx::math::DivideSafe(1.f, r1.x);
   r0.w = cb4[9].x * r0.w;
 
   //r0.xyz = r0.xyz * r0.www;
   r0.xyz = r0.xyz * lerp(1.f, r0.www, CUSTOM_EXPOSURE);
 
-  r0.w = dot(r0.xyz, float3(0.298999995,0.587000012,0.114));
+  //r0.w = dot(r0.xyz, float3(0.298999995,0.587000012,0.114));
+  r0.w = renodx::color::y::from::NTSC1953(r0.xyz);
   r1.xyz = r0.www * cb4[10].xyz + -r0.xyz;
   r0.w = 1 + -r0.w;
   r0.w = saturate(cb4[10].w * r0.w);
@@ -79,10 +81,12 @@ void main(
   //o0.xyz = saturate(cb4[11].xxx * r0.xyz + r1.xxx);
   o0.xyz = cb4[11].xxx * r0.xyz + r1.xxx;
 
+  if (CUSTOM_SUNSHAFT_CHECK == 0.f) {
   float3 untonemapped = renodx::color::srgb::DecodeSafe(o0.rgb);
   float3 sdr_color = saturate(untonemapped);
   //sdr_color = renodx::tonemap::uncharted2::BT709(untonemapped);
   o0.rgb = CustomTonemap(untonemapped, sdr_color, v5.xy);
+  } else {}
 
   o0.w = 1;
   return;

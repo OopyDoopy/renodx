@@ -36,7 +36,8 @@
 #define CUSTOM_RANDOM                        shader_injection.custom_random
 #define CUSTOM_EXPOSURE                      shader_injection.custom_exposure
 
-#define IS_TONEMAPPED                        shader_injection.isTonemapped
+#define CUSTOM_SUNSHAFT_COUNT                shader_injection.custom_sunshaft_count
+#define CUSTOM_SUNSHAFT_CHECK                shader_injection.custom_sunshaft_check
 
 // Must be 32bit aligned
 // Should be 4x32
@@ -71,7 +72,8 @@ struct ShaderInjectData {
   float custom_film_grain_strength;
   float custom_random;
   float custom_exposure;
-  float isTonemapped;
+  float custom_sunshaft_count;
+  float custom_sunshaft_check;
 };
 
 #ifndef __cplusplus
