@@ -100,6 +100,10 @@ void main(
   r3.xyzw = r5.xyxy + r3.xyzw;
   r4.xyzw = t_image_nomsaa_srcdof.Sample(s_clamp_bi_s, r3.zw).xyzw;
   r3.xyzw = t_image_nomsaa_srcdof.Sample(s_clamp_bi_s, r3.xy).xyzw;
+
+  //r4.w = saturate(r4.w);
+  //r3.w = saturate(r4.w);
+
   r1.y = -r4.w + r1.x;
   r1.y = max(0, r1.y);
   r1.y = r1.y * 3 + 1;
@@ -116,6 +120,9 @@ void main(
   r1.zw = r0.ww * r1.zw + r4.xy;
   r1.zw = r5.xy + r1.zw;
   r8.xyzw = t_image_nomsaa_srcdof.Sample(s_clamp_bi_s, r1.zw).xyzw;
+
+  //r8.w = saturate(r8.w);
+
   r1.z = -r8.w + r1.x;
   r1.z = max(0, r1.z);
   r1.z = r1.z * 3 + 1;
@@ -126,6 +133,9 @@ void main(
   r1.zw = r0.ww * r1.zw + -r2.xz;
   r1.zw = r5.xy + r1.zw;
   r8.xyzw = t_image_nomsaa_srcdof.Sample(s_clamp_bi_s, r1.zw).xyzw;
+
+  //r8.w = saturate(r8.w);
+
   r1.z = -r8.w + r1.x;
   r1.z = max(0, r1.z);
   r1.z = r1.z * 3 + 1;
@@ -135,6 +145,9 @@ void main(
   r1.zw = rtdim.xy * r0.ww;
   r1.zw = r1.zw * float2(0.1875,0.5625) + r5.xy;
   r8.xyzw = t_image_nomsaa_srcdof.Sample(s_clamp_bi_s, r1.zw).xyzw;
+
+ // r8.w = saturate(r8.w);
+
   r1.z = -r8.w + r1.x;
   r1.z = max(0, r1.z);
   r1.z = r1.z * 3 + 1;
@@ -146,6 +159,9 @@ void main(
   r2.xy = r2.xz + r2.xz;
   r1.zw = r5.xy + r1.zw;
   r8.xyzw = t_image_nomsaa_srcdof.Sample(s_clamp_bi_s, r1.zw).xyzw;
+
+  //r8.w = saturate(r8.w);
+
   r1.z = -r8.w + r1.x;
   r1.z = max(0, r1.z);
   r1.z = r1.z * 3 + 1;
@@ -156,6 +172,9 @@ void main(
   r1.zw = r0.ww * r1.zw + r2.xy;
   r1.zw = r5.xy + r1.zw;
   r2.xyzw = t_image_nomsaa_srcdof.Sample(s_clamp_bi_s, r1.zw).xyzw;
+
+  //r2.w = saturate(r2.w);
+
   r1.z = -r2.w + r1.x;
   r1.z = max(0, r1.z);
   r1.z = r1.z * 3 + 1;
@@ -166,6 +185,9 @@ void main(
   r1.zw = r0.ww * r1.zw + r4.zw;
   r1.zw = r5.xy + r1.zw;
   r3.xyzw = t_image_nomsaa_srcdof.Sample(s_clamp_bi_s, r1.zw).xyzw;
+
+  //r3.w = saturate(r3.w);
+
   r0.w = -r3.w + r1.x;
   r0.w = max(0, r0.w);
   r0.w = r0.w * 3 + 1;
@@ -189,6 +211,10 @@ void main(
   r1.xyz = float3(5,5,5) * r1.xyz;
   r0.z = pp_gasmask.w * 5 + 1;
   r1.xyz = r1.xyz * r0.zzz + float3(1,1,1);
+
+  //r1.xyz *= CUSTOM_LENS_DIRT;
+  //r2.xyz *= CUSTOM_BLOOM_STRENGTH;
+
   r0.xyz = r2.xyz * r1.xyz + r0.xyw;
 
   float3 untonemapped = r0.rgb;
@@ -220,8 +246,8 @@ void main(
   o0.rgb = CustomTonemap(untonemapped, tonemapped_bt709);
 
   //o0.rgb = lerp(ungraded_color, o0.rgb, CUSTOM_COLOR_GRADE_TWO);
-  o0.rgb = CustomPostProcessing(o0.rgb, r1.xy);
-  o0.rgb = CustomIntermediatePass(o0.rgb);
+  //o0.rgb = CustomPostProcessing(o0.rgb, r1.xy);
+  //o0.rgb = CustomIntermediatePass(o0.rgb);
   //o0.w = saturate(o0.w);
   return;
 }
