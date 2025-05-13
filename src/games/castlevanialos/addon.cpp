@@ -46,7 +46,8 @@ void ResetShaderCount() {
   IS_TONEMAPPED = 0.f;  // Reset tonemapped state
 }*/
 
-bool sunshaft_check = false;
+float sunshaft_check = 0.f;
+//int sunshaft_count = 0;
 
 renodx::mods::shader::CustomShaders custom_shaders = {
     CustomShaderEntry(0xB9D8E2E6),  // book
@@ -58,11 +59,11 @@ renodx::mods::shader::CustomShaders custom_shaders = {
     //CustomShaderEntry(0xD50CABBC),  // bloom
     //CustomShaderEntry(0xF7BE1DE7),  // sunrays1
     CustomShaderEntryCallback(0x35D82084, [](reshade::api::command_list* cmd_list) {  // sunrays3
-    sunshaft_check = true;
+    sunshaft_check += 1.f;
+    shader_injection.custom_sunshaft_count += 1.f;
     return true;
     }),
     CustomShaderEntry(0x8B7E874F),  // ui
-
     //UpgradeRTVShader(0x880A17D3),
     //UpgradeRTVReplaceShader(0x476C8032),
     //------LoS2------//
@@ -560,7 +561,8 @@ void OnPresent(
     static auto random_range = static_cast<float>(std::mt19937::max() - std::mt19937::min());
   CUSTOM_RANDOM = static_cast<float>(random_generator() + std::mt19937::min()) / random_range;
   shader_injection.custom_sunshaft_check = sunshaft_check;
-  sunshaft_check = false;
+  sunshaft_check = 0.f;
+  shader_injection.custom_sunshaft_count = 0.f;
 }
 
 
