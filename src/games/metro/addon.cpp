@@ -542,8 +542,8 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
           //.use_resource_view_cloning = true,
           //.ignore_size = true,
           //.use_resource_view_hot_swap = true,
-          //.aspect_ratio = -1,
-          .usage_include = reshade::api::resource_usage::render_target,
+          .aspect_ratio = -1,
+          //.usage_include = reshade::api::resource_usage::render_target,
           .use_resource_view_cloning_and_upgrade = true,
           
       });
