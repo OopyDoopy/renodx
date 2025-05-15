@@ -657,6 +657,9 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       renodx::mods::swapchain::swap_chain_proxy_vertex_shader = __swap_chain_proxy_vertex_shader;
       renodx::mods::swapchain::swap_chain_proxy_pixel_shader = __swap_chain_proxy_pixel_shader;
 
+      renodx::mods::swapchain::prevent_full_screen = true;
+      renodx::mods::swapchain::force_borderless = false;
+
       renodx::mods::swapchain::swap_chain_upgrade_targets.push_back({
           .old_format = reshade::api::format::b8g8r8a8_unorm,
           .new_format = reshade::api::format::r16g16b16a16_float,
@@ -682,6 +685,66 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
         .use_resource_view_cloning = true,
         //.use_resource_view_hot_swap = true,
         .aspect_ratio = buffer_width / (buffer_height / 1.061946902654867f),
+        //.aspect_ratio = 0,
+        //.use_resource_view_cloning_and_upgrade = true,
+    });
+       renodx::mods::swapchain::swap_chain_upgrade_targets.push_back({
+        .old_format = reshade::api::format::b8g8r8a8_typeless,
+        .new_format = reshade::api::format::r16g16b16a16_float,
+        //.ignore_size = true,
+        .use_resource_view_cloning = true,
+        //.use_resource_view_hot_swap = true,
+        .aspect_ratio = 1024.f / 512.f,
+        //.aspect_ratio = 0,
+        //.use_resource_view_cloning_and_upgrade = true,
+    });
+       renodx::mods::swapchain::swap_chain_upgrade_targets.push_back({
+        .old_format = reshade::api::format::b8g8r8a8_typeless,
+        .new_format = reshade::api::format::r16g16b16a16_float,
+        //.ignore_size = true,
+        .use_resource_view_cloning = true,
+        //.use_resource_view_hot_swap = true,
+        .aspect_ratio = 1920.f / 540.f,
+        //.aspect_ratio = 0,
+        //.use_resource_view_cloning_and_upgrade = true,
+    });
+    //     renodx::mods::swapchain::swap_chain_upgrade_targets.push_back({
+    //     .old_format = reshade::api::format::b8g8r8a8_typeless,
+    //     .new_format = reshade::api::format::r16g16b16a16_float,
+    //     //.ignore_size = true,
+    //     .use_resource_view_cloning = true,
+    //     //.use_resource_view_hot_swap = true,
+    //     .aspect_ratio = 616.f / 276.f,
+    //     //.aspect_ratio = 0,
+    //     //.use_resource_view_cloning_and_upgrade = true,
+    // });
+    renodx::mods::swapchain::swap_chain_upgrade_targets.push_back({
+        .old_format = reshade::api::format::b8g8r8a8_typeless,
+        .new_format = reshade::api::format::r16g16b16a16_float,
+        //.ignore_size = true,
+        .use_resource_view_cloning = true,
+        //.use_resource_view_hot_swap = true,
+        .aspect_ratio = (buffer_width - 360) / (buffer_height - 80),
+        //.aspect_ratio = 0,
+        //.use_resource_view_cloning_and_upgrade = true,
+    });
+    renodx::mods::swapchain::swap_chain_upgrade_targets.push_back({
+        .old_format = reshade::api::format::b8g8r8a8_typeless,
+        .new_format = reshade::api::format::r16g16b16a16_float,
+        //.ignore_size = true,
+        .use_resource_view_cloning = true,
+        //.use_resource_view_hot_swap = true,
+        .aspect_ratio = (buffer_width - 560) / (buffer_height - 160),
+        //.aspect_ratio = 0,
+        //.use_resource_view_cloning_and_upgrade = true,
+    });
+    renodx::mods::swapchain::swap_chain_upgrade_targets.push_back({
+        .old_format = reshade::api::format::b8g8r8a8_typeless,
+        .new_format = reshade::api::format::r16g16b16a16_float,
+        //.ignore_size = true,
+        .use_resource_view_cloning = true,
+        //.use_resource_view_hot_swap = true,
+        .aspect_ratio = (buffer_width - 240) / (buffer_height - 96),
         //.aspect_ratio = 0,
         //.use_resource_view_cloning_and_upgrade = true,
     });
