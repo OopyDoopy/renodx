@@ -113,6 +113,9 @@ void main(
   r0.xyz = r0.yzw * r0.xxx + r1.xyz;
   r3.xyzw = t4.Sample(s4_s, v2.xy).xyzw;
   r3.xyz = cb0[11].zzz * r3.zxy;
+
+  r3.xyz *= CUSTOM_LENS_DIRT;
+
   r0.xyz = r1.xyz * r3.xyz + r0.xyz;
   r0.xyz = cb0[12].www * r0.xyz;
   // Linear to Log
@@ -146,7 +149,7 @@ void main(
   renodx::lut::Config lut_config = renodx::lut::config::Create();
   lut_config.lut_sampler = s5_s;
   lut_config.strength = CUSTOM_LUT_STRENGTH;
-  lut_config.scaling = CUSTOM_LUT_SCALING;
+  //lut_config.scaling = CUSTOM_LUT_SCALING;
   lut_config.precompute = cb0[12].xyz;
   lut_config.tetrahedral = CUSTOM_LUT_TETRAHEDRAL == 1.f;
   lut_config.type_input = renodx::lut::config::type::ARRI_C1000_NO_CUT;
