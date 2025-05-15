@@ -130,7 +130,7 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE >= 1; },
         .parse = [](float value) { return value * 0.01f; },
-        .is_visible = []() { return settings[0]->GetValue() >= 1; },
+        .is_visible = []() { return settings[0]->GetValue() >= 2; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapWorkingColorSpace",
@@ -165,7 +165,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Tone Mapping",
         .tooltip = "Emulates a display EOTF.",
         .labels = {"Off", "2.2", "BT.1886"},
-        .is_visible = []() { return settings[0]->GetValue() >= 1; },
+        .is_visible = []() { return settings[0]->GetValue() >= 2; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapScaling",
@@ -217,6 +217,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .max = 100.f,
         .parse = [](float value) { return value * 0.02f; },
+        .is_visible = []() { return settings[0]->GetValue() >= 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeSaturation",
@@ -226,6 +227,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .max = 100.f,
         .parse = [](float value) { return value * 0.02f; },
+        .is_visible = []() { return settings[0]->GetValue() >= 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeHighlightSaturation",
@@ -248,6 +250,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Controls highlight desaturation due to overexposure.",
         .max = 100.f,
         .parse = [](float value) { return max(value * 0.01f, 0.000001f); },
+        .is_visible = []() { return settings[0]->GetValue() >= 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeFlare",
@@ -259,6 +262,7 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 3; },
         .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return settings[0]->GetValue() >= 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeLUTStrength",
@@ -271,17 +275,17 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return settings[0]->GetValue() >= 1; },
     },
-    new renodx::utils::settings::Setting{
-        .key = "ColorGradeLUTScaling",
-        .binding = &CUSTOM_LUT_SCALING,
-        .default_value = 100.f,
-        .label = "LUT Scaling",
-        .section = "Color Grading",
-        .tooltip = "Scales the color grade LUT to full range when size is clamped.",
-        .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 3; },
-        .parse = [](float value) { return value * 0.01f; },
-    },
+    // new renodx::utils::settings::Setting{
+    //     .key = "ColorGradeLUTScaling",
+    //     .binding = &CUSTOM_LUT_SCALING,
+    //     .default_value = 100.f,
+    //     .label = "LUT Scaling",
+    //     .section = "Color Grading",
+    //     .tooltip = "Scales the color grade LUT to full range when size is clamped.",
+    //     .max = 100.f,
+    //     .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 3; },
+    //     .parse = [](float value) { return value * 0.01f; },
+    // },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeLUTSampling",
         .binding = &CUSTOM_LUT_TETRAHEDRAL,
@@ -312,7 +316,15 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .parse = [](float value) { return value * 0.02f; },
     },
-
+        new renodx::utils::settings::Setting{
+        .key = "FxLensDirt",
+        .binding = &CUSTOM_LENS_DIRT,
+        .default_value = 50.f,
+        .label = "Lens Dirt",
+        .section = "Effects",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.02f; },
+    },
     new renodx::utils::settings::Setting{
         .key = "FxSunShafts",
         .binding = &CUSTOM_SUN_SHAFTS,
@@ -322,6 +334,19 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Adjust the intensity of sun shafts.",
         .max = 20.f,
         .parse = [](float value) { return value * 0.005f; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "DisplayMapConfiguration",
+        .binding = &RENODX_DISPLAY_MAP,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .can_reset = true,
+        .label = "Display Map Sunshafts",
+        .section = "Effects",
+        .tooltip = "Sunshafts are run after tonemapping, and can exhibit clipping issues. This applies an Exponential Roll Off to the sunshafts.",
+        .labels = {"Off", "On"},
+        //.is_enabled = []() { return RENODX_TONE_MAP_TYPE == 3; },
+        .is_visible = []() { return (settings[1]->GetValue() > 0); },
     },
 
     new renodx::utils::settings::Setting{
@@ -363,7 +388,7 @@ renodx::utils::settings::Settings settings = {
             renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 58.f);
             renodx::utils::settings::UpdateSetting("ColorGradeFlare", 72.f);
             renodx::utils::settings::UpdateSetting("ColorGradeLUTStrength", 95.f);
-            renodx::utils::settings::UpdateSetting("ColorGradeLUTScaling", 100.f);
+            //renodx::utils::settings::UpdateSetting("ColorGradeLUTScaling", 100.f);
             renodx::utils::settings::UpdateSetting("ColorGradeLUTSampling", 1.f);
             renodx::utils::settings::UpdateSetting("FxChromaticAberration", 50.f);
             renodx::utils::settings::UpdateSetting("FxBloom", 50.f);
@@ -395,7 +420,7 @@ renodx::utils::settings::Settings settings = {
             renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 75.f);
             renodx::utils::settings::UpdateSetting("ColorGradeFlare", 86.f);
             renodx::utils::settings::UpdateSetting("ColorGradeLUTStrength", 100.f);
-            renodx::utils::settings::UpdateSetting("ColorGradeLUTScaling", 100.f);
+            //renodx::utils::settings::UpdateSetting("ColorGradeLUTScaling", 100.f);
             renodx::utils::settings::UpdateSetting("ColorGradeLUTSampling", 1.f);
             renodx::utils::settings::UpdateSetting("FxChromaticAberration", 50.f);
             renodx::utils::settings::UpdateSetting("FxBloom", 60.f);
@@ -430,7 +455,7 @@ renodx::utils::settings::Settings settings = {
             renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 60.f);
             renodx::utils::settings::UpdateSetting("ColorGradeFlare", 0.f);
             renodx::utils::settings::UpdateSetting("ColorGradeLUTStrength", 100.f);
-            renodx::utils::settings::UpdateSetting("ColorGradeLUTScaling", 100.f);
+            //renodx::utils::settings::UpdateSetting("ColorGradeLUTScaling", 100.f);
             renodx::utils::settings::UpdateSetting("ColorGradeLUTSampling", 1.f);
             renodx::utils::settings::UpdateSetting("FxChromaticAberration", 50.f);
             renodx::utils::settings::UpdateSetting("FxBloom", 50.f);
@@ -465,7 +490,7 @@ renodx::utils::settings::Settings settings = {
             renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 60.f);
             renodx::utils::settings::UpdateSetting("ColorGradeFlare", 0.f);
             renodx::utils::settings::UpdateSetting("ColorGradeLUTStrength", 100.f);
-            renodx::utils::settings::UpdateSetting("ColorGradeLUTScaling", 100.f);
+            //renodx::utils::settings::UpdateSetting("ColorGradeLUTScaling", 100.f);
             renodx::utils::settings::UpdateSetting("ColorGradeLUTSampling", 1.f);
             renodx::utils::settings::UpdateSetting("FxChromaticAberration", 50.f);
             renodx::utils::settings::UpdateSetting("FxBloom", 50.f);
@@ -541,10 +566,11 @@ void OnPresetOff() {
   // renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 1.f);
   // renodx::utils::settings::UpdateSetting("ColorGradeFlare", 1.f);
   renodx::utils::settings::UpdateSetting("ColorGradeLUTStrength", 100.f);
-  renodx::utils::settings::UpdateSetting("ColorGradeLUTScaling", 0.f);
+  //renodx::utils::settings::UpdateSetting("ColorGradeLUTScaling", 0.f);
   renodx::utils::settings::UpdateSetting("ColorGradeLUTSampling", 0.f);
   renodx::utils::settings::UpdateSetting("FxChromaticAberration", 50.f);
   renodx::utils::settings::UpdateSetting("FxBloom", 50.f);
+    renodx::utils::settings::UpdateSetting("FxSunShafts", 13.f);
 }
 
 bool fired_on_init_swapchain = false;
