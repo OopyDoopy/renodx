@@ -23,11 +23,13 @@
 #define RENODX_SWAP_CHAIN_DECODING           0
 #define RENODX_INTERMEDIATE_ENCODING         0
 #define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
-#define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
+//#define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
 #define CUSTOM_LUT_TETRAHEDRAL               shader_injection.custom_lut_tetrahedral
 #define CUSTOM_CHROMATIC_ABERRATION          shader_injection.custom_chromatic_aberration
 #define CUSTOM_BLOOM                         shader_injection.custom_bloom
 #define CUSTOM_SUN_SHAFTS                    shader_injection.custom_sun_shafts
+#define RENODX_DISPLAY_MAP                   shader_injection.display_map
+#define CUSTOM_LENS_DIRT                     shader_injection.custom_lens_dirt
 //#define CUSTOM_SSAO_FILTER                   shader_injection.custom_ssao_filter
 
 // Must be 32bit aligned
@@ -52,12 +54,14 @@ struct ShaderInjectData {
   float tone_map_hue_processor;
   float tone_map_per_channel;
   float gamma_correction;
-  float custom_lut_scaling;
+  //float custom_lut_scaling;
   float custom_lut_strength;
   float custom_lut_tetrahedral;
   float custom_chromatic_aberration;
   float custom_bloom;
   float custom_sun_shafts;
+  float display_map;
+  float custom_lens_dirt;
   //bool custom_ssao_filter;
 };
 
