@@ -51,7 +51,10 @@ void main(
     o0.xyzw = lerp(1, r1.xyzw, r0.xyzw);
   }
   else {
-    o0.xyzw = lerp(100, r1.xyzw, r0.xyzw); //adjust brightness of rays
+    o0.xyzw = lerp(100, r1.xyzw, r0.xyzw);  // adjust brightness of rays
+    if (RENODX_DISPLAY_MAP == 1.f) {
+      o0.rgb = renodx::tonemap::ExponentialRollOff(o0.rgb, 0.9f, RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS);
+    }
   }
   o0.rgb = renodx::draw::RenderIntermediatePass(o0.rgb);
   return;
