@@ -29,12 +29,42 @@ float3 ToneMapMaxCLL(float3 color, float rolloff_start = 0.375f, float output_ma
   return min(output_max, color * scale);
 }
 
-// float3 CustomUpgradeToneMap(float3 untonemapped, float3 tonemapped_bt709) {
-//   if (RENODX_TONE_MAP_TYPE == 0.f) {
-//     return tonemapped_bt709;
-//   }
-//   return renodx::tonemap::UpgradeToneMap(untonemapped, ToneMapMaxCLL(untonemapped), tonemapped_bt709, RENODX_COLOR_GRADE_STRENGTH);
-// }
+float3 CustomUpgradeToneMap(float3 untonemapped, float3 tonemapped_bt709, float mid_gray) {
+
+
+  if (RENODX_TONE_MAP_TYPE == 0) {
+    return tonemapped_bt709;
+  }
+  else {
+    float mid_gray_scale = mid_gray / 0.18f;
+    float3 untonemapped_midgray = untonemapped * mid_gray_scale;
+    float3 hdr_color;
+    float3 outputColor;
+    if (CUSTOM_SCENE_GRADE_METHOD == 1.f) {
+      if (CUSTOM_SCENE_GRADE_BLOWOUT_RESTORATION != 0.f
+          || CUSTOM_SCENE_GRADE_HUE_CORRECTION != 0.f
+          || CUSTOM_SCENE_GRADE_SATURATION_CORRECTION != 0.f
+          || CUSTOM_SCENE_GRADE_HUE_SHIFT != 0.f) {
+
+        tonemapped_bt709 = renodx::draw::ApplyPerChannelCorrection(
+            untonemapped_midgray,
+            tonemapped_bt709,
+           CUSTOM_SCENE_GRADE_BLOWOUT_RESTORATION,
+           CUSTOM_SCENE_GRADE_HUE_CORRECTION,
+           CUSTOM_SCENE_GRADE_SATURATION_CORRECTION,
+           CUSTOM_SCENE_GRADE_HUE_SHIFT);
+      }
+      hdr_color = lerp(tonemapped_bt709, untonemapped_midgray, saturate(tonemapped_bt709));
+      outputColor = lerp(untonemapped_midgray, hdr_color, RENODX_COLOR_GRADE_STRENGTH);
+    }
+    else {
+      hdr_color = lerp(tonemapped_bt709, untonemapped_midgray, saturate(tonemapped_bt709));
+      outputColor = lerp(untonemapped_midgray, hdr_color, RENODX_COLOR_GRADE_STRENGTH);
+      outputColor = renodx::color::correct::Hue(outputColor, tonemapped_bt709, 1.f, 0);
+    }
+    return outputColor;
+  }
+}
 
 float3 CustomUpgradeGrading(float3 ungraded, float3 ungraded_sdr, float3 graded) {
   if (RENODX_TONE_MAP_TYPE == 0.f) {
