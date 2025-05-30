@@ -1,4 +1,4 @@
-#include "./shared.h"
+#include "./common.hlsl"
 
 Texture2D<float4> t0 : register(t0);
 
@@ -46,6 +46,8 @@ float4 main(
   float4 _17 = t0.Sample(s0, float2(_15, _16));
 
   float3 ungraded = _17.rgb;
+  float3 ungraded_sdr = ToneMapMaxCLL(ungraded, 0.5f, 2.f);
+  _17.rgb = ColorPicker(ungraded, ungraded_sdr);
   //  float _22 = abs(_17.x);
   //  float _23 = abs(_17.y);
   //  float _24 = abs(_17.z);
@@ -129,7 +131,6 @@ float4 main(
   float _100 = renodx::color::gamma::DecodeSafe(_88);
   float _101 = renodx::color::gamma::DecodeSafe(_89);
   float _102 = renodx::color::gamma::DecodeSafe(_90);
-
   float _106 = (CustomPixelConsts_016.z) * _100;
   float _107 = (CustomPixelConsts_016.z) * _101;
   float _108 = (CustomPixelConsts_016.z) * _102;
@@ -146,6 +147,9 @@ float4 main(
   SV_Target.y = _116;
   SV_Target.z = _117;
   SV_Target.w = _17.w;
+
+  float3 graded_sdr = SV_Target.rgb;
+  SV_Target.rgb = CustomUpgradeGrading(ungraded, ungraded_sdr, graded_sdr);
 
   //SV_Target.rgb = ungraded;
   return SV_Target;
