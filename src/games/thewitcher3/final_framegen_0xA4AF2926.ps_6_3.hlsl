@@ -190,7 +190,7 @@ OutputSignature main(
   } else {
     intermediateColor.w = saturate(_24.w * 2.0f);
     intermediateColor.xyz = linearGameColor.xyz;
-    intermediateColor *= -0.6699999570846558f;
+    intermediateColor.xyz *= -0.6699999570846558f;
     intermediateColor.xyz *= intermediateColor.w;
     intermediateColor.xyz += linearGameColor;
 

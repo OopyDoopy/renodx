@@ -15,11 +15,12 @@
 #define RENODX_TONE_MAP_HIGHLIGHT_SATURATION   shader_injection.tone_map_highlight_saturation
 #define RENODX_TONE_MAP_BLOWOUT                shader_injection.tone_map_blowout
 #define RENODX_TONE_MAP_FLARE                  shader_injection.tone_map_flare
-#define RENODX_TONE_MAP_HUE_CORRECTION         shader_injection.tone_map_hue_correction
-#define RENODX_TONE_MAP_HUE_SHIFT              0
-#define RENODX_TONE_MAP_HUE_PROCESSOR          shader_injection.tone_map_hue_processor
+// #define RENODX_TONE_MAP_HUE_CORRECTION         shader_injection.tone_map_hue_correction
+// #define RENODX_TONE_MAP_HUE_SHIFT              shader_injection.tone_map_hue_shift
+// #define RENODX_TONE_MAP_HUE_PROCESSOR          shader_injection.tone_map_hue_processor
 //#define RENODX_TONE_MAP_PER_CHANNEL            shader_injection.tone_map_per_channel
-#define RENODX_COLOR_GRADE_STRENGTH            shader_injection.tone_map_color_grade_strength
+//#define RENODX_COLOR_GRADE_STRENGTH            shader_injection.tone_map_color_grade_strength
+#define RENODX_COLOR_GRADE_STRENGTH            shader_injection.scene_grade_strength
 #define RENODX_INTERMEDIATE_ENCODING           renodx::draw::ENCODING_NONE
 #define RENODX_SWAP_CHAIN_DECODING             renodx::draw::ENCODING_NONE
 #define RENODX_SWAP_CHAIN_GAMMA_CORRECTION     0 //renodx::draw::GAMMA_CORRECTION_NONE
@@ -30,7 +31,12 @@
 #define RENODX_SWAP_CHAIN_ENCODING             renodx::draw::ENCODING_PQ
 #define RENODX_SWAP_CHAIN_ENCODING_COLOR_SPACE color::convert::COLOR_SPACE_BT2020
 #define RENODX_RENO_DRT_TONE_MAP_METHOD        renodx::tonemap::renodrt::config::tone_map_method::REINHARD
-#define RENODX_RENO_DRT_WHITE_CLIP             110.f
+//#define RENODX_RENO_DRT_WHITE_CLIP             100.f
+#define CUSTOM_SCENE_GRADE_METHOD              shader_injection.scene_grade_method
+#define CUSTOM_SCENE_GRADE_HUE_CORRECTION      shader_injection.scene_grade_hue_correction
+#define CUSTOM_SCENE_GRADE_SATURATION_CORRECTION shader_injection.scene_grade_saturation_correction
+#define CUSTOM_SCENE_GRADE_BLOWOUT_RESTORATION shader_injection.scene_grade_blowout_restoration
+#define CUSTOM_SCENE_GRADE_HUE_SHIFT           shader_injection.scene_grade_hue_shift
 #define CUSTOM_FILM_GRAIN_STRENGTH             shader_injection.custom_film_grain
 #define CUSTOM_RANDOM                          shader_injection.custom_random
 #define CUSTOM_LUT_STRENGTH                    shader_injection.custom_lut_strength
@@ -57,12 +63,18 @@ struct ShaderInjectData {
   float tone_map_highlight_saturation;
   float tone_map_blowout;
   float tone_map_flare;
-  float tone_map_hue_correction;
-  //float tone_map_hue_shift;
-  float tone_map_hue_processor;
+  // float tone_map_hue_correction;
+  // float tone_map_hue_shift;
+  //float tone_map_hue_processor;
   float tone_map_per_channel;
   float tone_map_color_grade_strength;
   float swap_chain_custom_color_space;
+  float scene_grade_method;
+  float scene_grade_strength;
+  float scene_grade_hue_correction;
+  float scene_grade_saturation_correction;
+  float scene_grade_blowout_restoration;
+  float scene_grade_hue_shift;
   float custom_film_grain;
   float custom_random;
   float custom_lut_strength;
