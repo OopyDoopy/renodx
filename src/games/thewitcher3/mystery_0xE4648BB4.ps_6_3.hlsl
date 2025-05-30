@@ -46,9 +46,6 @@ float4 main(
   float _21 = _20 * (CustomPixelConsts_256.z);
   float _22 = saturate(_21);
   float4 _23 = t0.SampleLevel(s0, float2(TEXCOORD.x, TEXCOORD.y), 0.0f);
-
-  //float3 untonemapped = renodx::color::gamma::DecodeSafe(_23.rgb);
-
   bool _27 = (_22 > 0.0f);
   float _53;
   float _54;
@@ -172,6 +169,9 @@ float4 main(
   float _164 = _161 * _151;
   float _165 = _162 * _152;
   float _166 = _163 * _153;
+
+  float3 clearNans = renodx::color::bt709::clamp::BT709(float3(_164, _165, _166));
+
   // float _167 = max(0.0f, _164);
   // float _168 = max(0.0f, _165);
   // float _169 = max(0.0f, _166);
@@ -184,9 +184,9 @@ float4 main(
   // float _176 = exp2(_173);
   // float _177 = exp2(_174);
   // float _178 = exp2(_175);
-  float _176 = renodx::color::gamma::EncodeSafe(_164);
-  float _177 = renodx::color::gamma::EncodeSafe(_165);
-  float _178 = renodx::color::gamma::EncodeSafe(_166);
+  float _176 = renodx::color::gamma::EncodeSafe(clearNans.x);
+  float _177 = renodx::color::gamma::EncodeSafe(clearNans.y);
+  float _178 = renodx::color::gamma::EncodeSafe(clearNans.z);
 
   float _183 = CustomPixelConsts_144.x * _176;
   float _184 = CustomPixelConsts_144.y * _177;
@@ -203,8 +203,7 @@ float4 main(
   SV_Target.z = _195;
   SV_Target.w = 1.0f;
 
-  //SV_Target.rgb = renodx::color::gamma::EncodeSafe(untonemapped);
-  //SV_Target.rgb = untonemapped;
-
+  // SV_Target.rgb = renodx::draw::RenderIntermediatePass(renodx::color::gamma::DecodeSafe(SV_Target.rgb));
+  //SV_Target.rgb = renodx::draw::RenderIntermediatePass(SV_Target.rgb);
   return SV_Target;
 }
