@@ -81,17 +81,7 @@ float4 main(
   _88 = max(0.0f, (((((_79 + _45) * 11.199999809265137f) + _52) / (((_79 + CustomPixelConsts_112.y) * 11.199999809265137f) + _62)) - _69));
   float out_mid_gray = ((max(0.0f, (((((_44 + _45) * _41) + _52) / (((_44 + CustomPixelConsts_112.y) * _41) + _62)) - _69)) * CustomPixelConsts_256.y) / _88);
 
-  float mid_gray_scale = out_mid_gray / 0.18f;
-  float3 untonemapped_midgray = untonemapped * mid_gray_scale;
-  float3 hdr_color = lerp(tonemapped_bt709, untonemapped_midgray, saturate(tonemapped_bt709));
-
-  if (RENODX_TONE_MAP_TYPE == 0) {
-    SV_Target.rgb = tonemapped_bt709;
-  }
-  else {
-    SV_Target.rgb = lerp(untonemapped_midgray, hdr_color, RENODX_COLOR_GRADE_STRENGTH);
-    SV_Target.rgb = renodx::color::correct::Hue(SV_Target.rgb, tonemapped_bt709, RENODX_TONE_MAP_HUE_CORRECTION, RENODX_TONE_MAP_HUE_PROCESSOR);
-  }
+  SV_Target.rgb = CustomUpgradeToneMap(untonemapped, tonemapped_bt709, out_mid_gray);
 
   return SV_Target;
 }
