@@ -204,8 +204,9 @@ OutputSignature main(
         CUSTOM_RANDOM,
         CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);
 
-    intermediateColor.xyz *= RENODX_DIFFUSE_WHITE_NITS;
-    linearUiColor *= RENODX_GRAPHICS_WHITE_NITS;
+    // intermediateColor.xyz *= RENODX_DIFFUSE_WHITE_NITS;
+    intermediateColor.rgb = renodx::draw::RenderIntermediatePass(intermediateColor.rgb);
+    // linearUiColor *= RENODX_GRAPHICS_WHITE_NITS;
 
     outputColor.xyz = linearUiColor - intermediateColor.xyz;
     outputColor.w = _24.w + -1.0f;
@@ -246,12 +247,12 @@ OutputSignature main(
   //  outputColor.rgb = renodx::color::gamma::EncodeSafe(outputColor.rgb);
   // outputColor.rgb = renodx::draw::SwapChainPass(outputColor.rgb);
   // outputColor.rgb = CustomColorTemp(outputColor.rgb);
-  outputColor.rgb = renodx::color::bt2020::from::BT709(outputColor.rgb);
-  outputColor.rgb = renodx::color::pq::EncodeSafe(outputColor.rgb, 1.f);
+
+  outputColor.rgb = renodx::draw::SwapChainPass(outputColor.rgb);
   SV_Target = outputColor;
 
-  float3 framegenColor = renodx::color::bt2020::from::BT709(intermediateColor.rgb);
-  framegenColor = renodx::color::pq::EncodeSafe(framegenColor, 1.f);
+  float3 framegenColor = intermediateColor.rgb;
+  framegenColor = renodx::draw::SwapChainPass(framegenColor);
   SV_Target_2.rgb = framegenColor;
   SV_Target_2.w = 1.0f;
 
