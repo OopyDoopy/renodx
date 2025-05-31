@@ -16,14 +16,15 @@
 #define RENODX_TONE_MAP_BLOWOUT                shader_injection.tone_map_blowout
 #define RENODX_TONE_MAP_FLARE                  shader_injection.tone_map_flare
 // #define RENODX_TONE_MAP_HUE_CORRECTION         shader_injection.tone_map_hue_correction
-// #define RENODX_TONE_MAP_HUE_SHIFT              shader_injection.tone_map_hue_shift
+#define RENODX_TONE_MAP_HUE_SHIFT              0.f
 // #define RENODX_TONE_MAP_HUE_PROCESSOR          shader_injection.tone_map_hue_processor
 //#define RENODX_TONE_MAP_PER_CHANNEL            shader_injection.tone_map_per_channel
 //#define RENODX_COLOR_GRADE_STRENGTH            shader_injection.tone_map_color_grade_strength
 #define RENODX_COLOR_GRADE_STRENGTH            shader_injection.scene_grade_strength
 #define RENODX_INTERMEDIATE_ENCODING           renodx::draw::ENCODING_NONE
 #define RENODX_SWAP_CHAIN_DECODING             renodx::draw::ENCODING_NONE
-#define RENODX_SWAP_CHAIN_GAMMA_CORRECTION     0 //renodx::draw::GAMMA_CORRECTION_NONE
+#define RENODX_SWAP_CHAIN_GAMMA_CORRECTION     renodx::draw::GAMMA_CORRECTION_NONE
+#define RENODX_GAMMA_CORRECTION                0.f
 //#define RENODX_SWAP_CHAIN_SCALING_NITS         100.f * RENODX_DIFFUSE_WHITE_NITS / 203.f
 #define RENODX_SWAP_CHAIN_DECODING_COLOR_SPACE color::convert::COLOR_SPACE_BT709
 #define RENODX_SWAP_CHAIN_CUSTOM_COLOR_SPACE   shader_injection.swap_chain_custom_color_space

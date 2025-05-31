@@ -194,6 +194,8 @@ OutputSignature main(
     intermediateColor.xyz *= intermediateColor.w;
     intermediateColor.xyz += linearGameColor;
 
+    //intermediateColor.rgb = linearGameColor.rgb;
+
     // intermediateColor.xyz = ToneMapMaxCLL(intermediateColor.xyz, 0.5f, 20.f);
     // intermediateColor.xyz = renodx::draw::RenderIntermediatePass(intermediateColor.xyz);
 
@@ -204,14 +206,21 @@ OutputSignature main(
         CUSTOM_RANDOM,
         CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);
 
-    intermediateColor.xyz *= RENODX_DIFFUSE_WHITE_NITS;
-    linearUiColor *= RENODX_GRAPHICS_WHITE_NITS;
+    // intermediateColor.xyz *= RENODX_DIFFUSE_WHITE_NITS;
+    intermediateColor.rgb = renodx::draw::RenderIntermediatePass(intermediateColor.rgb);
+    //linearUiColor *= RENODX_GRAPHICS_WHITE_NITS;
+
+    //outputColor = HandleUICompositing(float4(linearUiColor, _24.w), intermediateColor);
+    //outputColor.rgb = linearGameColor.xyz;
+    //outputColor.w = 1;
 
     outputColor.xyz = linearUiColor - intermediateColor.xyz;
     outputColor.w = _24.w + -1.0f;
     outputColor *= _24.w;
     outputColor.xyz += intermediateColor.xyz;
     outputColor.w += 1.0f;
+
+    //outputColor = HandleUICompositing(float4(linearUiColor, _24.w), intermediateColor);
 
     //float _116 = _24.w * 2.0f;
     //float _117 = saturate(_116);
@@ -242,13 +251,11 @@ OutputSignature main(
     // _143 = _138;
   }
 
-  // outputColor = float4(_140, _141, _142, _143);
-  //  outputColor.rgb = renodx::color::gamma::EncodeSafe(outputColor.rgb);
-  // outputColor.rgb = renodx::draw::SwapChainPass(outputColor.rgb);
-  //outputColor.rgb = CustomColorTemp(outputColor.rgb);
-  outputColor.rgb = renodx::color::bt2020::from::BT709(outputColor.rgb);
-  outputColor.rgb = renodx::color::pq::EncodeSafe(outputColor.rgb, 1.f);
-  SV_Target = outputColor;
+  // outputColor.rgb = renodx::color::bt2020::from::BT709(outputColor.rgb);
+  // outputColor.rgb = renodx::color::pq::EncodeSafe(outputColor.rgb, 1.f);
+  // SV_Target = outputColor;
+  SV_Target.rgb = renodx::draw::SwapChainPass(outputColor.rgb);
+  SV_Target.w = outputColor.w;
 
   // //BT2020
   // float _144 = _140 * 0.627403974533081f;
