@@ -321,6 +321,7 @@ float4 main(
     float _1175 = _1172 * 0.0357142873108387f;
 
     float scale = GetSunshaftScale();
+    //float scale = 1.f;
     // scale = 100.f;
     _1173 *= scale;
     _1174 *= scale;
