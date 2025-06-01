@@ -7,13 +7,13 @@ float3 ColorPicker(float3 color, float3 sdr_color) {
   return color;
 }
 
-float GetPostProcessingMaxCLL() {
-  return CUSTOM_POST_MAXCLL;
-}
+// float GetPostProcessingMaxCLL() {
+//   return CUSTOM_POST_MAXCLL;
+// }
 
 /// Applies Exponential Roll-Off tonemapping using the maximum channel.
 /// Used to fit the color into a 0–output_max range for SDR LUT compatibility.
-float3 ToneMapMaxCLL(float3 color, float rolloff_start = 0.375f, float output_max = GetPostProcessingMaxCLL()) {
+float3 ToneMapMaxCLL(float3 color, float rolloff_start = 0.375f, float output_max = 1.f) {
   if (RENODX_TONE_MAP_TYPE == 0.f) {
     return color;
   }
@@ -138,7 +138,18 @@ float3 CustomBloomTonemap(float3 color, float exposure = 0.2f) {
     return color;
   }
   // return ToneMapMaxCLL(color, 0.2f, GetPostProcessingMaxCLL());
-  return ToneMapMaxCLL(color, exposure, GetPostProcessingMaxCLL());
+  // return ToneMapMaxCLL(color, exposure, GetPostProcessingMaxCLL());
+  return min(color, CUSTOM_BLOOM);
+}
+
+float3 CustomSunshaftsTonemap(float3 color) {
+  if (RENODX_TONE_MAP_TYPE == 0.f) {
+    return color;
+  }
+  // return ToneMapMaxCLL(color, 0.2f, GetPostProcessingMaxCLL());
+  // return ToneMapMaxCLL(color, 0.2f, GetPostProcessingMaxCLL());
+  //return color;
+  return min(color, CUSTOM_SUNSHAFTS_STRENGTH);
 }
 
 float4 HandleUICompositing(float4 ui_color_linear, float4 scene_color_linear) {
@@ -167,4 +178,13 @@ float4 HandleUICompositing(float4 ui_color_linear, float4 scene_color_linear) {
   // float3 pq_color = renodx::color::pq::EncodeSafe(bt2020_color, RENODX_DIFFUSE_WHITE_NITS);
   // output_color = float4(pq_color, 1.f);
   return output_color;
+}
+
+float hdrSaturate(float color) {
+  if (RENODX_TONE_MAP_TYPE == 0.f) {
+    return saturate(color);
+  }
+  color = max(color, 0.f);
+  //color = min(color, 100.f);
+  return color;
 }

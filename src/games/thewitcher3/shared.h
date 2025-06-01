@@ -24,7 +24,7 @@
 #define RENODX_INTERMEDIATE_ENCODING           renodx::draw::ENCODING_NONE
 #define RENODX_SWAP_CHAIN_DECODING             renodx::draw::ENCODING_NONE
 #define RENODX_SWAP_CHAIN_GAMMA_CORRECTION     renodx::draw::GAMMA_CORRECTION_NONE
-#define RENODX_GAMMA_CORRECTION                0.f
+#define RENODX_GAMMA_CORRECTION                renodx::draw::GAMMA_CORRECTION_NONE
 //#define RENODX_SWAP_CHAIN_SCALING_NITS         100.f * RENODX_DIFFUSE_WHITE_NITS / 203.f
 #define RENODX_SWAP_CHAIN_DECODING_COLOR_SPACE color::convert::COLOR_SPACE_BT709
 #define RENODX_SWAP_CHAIN_CUSTOM_COLOR_SPACE   shader_injection.swap_chain_custom_color_space
@@ -41,7 +41,7 @@
 #define CUSTOM_FILM_GRAIN_STRENGTH             shader_injection.custom_film_grain
 #define CUSTOM_RANDOM                          shader_injection.custom_random
 #define CUSTOM_LUT_STRENGTH                    shader_injection.custom_lut_strength
-#define CUSTOM_POST_MAXCLL                     shader_injection.custom_post_maxcll
+//#define CUSTOM_POST_MAXCLL                     shader_injection.custom_post_maxcll
 #define CUSTOM_BLOOM                           shader_injection.custom_bloom
 #define CUSTOM_LENS_DIRT                       shader_injection.custom_lens_dirt
 #define CUSTOM_SUNSHAFTS_STRENGTH              shader_injection.custom_sunshafts_strength
@@ -79,7 +79,7 @@ struct ShaderInjectData {
   float custom_film_grain;
   float custom_random;
   float custom_lut_strength;
-  float custom_post_maxcll;
+  //float custom_post_maxcll;
   float custom_bloom;
   float custom_lens_dirt;
   float custom_sunshafts_strength;

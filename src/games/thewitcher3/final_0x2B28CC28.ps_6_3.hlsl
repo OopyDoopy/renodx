@@ -206,7 +206,7 @@ OutputSignature main(
         CUSTOM_RANDOM,
         CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);
 
-    // intermediateColor.xyz *= RENODX_DIFFUSE_WHITE_NITS;
+     //intermediateColor.xyz *= RENODX_DIFFUSE_WHITE_NITS;
     intermediateColor.rgb = renodx::draw::RenderIntermediatePass(intermediateColor.rgb);
     //linearUiColor *= RENODX_GRAPHICS_WHITE_NITS;
 
@@ -233,6 +233,7 @@ OutputSignature main(
     // float _124 = _121 + _50;
     // float _125 = _122 + _51;
     // float _126 = _123 + _52;
+
     // float _127 = _41 - _124;
     // float _128 = _42 - _125;
     // float _129 = _43 - _126;
