@@ -40,8 +40,10 @@ float4 main(
   float4 _61 = t0.SampleLevel(s0, float2(min(max(((float(int(CustomPixelConsts_064.x)) + (CustomPixelConsts_016.x * ((float((uint)((int)(int(SV_Position.x)) - (int)(int(CustomPixelConsts_064.z)))) + 0.5f) / CustomPixelConsts_048.x))) / CustomPixelConsts_000.x), ((CustomPixelConsts_080.x + 0.5f) / CustomPixelConsts_000.x)), ((CustomPixelConsts_080.z + 0.5f) / CustomPixelConsts_000.x)), min(max(((float(int(CustomPixelConsts_064.y)) + (CustomPixelConsts_016.y * ((float((uint)((int)(int(SV_Position.y)) - (int)(int(CustomPixelConsts_064.w)))) + 0.5f) / CustomPixelConsts_048.y))) / CustomPixelConsts_000.y), ((CustomPixelConsts_080.y + 0.5f) / CustomPixelConsts_000.y)), ((CustomPixelConsts_080.w + 0.5f) / CustomPixelConsts_000.y))), 0.0f);
   float4 _78 = t1.Sample(s1, float2((CustomPixelConsts_128.x * SV_Position.x), (CustomPixelConsts_128.y * SV_Position.y)));
 
+  //_61.rgb = CustomBloomTonemap(_61.rgb, 0.375f);
+
   _78 *= CUSTOM_LENS_DIRT;
-  _61 *= CUSTOM_BLOOM;
+  //_61 *= CUSTOM_BLOOM;
   
   SV_Target.x = (((_78.x * CustomPixelConsts_112.x) + CustomPixelConsts_096.x) * _61.x);
   SV_Target.y = (((_78.y * CustomPixelConsts_112.y) + CustomPixelConsts_096.y) * _61.y);

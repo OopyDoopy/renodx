@@ -1,3 +1,5 @@
+#include "./common.hlsl"
+
 Texture2D<float4> t0 : register(t0);
 
 cbuffer cb3 : register(b3) {
@@ -38,6 +40,7 @@ float4 main(
   float _21 = sqrt((_17 * _17) + (_16 * _16));
   float _24 = saturate((_21 - CustomPixelConsts_256.y) * CustomPixelConsts_256.z);
   float4 _25 = t0.SampleLevel(s1, float2(TEXCOORD.x, TEXCOORD.y), 0.0f);
+
   float _55;
   float _56;
   [branch]
@@ -47,6 +50,7 @@ float4 main(
     float _43 = (_17 * CustomPixelConsts_272.w) * _39;
     float4 _48 = t0.SampleLevel(s1, float2((TEXCOORD.x - (_41 * 2.0f)), (TEXCOORD.y - (_43 * 2.0f))), 0.0f);
     float4 _52 = t0.SampleLevel(s1, float2((TEXCOORD.x - _41), (TEXCOORD.y - _43)), 0.0f);
+
     _55 = _48.x;
     _56 = _52.y;
   } else {
