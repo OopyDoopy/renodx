@@ -29,38 +29,60 @@ float3 ToneMapMaxCLL(float3 color, float rolloff_start = 0.375f, float output_ma
   return min(output_max, color * scale);
 }
 
+float3 UpgradeToneMapWithoutHueCorrection(
+    float3 color_untonemapped,
+    float3 color_tonemapped,
+    float3 color_tonemapped_graded,
+    float post_process_strength = 1.f,
+    float auto_correction = 0.f) {
+  float ratio = 1.f;
+
+  float y_untonemapped = renodx::color::y::from::BT709(abs(color_untonemapped));
+  float y_tonemapped = renodx::color::y::from::BT709(abs(color_tonemapped));
+  float y_tonemapped_graded = renodx::color::y::from::BT709(abs(color_tonemapped_graded));
+
+  if (y_untonemapped < y_tonemapped) {
+    // If substracting (user contrast or paperwhite) scale down instead
+    // Should only apply on mismatched HDR
+    ratio = y_untonemapped / y_tonemapped;
+  } else {
+    float y_delta = y_untonemapped - y_tonemapped;
+    y_delta = max(0, y_delta);  // Cleans up NaN
+    const float y_new = y_tonemapped_graded + y_delta;
+
+    const bool y_valid = (y_tonemapped_graded > 0);  // Cleans up NaN and ignore black
+    ratio = y_valid ? (y_new / y_tonemapped_graded) : 0;
+  }
+  float auto_correct_ratio = lerp(1.f, ratio, saturate(y_untonemapped));
+  ratio = lerp(ratio, auto_correct_ratio, auto_correction);
+
+  float3 color_scaled = color_tonemapped_graded * ratio;
+  // Match hue
+  //color_scaled = renodx::color::correct::Hue(color_scaled, color_tonemapped_graded);
+  return lerp(color_untonemapped, color_scaled, post_process_strength);
+}
+
 float3 CustomUpgradeToneMap(float3 untonemapped, float3 tonemapped_bt709, float mid_gray) {
-
-
   if (RENODX_TONE_MAP_TYPE == 0) {
     return tonemapped_bt709;
   }
   else {
     float mid_gray_scale = mid_gray / 0.18f;
     float3 untonemapped_midgray = untonemapped * mid_gray_scale;
-    float3 hdr_color;
+    //float3 hdr_color;
     float3 outputColor;
     if (CUSTOM_SCENE_GRADE_METHOD == 1.f) {
-      if (CUSTOM_SCENE_GRADE_BLOWOUT_RESTORATION != 0.f
-          || CUSTOM_SCENE_GRADE_HUE_CORRECTION != 0.f
-          || CUSTOM_SCENE_GRADE_SATURATION_CORRECTION != 0.f
-          || CUSTOM_SCENE_GRADE_HUE_SHIFT != 0.f) {
-
-        tonemapped_bt709 = renodx::draw::ApplyPerChannelCorrection(
-            untonemapped_midgray,
-            tonemapped_bt709,
-           CUSTOM_SCENE_GRADE_BLOWOUT_RESTORATION,
-           CUSTOM_SCENE_GRADE_HUE_CORRECTION,
-           CUSTOM_SCENE_GRADE_SATURATION_CORRECTION,
-           CUSTOM_SCENE_GRADE_HUE_SHIFT);
-      }
-      hdr_color = lerp(tonemapped_bt709, untonemapped_midgray, saturate(tonemapped_bt709));
-      outputColor = lerp(untonemapped_midgray, hdr_color, RENODX_COLOR_GRADE_STRENGTH);
+      tonemapped_bt709 = renodx::draw::ApplyPerChannelCorrection(
+          untonemapped_midgray,
+          tonemapped_bt709,
+          CUSTOM_SCENE_GRADE_BLOWOUT_RESTORATION,
+          CUSTOM_SCENE_GRADE_HUE_CORRECTION,
+          CUSTOM_SCENE_GRADE_SATURATION_CORRECTION,
+          CUSTOM_SCENE_GRADE_HUE_SHIFT);
+      outputColor = UpgradeToneMapWithoutHueCorrection(untonemapped_midgray, ToneMapMaxCLL(untonemapped_midgray), tonemapped_bt709, RENODX_COLOR_GRADE_STRENGTH);
     }
     else {
-      hdr_color = lerp(tonemapped_bt709, untonemapped_midgray, saturate(tonemapped_bt709));
-      outputColor = lerp(untonemapped_midgray, hdr_color, RENODX_COLOR_GRADE_STRENGTH);
-      outputColor = renodx::color::correct::Hue(outputColor, tonemapped_bt709, 1.f, 0);
+      outputColor = renodx::tonemap::UpgradeToneMap(untonemapped_midgray, ToneMapMaxCLL(untonemapped_midgray), tonemapped_bt709, RENODX_COLOR_GRADE_STRENGTH);
     }
     return outputColor;
   }
@@ -82,8 +104,8 @@ float3 CustomTonemap(float3 color) {
   }
   float3 outputColor = renodx::draw::ToneMapPass(color);
 
-  float peakWhite = RENODX_PEAK_WHITE_NITS / renodx::color::srgb::REFERENCE_WHITE;
-  float paperWhite = RENODX_DIFFUSE_WHITE_NITS / renodx::color::srgb::REFERENCE_WHITE;
+  //float peakWhite = RENODX_PEAK_WHITE_NITS / renodx::color::srgb::REFERENCE_WHITE;
+  //float paperWhite = RENODX_DIFFUSE_WHITE_NITS / renodx::color::srgb::REFERENCE_WHITE;
   return outputColor;
   //return ToneMapMaxCLL(outputColor, paperWhite, peakWhite);
 }

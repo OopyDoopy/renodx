@@ -59,7 +59,7 @@ float4 main(
   float _76 = hdrSaturate((CustomPixelConsts_288.y * (hdrSaturate(CustomPixelConsts_288.x * _56) + -0.5f)) + 0.5f);
   float _77 = hdrSaturate((CustomPixelConsts_288.y * (hdrSaturate(CustomPixelConsts_288.x * _25.z) + -0.5f)) + 0.5f);
   bool _79 = (CustomPixelConsts_288.w <= 6500.0f);
-  float _88 = hdrSaturate((CustomPixelConsts_288.w + -1000.0f) * -0.0010000000474974513f);
+  float _88 = saturate((CustomPixelConsts_288.w + -1000.0f) * -0.0010000000474974513f);
   float _92 = (_88 * _88) * (3.0f - (_88 * 2.0f));
   float _105 = min(max((select(_79, 1.0f, 0.5599538683891296f) + (select(_79, 0.0f, 1745.04248046875f) / (select(_79, 0.0f, -2666.347412109375f) + CustomPixelConsts_288.w))), 0.0f), 1.0f);
   float _106 = min(max(((select(_79, -2902.195556640625f, 1216.6168212890625f) / (select(_79, 1669.580322265625f, -2173.101318359375f) + CustomPixelConsts_288.w)) + select(_79, 1.3302674293518066f, 0.7038120031356812f)), 0.0f), 1.0f);
@@ -180,8 +180,8 @@ float4 main(
   float _523 = exp2(log2(max(0.0f, ((CustomPixelConsts_224.x * exp2(log2(abs(hdrSaturate(_482 + hdrSaturate((((_127 * _132) - _129) * CustomPixelConsts_288.z) + _129)))) * CustomPixelConsts_128.x)) + CustomPixelConsts_224.y))) * CustomPixelConsts_224.z);
   float _524 = exp2(log2(max(0.0f, ((CustomPixelConsts_224.x * exp2(log2(abs(hdrSaturate(_482 + hdrSaturate((((_128 * _132) - _129) * CustomPixelConsts_288.z) + _129)))) * CustomPixelConsts_128.x)) + CustomPixelConsts_224.y))) * CustomPixelConsts_224.z);
   float _525 = dot(float3(0.29899999499320984f, 0.5870000123977661f, 0.11400000005960464f), float3(_522, _523, _524));
-  float _531 = hdrSaturate((_525 - CustomPixelConsts_160.x) * CustomPixelConsts_160.y);
-  float _536 = hdrSaturate((_525 - CustomPixelConsts_160.z) * CustomPixelConsts_160.w);
+  float _531 = saturate((_525 - CustomPixelConsts_160.x) * CustomPixelConsts_160.y);
+  float _536 = saturate((_525 - CustomPixelConsts_160.z) * CustomPixelConsts_160.w);
   float _546 = exp2(log2(hdrSaturate(_522)) * 2.200000047683716f);
   float _547 = exp2(log2(hdrSaturate(_523)) * 2.200000047683716f);
   float _548 = exp2(log2(hdrSaturate(_524)) * 2.200000047683716f);
@@ -204,5 +204,7 @@ float4 main(
   SV_Target.y = hdrSaturate(((lerp(_618, CustomPixelConsts_112.y, _657)) * _673) + CustomPixelConsts_240.x);
   SV_Target.z = hdrSaturate(((lerp(_619, CustomPixelConsts_112.z, _657)) * _673) + CustomPixelConsts_240.x);
   SV_Target.w = 1.0f;
+
+  //SV_Target.rgb *= 5;
   return SV_Target;
 }

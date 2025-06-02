@@ -40,7 +40,8 @@ auto last_is_hdr = false;
 const std::unordered_map<std::string, float> HDR_LOOK_VALUES = {
    // {"ToneMapType", 3.f},
     {"SceneGradeMethod", 1.f},
-    {"SceneGradeHueShift", 100.f},
+    {"SceneGradeHueShift", 50.f},
+    {"SceneGradeBlowoutRestoration", 100.f},
     {"ColorGradeExposure", 1.12f},
     {"ColorGradeHighlights", 52.f},
     {"ColorGradeShadows", 53.f},
@@ -171,8 +172,8 @@ renodx::utils::settings::Settings settings = {
         .key = "SceneGradeMethod",
         .binding = &CUSTOM_SCENE_GRADE_METHOD,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
-        .label = "Hue Correction Method",
+        .default_value = 1.f,
+        .label = "Tonemap Upgrade Method",
         .section = "Scene Grading",
         .tooltip = "Selects hue processor",
         .labels = {"Vanilla", "Blowout Restoration"},
@@ -215,7 +216,7 @@ renodx::utils::settings::Settings settings = {
         new renodx::utils::settings::Setting{
         .key = "SceneGradeHueShift",
         .binding = &shader_injection.scene_grade_hue_shift,
-        .default_value = 50.f,
+        .default_value = 100.f,
         .label = "Hue Shift",
         .section = "Scene Grading",
         .max = 100.f,
@@ -310,7 +311,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ColorGradeBlowout",
         .binding = &shader_injection.tone_map_blowout,
-        .default_value = 30.f,
+        .default_value = 0.f,
         .label = "Blowout",
         .section = "Color Grading",
         .tooltip = "Adds highlight desaturation due to overexposure.",
