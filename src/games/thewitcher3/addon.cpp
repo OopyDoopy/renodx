@@ -506,6 +506,15 @@ renodx::utils::settings::Settings settings = {
           renodx::utils::platform::Launch(("https://discord.gg/XUhv") + std::string("tR54yc"));
         },
     },
+        new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Github Discussions",
+        .section = "Links",
+        .group = "button-line-1",
+        .on_change = []() {
+          renodx::utils::platform::Launch("https://github.com/clshortfuse/renodx/discussions/254");
+        },
+    },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Github",
