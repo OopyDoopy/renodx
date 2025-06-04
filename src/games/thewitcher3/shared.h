@@ -46,6 +46,7 @@
 #define CUSTOM_LENS_DIRT                       shader_injection.custom_lens_dirt
 #define CUSTOM_SUNSHAFTS_STRENGTH              shader_injection.custom_sunshafts_strength
 #define CUSTOM_DEPTH_BLUR                      shader_injection.custom_depth_blur
+#define CUSTOM_NIS                             shader_injection.custom_nis
 #define CUSTOM_TONEMAP_EXPOSURE                shader_injection.tone_map_exposure
 #define UTILITY_HUD                            shader_injection.utility_hud
 
@@ -85,6 +86,7 @@ struct ShaderInjectData {
   float custom_sunshafts_strength;
   float custom_tone_map_exposure;
   float custom_depth_blur;
+  float custom_nis;
   float utility_hud;
 };
 
