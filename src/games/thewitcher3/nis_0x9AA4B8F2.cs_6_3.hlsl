@@ -187,9 +187,9 @@ void comp_main()
             float4 _440 = _8.SampleLevel(_21, float2(_18_m0[4u].x * (_429 + 0.5f), _18_m0[4u].y * (_435 + 0.5f)), 0.0f);
             _11[uint2(uint(_429), uint(_435))] = float4(_440.x + _426, _440.y + _426, _440.z + _426, _440.w);
 
-           
-            _11[uint2(uint(_429), uint(_435))] = _440; // disable NIS
-         
+    
+                _11[uint2(uint(_429), uint(_435))] = _440;  // disable NIS
+            
 
             uint _164 = _163 + 128u;
             if (int(_164) < int(1024u))
