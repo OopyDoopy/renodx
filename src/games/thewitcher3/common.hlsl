@@ -1,5 +1,6 @@
 #include "./shared.h"
 
+
 float3 ColorPicker(float3 color, float3 sdr_color) {
   if (RENODX_TONE_MAP_TYPE == 0.f) {
     return sdr_color;
