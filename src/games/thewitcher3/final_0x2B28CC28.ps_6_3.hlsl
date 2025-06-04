@@ -1,4 +1,5 @@
 #include "./common.hlsl"
+#include "./lilium_rcas.hlsl"
 
 Texture2D<float4> t0 : register(t0);
 
@@ -59,6 +60,14 @@ OutputSignature main(
 
   float3 gammaGameColor = _29.rgb;
   float3 linearGameColor = renodx::color::gamma::DecodeSafe(gammaGameColor, gamma);
+  linearGameColor.xyz = ApplyRCAS(linearGameColor.xyz, TEXCOORD, t0, s0);
+  linearGameColor.xyz = CustomTonemap(linearGameColor.xyz);
+  linearGameColor.xyz = renodx::effects::ApplyFilmGrain(
+      linearGameColor.xyz,
+      float2(TEXCOORD.x, TEXCOORD.y),
+      CUSTOM_RANDOM,
+      CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);
+  linearGameColor.rgb = renodx::draw::RenderIntermediatePass(linearGameColor.rgb);
 
   // float _50 = linearGameColor.x;
   // float _51 = linearGameColor.y;
@@ -190,30 +199,19 @@ OutputSignature main(
     float4 intermediateColor;
     intermediateColor.w = saturate(_24.w * 2.0f);
     intermediateColor.xyz = linearGameColor.xyz;
+  
+    // intermediateColor.xyz = CustomTonemap(intermediateColor.xyz);
+    // intermediateColor.xyz = renodx::effects::ApplyFilmGrain(
+    //     intermediateColor.xyz,
+    //     float2(TEXCOORD.x, TEXCOORD.y),
+    //     CUSTOM_RANDOM,
+    //     CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);
+    // intermediateColor.rgb = renodx::draw::RenderIntermediatePass(intermediateColor.rgb);
+
+    //blend game + ui
     intermediateColor.xyz *= -0.6699999570846558f;
     intermediateColor.xyz *= intermediateColor.w;
     intermediateColor.xyz += linearGameColor;
-
-    //intermediateColor.rgb = linearGameColor.rgb;
-
-    // intermediateColor.xyz = ToneMapMaxCLL(intermediateColor.xyz, 0.5f, 20.f);
-    // intermediateColor.xyz = renodx::draw::RenderIntermediatePass(intermediateColor.xyz);
-
-    intermediateColor.xyz = CustomTonemap(intermediateColor.xyz);
-    intermediateColor.xyz = renodx::effects::ApplyFilmGrain(
-        intermediateColor.xyz,
-        float2(TEXCOORD.x, TEXCOORD.y),
-        CUSTOM_RANDOM,
-        CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);
-
-     //intermediateColor.xyz *= RENODX_DIFFUSE_WHITE_NITS;
-    intermediateColor.rgb = renodx::draw::RenderIntermediatePass(intermediateColor.rgb);
-    //linearUiColor *= RENODX_GRAPHICS_WHITE_NITS;
-
-    //outputColor = HandleUICompositing(float4(linearUiColor, _24.w), intermediateColor);
-    //outputColor.rgb = linearGameColor.xyz;
-    //outputColor.w = 1;
-
     outputColor.xyz = linearUiColor - intermediateColor.xyz;
     outputColor.w = _24.w + -1.0f;
     outputColor *= _24.w;
