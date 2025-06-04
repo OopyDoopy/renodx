@@ -113,7 +113,7 @@ void comp_main()
             float _238 = 1.0f - clamp((_25[_199] - _18_m0[1u].z) * _18_m0[1u].w, 0.0f, 1.0f);
 
             float _244 = (_18_m0[2u].y * _238) + _18_m0[2u].x;
-            _244 *= CUSTOM_NIS;
+            //_244 *= CUSTOM_NIS;
 
             float _249 = ((_18_m0[2u].w * _238) + _18_m0[2u].z) * _25[_199];
             float _252 = _25[_199] * 1.20019996166229248046875f;
@@ -187,9 +187,9 @@ void comp_main()
             float4 _440 = _8.SampleLevel(_21, float2(_18_m0[4u].x * (_429 + 0.5f), _18_m0[4u].y * (_435 + 0.5f)), 0.0f);
             _11[uint2(uint(_429), uint(_435))] = float4(_440.x + _426, _440.y + _426, _440.z + _426, _440.w);
 
-            if (CUSTOM_NIS == 0.f) {
-              _11[uint2(uint(_429), uint(_435))] = _440;
-            }
+           
+            _11[uint2(uint(_429), uint(_435))] = _440; // disable NIS
+         
 
             uint _164 = _163 + 128u;
             if (int(_164) < int(1024u))
@@ -203,6 +203,7 @@ void comp_main()
             }
         }
     }
+    //_11[uint2(uint(_429), uint(_435))] = _8.SampleLevel(_21, float2(_18_m0[4u].x * (_429 + 0.5f), _18_m0[4u].y * (_435 + 0.5f)), 0.0f);
 }
 
 [numthreads(128, 1, 1)]
@@ -210,5 +211,6 @@ void main(SPIRV_Cross_Input stage_input)
 {
     gl_WorkGroupID = stage_input.gl_WorkGroupID;
     gl_LocalInvocationID = stage_input.gl_LocalInvocationID;
+    //_11[uint2(uint(gl_WorkGroupID.x), uint(gl_WorkGroupID.y))] = _8.SampleLevel(_21, float2(_18_m0[4u].x * (float(int(gl_WorkGroupID.x) + 0.5f)), _18_m0[4u].y * (float(int(gl_WorkGroupID.y) + 0.5f))), 0.0f);
     comp_main();
 }
