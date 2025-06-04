@@ -69,7 +69,7 @@ const std::unordered_map<std::string, float> CANNOT_PRESET_VALUES = {
     //{"FxPostProcessingMaxCLL", 0},
     {"FxFilmGrain", 0},
     {"FxLensDirt", 0},
-    {"FxNIS", 0},
+    {"FxSharpness", 0},
     //{"FxSunShaftStrength", 0},
 };
 
@@ -440,7 +440,7 @@ new renodx::utils::settings::Setting{
     .binding = &shader_injection.custom_sharpness,
     .default_value = 0.f,
     .label = "RCAS Sharpness",
-    .section = "Effects",
+    .section = "RenoFX",
     .tooltip = "Controls Lilium's RCAS Sharpness",
     .max = 100.f,
     .parse = [](float value) { return value == 0 ? 0.f : exp2(-(1.f - (value * 0.01f))); },
@@ -517,6 +517,11 @@ new renodx::utils::settings::Setting{
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
         .label = " - If the sunshafts slider doesn't work, please report your screen resolution in the Discord.",
+        .section = "Notes",
+    },
+        new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = " - In-game HDR/Gamma settings are disabled by RenoDX, adjust peak/game/ui brightness in the mod.",
         .section = "Notes",
     },
     new renodx::utils::settings::Setting{
@@ -610,7 +615,7 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("FxLensDirt", 50.f);
   renodx::utils::settings::UpdateSetting("FxSunShaftStrength", 50.f);
   renodx::utils::settings::UpdateSetting("FxDepthBlur", 50.f);
-  renodx::utils::settings::UpdateSetting("FxNIS", 50.f);
+  renodx::utils::settings::UpdateSetting("FxSharpness", 0.f);
 }
 
 bool fired_on_init_swapchain = false;
