@@ -82,7 +82,10 @@ float3 CustomUpgradeToneMap(float3 untonemapped, float3 tonemapped_bt709, float 
       outputColor = UpgradeToneMapWithoutHueCorrection(untonemapped_midgray, ToneMapMaxCLL(untonemapped_midgray), tonemapped_bt709, RENODX_COLOR_GRADE_STRENGTH);
     }
     else {
+      //hdr_color = lerp(tonemapped_bt709, untonemapped_midgray, saturate(tonemapped_bt709));
+      //outputColor = renodx::color::correct::Hue(hdr_color, tonemapped_bt709, 1.f, 0);
       outputColor = renodx::tonemap::UpgradeToneMap(untonemapped_midgray, ToneMapMaxCLL(untonemapped_midgray), tonemapped_bt709, RENODX_COLOR_GRADE_STRENGTH);
+      //outputColor = renodx::color::correct::Hue(outputColor, tonemapped_bt709);
     }
     return outputColor;
   }

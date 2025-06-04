@@ -1,3 +1,5 @@
+#include "./shared.h"
+
 cbuffer _16_18 : register(b0, space0)
 {
     float4 _18_m0[7] : packoffset(c0);
@@ -22,6 +24,7 @@ void comp_main()
     uint _42 = gl_WorkGroupID.x << 5u;
     uint _44 = gl_WorkGroupID.y << 5u;
     uint _45 = gl_LocalInvocationID.x << 1u;
+    //_45 = 10;
     if (int(_45) < int(722u))
     {
         uint _53;
@@ -108,7 +111,10 @@ void comp_main()
             uint _221 = _183 + (_211 * 38u);
             uint _226 = _168 + ((_167 + 4u) * 38u);
             float _238 = 1.0f - clamp((_25[_199] - _18_m0[1u].z) * _18_m0[1u].w, 0.0f, 1.0f);
+
             float _244 = (_18_m0[2u].y * _238) + _18_m0[2u].x;
+            _244 *= CUSTOM_NIS;
+
             float _249 = ((_18_m0[2u].w * _238) + _18_m0[2u].z) * _25[_199];
             float _252 = _25[_199] * 1.20019996166229248046875f;
             float _258 = (-0.0f) - _249;
@@ -180,6 +186,11 @@ void comp_main()
             float _435 = float(int(_167 + _44));
             float4 _440 = _8.SampleLevel(_21, float2(_18_m0[4u].x * (_429 + 0.5f), _18_m0[4u].y * (_435 + 0.5f)), 0.0f);
             _11[uint2(uint(_429), uint(_435))] = float4(_440.x + _426, _440.y + _426, _440.z + _426, _440.w);
+
+            if (CUSTOM_NIS == 0.f) {
+              _11[uint2(uint(_429), uint(_435))] = _440;
+            }
+
             uint _164 = _163 + 128u;
             if (int(_164) < int(1024u))
             {

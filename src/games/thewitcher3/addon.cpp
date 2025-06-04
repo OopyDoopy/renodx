@@ -57,9 +57,9 @@ const std::unordered_map<std::string, float> HDR_LOOK_VALUES = {
    // {"TonemapGradeStrength", 100.f},
     //{"FxFilmGrain", 0.f},
     //{"FxPostProcessingMaxCLL", 40.f},
-    {"FxBloom", 40.f},
+    {"FxBloom", 33.f},
     //{"FxLensDirt", 50.f},
-    {"FxSunShaftStrength", 40.f},
+    {"FxSunShaftStrength", 50.f},
 };
 
 const std::unordered_map<std::string, float> CANNOT_PRESET_VALUES = {
@@ -69,6 +69,7 @@ const std::unordered_map<std::string, float> CANNOT_PRESET_VALUES = {
     //{"FxPostProcessingMaxCLL", 0},
     {"FxFilmGrain", 0},
     {"FxLensDirt", 0},
+    {"FxNIS", 0},
     //{"FxSunShaftStrength", 0},
 };
 
@@ -423,6 +424,17 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.02f; },
         //.is_visible = []() { return current_settings_mode >= 1.f; },
     },
+    new renodx::utils::settings::Setting{
+        .key = "FxNIS",
+        .binding = &shader_injection.custom_nis,
+        .default_value = 50.f,
+        .label = "NIS Sharpening",
+        .section = "Effects",
+        .tooltip = "Nvidia Image Scaling (NIS) Sharpening is forced on by default with DLSS. This adjusts the strength of the filter or disables it.",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.02f; },
+        //.is_visible = []() { return current_settings_mode >= 1.f; },
+    },
         new renodx::utils::settings::Setting{
         .key = "FxFilmGrain",
         .binding = &shader_injection.custom_film_grain,
@@ -582,6 +594,7 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("FxLensDirt", 50.f);
   renodx::utils::settings::UpdateSetting("FxSunShaftStrength", 50.f);
   renodx::utils::settings::UpdateSetting("FxDepthBlur", 50.f);
+  renodx::utils::settings::UpdateSetting("FxNIS", 50.f);
 }
 
 bool fired_on_init_swapchain = false;
@@ -626,7 +639,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       renodx::mods::shader::expected_constant_buffer_space = 50;
       renodx::mods::shader::expected_constant_buffer_index = 13;
       //renodx::mods::shader::allow_multiple_push_constants = true;
-      renodx::mods::shader::force_pipeline_cloning = true;
+      //renodx::mods::shader::force_pipeline_cloning = true;
       // renodx::mods::shader::on_create_pipeline_layout = [](auto, auto params) {
       //     return static_cast<bool>(params.size() < 20);
       // };
