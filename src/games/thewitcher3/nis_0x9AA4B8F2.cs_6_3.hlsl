@@ -113,7 +113,10 @@ void comp_main()
             float _238 = 1.0f - clamp((_25[_199] - _18_m0[1u].z) * _18_m0[1u].w, 0.0f, 1.0f);
 
             float _244 = (_18_m0[2u].y * _238) + _18_m0[2u].x;
-            //_244 *= CUSTOM_NIS;
+
+            if (CUSTOM_SHARPENING_TYPE == 0) {
+            _244 *= CUSTOM_SHARPNESS;
+            }
 
             float _249 = ((_18_m0[2u].w * _238) + _18_m0[2u].z) * _25[_199];
             float _252 = _25[_199] * 1.20019996166229248046875f;
@@ -187,10 +190,10 @@ void comp_main()
             float4 _440 = _8.SampleLevel(_21, float2(_18_m0[4u].x * (_429 + 0.5f), _18_m0[4u].y * (_435 + 0.5f)), 0.0f);
             _11[uint2(uint(_429), uint(_435))] = float4(_440.x + _426, _440.y + _426, _440.z + _426, _440.w);
 
-    
-                _11[uint2(uint(_429), uint(_435))] = _440;  // disable NIS
-            
-
+            if (CUSTOM_SHARPENING_TYPE != 0) {
+              _11[uint2(uint(_429), uint(_435))] = _440;  // disable NIS
+            }
+                
             uint _164 = _163 + 128u;
             if (int(_164) < int(1024u))
             {
