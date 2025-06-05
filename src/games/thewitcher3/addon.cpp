@@ -424,6 +424,31 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.02f; },
         //.is_visible = []() { return current_settings_mode >= 1.f; },
     },
+    new renodx::utils::settings::Setting{
+        .key = "FxSharpeningType",
+        .binding = &shader_injection.custom_sharpening_type,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .label = "Sharpening Type",
+        .section = "RenoFX",
+        .tooltip = "Select sharpening method. NIS only available with DLSS.",
+        .labels = {"NIS", "Lilium's HDR RCAS"},
+    },
+    new renodx::utils::settings::Setting{
+    .key = "FxSharpness",
+    .binding = &shader_injection.custom_sharpness,
+    .default_value = 0.f,
+    .label = "Sharpness",
+    .section = "RenoFX",
+    .tooltip = "Controls Sharpness",
+    .max = 100.f,
+    .parse = [](float value) { 
+        if (CUSTOM_SHARPENING_TYPE == 0) {
+            return value * 0.02f; // NIS
+        }
+        return value == 0 ? 0.f : exp2(-(1.f - (value * 0.01f))); },
+    .is_visible = []() { return settings[0]->GetValue() >= 1.f && last_is_hdr; },
+},
     // new renodx::utils::settings::Setting{
     //     .key = "FxNIS",
     //     .binding = &shader_injection.custom_nis,
@@ -435,17 +460,7 @@ renodx::utils::settings::Settings settings = {
     //     .parse = [](float value) { return value * 0.02f; },
     //     //.is_visible = []() { return current_settings_mode >= 1.f; },
     // },
-new renodx::utils::settings::Setting{
-    .key = "FxSharpness",
-    .binding = &shader_injection.custom_sharpness,
-    .default_value = 0.f,
-    .label = "RCAS Sharpness",
-    .section = "RenoFX",
-    .tooltip = "Controls Lilium's RCAS Sharpness",
-    .max = 100.f,
-    .parse = [](float value) { return value == 0 ? 0.f : exp2(-(1.f - (value * 0.01f))); },
-    .is_visible = []() { return settings[0]->GetValue() >= 1.f && last_is_hdr; },
-},
+
         new renodx::utils::settings::Setting{
         .key = "FxFilmGrain",
         .binding = &shader_injection.custom_film_grain,
