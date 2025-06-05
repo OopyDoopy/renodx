@@ -45,7 +45,7 @@ float4 main(
   float4 _19 = t0.Sample(s0, float2(min(max(TEXCOORD.x, CustomPixelConsts_000.x), CustomPixelConsts_000.z), min(max(TEXCOORD.y, CustomPixelConsts_000.y), CustomPixelConsts_000.w)));
 
   float3 ungraded = _19.rgb;
-  float3 ungraded_sdr = ToneMapMaxCLL(ungraded, 0.5f, 2.f);
+  float3 ungraded_sdr = ToneMapMaxCLL(ungraded);
   _19.rgb = ColorPicker(ungraded, ungraded_sdr);
 
   // linear to 2.2
@@ -79,7 +79,12 @@ float4 main(
   SV_Target.z = ((((CustomPixelConsts_016.z * (((exp2(log2(abs(lerp(_111.z, _107.z, _41))) * 2.200000047683716f) - _104) * CustomPixelConsts_016.x) + _104)) - _19.z) * CustomPixelConsts_016.y) + _19.z);
   SV_Target.w = _19.w;
 
-  SV_Target.rgb = CustomUpgradeGrading(ungraded, ungraded_sdr, SV_Target.rgb);
+  float3 graded_sdr = SV_Target.rgb;
+
+  float3 hdr_grade = lerp(graded_sdr, ungraded, saturate(graded_sdr));
+  SV_Target.rgb = lerp(ungraded, hdr_grade, CUSTOM_LUT_STRENGTH);
+  //SV_Target.rgb = CustomUpgradeGrading(ungraded, ungraded_sdr, graded_sdr);
+  //SV_Target.rgb = lerp(ungraded, graded_sdr, CUSTOM_LUT_STRENGTH);
 
   //SV_Target.rgb = test;
   return SV_Target;

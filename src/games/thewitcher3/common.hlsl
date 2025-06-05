@@ -70,8 +70,9 @@ float3 CustomUpgradeToneMap(float3 untonemapped, float3 tonemapped_bt709, float 
   else {
     float mid_gray_scale = mid_gray / 0.18f;
     float3 untonemapped_midgray = untonemapped * mid_gray_scale;
-    //float3 hdr_color;
+    float3 hdr_color;
     float3 outputColor;
+    //tonemapped_bt709 = saturate(tonemapped_bt709);
     if (CUSTOM_SCENE_GRADE_METHOD == 1.f) {
       tonemapped_bt709 = renodx::draw::ApplyPerChannelCorrection(
           untonemapped_midgray,
@@ -80,12 +81,19 @@ float3 CustomUpgradeToneMap(float3 untonemapped, float3 tonemapped_bt709, float 
           CUSTOM_SCENE_GRADE_HUE_CORRECTION,
           CUSTOM_SCENE_GRADE_SATURATION_CORRECTION,
           CUSTOM_SCENE_GRADE_HUE_SHIFT);
-      outputColor = UpgradeToneMapWithoutHueCorrection(untonemapped_midgray, ToneMapMaxCLL(untonemapped_midgray), tonemapped_bt709, RENODX_COLOR_GRADE_STRENGTH);
+      
+      //hdr_color = lerp(tonemapped_bt709, untonemapped_midgray, saturate(tonemapped_bt709));
+      //outputColor = renodx::color::correct::Hue(hdr_color, tonemapped_bt709, CUSTOM_SCENE_GRADE_HUE_CORRECTION, 0);
+
+      outputColor = renodx::tonemap::UpgradeToneMap(untonemapped_midgray, ToneMapMaxCLL(untonemapped_midgray), tonemapped_bt709, RENODX_COLOR_GRADE_STRENGTH);
     }
     else {
       //hdr_color = lerp(tonemapped_bt709, untonemapped_midgray, saturate(tonemapped_bt709));
-      //outputColor = renodx::color::correct::Hue(hdr_color, tonemapped_bt709, 1.f, 0);
+      //outputColor = renodx::color::correct::Hue(hdr_color, tonemapped_bt709, CUSTOM_SCENE_GRADE_HUE_CORRECTION, 0);
+      //outputColor = hdr_color;
       outputColor = renodx::tonemap::UpgradeToneMap(untonemapped_midgray, ToneMapMaxCLL(untonemapped_midgray), tonemapped_bt709, RENODX_COLOR_GRADE_STRENGTH);
+
+
       //outputColor = renodx::color::correct::Hue(outputColor, tonemapped_bt709);
     }
     return outputColor;
@@ -100,13 +108,31 @@ float3 CustomUpgradeGrading(float3 ungraded, float3 ungraded_sdr, float3 graded)
   return renodx::draw::UpgradeToneMapByLuminance(ungraded, ungraded_sdr, graded, CUSTOM_LUT_STRENGTH);
 }
 
-float3 CustomTonemap(float3 color) {
+float3 applyDice(float3 color, float paperWhite = RENODX_DIFFUSE_WHITE_NITS, float peakWhite = RENODX_PEAK_WHITE_NITS) {
+  paperWhite = paperWhite / renodx::color::srgb::REFERENCE_WHITE;
+  peakWhite = peakWhite / renodx::color::srgb::REFERENCE_WHITE;
+  const float highlightsShoulderStart = paperWhite;
+  return renodx::tonemap::dice::BT709(color * paperWhite, peakWhite, highlightsShoulderStart) / paperWhite;
+}
+
+renodx::draw::Config SdrConfig() {
+  renodx::draw::Config config = renodx::draw::BuildConfig();
+  config.peak_white_nits = 80.f;
+  config.diffuse_white_nits = 80.f;
+  config.graphics_white_nits = 80.f;
+  config.reno_drt_white_clip = 1.5f;
+  return config;
+}
+
+float3 CustomTonemap(float3 color, renodx::draw::Config config = renodx::draw::BuildConfig()) {
   // renodx::draw::Config config = renodx::draw::BuildConfig();
   // config.reno_drt_tone_map_method = renodx::draw::TONE_MAP_TYPE_UNTONEMAPPED;
   if (RENODX_TONE_MAP_TYPE == 0.f) {
     return color;
   }
-  float3 outputColor = renodx::draw::ToneMapPass(color);
+  //config.peak_white_nits = 10000.f;
+  float3 outputColor = renodx::draw::ToneMapPass(color, config);
+  //float3 outputColor = applyDice(color, RENODX_DIFFUSE_WHITE_NITS, RENODX_PEAK_WHITE_NITS);
 
   //float peakWhite = RENODX_PEAK_WHITE_NITS / renodx::color::srgb::REFERENCE_WHITE;
   //float paperWhite = RENODX_DIFFUSE_WHITE_NITS / renodx::color::srgb::REFERENCE_WHITE;
@@ -114,12 +140,7 @@ float3 CustomTonemap(float3 color) {
   //return ToneMapMaxCLL(outputColor, paperWhite, peakWhite);
 }
 
-float3 applyDice(float3 color, float paperWhite = RENODX_DIFFUSE_WHITE_NITS, float peakWhite = RENODX_PEAK_WHITE_NITS) {
-  paperWhite = paperWhite / renodx::color::srgb::REFERENCE_WHITE;
-  peakWhite = peakWhite / renodx::color::srgb::REFERENCE_WHITE;
-  const float highlightsShoulderStart = paperWhite;
-  return renodx::tonemap::dice::BT709(color * paperWhite, peakWhite, highlightsShoulderStart) / paperWhite;
-}
+
 
 // float3 CustomDisplayMap(float3 color) {
 //   if (RENODX_TONE_MAP_TYPE == 0.f || RENODX_TONE_MAP_TYPE == 1.f) {
