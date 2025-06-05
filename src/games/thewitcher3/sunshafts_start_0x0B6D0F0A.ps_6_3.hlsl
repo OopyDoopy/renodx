@@ -52,12 +52,10 @@ float4 main(
   float4 _32 = t1.Load(int3((uint)(uint(((cb12_270x * _14) + _19) * cb12_271x)), (uint)(uint((_20 - (cb12_270y * _14)) * cb12_271x)), 0));
   float4 _34 = t0.Load(int3(_10, _11, 0));
 
-  //_32.rgb = CustomBloomTonemap(_32.rgb, 0.375f);
-  //_34.rgb = CustomBloomTonemap(_34.rgb, 0.375f);
-  //_34.rgb = CustomSunshaftsTonemap(_34.rgb);
-  _34.rgb = min(_34.rgb, 1.f);
-  //_32.rgb = CustomSunshaftsTonemap(_32.rgb);
-  //_32 = saturate(_32);
+  if (RENODX_TONE_MAP_TYPE != 0) {
+    _34.rgb = min(_34.rgb, 1.f);
+  }
+
 
   float temp_cb12_022x = cb12_022x;
   float temp_cb12_022y = cb12_022y;
