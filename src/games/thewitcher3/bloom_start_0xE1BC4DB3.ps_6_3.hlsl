@@ -55,10 +55,13 @@ float4 main(
   // _69.rgb = CustomBloomTonemap(_69.rgb);
   // _80.rgb = CustomBloomTonemap(_80.rgb);
   // _87.rgb = CustomBloomTonemap(_87.rgb);
-  _61.rgb = min(_61.rgb, 1.f);
-  _69.rgb = min(_69.rgb, 1.f);
-  _80.rgb = min(_80.rgb, 1.f);
-  _87.rgb = min(_87.rgb, 1.f);
+  if (RENODX_TONE_MAP_TYPE != 0) {
+    _61.rgb = min(_61.rgb, 1.f);
+    _69.rgb = min(_69.rgb, 1.f);
+    _80.rgb = min(_80.rgb, 1.f);
+    _87.rgb = min(_87.rgb, 1.f);
+  }
+
 
   float _91 = ((_69.x + _61.x) + _80.x) + _87.x;
   float _92 = ((_69.y + _61.y) + _80.y) + _87.y;
@@ -91,7 +94,7 @@ float4 main(
 
   float _113 = dot(float3(CC144.x, CC144.y, CC144.z), float3(_106, _107, _108));
   float _117 = max(0.0f, (_113 - CC128.x));
-  float _126 = min(CC112.x, (saturate(CC128.y * _117) * _117)) / max(9.999999747378752e-05f, _113);
+  float _126 = min(CC112.x, saturate((CC128.y * _117) * _117)) / max(9.999999747378752e-05f, _113);
   SV_Target.x = ((_126 * _106) * CC096.x);
   SV_Target.y = ((_126 * _107) * CC096.x);
   SV_Target.z = ((_126 * _108) * CC096.x);
