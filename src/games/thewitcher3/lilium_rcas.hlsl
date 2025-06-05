@@ -21,7 +21,7 @@ float Min(float x, float y, float z, float w) {
 float3 ApplyRCAS(
     float3 center_color, float2 tex_coord,
     Texture2D<float4> SamplerFrameBuffer_TEX, SamplerState SamplerFrameBuffer_SMP_s) {
-  if (CUSTOM_SHARPNESS == 0.f) return center_color;  // Skip sharpening if amount is zero
+  if (CUSTOM_SHARPNESS == 0.f || CUSTOM_SHARPENING_TYPE != 1) return center_color;  // Skip sharpening if amount is zero
 
 #define ENABLE_NOISE_REMOVAL           1u // Always good to be enabled
 #define ENABLE_NORMALIZATION           1u
