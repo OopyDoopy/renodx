@@ -46,7 +46,7 @@ const std::unordered_map<std::string, float> HDR_LOOK_VALUES = {
     {"SceneGradeBlowoutRestoration", 80.f},
     {"ColorGradeExposure", 1.12f},
     {"ColorGradeHighlights", 52.f},
-    {"ColorGradeShadows", 53.f},
+    {"ColorGradeShadows", 57.f},
     {"ColorGradeContrast", 55.f},
     {"ColorGradeSaturation", 56.f},
     {"ColorGradeHighlightSaturation", 50.f},
