@@ -62,12 +62,38 @@ const std::unordered_map<std::string, float> HDR_LOOK_VALUES = {
     {"FxSunShaftStrength", 50.f},
 };
 
+const std::unordered_map<std::string, float> FILMIC_VALUES = {
+   // {"ToneMapType", 3.f},
+    {"SceneGradeMethod", 1.f},
+    {"SceneGradeHueShift", 70.f},
+    {"SceneGradeHueCorrection", 50.f},
+    {"SceneGradeSaturationCorrection", 100.f},
+    {"SceneGradeBlowoutRestoration", 50.f},
+    {"ColorGradeExposure", 0.80f},
+    {"ColorGradeHighlights", 57.f},
+    {"ColorGradeShadows", 62.f},
+    //{"ColorGradeContrast", 50.f},
+    {"ColorGradeSaturation", 52.f},
+    {"ColorGradeHighlightSaturation", 70.f},
+    {"ColorGradeBlowout", 75.f},
+    //{"ColorGradeFlare", 62.f},
+   // {"SwapChainCustomColorSpace", 0.f},
+    //{"LutGradeStrength", 100.f},
+   // {"TonemapGradeStrength", 100.f},
+    {"FxFilmGrain", 50.f},
+    //{"FxPostProcessingMaxCLL", 40.f},
+    {"FxBloom", 15.f},
+    {"FxDepthBlur", 100.f},
+    //{"FxLensDirt", 50.f},
+    {"FxSunShaftStrength", 60.f},
+};
+
 const std::unordered_map<std::string, float> CANNOT_PRESET_VALUES = {
     {"ToneMapPeakNits", 0},
     {"ToneMapGameNits", 0},
     {"ToneMapUINits", 0},
     //{"FxPostProcessingMaxCLL", 0},
-    {"FxFilmGrain", 0},
+    //{"FxFilmGrain", 0},
     {"FxLensDirt", 0},
     {"FxSharpness", 0},
     //{"FxSunShaftStrength", 0},
@@ -496,6 +522,25 @@ renodx::utils::settings::Settings settings = {
             if (CANNOT_PRESET_VALUES.contains(setting->key)) continue;
             if (HDR_LOOK_VALUES.contains(setting->key)) {
               renodx::utils::settings::UpdateSetting(setting->key, HDR_LOOK_VALUES.at(setting->key));
+            } else {
+              renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+            }
+          }
+        },
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Filmic",
+        .section = "Presets",
+        .group = "button-line-1",
+        .on_change = []() {
+          for (auto* setting : settings) {
+            if (setting->key.empty()) continue;
+            if (!setting->can_reset) continue;
+            if (setting->is_global) continue;
+            if (CANNOT_PRESET_VALUES.contains(setting->key)) continue;
+            if (FILMIC_VALUES.contains(setting->key)) {
+              renodx::utils::settings::UpdateSetting(setting->key, FILMIC_VALUES.at(setting->key));
             } else {
               renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
             }
