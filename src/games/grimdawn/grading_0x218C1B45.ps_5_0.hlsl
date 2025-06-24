@@ -1,7 +1,8 @@
-// ---- Created with 3Dmigoto v1.3.16 on Tue Feb 11 16:06:52 2025
+#include "./shared.h"
 
-cbuffer heynottoorough : register(b0)
-{
+// ---- Created with 3Dmigoto v1.3.16 on Tue Feb 11 16:39:33 2025
+
+cbuffer heynottoorough : register(b0) {
   float dofDistance : packoffset(c0);
   float dofRange : packoffset(c0.y);
   float brightnessAdjustment : packoffset(c0.z);
@@ -111,43 +112,52 @@ cbuffer heynottoorough : register(b0)
 }
 
 SamplerState baseSampler_s : register(s0);
-SamplerState blurSampler_s : register(s1);
-SamplerState depthSampler_s : register(s2);
 Texture2D<float4> baseSampler : register(t0);
-Texture2D<float4> blurSampler : register(t1);
-Texture2D<float4> depthSampler : register(t2);
-
 
 // 3Dmigoto declarations
 #define cmp -
 
-
 void main(
-  float4 v0 : SV_Position0,
-  float2 v1 : TEXCOORD0,
-  out float4 o0 : SV_Target0)
-{
-  float4 r0,r1,r2;
+    float4 v0: SV_Position0,
+    float4 v1: COLOR0,
+    float2 v2: TEXCOORD0,
+    out float4 o0: SV_Target0) {
+  float4 r0, r1, r2;
   uint4 bitmask, uiDest;
   float4 fDest;
 
-  r0.x = depthSampler.Sample(depthSampler_s, v1.xy).x;
-  r0.x = r0.x * 2 + -1;
-  r0.y = zFar + -zNear;
-  r0.zw = zNear + zNear;
-  r0.x = -r0.x * r0.y + r0.w;
-  r0.x = r0.z / r0.x;
-  r0.x = zFar * r0.x;
-  r0.x = r0.x * 1.26999998 + -dofDistance;
+  r0.xyzw = baseSampler.Sample(baseSampler_s, v2.xy).xyzw;
 
-  r0.x = saturate(r0.x / dofRange);
-  //r0.x = r0.x / dofRange;
+  float3 ungraded = r0.xyz;
 
-  r1.xyzw = blurSampler.Sample(blurSampler_s, v1.xy).xyzw;
-  r2.xyzw = baseSampler.Sample(baseSampler_s, v1.xy).xyzw;
-  r1.xyzw = -r2.xyzw + r1.xyzw;
-  o0.xyzw = r0.xxxx * r1.xyzw + r2.xyzw;
+  r1.x = dot(r0.xyz, float3(0.300000012, 0.589999974, 0.109999999));
+  r1.xyz = r1.xxx + -r0.xyz;
+  r1.xyz = saturationAdjustment * r1.xyz + r0.xyz;
+  r2.xyz = float3(-0.5, -0.5, -0.5) + r1.xyz;
+  r1.xyz = r2.xyz * contrastAdjustment + r1.xyz;
 
-  //o0.xyzw += float4(1, 1, 1, 1);
+  // original output code
+  // r0.xyz = saturate(brightnessAdjustment + r1.xyz);
+  // o0.xyzw = v1.xyzw * r0.xyzw;
+
+  r0.xyz = brightnessAdjustment + r1.xyz;
+
+  float3 graded = r0.rgb * v1.rgb;
+
+  graded = renodx::color::srgb::DecodeSafe(graded);
+  ungraded = renodx::color::srgb::DecodeSafe(ungraded);
+  graded = lerp(ungraded, graded, CUSTOM_COLOR_GRADING);
+
+  float3 outputColor = graded;
+  if (RENODX_TONE_MAP_TYPE != 0.f) {
+    if (CUSTOM_TONE_MAP_CONFIGURATION == 0) {
+      outputColor = renodx::draw::ToneMapPass(ungraded, saturate(graded));
+    }
+    else {
+      outputColor = renodx::draw::ToneMapPass(graded);
+    }
+  }
+  o0.rgb = renodx::draw::RenderIntermediatePass(outputColor);
+  o0.w = v1.w * r0.w;
   return;
 }
