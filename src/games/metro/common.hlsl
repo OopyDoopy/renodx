@@ -89,9 +89,9 @@ float3 CustomIntermediatePass(float3 color) {
 }
 
 float3 CustomSwapChainPass(float3 color) {
-  float3 linear_color = renodx::color::srgb::DecodeSafe(color);
-  linear_color = renodx::color::correct::GammaSafe(linear_color, false, 2.2f);
-  linear_color = renodx::color::bt709::clamp::BT2020(linear_color);
+  //float3 linear_color = renodx::color::srgb::DecodeSafe(color);
+  //linear_color = renodx::color::correct::GammaSafe(linear_color, false, 2.2f);
+  //linear_color = renodx::color::bt709::clamp::BT2020(linear_color);
   return color;
-  return linear_color;
+  //return linear_color;
 }
