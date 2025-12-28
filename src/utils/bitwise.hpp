@@ -7,6 +7,11 @@ static bool HasFlag(const T1 a, T2 b) {
 }
 
 template <typename T1 = int, typename T2 = int>
+static bool HasAnyFlag(const T1 a, T2 b) {
+  return (a & b) != 0;
+}
+
+template <typename T1 = int, typename T2 = int>
 static T1 SetFlag(const T1 a, const T2 value) {
   return a | value;
 }
