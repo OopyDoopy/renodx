@@ -1659,16 +1659,17 @@ static bool OnCreateSwapchain(reshade::api::swapchain_desc& desc, void* hwnd) {
         }
       }
 
-    if (!use_resize_buffer) {
-      if (prevent_full_screen) {
-        desc.present_flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-      }
-      if (force_screen_tearing) {
-        if (desc.present_mode != static_cast<uint32_t>(DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL)
-            && desc.present_mode != static_cast<uint32_t>(DXGI_SWAP_EFFECT_FLIP_DISCARD)) {
-          reshade::log::message(reshade::log::level::warning, "mods::swapchain::OnCreateSwapchain(Force ALLOW_TEARING flag with non-flip present mode)");
-        } else {
-          desc.present_flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+      if (!use_resize_buffer) {
+        if (prevent_full_screen) {
+          desc.present_flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+        }
+        if (force_screen_tearing) {
+          if (desc.present_mode != static_cast<uint32_t>(DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL)
+              && desc.present_mode != static_cast<uint32_t>(DXGI_SWAP_EFFECT_FLIP_DISCARD)) {
+            reshade::log::message(reshade::log::level::warning, "mods::swapchain::OnCreateSwapchain(Force ALLOW_TEARING flag with non-flip present mode)");
+          } else {
+            desc.present_flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+          }
         }
       }
     }
