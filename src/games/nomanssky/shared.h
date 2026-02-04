@@ -50,8 +50,8 @@ struct ShaderInjectData {
   float custom_hdr_boost;
 
   float swap_chain_output_dither_seed;
-  float padding1;
-  float padding2;
+  float scene_grade_hue_clip;
+  float custom_color_grading;
   float padding3;
 
 };
@@ -64,6 +64,8 @@ struct ShaderInjectData {
 
 #define CUSTOM_SCENE_GRADE_PER_CHANNEL_BLOWOUT        shader_injection.scene_grade_per_channel_blowout
 #define CUSTOM_SCENE_GRADE_HUE_SHIFT                  shader_injection.scene_grade_hue_shift
+#define CUSTOM_SCENE_GRADE_HUE_CLIP                   shader_injection.scene_grade_hue_clip
+#define CUSTOM_COLOR_GRADING                        shader_injection.custom_color_grading
 
 #define RENODX_TONE_MAP_EXPOSURE                      shader_injection.tone_map_exposure
 #define RENODX_TONE_MAP_HIGHLIGHTS                    shader_injection.tone_map_highlights
