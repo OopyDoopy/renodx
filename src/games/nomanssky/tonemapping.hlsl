@@ -21,7 +21,7 @@ float3 VanillaUncharted2Tonemap(float3 x) {
 }
 
 float3 Uncharted2Extended(float3 untonemapped) {
-  if (RENODX_TONE_MAP_TYPE == 0.f) {
+  if (RENODX_TONE_MAP_TYPE < 2) {
     return VanillaUncharted2Tonemap(untonemapped);
   }
 
@@ -58,7 +58,7 @@ float3 CustomGradingSDRTonemap(float3 color) {
 }
 
 float3 CustomUpgradeGrading(float3 untonemapped, float3 sdr_color, float3 sdr_color_graded) {
-  return renodx::tonemap::UpgradeToneMap(untonemapped, sdr_color, sdr_color_graded);
+  return renodx::tonemap::UpgradeToneMap(untonemapped, sdr_color, sdr_color_graded, CUSTOM_COLOR_GRADING);
 }
 
 float3 HDRBoost(float3 color, float power = 0.20f, int mode = 0, float normalization_point = 0.02f) {
@@ -146,6 +146,7 @@ float3 ApplySaturationBlowoutHighlightSaturation(float3 tonemapped, float y, ren
 }
 
 float3 ApplyPerChannelBlowoutHueShift(float3 untonemapped, float mid_gray = 0.18f, float max_value = 1.f) {
+  float3 outputColor = untonemapped;
   if (CUSTOM_SCENE_GRADE_PER_CHANNEL_BLOWOUT > 0.f) {
     float calculated_peak = CUSTOM_SCENE_GRADE_PER_CHANNEL_BLOWOUT + (max_value - 1.f);
     calculated_peak = max(calculated_peak, 1.f);
@@ -165,9 +166,13 @@ float3 ApplyPerChannelBlowoutHueShift(float3 untonemapped, float mid_gray = 0.18
 
     // GamutDecompression(color, compression_scale);
     color = renodx::color::bt709::from::BT2020(color);
-    return color;
+    outputColor = color;
   }
-  return untonemapped;
+  if (CUSTOM_SCENE_GRADE_HUE_CLIP > 0.f) {
+    float3 hue_clipped_color = renodx::tonemap::ExponentialRollOff(outputColor, 0.75f, 1.0f);
+    outputColor = renodx::color::correct::Hue(outputColor, hue_clipped_color, CUSTOM_SCENE_GRADE_HUE_CLIP, 0);
+  }
+  return outputColor;
 }
 
 float3 DisplayMap(float3 color) {
@@ -185,7 +190,7 @@ float3 DisplayMap(float3 color) {
   float tonemap_peak = peak_nits / diffuse_white_nits;
 
   float3 outputColor = color;
-  if (RENODX_TONE_MAP_TYPE == 1) {
+  if (RENODX_TONE_MAP_TYPE == 2) {
     outputColor = renodx::tonemap::neutwo::MaxChannel(outputColor, tonemap_peak);
   }
 
@@ -197,7 +202,6 @@ float3 DisplayMap(float3 color) {
 }
 
 float3 PreTonemapSliders(float3 untonemapped) {
-  if (RENODX_TONE_MAP_TYPE == 0.f) return untonemapped;
   renodx::color::grade::Config config = renodx::color::grade::config::Create();
   config.exposure = RENODX_TONE_MAP_EXPOSURE;
   config.contrast = RENODX_TONE_MAP_CONTRAST;
@@ -225,6 +229,8 @@ float3 PostTonemapSliders(float3 hdr_color) {
 }
 
 float3 CustomTonemap(float3 untonemapped, float2 uv) {
+  if (RENODX_TONE_MAP_TYPE == 0) return renodx::draw::RenderIntermediatePass(untonemapped);  // Want SDR in HDR to work with brightness sliders
+  else if (RENODX_TONE_MAP_TYPE == 1) return untonemapped; // Want Vanilla HDR to use its own scaling
   untonemapped = PreTonemapSliders(untonemapped);
   untonemapped = PostTonemapSliders(untonemapped);
   float3 tonemapped = DisplayMap(untonemapped);

@@ -33,12 +33,12 @@ renodx::utils::settings::Settings settings = {
         .key = "ToneMapType",
         .binding = &shader_injection.tone_map_type,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
+        .default_value = 2.f,
         .can_reset = true,
         .label = "Tone Mapper",
         .section = "Tone Mapping",
         .tooltip = "Sets the tone mapper type",
-        .labels = {"Vanilla", "Neutwo"},
+        .labels = {"Vanilla SDR", "Vanilla HDR", "Neutwo"},
         .parse = [](float value) { return value; },
     },
     new renodx::utils::settings::Setting{
@@ -51,6 +51,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Sets the value of peak white in nits.",
         .min = 80.f,
         .max = 4000.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapGameNits",
@@ -62,6 +63,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Sets the value of 100% white in nits.",
         .min = 80.f,
         .max = 500.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapUINits",
@@ -72,6 +74,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Sets the brightness of UI and HUD elements in nits.",
         .min = 80.f,
         .max = 500.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 1; },
     },
     new renodx::utils::settings::Setting{
       .key = "CustomHDRBoost",
@@ -81,6 +84,7 @@ renodx::utils::settings::Settings settings = {
       .section = "Tone Mapping",
       .tooltip = "Boosts luminance similar to an inverse tonemapper.",
       .max = 50.f,
+      .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
       .parse = [](float value) { return value * 0.01f; },
     },
       new renodx::utils::settings::Setting{
@@ -91,7 +95,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Scene Grading",
         .tooltip = "Simulates the highlight desaturation of per-channel tonemapping.",
         .max = 90.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
         .parse = [](float value) { return (0.01f * pow(100.f - value, 2.f)); },
     },
         new renodx::utils::settings::Setting{
@@ -102,7 +106,29 @@ renodx::utils::settings::Settings settings = {
         .section = "Scene Grading",
         .tooltip = "Simulates the hue shifting of per-channel tonemapping. Effect is tied to Per Channel Blowout.",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 0 && CUSTOM_SCENE_GRADE_PER_CHANNEL_BLOWOUT > 0.f; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1 && CUSTOM_SCENE_GRADE_PER_CHANNEL_BLOWOUT > 0.f; },
+        .parse = [](float value) { return value * 0.01f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "SceneGradeHueClip",
+        .binding = &shader_injection.scene_grade_hue_clip,
+        .default_value = 0.f,
+        .label = "Hue Clip",
+        .section = "Scene Grading",
+        .tooltip = "Simulates the vanilla color shifts caused by hue clipping.",
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
+        .parse = [](float value) { return value * 0.01f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "CustomColorGrading",
+        .binding = &shader_injection.custom_color_grading,
+        .default_value = 100.f,
+        .label = "Color Grading",
+        .section = "Scene Grading",
+        .tooltip = "Simulates the vanilla color shifts caused by hue clipping.",
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
         .parse = [](float value) { return value * 0.01f; },
     },
 new renodx::utils::settings::Setting{
@@ -113,7 +139,7 @@ new renodx::utils::settings::Setting{
         .section = "Color Grading",
         .max = 2.f,
         .format = "%.2f",
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeHighlights",
@@ -122,7 +148,7 @@ new renodx::utils::settings::Setting{
         .label = "Highlights",
         .section = "Color Grading",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
         .parse = [](float value) { return value * 0.02f; },
     },
     new renodx::utils::settings::Setting{
@@ -132,7 +158,7 @@ new renodx::utils::settings::Setting{
         .label = "Shadows",
         .section = "Color Grading",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
         .parse = [](float value) { return value * 0.02f; },
     },
     new renodx::utils::settings::Setting{
@@ -142,7 +168,7 @@ new renodx::utils::settings::Setting{
         .label = "Contrast",
         .section = "Color Grading",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
         .parse = [](float value) { return value * 0.02f; },
     },
     new renodx::utils::settings::Setting{
@@ -152,7 +178,7 @@ new renodx::utils::settings::Setting{
         .label = "Saturation",
         .section = "Color Grading",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
         .parse = [](float value) { return value * 0.02f; },
     },
     new renodx::utils::settings::Setting{
@@ -163,7 +189,7 @@ new renodx::utils::settings::Setting{
         .section = "Color Grading",
         .tooltip = "Adds or removes highlight color.",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
         //.is_enabled = []() { return RENODX_TONE_MAP_TYPE == 3; },
         .parse = [](float value) { return value * 0.02f; },
     },
@@ -175,7 +201,7 @@ new renodx::utils::settings::Setting{
         .section = "Color Grading",
         .tooltip = "Adds highlight desaturation due to overexposure.",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
         //.is_enabled = []() { return RENODX_TONE_MAP_TYPE == 3; },
         .parse = [](float value) { return value * 0.01f; },
     },
@@ -187,7 +213,7 @@ new renodx::utils::settings::Setting{
         .section = "Color Grading",
         .tooltip = "Flare/Glare Compensation",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
         //.is_enabled = []() { return RENODX_TONE_MAP_TYPE == 3; },
         .parse = [](float value) { return value * 0.0001f; },
     },
@@ -210,6 +236,7 @@ new renodx::utils::settings::Setting{
             "US CRT",
             "JPN CRT",
         },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 1; },
     },
         new renodx::utils::settings::Setting{
         .key = "FxDebanding",
@@ -219,6 +246,7 @@ new renodx::utils::settings::Setting{
         .label = "Debanding",
         .section = "Effects",
         .labels = {"None", "8+2 Dither", "10+2 Dither"},
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 1; },
         .parse = [](float value) {
           if (value == 0.f) return 0.f;
           if (value == 1.f) return 8.f;
@@ -234,6 +262,7 @@ new renodx::utils::settings::Setting{
         .section = "Effects",
         .tooltip = "Controls new perceptual film grain.",
         .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
         .parse = [](float value) { return value * 0.01f; },
     },
         // new renodx::utils::settings::Setting{
@@ -246,11 +275,24 @@ new renodx::utils::settings::Setting{
         //     .parse = [](float value) { return value * 0.01f; },
         //     .is_visible = []() { return settings[0]->GetValue() >= 2.f; },
         // },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Reset All",
+        .section = "Tools",
+        .group = "button-line-1",
+        .on_change = []() {
+          for (auto* setting : settings) {
+            if (setting->key.empty()) continue;
+            if (!setting->can_reset) continue;
+            renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+          }
+        },
+    },
         new renodx::utils::settings::Setting{
             .value_type = renodx::utils::settings::SettingValueType::BUTTON,
             .label = "RenoDX Discord",
             .section = "Links",
-            .group = "button-line-1",
+            .group = "button-line-2",
             .tint = 0x5865F2,
             .on_change = []() {
               renodx::utils::platform::LaunchURL("https://discord.gg/kSTf", "EbcCpC");
@@ -260,7 +302,7 @@ new renodx::utils::settings::Setting{
             .value_type = renodx::utils::settings::SettingValueType::BUTTON,
             .label = "HDR Den Discord",
             .section = "Links",
-            .group = "button-line-1",
+            .group = "button-line-2",
             .tint = 0x5865F2,
             .on_change = []() {
               renodx::utils::platform::LaunchURL("https://discord.gg/XUhv", "tR54yc");
@@ -270,7 +312,7 @@ new renodx::utils::settings::Setting{
             .value_type = renodx::utils::settings::SettingValueType::BUTTON,
             .label = "Github",
             .section = "Links",
-            .group = "button-line-1",
+            .group = "button-line-2",
             .on_change = []() {
               renodx::utils::platform::LaunchURL("https://github.com/clshortfuse/renodx");
             },
@@ -279,7 +321,7 @@ new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Jon's Ko-Fi",
         .section = "Links",
-        .group = "button-line-1",
+        .group = "button-line-2",
         .tint = 0xFF5F5F,
         .on_change = []() {
           renodx::utils::platform::LaunchURL("https://ko-fi.com/kickfister");
@@ -289,7 +331,7 @@ new renodx::utils::settings::Setting{
             .value_type = renodx::utils::settings::SettingValueType::BUTTON,
             .label = "Ritsu's Ko-Fi",
             .section = "Links",
-            .group = "button-line-1",
+            .group = "button-line-2",
             .tint = 0xFF5F5F,
             .on_change = []() {
               renodx::utils::platform::LaunchURL("https://ko-fi.com/ritsucecil");
@@ -299,7 +341,7 @@ new renodx::utils::settings::Setting{
             .value_type = renodx::utils::settings::SettingValueType::BUTTON,
             .label = "ShortFuse's Ko-Fi",
             .section = "Links",
-            .group = "button-line-1",
+            .group = "button-line-2",
             .tint = 0xFF5F5F,
             .on_change = []() {
               renodx::utils::platform::LaunchURL("https://ko-fi.com/shortfuse");
@@ -309,7 +351,7 @@ new renodx::utils::settings::Setting{
             .value_type = renodx::utils::settings::SettingValueType::BUTTON,
             .label = "HDR Den's Ko-Fi",
             .section = "Links",
-            .group = "button-line-1",
+            .group = "button-line-2",
             .tint = 0xFF5F5F,
             .on_change = []() {
               renodx::utils::platform::LaunchURL("https://ko-fi.com/hdrden");
@@ -345,6 +387,11 @@ void OnPresetOff() {
       {"SwapChainCustomColorSpace", 0.f},
       {"SceneGradePerChannelBlowout", 0.f},
       {"SceneGradeHueShift", 0.f},
+        {"SceneGradeHueClip", 0.f},
+        {"CustomColorGrading", 100.f},
+        {"CustomHDRBoost", 0.f},
+        {"FxDebanding", 0.f},
+        {"FxFilmGrain", 0.f},
   });
 }
 

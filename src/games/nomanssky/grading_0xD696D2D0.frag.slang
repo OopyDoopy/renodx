@@ -164,32 +164,42 @@ void main()
         _2049 = _745;
     }
 
-    _2049 = lerp(_745, _2049, 1.f); // color grading sometimes?
+    //_2049 = lerp(_745, _2049, CUSTOM_COLOR_GRADING); // color grading sometimes?
 
     // vec3 _1414 = max(vec3(0.0), ((_2049 + textureLod(gBuffer2Map, In.mTexCoordsVec2, 0.0).xyz) + (textureLod(gBuffer1Map, In.mTexCoordsVec2, 0.0).xyz * (((_1293.x + _1296.x) + _1301.x) + _1306.x))) * mat3(vec3(1.298702239990234375, -0.227224647998809814453125, -0.07163621485233306884765625), vec3(-0.0445976443588733673095703125, 1.05283248424530029296875, -0.0082119889557361602783203125), vec3(-0.0208283849060535430908203125, -0.079466454684734344482421875, 1.10053479671478271484375)));
     vec3 _1414 = ((_2049 + textureLod(gBuffer2Map, In.mTexCoordsVec2, 0.0).xyz) + (textureLod(gBuffer1Map, In.mTexCoordsVec2, 0.0).xyz * (((_1293.x + _1296.x) + _1301.x) + _1306.x))) * mat3(vec3(1.298702239990234375, -0.227224647998809814453125, -0.07163621485233306884765625), vec3(-0.0445976443588733673095703125, 1.05283248424530029296875, -0.0082119889557361602783203125), vec3(-0.0208283849060535430908203125, -0.079466454684734344482421875, 1.10053479671478271484375));
-    // float _1423 = max(9.9999999747524270787835121154785e-07, max(_1414.x, max(_1414.y, _1414.z)));
-    // float _2052;
-    // if (abs(1.0 - _1423) < 0.125)
-    // {
-    //     _2052 = fma(_1423, fma(-_1423, 8.0, 18.0), -6.125) * 0.25;
-    // }
-    // else
-    // {
-    //     _2052 = clamp(_1423, 0.0, 1.0);
-    // }
-    // float _1427 = _2052 / _1423;
-    // vec3 _1430 = _1414 * _1427;
 
     float3 untonemapped_ap1 = _1414;
     float3 untonemapped_bt709 = renodx::color::bt709::from::AP1(untonemapped_ap1);
 
-    // vec3 _1498 = _1430 * 0.2199999988079071044921875;
-    // vec3 _1433 = ((fma(_1430, _1498 + vec3(0.0300000011920928955078125), vec3(0.00200000009499490261077880859375)) / fma(_1430, _1498 + vec3(0.300000011920928955078125), vec3(0.060000002384185791015625))) - vec3(0.0333333313465118408203125)) * 2.4928367137908935546875;
-    // vec3 _1440 = vec3(pow(_1433.x, 0.4545454680919647216796875), pow(_1433.y, 0.4545454680919647216796875), pow(_1433.z, 0.4545454680919647216796875));
-    vec3 sdr_color_ap1 = CustomGradingSDRTonemap(untonemapped_ap1);
-    vec3 sdr_color_bt709 = renodx::color::bt709::from::AP1(sdr_color_ap1);
-    vec3 _1440 = renodx::color::gamma::EncodeSafe(sdr_color_ap1);
+    vec3 _1440;
+    vec3 sdr_color_bt709;
+    float _1427;
+    if (RENODX_TONE_MAP_TYPE < 2) {
+      _1414 = max(0, _1414);
+      float _1423 = max(9.9999999747524270787835121154785e-07, max(_1414.x, max(_1414.y, _1414.z)));
+      float _2052;
+      if (abs(1.0 - _1423) < 0.125)
+      {
+          _2052 = fma(_1423, fma(-_1423, 8.0, 18.0), -6.125) * 0.25;
+      }
+      else
+      {
+          _2052 = clamp(_1423, 0.0, 1.0);
+      }
+      _1427 = _2052 / _1423;
+      vec3 _1430 = _1414 * _1427;
+      vec3 _1498 = _1430 * 0.2199999988079071044921875;
+      vec3 _1433 = ((fma(_1430, _1498 + vec3(0.0300000011920928955078125), vec3(0.00200000009499490261077880859375)) / fma(_1430, _1498 + vec3(0.300000011920928955078125), vec3(0.060000002384185791015625))) - vec3(0.0333333313465118408203125)) * 2.4928367137908935546875;
+      _1440 = vec3(pow(_1433.x, 0.4545454680919647216796875), pow(_1433.y, 0.4545454680919647216796875), pow(_1433.z, 0.4545454680919647216796875));
+    }
+    else {
+      vec3 sdr_color_ap1 = CustomGradingSDRTonemap(untonemapped_ap1);
+      sdr_color_bt709 = renodx::color::bt709::from::AP1(sdr_color_ap1);
+      _1440 = renodx::color::gamma::EncodeSafe(sdr_color_ap1);
+    }
+
+
 
     float _1702 = _763 * _781.lUniforms.mpPerFrame.gClipPlanesVec4.y;
     float _1571 = clamp(_781.lUniforms.mpCustomPerMesh.gColourLUTParamsVec4.x * _1702, 0.0, 1.0);
@@ -225,16 +235,18 @@ void main()
         _2061 = vec3(0.0);
     }
     vec3 _1693 = (((vec3(textureLod(gColourLUTBase, _1440, 0.0).xyz) * ((1.0 - ((_781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x + _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y) + _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z)) + fma(_781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z, fma(-_1581, _1583, 1.0), fma(_781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x, 1.0 - _1571, _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y * (1.0 - _1576))))) + ((_2059 * _1571) * _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x)) + ((_2060 * _1576) * _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y)) + ((_2061 * _1584) * _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z);
-    vec3 _1453 = (_1693 * fma(_1693, (_1693 * 0.305306017398834228515625) + vec3(0.6821711063385009765625), vec3(0.01252287812530994415283203125))) * 0.4011494219303131103515625;
-    vec3 _1743 = _1453 * 0.0900000035762786865234375;
-    vec3 _1757 = ((_1453 * 0.300000011920928955078125) + vec3(-0.290000021457672119140625)) * 0.439999997615814208984375;
-    //vec3 _1775 = vec3(-0.0060000005178153514862060546875) + _1743;
-    //ec3 _1458 = (((vec3(0.0060000005178153514862060546875) - _1743) / _1757) - (sqrt(fma(_1775, _1775, -((_1453 * 0.072000004351139068603515625) * ((_1453 * 0.06599999964237213134765625) + vec3(-0.063799999654293060302734375))))) / _1757)) / vec3(_1427);
-
-    float3 sdr_color_graded = renodx::color::gamma::DecodeSafe(_1693);
-    float3 hdr_color_graded = CustomUpgradeGrading(untonemapped_bt709, sdr_color_bt709, sdr_color_graded);
-    //hdr_color_graded = renodx::color::gamma::DecodeSafe(_1693);
-
+    float3 hdr_color_graded;
+    if (RENODX_TONE_MAP_TYPE < 2) {
+      vec3 _1453 = (_1693 * fma(_1693, (_1693 * 0.305306017398834228515625) + vec3(0.6821711063385009765625), vec3(0.01252287812530994415283203125))) * 0.4011494219303131103515625;
+      vec3 _1743 = _1453 * 0.0900000035762786865234375;
+      vec3 _1757 = ((_1453 * 0.300000011920928955078125) + vec3(-0.290000021457672119140625)) * 0.439999997615814208984375;
+      vec3 _1775 = vec3(-0.0060000005178153514862060546875) + _1743;
+      hdr_color_graded = (((vec3(0.0060000005178153514862060546875) - _1743) / _1757) - (sqrt(fma(_1775, _1775, -((_1453 * 0.072000004351139068603515625) * ((_1453 * 0.06599999964237213134765625) + vec3(-0.063799999654293060302734375))))) / _1757)) / vec3(_1427);
+    }
+    else {
+      float3 sdr_color_graded = renodx::color::gamma::DecodeSafe(_1693);
+      hdr_color_graded = CustomUpgradeGrading(untonemapped_bt709, sdr_color_bt709, sdr_color_graded);
+    }
     out_color0 = vec4(hdr_color_graded, 1.0);
     //out_color0 = vec4(untonemapped_bt709, 1.f);
     //out_color0 = vec4(_1458, 1.0);
