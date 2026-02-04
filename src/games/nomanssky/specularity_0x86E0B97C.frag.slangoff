@@ -1,0 +1,1810 @@
+#version 450
+
+struct PerFrameUniforms
+{
+    mat4 gViewProjectionMat4;
+    mat4 gCameraMat4;
+    mat4 gCameraNoHeadTrackingMat4;
+    mat4 gPrevViewProjectionMat4;
+    mat4 gInverseViewProjectionMat4;
+    mat4 gViewMat4;
+    mat4 gProjectionMat4;
+    mat4 gInverseProjectionMat4;
+    mat4 gThisToPrevViewProjectionMat4;
+    mat4 gInverseViewMat4;
+    mat4 gInverseProjectionSCMat4;
+    mat4 gInverseViewProjectionSCMat4;
+    mat4 gProjectionNoJitterMat4;
+    mat4 gViewProjectionNoJitterMat4;
+    mat4 gInverseViewProjectionNoJitterMat4;
+    mat4 gPrevViewProjectionNoJitterMat4;
+    mat4 gPrevInverseViewProjectionNoJitterMat4;
+    mat4 gPrevInverseViewProjectionSCMat4;
+    vec3 gPrevViewPositionVec3;
+    int giAntiAliasingIndex;
+    vec4 gMBlurSettingsVec4;
+    vec4 gTaaSettingsVec4;
+    vec4 gTessSettingsVec4;
+    vec4 gShellsSettingsVec4;
+    vec4 gFoVValuesVec4;
+    mat4 gInverseWorldUpMat4;
+    vec3 gViewPositionVec3;
+    vec3 gVREyeInfoVec3;
+    vec4 gClipPlanesVec4;
+    float gfTime;
+    float gfPrevTime;
+    int giDisableAmbientAllowed;
+    int giFrameIndex;
+    vec4 gDeJitterVec4;
+    vec4 gFrameBufferSizeVec4;
+    vec4 gShadowSizeVec4;
+    vec3 gShadowProjScaleVec3;
+    vec4 gShadowFadeParamVec4;
+    vec4 gHeroLightColourVec4;
+    vec4 gHeroLightPositionVec4;
+    vec4 gHeroLightDirectionVec4;
+    vec3 gRenderOffsetVec3;
+    float _padding0;
+};
+
+struct CustomPerMeshUniforms
+{
+    vec4 gMaterialParamsVec4;
+    vec4 gMaterialSFXVec4;
+    vec4 gMaterialSFXColVec4;
+    vec4 gaPlanetPositionsVec4[6];
+    vec4 gaPlanetColoursVec4[6];
+    vec4 gSkyColourVec4;
+    vec4 gHorizonColourVec4;
+    vec4 gSunColourVec4;
+    vec4 gScatteringParamsVec4;
+    vec4 gSunPositionVec4;
+    vec4 gSkyUpperParamsVec4;
+    vec4 gSkyUpperColourVec4;
+    vec4 gSkySolarColourVec4;
+    vec4 gSkyGradientSpeedVec4;
+    vec4 gFogParamsVec4;
+    vec4 gFogColourVec4;
+    vec4 gHeightFogParamsVec4;
+    vec4 gHeightFogColourVec4;
+    vec4 gWaterFogVec4;
+    vec4 gWaterAlbedoVec4;
+    vec4 gWaterFogColourNearVec4;
+    vec4 gWaterAbsorptionVec4;
+    vec4 gWaterScatterVec4;
+    vec4 gWaterKFunctionVec4;
+    vec4 gWaterEmissionVec4;
+    vec4 gWaterCausticsColourVec4;
+    vec4 gSpaceHorizonColourVec4;
+    vec4 gFogFadeHeightsVec4;
+    vec4 gFogFadeHeights2Vec4;
+    vec4 gFogFadeHeights3Vec4;
+    vec4 gSpaceSkyColourVec4;
+    vec4 gSpaceScatteringParamsVec4;
+    vec4 gSpaceSkyColour1Vec4;
+    vec4 gSpaceSkyColour2Vec4;
+    vec4 gSpaceSkyColour3Vec4;
+    vec4 gSpaceFogColourVec4;
+    vec4 gSpaceFogColour2Vec4;
+    vec4 gSpaceFogParamsVec4;
+    vec4 gLightShaftParamsVec4;
+    vec4 gLightTopColourVec4;
+    vec4 gRainParametersVec4;
+    vec4 gIblBiasParamatersVec4;
+    vec4 gHueOverlayParamsVec4;
+    vec4 gSaturationOverlayParamsVec4;
+    vec4 gValueOverlayParamsVec4;
+    vec4 gDebugLightColourVec4;
+    vec4 gProbeBlendDataVec4;
+    vec4 gProbeNearPosVec4;
+    vec4 gInverseWaterWorld0;
+    vec4 gInverseWaterWorld1;
+    vec4 gInverseWaterWorld2;
+    vec4 gInverseWaterWorld3;
+    vec4 gTextureSampleOffsetXY_TextureSampleModulusZ_GeometryDownSampleOffsetW;
+};
+
+struct CommonPerMeshUniforms
+{
+    mat4 gWorldMat4;
+    mat4 gWorldNormalMat4;
+    float fdFadeValueDummy;
+    uint guContextVariant;
+    int giLodIndex;
+    vec4 gPlanetPositionVec4;
+    vec4 gScanParamsPosVec4;
+    vec4 gScanParamsCfg1Vec4;
+    vec4 gScanParamsCfg2Vec4;
+    vec4 gScanParamsCfg3Vec4;
+    vec4 gScanColourVec4;
+    mat4 gaShadowMat4[3];
+    vec4 gLightColourVec4;
+    vec4 gLightCustomParamsVec4;
+    mat4 gWorldMotionMat4;
+    mat4 gInverseModelMat4Dummy;
+    vec4 gUserDataVec4;
+    vec4 gLightProxyMeshInfoVec4;
+    vec4 gLightPositionVec4;
+    vec4 gLightDirectionVec4;
+    vec4 gLightOriginVec4;
+    vec3 gSpotlightPositionVec3;
+    uint gSpotlightFalloff_Layer_Cookie;
+    vec4 gSpotlightDirectionVec4;
+    vec4 gSpotlightUpVec4;
+};
+
+struct UniformBuffer
+{
+    PerFrameUniforms mpPerFrame;
+    CustomPerMeshUniforms mpCustomPerMesh;
+    CommonPerMeshUniforms mpCommonPerMesh;
+};
+
+vec4 _3644;
+
+layout(set = 0, binding = 0, std140) uniform lUniforms_BLK
+{
+    UniformBuffer lUniforms;
+} _1274;
+
+layout(set = 1, binding = 1) uniform sampler2D gBuffer1Map;
+layout(set = 1, binding = 4) uniform sampler2D gBuffer4Map;
+layout(set = 1, binding = 9) uniform sampler2DArray gLightCookiesMap;
+layout(set = 1, binding = 0) uniform sampler2D gBufferMap;
+layout(set = 1, binding = 2) uniform sampler2D gBuffer2Map;
+layout(set = 1, binding = 3) uniform sampler2D gBuffer3Map;
+layout(set = 1, binding = 5) uniform sampler2D gBuffer5Map;
+layout(set = 1, binding = 7) uniform sampler2D gDfgMultiMap;
+layout(set = 1, binding = 8) uniform sampler2D gDfgAvgMap;
+layout(set = 1, binding = 6) uniform sampler3D gDtgMap;
+
+layout(location = 0) in VertexBlock
+{
+    vec4 mScreenSpacePositionVec4;
+} In;
+
+layout(location = 0) out vec4 out_color0;
+
+void main()
+{
+    vec2 _1255 = In.mScreenSpacePositionVec4.xy / vec2(In.mScreenSpacePositionVec4.w);
+    vec4 _2199 = _1274.lUniforms.mpPerFrame.gInverseViewProjectionMat4 * vec4((vec2(_1255.x, 1.0 - _1255.y) * 2.0) - vec2(1.0), (((_1274.lUniforms.mpPerFrame.gClipPlanesVec4.x * _1274.lUniforms.mpPerFrame.gClipPlanesVec4.y) / (texture(gBuffer1Map, _1255).x * _1274.lUniforms.mpPerFrame.gClipPlanesVec4.y)) - _1274.lUniforms.mpPerFrame.gClipPlanesVec4.x) / (_1274.lUniforms.mpPerFrame.gClipPlanesVec4.y - _1274.lUniforms.mpPerFrame.gClipPlanesVec4.x), 1.0);
+    vec3 _2205 = _2199.xyz / vec3(_2199.w);
+    vec4 _3387;
+    _3387.x = _2205.x;
+    _3387.y = _2205.y;
+    _3387.z = _2205.z;
+    vec2 _2307 = unpackHalf2x16(_1274.lUniforms.mpCommonPerMesh.gSpotlightFalloff_Layer_Cookie);
+    float _2308 = _2307.y;
+    vec3 _1328 = _1274.lUniforms.mpCommonPerMesh.gSpotlightPositionVec3 - _3387.xyz;
+    if ((((_1274.lUniforms.mpCommonPerMesh.gSpotlightFalloff_Layer_Cookie >> uint(8)) & 255u) & (uint(texture(gBuffer4Map, _1255).x * 255.0) & 255u)) == 0u)
+    {
+        discard;
+    }
+    float _3510;
+    if (_2308 == 2.0)
+    {
+        float _1366 = _1274.lUniforms.mpCommonPerMesh.gLightColourVec4.w / max(1.0, dot(_1328, _1328));
+        if (_1366 <= 0.052631579339504241943359375)
+        {
+            discard;
+        }
+        _3510 = _1366;
+    }
+    else
+    {
+        float _3511;
+        if (_2308 == 1.0)
+        {
+            float _1391 = min(inversesqrt(dot(_1328, _1328)), 1.0) * _1274.lUniforms.mpCommonPerMesh.gLightColourVec4.w;
+            if (_1391 <= 0.052631579339504241943359375)
+            {
+                discard;
+            }
+            _3511 = _1391;
+        }
+        else
+        {
+            float _3512;
+            if (_2308 == 0.0)
+            {
+                _3512 = _1274.lUniforms.mpCommonPerMesh.gLightColourVec4.w;
+            }
+            else
+            {
+                float _3513;
+                if (_2308 == 1.5)
+                {
+                    float _1418 = inversesqrt(dot(_1328, _1328));
+                    float _1427 = min(_1418 * sqrt(_1418), 1.0) * _1274.lUniforms.mpCommonPerMesh.gLightColourVec4.w;
+                    if (_1427 <= 0.052631579339504241943359375)
+                    {
+                        discard;
+                    }
+                    _3513 = _1427;
+                }
+                else
+                {
+                    float _3514;
+                    if (_2308 == 3.0)
+                    {
+                        float _1445 = dot(_1328, _1328);
+                        float _1454 = min(inversesqrt(_1445) / _1445, 1.0) * _1274.lUniforms.mpCommonPerMesh.gLightColourVec4.w;
+                        if (_1454 <= 0.052631579339504241943359375)
+                        {
+                            discard;
+                        }
+                        _3514 = _1454;
+                    }
+                    else
+                    {
+                        float _1478 = min(1.0 / pow(dot(_1328, _1328), 0.5 * _2308), 1.0) * _1274.lUniforms.mpCommonPerMesh.gLightColourVec4.w;
+                        if (_1478 <= 0.052631579339504241943359375)
+                        {
+                            discard;
+                        }
+                        _3514 = _1478;
+                    }
+                    _3513 = _3514;
+                }
+                _3512 = _3513;
+            }
+            _3511 = _3512;
+        }
+        _3510 = _3511;
+    }
+    vec3 _1494 = _1274.lUniforms.mpCommonPerMesh.gLightColourVec4.xyz * _1274.lUniforms.mpCommonPerMesh.gLightColourVec4.w;
+    vec3 _1497 = normalize(_1328);
+    float _3515;
+    vec3 _3524;
+    if (_1274.lUniforms.mpCommonPerMesh.gSpotlightDirectionVec4.w > (-2.0))
+    {
+        vec3 _1511 = -_1497;
+        float _1521 = _3510 * clamp((dot(_1274.lUniforms.mpCommonPerMesh.gSpotlightDirectionVec4.xyz, _1511) - _1274.lUniforms.mpCommonPerMesh.gSpotlightDirectionVec4.w) * 5.0, 0.0, 1.0);
+        if (_1521 <= 0.052631579339504241943359375)
+        {
+            discard;
+        }
+        uint _2317 = _1274.lUniforms.mpCommonPerMesh.gSpotlightFalloff_Layer_Cookie & 255u;
+        vec3 _3525;
+        if (_2317 < 255u)
+        {
+            _3525 = _1494 * texture(gLightCookiesMap, vec3((vec2(dot(_1511, cross(_1274.lUniforms.mpCommonPerMesh.gSpotlightUpVec4.xyz, _1274.lUniforms.mpCommonPerMesh.gSpotlightDirectionVec4.xyz)), -dot(_1511, _1274.lUniforms.mpCommonPerMesh.gSpotlightUpVec4.xyz)) / vec2(abs(sin(acos(_1274.lUniforms.mpCommonPerMesh.gSpotlightDirectionVec4.w))) * 2.0)) + vec2(0.5), float(_2317))).xyz;
+        }
+        else
+        {
+            _3525 = _1494;
+        }
+        _3524 = _3525;
+        _3515 = _1521;
+    }
+    else
+    {
+        _3524 = _1494;
+        _3515 = _3510;
+    }
+    vec3 _1602 = _3387.xyz + _1274.lUniforms.mpPerFrame.gViewPositionVec3;
+    float _1619 = clamp(1.0 - pow(dot(_1328, _1328) / (_1274.lUniforms.mpCommonPerMesh.gSpotlightUpVec4.w * _1274.lUniforms.mpCommonPerMesh.gSpotlightUpVec4.w), 8.0), 0.0, 1.0);
+    float _1624 = max((_3515 - 0.0500000007450580596923828125) * 1.0526316165924072265625, 0.0) * (_1619 * _1619);
+    vec4 _1645 = texture(gBufferMap, _1255);
+    vec4 _1650 = texture(gBuffer2Map, _1255);
+    vec4 _1655 = texture(gBuffer3Map, _1255);
+    vec4 _1660 = texture(gBuffer5Map, _1255);
+    vec2 _2591 = (_1650.xy * 2.0) - vec2(1.0);
+    float _2593 = _2591.x;
+    float _2603 = (1.0 - abs(_2593)) - abs(_2591.y);
+    vec3 _3625 = vec3(_2593, _2591.y, _2603);
+    vec2 _3565;
+    if (_2603 >= 0.0)
+    {
+        _3565 = _3625.xy;
+    }
+    else
+    {
+        _3565 = (vec2(1.0) - abs(_3625.yx)) * vec2((_1650.x >= 0.5) ? 1.0 : (-1.0), (_1650.y >= 0.5) ? 1.0 : (-1.0));
+    }
+    _3625.x = _3565.x;
+    _3625.y = _3565.y;
+    vec3 _2626 = normalize(_3625);
+    vec2 _2634 = (abs(_1660.xy) * 2.0) - vec2(1.0);
+    float _2636 = _2634.x;
+    float _2645 = max(abs(_2636), abs(_2634.y));
+    float _2646 = 1.0 - _2645;
+    vec3 _3626 = vec3(_2636, _2634.y, _2646);
+    float _3578;
+    if (_1660.x >= 0.0)
+    {
+        _3578 = _2646;
+    }
+    else
+    {
+        _3578 = _2645 - 1.0;
+    }
+    _3626.z = _3578;
+    uint _2349 = uint(_1650.z * 1023.0);
+    float _2369 = float(_2349 & 63u);
+    float _2370 = _2369 * 0.01587301678955554962158203125;
+    float _2372 = _2369 * 0.0025396826677024364471435546875;
+    float _2374 = _2372 * _2370;
+    float _2378 = _1655.y;
+    float _2382 = _1655.w;
+    vec3 _1724 = _1645.xyz * mat3(vec3(0.7767217159271240234375, 0.1715466976165771484375, 0.0518387891352176666259765625), vec3(0.0330350138247013092041015625, 0.9576499462127685546875, 0.00929595343768596649169921875), vec3(0.01708533428609371185302734375, 0.072395719587802886962890625, 0.9103014469146728515625));
+    vec3 _3610;
+    if (((((_2349 & 960u) | (uint(_1650.w * 3.0) << uint(10))) | uint((_1660.y >= 0.0) ? 4096 : 0)) & 256u) != 0u)
+    {
+        _3610 = _1724 * _1624;
+    }
+    else
+    {
+        float _3594;
+        if (_1274.lUniforms.mpCustomPerMesh.gRainParametersVec4.x > 0.0)
+        {
+            vec3 _2671 = vec3(_1274.lUniforms.mpCommonPerMesh.gPlanetPositionVec4.w);
+            float _1762 = dot(normalize(((_1602 - _1274.lUniforms.mpPerFrame.gViewPositionVec3) / _2671) - (_1274.lUniforms.mpCommonPerMesh.gPlanetPositionVec4.xyz / _2671)), _2626);
+            _3594 = mix(_2378, fma(-clamp((1.0 - _2378) * 3.0, 0.0, 1.0), 1.0 - min(abs((_1762 * _1762) * _1762), (_1762 < 0.0) ? 1.0 : 0.699999988079071044921875), 1.0), _1274.lUniforms.mpCustomPerMesh.gRainParametersVec4.x);
+        }
+        else
+        {
+            _3594 = _2378;
+        }
+        vec3 _1794 = normalize(_1274.lUniforms.mpPerFrame.gViewPositionVec3 - _1602);
+        float _2746 = max(0.00999999977648258209228515625, _3594);
+        float _2749 = _2746 * _2746;
+        float _2752 = _2749 * _2749;
+        vec3 _2770 = normalize(_1497 + _1794);
+        float _2773 = dot(_2626, _1497);
+        float _2774 = clamp(_2773, 0.0, 1.0);
+        float _2778 = clamp(dot(_2626, _1794), 0.0, 1.0);
+        float _2782 = clamp(dot(_2626, _2770), 0.0, 1.0);
+        float _2786 = clamp(dot(normalize(_3626), _1497), 0.0, 1.0);
+        float _2794 = clamp(dot(-normalize(_1794 + (_2626 * 0.25)), _1497), 0.0, 1.0);
+        vec3 _2801 = vec3(_1655.z);
+        vec3 _2802 = mix(vec3(_2374), _1724, _2801);
+        vec3 _2806 = mix(_1724, vec3(0.0), _2801);
+        float _3009 = fma(-_2749, _2749, 1.0);
+        float _3040 = fma(fma(_2782, _2752, -_2782), _2782, 1.0);
+        float _3065 = 1.0 / fma(_2382, 0.3333333432674407958984375, 1.0);
+        vec3 _3088 = _2806 - vec3(0.800000011920928955078125);
+        vec3 _3100 = (-fma(_3088 * 3.5, _3088, vec3(1.89999997615814208984375) - _2806)) * fma(0.75, fma(-_2382, _2382, 1.0), 0.03125);
+        float _3204 = intBitsToFloat(532487669 + (floatBitsToInt(1.0 - _1655.x) >> 1));
+        float _3217 = fract(fma(mix(0.6283185482025146484375, 1.256637096405029296875, _2786 * _2786) + 1.57079637050628662109375, 0.15915493667125701904296875, 0.5)) - 0.5;
+        float _3225 = fma(8.0, _3217, -((16.0 * _3217) * abs(_3217)));
+        float _3142 = max(_3204, _3225);
+        float _3147 = (_3204 + _3225) - _3142;
+        float _3231 = abs(_3147);
+        float _3269 = intBitsToFloat(532487669 + (floatBitsToInt(1.0 - _3231) >> 1));
+        float _3247 = fma(-0.15658269822597503662109375, abs(_3231), 1.57079601287841796875);
+        float _3595;
+        if (_3147 >= 0.0)
+        {
+            _3595 = _3269 * _3247;
+        }
+        else
+        {
+            _3595 = fma(-_3269, _3247, 3.1415927410125732421875);
+        }
+        float _3272 = 1.0 - _3142;
+        float _3298 = intBitsToFloat(532487669 + (floatBitsToInt(_3272) >> 1));
+        float _3276 = fma(-0.15658269822597503662109375, abs(_3142), 1.57079601287841796875);
+        float _3156 = fma(_3298, _3276, _3595);
+        float _3159 = fma(-_3298, _3276, _3595);
+        float _3640 = -_3159;
+        float _3327 = intBitsToFloat(532487669 + (floatBitsToInt(1.0 - _2786) >> 1));
+        float _3305 = fma(-0.15658269822597503662109375, abs(_2786), 1.57079601287841796875);
+        float _3164 = fma(_3327, _3305, _3640);
+        float _3167 = _3156 - _3159;
+        float _3170 = 1.0 - clamp(_3164 / _3167, 0.0, 1.0);
+        vec4 _2832 = textureLod(gDfgMultiMap, vec2(_2774, _3594), 0.0);
+        vec4 _2838 = textureLod(gDfgMultiMap, vec2(_2778, _3594), 0.0);
+        vec4 _2850 = textureLod(gDfgAvgMap, vec2(_3594, 0.0), 0.0);
+        float _2859 = _2832.y;
+        float _2861 = _2838.y;
+        float _2863 = _2850.y;
+        float _3358 = fma(0.952380955219268798828125, _2374, 0.0476190485060214996337890625);
+        vec3 _3364 = (_1724 * 0.952380955219268798828125) + vec3(0.0476190485060214996337890625);
+        float _2875 = 1.0 - _2863;
+        float _2879 = ((_3358 * _3358) * _2863) / max(fma(-_3358, _2875, 1.0), 9.9999997473787516355514526367188e-05);
+        float _2908 = 1.0 - _2859;
+        float _2919 = 1.0 - _2861;
+        vec3 _2994 = (((((_2806 * (1.0 - fma(_2879, _2919, mix(_2838.x, _2861, _2374)))) * (1.0 - fma(_2879, _2908, mix(_2832.x, _2859, _2374)))) / vec3(3.1415927410125732421875 * max(1.0 - fma(_2879, _2875, mix(_2850.x, _2863, _2374)), 9.9999997473787516355514526367188e-05))) * clamp((fma(_2382, 0.3333333432674407958984375, _2773) * _3065) * _3065, 0.0, 1.0)) + (((((_2806 * textureLod(gDtgMap, vec3(_2778, _3594, _2374), 0.0).x) * (1.0 - fma(_2372, _2370, fma(_2369 * (-0.0025396826677024364471435546875), _2370, 1.0) * pow(1.0 - _2794, 5.0)))) / vec3(3.1415927410125732421875 * max(1.0 - _3358, 9.9999997473787516355514526367188e-05))) * (((exp(_3100) + (exp(_3100 * vec3(0.3333333432674407958984375)) * 3.0)) * 0.25) * clamp(_2382 * 16.0, 0.0, 1.0))) * _2794)) + ((max((((_2802 + ((vec3(1.0) - _2802) * pow(1.0 - clamp(dot(_1794, _2770), 0.0, 1.0), 5.0))) * (0.5 / fma(_2774, sqrt(fma(_2778 * _2778, _3009, _2752)), _2778 * sqrt(fma(_2774 * _2774, _3009, _2752))))) * (_2752 / ((3.1415927410125732421875 * _3040) * _3040))) * _2774, vec3(0.0)) + (((mix(vec3(_2879), ((_3364 * _3364) * _2863) / max(vec3(1.0) - (_3364 * _2875), vec3(9.9999997473787516355514526367188e-05)), _2801) * _2919) * _2908) / vec3(3.1415927410125732421875 * max(_2875, 9.9999997473787516355514526367188e-05)))) * _2774);
+        _3610 = min(vec3(1.14999997615814208984375), (_2994 * (((_3524 * mat3(vec3(0.7767217159271240234375, 0.1715466976165771484375, 0.0518387891352176666259765625), vec3(0.0330350138247013092041015625, 0.9576499462127685546875, 0.00929595343768596649169921875), vec3(0.01708533428609371185302734375, 0.072395719587802886962890625, 0.9103014469146728515625))) * _1624) * 3.1415927410125732421875)) * clamp((((_3272 * ((_3170 * _3170) * fma(-2.0, _3170, 3.0))) * (2.0 - _3204)) / (1.0 - _3225)) + 0.0625, 0.0, 1.0));
+    }
+    out_color0 = vec4(_3610, 1.0);
+}
+
+
+
+
+
+
+
+// ; SPIR-V
+// ; Version: 1.0
+// ; Generator: Google Shaderc over Glslang; 11
+// ; Bound: 3645
+// ; Schema: 0
+//                OpCapability Shader
+//          %26 = OpExtInstImport "GLSL.std.450"
+//                OpMemoryModel Logical GLSL450
+//                OpEntryPoint Fragment %main "main" %In %out_color0
+//                OpExecutionMode %main OriginUpperLeft
+//           %1 = OpString "GAME\\ASSETS\\EXPORTED\\TEMP\\SHADERS\\PC\\LIGHT_FRAG_SPOT_INNER_GGX_0.SOURCE"
+//           %2 = OpString "SHADERS/CODE/COMMON/ACES.SHADER.H"
+//           %3 = OpString "SHADERS/CODE/COMMON/COMMON.SHADER.H"
+//           %4 = OpString "SHADERS/CODE/COMMON/COMMONBRDF.SHADER.H"
+//           %5 = OpString "SHADERS/CODE/COMMON/COMMONDEPTH.SHADER.H"
+//           %6 = OpString "SHADERS/CODE/COMMON/COMMONFRAGMENT.SHADER.H"
+//           %7 = OpString "SHADERS/CODE/COMMON/COMMONGBUFFER.SHADER.H"
+//           %8 = OpString "SHADERS/CODE/COMMON/COMMONIBL.SHADER.H"
+//           %9 = OpString "SHADERS/CODE/COMMON/COMMONLIGHTING.SHADER.H"
+//          %10 = OpString "SHADERS/CODE/COMMON/COMMONLIGHTINGMICROFACET.SHADER.H"
+//          %11 = OpString "SHADERS/CODE/COMMON/COMMONPLANET.SHADER.H"
+//          %12 = OpString "SHADERS/CODE/COMMON/COMMONSAMPLING.SHADER.H"
+//          %13 = OpString "SHADERS/CODE/COMMON/COMMONUNIFORMS.SHADER.H"
+//          %14 = OpString "SHADERS/CODE/COMMON/COMMONUTILS.SHADER.H"
+//          %15 = OpString "SHADERS/CODE/COMMON/COMMONVR.SHADER.H"
+//          %16 = OpString "SHADERS/CODE/COMMON/DEFINES.SHADER.H"
+//          %17 = OpString "SHADERS/CODE/COMMON/DEFINESGLSL.SHADER.H"
+//          %18 = OpString "SHADERS/CODE/COMMON/PLATFORMMACROS.SHADER.H"
+//          %19 = OpString "SHADERS/CODE/COMMON/SHADERFASTLIBS/SHADERFASTMATHLIB.H"
+//          %20 = OpString "SHADERS/CODE/CUSTOM/LIGHTING/LIGHTINGSHARED.CPP.H"
+//          %21 = OpString "SHADERS/CODE/CUSTOM/LIGHTING/LIGHTINGSHARED.SHADER.H"
+//          %22 = OpString "SHADERS/CODE/CUSTOM/SHAREDBEGIN.INL"
+//          %23 = OpString "SHADERS/CODE/CUSTOM/SHAREDEND.INL"
+//          %24 = OpString "SHADERS/CODE/LIGHTCOMMON.SHADER.H"
+//          %25 = OpString "SHADERS/CODE/LIGHTFRAGMENT.SHADER.H"
+//                OpSourceExtension "GL_AMD_gpu_shader_half_float"
+//                OpSourceExtension "GL_ARB_derivative_control"
+//                OpSourceExtension "GL_ARB_fragment_coord_conventions"
+//                OpSourceExtension "GL_ARB_gpu_shader5"
+//                OpSourceExtension "GL_ARB_gpu_shader_int64"
+//                OpSourceExtension "GL_ARB_shader_ballot"
+//                OpSourceExtension "GL_ARB_shader_stencil_export"
+//                OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
+//                OpSourceExtension "GL_GOOGLE_include_directive"
+//                OpName %main "main"
+//                OpName %VertexBlock "VertexBlock"
+//                OpMemberName %VertexBlock 0 "mScreenSpacePositionVec4"
+//                OpName %In "In"
+//                OpName %gBuffer1Map "gBuffer1Map"
+//                OpName %PerFrameUniforms "PerFrameUniforms"
+//                OpMemberName %PerFrameUniforms 0 "gViewProjectionMat4"
+//                OpMemberName %PerFrameUniforms 1 "gCameraMat4"
+//                OpMemberName %PerFrameUniforms 2 "gCameraNoHeadTrackingMat4"
+//                OpMemberName %PerFrameUniforms 3 "gPrevViewProjectionMat4"
+//                OpMemberName %PerFrameUniforms 4 "gInverseViewProjectionMat4"
+//                OpMemberName %PerFrameUniforms 5 "gViewMat4"
+//                OpMemberName %PerFrameUniforms 6 "gProjectionMat4"
+//                OpMemberName %PerFrameUniforms 7 "gInverseProjectionMat4"
+//                OpMemberName %PerFrameUniforms 8 "gThisToPrevViewProjectionMat4"
+//                OpMemberName %PerFrameUniforms 9 "gInverseViewMat4"
+//                OpMemberName %PerFrameUniforms 10 "gInverseProjectionSCMat4"
+//                OpMemberName %PerFrameUniforms 11 "gInverseViewProjectionSCMat4"
+//                OpMemberName %PerFrameUniforms 12 "gProjectionNoJitterMat4"
+//                OpMemberName %PerFrameUniforms 13 "gViewProjectionNoJitterMat4"
+//                OpMemberName %PerFrameUniforms 14 "gInverseViewProjectionNoJitterMat4"
+//                OpMemberName %PerFrameUniforms 15 "gPrevViewProjectionNoJitterMat4"
+//                OpMemberName %PerFrameUniforms 16 "gPrevInverseViewProjectionNoJitterMat4"
+//                OpMemberName %PerFrameUniforms 17 "gPrevInverseViewProjectionSCMat4"
+//                OpMemberName %PerFrameUniforms 18 "gPrevViewPositionVec3"
+//                OpMemberName %PerFrameUniforms 19 "giAntiAliasingIndex"
+//                OpMemberName %PerFrameUniforms 20 "gMBlurSettingsVec4"
+//                OpMemberName %PerFrameUniforms 21 "gTaaSettingsVec4"
+//                OpMemberName %PerFrameUniforms 22 "gTessSettingsVec4"
+//                OpMemberName %PerFrameUniforms 23 "gShellsSettingsVec4"
+//                OpMemberName %PerFrameUniforms 24 "gFoVValuesVec4"
+//                OpMemberName %PerFrameUniforms 25 "gInverseWorldUpMat4"
+//                OpMemberName %PerFrameUniforms 26 "gViewPositionVec3"
+//                OpMemberName %PerFrameUniforms 27 "gVREyeInfoVec3"
+//                OpMemberName %PerFrameUniforms 28 "gClipPlanesVec4"
+//                OpMemberName %PerFrameUniforms 29 "gfTime"
+//                OpMemberName %PerFrameUniforms 30 "gfPrevTime"
+//                OpMemberName %PerFrameUniforms 31 "giDisableAmbientAllowed"
+//                OpMemberName %PerFrameUniforms 32 "giFrameIndex"
+//                OpMemberName %PerFrameUniforms 33 "gDeJitterVec4"
+//                OpMemberName %PerFrameUniforms 34 "gFrameBufferSizeVec4"
+//                OpMemberName %PerFrameUniforms 35 "gShadowSizeVec4"
+//                OpMemberName %PerFrameUniforms 36 "gShadowProjScaleVec3"
+//                OpMemberName %PerFrameUniforms 37 "gShadowFadeParamVec4"
+//                OpMemberName %PerFrameUniforms 38 "gHeroLightColourVec4"
+//                OpMemberName %PerFrameUniforms 39 "gHeroLightPositionVec4"
+//                OpMemberName %PerFrameUniforms 40 "gHeroLightDirectionVec4"
+//                OpMemberName %PerFrameUniforms 41 "gRenderOffsetVec3"
+//                OpMemberName %PerFrameUniforms 42 "_padding0"
+//                OpName %CustomPerMeshUniforms "CustomPerMeshUniforms"
+//                OpMemberName %CustomPerMeshUniforms 0 "gMaterialParamsVec4"
+//                OpMemberName %CustomPerMeshUniforms 1 "gMaterialSFXVec4"
+//                OpMemberName %CustomPerMeshUniforms 2 "gMaterialSFXColVec4"
+//                OpMemberName %CustomPerMeshUniforms 3 "gaPlanetPositionsVec4"
+//                OpMemberName %CustomPerMeshUniforms 4 "gaPlanetColoursVec4"
+//                OpMemberName %CustomPerMeshUniforms 5 "gSkyColourVec4"
+//                OpMemberName %CustomPerMeshUniforms 6 "gHorizonColourVec4"
+//                OpMemberName %CustomPerMeshUniforms 7 "gSunColourVec4"
+//                OpMemberName %CustomPerMeshUniforms 8 "gScatteringParamsVec4"
+//                OpMemberName %CustomPerMeshUniforms 9 "gSunPositionVec4"
+//                OpMemberName %CustomPerMeshUniforms 10 "gSkyUpperParamsVec4"
+//                OpMemberName %CustomPerMeshUniforms 11 "gSkyUpperColourVec4"
+//                OpMemberName %CustomPerMeshUniforms 12 "gSkySolarColourVec4"
+//                OpMemberName %CustomPerMeshUniforms 13 "gSkyGradientSpeedVec4"
+//                OpMemberName %CustomPerMeshUniforms 14 "gFogParamsVec4"
+//                OpMemberName %CustomPerMeshUniforms 15 "gFogColourVec4"
+//                OpMemberName %CustomPerMeshUniforms 16 "gHeightFogParamsVec4"
+//                OpMemberName %CustomPerMeshUniforms 17 "gHeightFogColourVec4"
+//                OpMemberName %CustomPerMeshUniforms 18 "gWaterFogVec4"
+//                OpMemberName %CustomPerMeshUniforms 19 "gWaterAlbedoVec4"
+//                OpMemberName %CustomPerMeshUniforms 20 "gWaterFogColourNearVec4"
+//                OpMemberName %CustomPerMeshUniforms 21 "gWaterAbsorptionVec4"
+//                OpMemberName %CustomPerMeshUniforms 22 "gWaterScatterVec4"
+//                OpMemberName %CustomPerMeshUniforms 23 "gWaterKFunctionVec4"
+//                OpMemberName %CustomPerMeshUniforms 24 "gWaterEmissionVec4"
+//                OpMemberName %CustomPerMeshUniforms 25 "gWaterCausticsColourVec4"
+//                OpMemberName %CustomPerMeshUniforms 26 "gSpaceHorizonColourVec4"
+//                OpMemberName %CustomPerMeshUniforms 27 "gFogFadeHeightsVec4"
+//                OpMemberName %CustomPerMeshUniforms 28 "gFogFadeHeights2Vec4"
+//                OpMemberName %CustomPerMeshUniforms 29 "gFogFadeHeights3Vec4"
+//                OpMemberName %CustomPerMeshUniforms 30 "gSpaceSkyColourVec4"
+//                OpMemberName %CustomPerMeshUniforms 31 "gSpaceScatteringParamsVec4"
+//                OpMemberName %CustomPerMeshUniforms 32 "gSpaceSkyColour1Vec4"
+//                OpMemberName %CustomPerMeshUniforms 33 "gSpaceSkyColour2Vec4"
+//                OpMemberName %CustomPerMeshUniforms 34 "gSpaceSkyColour3Vec4"
+//                OpMemberName %CustomPerMeshUniforms 35 "gSpaceFogColourVec4"
+//                OpMemberName %CustomPerMeshUniforms 36 "gSpaceFogColour2Vec4"
+//                OpMemberName %CustomPerMeshUniforms 37 "gSpaceFogParamsVec4"
+//                OpMemberName %CustomPerMeshUniforms 38 "gLightShaftParamsVec4"
+//                OpMemberName %CustomPerMeshUniforms 39 "gLightTopColourVec4"
+//                OpMemberName %CustomPerMeshUniforms 40 "gRainParametersVec4"
+//                OpMemberName %CustomPerMeshUniforms 41 "gIblBiasParamatersVec4"
+//                OpMemberName %CustomPerMeshUniforms 42 "gHueOverlayParamsVec4"
+//                OpMemberName %CustomPerMeshUniforms 43 "gSaturationOverlayParamsVec4"
+//                OpMemberName %CustomPerMeshUniforms 44 "gValueOverlayParamsVec4"
+//                OpMemberName %CustomPerMeshUniforms 45 "gDebugLightColourVec4"
+//                OpMemberName %CustomPerMeshUniforms 46 "gProbeBlendDataVec4"
+//                OpMemberName %CustomPerMeshUniforms 47 "gProbeNearPosVec4"
+//                OpMemberName %CustomPerMeshUniforms 48 "gInverseWaterWorld0"
+//                OpMemberName %CustomPerMeshUniforms 49 "gInverseWaterWorld1"
+//                OpMemberName %CustomPerMeshUniforms 50 "gInverseWaterWorld2"
+//                OpMemberName %CustomPerMeshUniforms 51 "gInverseWaterWorld3"
+//                OpMemberName %CustomPerMeshUniforms 52 "gTextureSampleOffsetXY_TextureSampleModulusZ_GeometryDownSampleOffsetW"
+//                OpName %CommonPerMeshUniforms "CommonPerMeshUniforms"
+//                OpMemberName %CommonPerMeshUniforms 0 "gWorldMat4"
+//                OpMemberName %CommonPerMeshUniforms 1 "gWorldNormalMat4"
+//                OpMemberName %CommonPerMeshUniforms 2 "fdFadeValueDummy"
+//                OpMemberName %CommonPerMeshUniforms 3 "guContextVariant"
+//                OpMemberName %CommonPerMeshUniforms 4 "giLodIndex"
+//                OpMemberName %CommonPerMeshUniforms 5 "gPlanetPositionVec4"
+//                OpMemberName %CommonPerMeshUniforms 6 "gScanParamsPosVec4"
+//                OpMemberName %CommonPerMeshUniforms 7 "gScanParamsCfg1Vec4"
+//                OpMemberName %CommonPerMeshUniforms 8 "gScanParamsCfg2Vec4"
+//                OpMemberName %CommonPerMeshUniforms 9 "gScanParamsCfg3Vec4"
+//                OpMemberName %CommonPerMeshUniforms 10 "gScanColourVec4"
+//                OpMemberName %CommonPerMeshUniforms 11 "gaShadowMat4"
+//                OpMemberName %CommonPerMeshUniforms 12 "gLightColourVec4"
+//                OpMemberName %CommonPerMeshUniforms 13 "gLightCustomParamsVec4"
+//                OpMemberName %CommonPerMeshUniforms 14 "gWorldMotionMat4"
+//                OpMemberName %CommonPerMeshUniforms 15 "gInverseModelMat4Dummy"
+//                OpMemberName %CommonPerMeshUniforms 16 "gUserDataVec4"
+//                OpMemberName %CommonPerMeshUniforms 17 "gLightProxyMeshInfoVec4"
+//                OpMemberName %CommonPerMeshUniforms 18 "gLightPositionVec4"
+//                OpMemberName %CommonPerMeshUniforms 19 "gLightDirectionVec4"
+//                OpMemberName %CommonPerMeshUniforms 20 "gLightOriginVec4"
+//                OpMemberName %CommonPerMeshUniforms 21 "gSpotlightPositionVec3"
+//                OpMemberName %CommonPerMeshUniforms 22 "gSpotlightFalloff_Layer_Cookie"
+//                OpMemberName %CommonPerMeshUniforms 23 "gSpotlightDirectionVec4"
+//                OpMemberName %CommonPerMeshUniforms 24 "gSpotlightUpVec4"
+//                OpName %UniformBuffer "UniformBuffer"
+//                OpMemberName %UniformBuffer 0 "mpPerFrame"
+//                OpMemberName %UniformBuffer 1 "mpCustomPerMesh"
+//                OpMemberName %UniformBuffer 2 "mpCommonPerMesh"
+//                OpName %lUniforms_BLK "lUniforms_BLK"
+//                OpMemberName %lUniforms_BLK 0 "lUniforms"
+//                OpName %_ ""
+//                OpName %gBuffer4Map "gBuffer4Map"
+//                OpName %gLightCookiesMap "gLightCookiesMap"
+//                OpName %gBufferMap "gBufferMap"
+//                OpName %gBuffer2Map "gBuffer2Map"
+//                OpName %gBuffer3Map "gBuffer3Map"
+//                OpName %gBuffer5Map "gBuffer5Map"
+//                OpName %gDfgMultiMap "gDfgMultiMap"
+//                OpName %gDfgAvgMap "gDfgAvgMap"
+//                OpName %gDtgMap "gDtgMap"
+//                OpName %out_color0 "out_color0"
+//                OpDecorate %VertexBlock Block
+//                OpDecorate %In Location 0
+//                OpDecorate %gBuffer1Map DescriptorSet 1
+//                OpDecorate %gBuffer1Map Binding 1
+//                OpMemberDecorate %PerFrameUniforms 0 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 0 Offset 0
+//                OpMemberDecorate %PerFrameUniforms 0 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 1 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 1 Offset 64
+//                OpMemberDecorate %PerFrameUniforms 1 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 2 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 2 Offset 128
+//                OpMemberDecorate %PerFrameUniforms 2 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 3 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 3 Offset 192
+//                OpMemberDecorate %PerFrameUniforms 3 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 4 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 4 Offset 256
+//                OpMemberDecorate %PerFrameUniforms 4 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 5 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 5 Offset 320
+//                OpMemberDecorate %PerFrameUniforms 5 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 6 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 6 Offset 384
+//                OpMemberDecorate %PerFrameUniforms 6 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 7 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 7 Offset 448
+//                OpMemberDecorate %PerFrameUniforms 7 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 8 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 8 Offset 512
+//                OpMemberDecorate %PerFrameUniforms 8 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 9 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 9 Offset 576
+//                OpMemberDecorate %PerFrameUniforms 9 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 10 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 10 Offset 640
+//                OpMemberDecorate %PerFrameUniforms 10 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 11 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 11 Offset 704
+//                OpMemberDecorate %PerFrameUniforms 11 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 12 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 12 Offset 768
+//                OpMemberDecorate %PerFrameUniforms 12 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 13 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 13 Offset 832
+//                OpMemberDecorate %PerFrameUniforms 13 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 14 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 14 Offset 896
+//                OpMemberDecorate %PerFrameUniforms 14 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 15 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 15 Offset 960
+//                OpMemberDecorate %PerFrameUniforms 15 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 16 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 16 Offset 1024
+//                OpMemberDecorate %PerFrameUniforms 16 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 17 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 17 Offset 1088
+//                OpMemberDecorate %PerFrameUniforms 17 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 18 Offset 1152
+//                OpMemberDecorate %PerFrameUniforms 19 Offset 1164
+//                OpMemberDecorate %PerFrameUniforms 20 Offset 1168
+//                OpMemberDecorate %PerFrameUniforms 21 Offset 1184
+//                OpMemberDecorate %PerFrameUniforms 22 Offset 1200
+//                OpMemberDecorate %PerFrameUniforms 23 Offset 1216
+//                OpMemberDecorate %PerFrameUniforms 24 Offset 1232
+//                OpMemberDecorate %PerFrameUniforms 25 ColMajor
+//                OpMemberDecorate %PerFrameUniforms 25 Offset 1248
+//                OpMemberDecorate %PerFrameUniforms 25 MatrixStride 16
+//                OpMemberDecorate %PerFrameUniforms 26 Offset 1312
+//                OpMemberDecorate %PerFrameUniforms 27 Offset 1328
+//                OpMemberDecorate %PerFrameUniforms 28 Offset 1344
+//                OpMemberDecorate %PerFrameUniforms 29 Offset 1360
+//                OpMemberDecorate %PerFrameUniforms 30 Offset 1364
+//                OpMemberDecorate %PerFrameUniforms 31 Offset 1368
+//                OpMemberDecorate %PerFrameUniforms 32 Offset 1372
+//                OpMemberDecorate %PerFrameUniforms 33 Offset 1376
+//                OpMemberDecorate %PerFrameUniforms 34 Offset 1392
+//                OpMemberDecorate %PerFrameUniforms 35 Offset 1408
+//                OpMemberDecorate %PerFrameUniforms 36 Offset 1424
+//                OpMemberDecorate %PerFrameUniforms 37 Offset 1440
+//                OpMemberDecorate %PerFrameUniforms 38 Offset 1456
+//                OpMemberDecorate %PerFrameUniforms 39 Offset 1472
+//                OpMemberDecorate %PerFrameUniforms 40 Offset 1488
+//                OpMemberDecorate %PerFrameUniforms 41 Offset 1504
+//                OpMemberDecorate %PerFrameUniforms 42 Offset 1516
+//                OpDecorate %_arr_v4float_uint_6 ArrayStride 16
+//                OpDecorate %_arr_v4float_uint_6_0 ArrayStride 16
+//                OpMemberDecorate %CustomPerMeshUniforms 0 Offset 0
+//                OpMemberDecorate %CustomPerMeshUniforms 1 Offset 16
+//                OpMemberDecorate %CustomPerMeshUniforms 2 Offset 32
+//                OpMemberDecorate %CustomPerMeshUniforms 3 Offset 48
+//                OpMemberDecorate %CustomPerMeshUniforms 4 Offset 144
+//                OpMemberDecorate %CustomPerMeshUniforms 5 Offset 240
+//                OpMemberDecorate %CustomPerMeshUniforms 6 Offset 256
+//                OpMemberDecorate %CustomPerMeshUniforms 7 Offset 272
+//                OpMemberDecorate %CustomPerMeshUniforms 8 Offset 288
+//                OpMemberDecorate %CustomPerMeshUniforms 9 Offset 304
+//                OpMemberDecorate %CustomPerMeshUniforms 10 Offset 320
+//                OpMemberDecorate %CustomPerMeshUniforms 11 Offset 336
+//                OpMemberDecorate %CustomPerMeshUniforms 12 Offset 352
+//                OpMemberDecorate %CustomPerMeshUniforms 13 Offset 368
+//                OpMemberDecorate %CustomPerMeshUniforms 14 Offset 384
+//                OpMemberDecorate %CustomPerMeshUniforms 15 Offset 400
+//                OpMemberDecorate %CustomPerMeshUniforms 16 Offset 416
+//                OpMemberDecorate %CustomPerMeshUniforms 17 Offset 432
+//                OpMemberDecorate %CustomPerMeshUniforms 18 Offset 448
+//                OpMemberDecorate %CustomPerMeshUniforms 19 Offset 464
+//                OpMemberDecorate %CustomPerMeshUniforms 20 Offset 480
+//                OpMemberDecorate %CustomPerMeshUniforms 21 Offset 496
+//                OpMemberDecorate %CustomPerMeshUniforms 22 Offset 512
+//                OpMemberDecorate %CustomPerMeshUniforms 23 Offset 528
+//                OpMemberDecorate %CustomPerMeshUniforms 24 Offset 544
+//                OpMemberDecorate %CustomPerMeshUniforms 25 Offset 560
+//                OpMemberDecorate %CustomPerMeshUniforms 26 Offset 576
+//                OpMemberDecorate %CustomPerMeshUniforms 27 Offset 592
+//                OpMemberDecorate %CustomPerMeshUniforms 28 Offset 608
+//                OpMemberDecorate %CustomPerMeshUniforms 29 Offset 624
+//                OpMemberDecorate %CustomPerMeshUniforms 30 Offset 640
+//                OpMemberDecorate %CustomPerMeshUniforms 31 Offset 656
+//                OpMemberDecorate %CustomPerMeshUniforms 32 Offset 672
+//                OpMemberDecorate %CustomPerMeshUniforms 33 Offset 688
+//                OpMemberDecorate %CustomPerMeshUniforms 34 Offset 704
+//                OpMemberDecorate %CustomPerMeshUniforms 35 Offset 720
+//                OpMemberDecorate %CustomPerMeshUniforms 36 Offset 736
+//                OpMemberDecorate %CustomPerMeshUniforms 37 Offset 752
+//                OpMemberDecorate %CustomPerMeshUniforms 38 Offset 768
+//                OpMemberDecorate %CustomPerMeshUniforms 39 Offset 784
+//                OpMemberDecorate %CustomPerMeshUniforms 40 Offset 800
+//                OpMemberDecorate %CustomPerMeshUniforms 41 Offset 816
+//                OpMemberDecorate %CustomPerMeshUniforms 42 Offset 832
+//                OpMemberDecorate %CustomPerMeshUniforms 43 Offset 848
+//                OpMemberDecorate %CustomPerMeshUniforms 44 Offset 864
+//                OpMemberDecorate %CustomPerMeshUniforms 45 Offset 880
+//                OpMemberDecorate %CustomPerMeshUniforms 46 Offset 896
+//                OpMemberDecorate %CustomPerMeshUniforms 47 Offset 912
+//                OpMemberDecorate %CustomPerMeshUniforms 48 Offset 928
+//                OpMemberDecorate %CustomPerMeshUniforms 49 Offset 944
+//                OpMemberDecorate %CustomPerMeshUniforms 50 Offset 960
+//                OpMemberDecorate %CustomPerMeshUniforms 51 Offset 976
+//                OpMemberDecorate %CustomPerMeshUniforms 52 Offset 992
+//                OpDecorate %_arr_mat4v4float_uint_3 ArrayStride 64
+//                OpMemberDecorate %CommonPerMeshUniforms 0 ColMajor
+//                OpMemberDecorate %CommonPerMeshUniforms 0 Offset 0
+//                OpMemberDecorate %CommonPerMeshUniforms 0 MatrixStride 16
+//                OpMemberDecorate %CommonPerMeshUniforms 1 ColMajor
+//                OpMemberDecorate %CommonPerMeshUniforms 1 Offset 64
+//                OpMemberDecorate %CommonPerMeshUniforms 1 MatrixStride 16
+//                OpMemberDecorate %CommonPerMeshUniforms 2 Offset 128
+//                OpMemberDecorate %CommonPerMeshUniforms 3 Offset 132
+//                OpMemberDecorate %CommonPerMeshUniforms 4 Offset 136
+//                OpMemberDecorate %CommonPerMeshUniforms 5 Offset 144
+//                OpMemberDecorate %CommonPerMeshUniforms 6 Offset 160
+//                OpMemberDecorate %CommonPerMeshUniforms 7 Offset 176
+//                OpMemberDecorate %CommonPerMeshUniforms 8 Offset 192
+//                OpMemberDecorate %CommonPerMeshUniforms 9 Offset 208
+//                OpMemberDecorate %CommonPerMeshUniforms 10 Offset 224
+//                OpMemberDecorate %CommonPerMeshUniforms 11 ColMajor
+//                OpMemberDecorate %CommonPerMeshUniforms 11 Offset 240
+//                OpMemberDecorate %CommonPerMeshUniforms 11 MatrixStride 16
+//                OpMemberDecorate %CommonPerMeshUniforms 12 Offset 432
+//                OpMemberDecorate %CommonPerMeshUniforms 13 Offset 448
+//                OpMemberDecorate %CommonPerMeshUniforms 14 ColMajor
+//                OpMemberDecorate %CommonPerMeshUniforms 14 Offset 464
+//                OpMemberDecorate %CommonPerMeshUniforms 14 MatrixStride 16
+//                OpMemberDecorate %CommonPerMeshUniforms 15 ColMajor
+//                OpMemberDecorate %CommonPerMeshUniforms 15 Offset 528
+//                OpMemberDecorate %CommonPerMeshUniforms 15 MatrixStride 16
+//                OpMemberDecorate %CommonPerMeshUniforms 16 Offset 592
+//                OpMemberDecorate %CommonPerMeshUniforms 17 Offset 608
+//                OpMemberDecorate %CommonPerMeshUniforms 18 Offset 624
+//                OpMemberDecorate %CommonPerMeshUniforms 19 Offset 640
+//                OpMemberDecorate %CommonPerMeshUniforms 20 Offset 656
+//                OpMemberDecorate %CommonPerMeshUniforms 21 Offset 672
+//                OpMemberDecorate %CommonPerMeshUniforms 22 Offset 684
+//                OpMemberDecorate %CommonPerMeshUniforms 23 Offset 688
+//                OpMemberDecorate %CommonPerMeshUniforms 24 Offset 704
+//                OpMemberDecorate %UniformBuffer 0 Offset 0
+//                OpMemberDecorate %UniformBuffer 1 Offset 1520
+//                OpMemberDecorate %UniformBuffer 2 Offset 2528
+//                OpMemberDecorate %lUniforms_BLK 0 Offset 0
+//                OpDecorate %lUniforms_BLK Block
+//                OpDecorate %_ DescriptorSet 0
+//                OpDecorate %_ Binding 0
+//                OpDecorate %gBuffer4Map DescriptorSet 1
+//                OpDecorate %gBuffer4Map Binding 4
+//                OpDecorate %gLightCookiesMap DescriptorSet 1
+//                OpDecorate %gLightCookiesMap Binding 9
+//                OpDecorate %gBufferMap DescriptorSet 1
+//                OpDecorate %gBufferMap Binding 0
+//                OpDecorate %gBuffer2Map DescriptorSet 1
+//                OpDecorate %gBuffer2Map Binding 2
+//                OpDecorate %gBuffer3Map DescriptorSet 1
+//                OpDecorate %gBuffer3Map Binding 3
+//                OpDecorate %gBuffer5Map DescriptorSet 1
+//                OpDecorate %gBuffer5Map Binding 5
+//                OpDecorate %gDfgMultiMap DescriptorSet 1
+//                OpDecorate %gDfgMultiMap Binding 7
+//                OpDecorate %gDfgAvgMap DescriptorSet 1
+//                OpDecorate %gDfgAvgMap Binding 8
+//                OpDecorate %gDtgMap DescriptorSet 1
+//                OpDecorate %gDtgMap Binding 6
+//                OpDecorate %out_color0 Location 0
+//        %void = OpTypeVoid
+//          %28 = OpTypeFunction %void
+//       %float = OpTypeFloat 32
+//     %v2float = OpTypeVector %float 2
+//     %v4float = OpTypeVector %float 4
+//     %v3float = OpTypeVector %float 3
+// %mat4v4float = OpTypeMatrix %v4float 4
+//        %bool = OpTypeBool
+//        %uint = OpTypeInt 32 0
+//         %int = OpTypeInt 32 1
+//         %211 = OpTypeImage %float 2D 0 0 0 1 Unknown
+//         %212 = OpTypeSampledImage %211
+// %_ptr_UniformConstant_212 = OpTypePointer UniformConstant %212
+//         %214 = OpTypeImage %float 3D 0 0 0 1 Unknown
+//         %215 = OpTypeSampledImage %214
+// %_ptr_UniformConstant_215 = OpTypePointer UniformConstant %215
+//      %uint_0 = OpConstant %uint 0
+//     %float_1 = OpConstant %float 1
+//     %float_2 = OpConstant %float 2
+//      %uint_3 = OpConstant %uint 3
+//     %float_0 = OpConstant %float 0
+//   %float_0_5 = OpConstant %float 0.5
+//    %float_n1 = OpConstant %float -1
+//  %float_1023 = OpConstant %float 1023
+//    %uint_960 = OpConstant %uint 960
+//     %float_3 = OpConstant %float 3
+//      %int_10 = OpConstant %int 10
+//    %int_4096 = OpConstant %int 4096
+//       %int_0 = OpConstant %int 0
+//     %uint_63 = OpConstant %uint 63
+//       %int_1 = OpConstant %int 1
+// %int_532487669 = OpConstant %int 532487669
+//       %int_8 = OpConstant %int 8
+//    %uint_255 = OpConstant %uint 255
+// %float_3_14159274 = OpConstant %float 3.14159274
+//     %float_5 = OpConstant %float 5
+// %float_0_952380955 = OpConstant %float 0.952380955
+// %float_0_0476190485 = OpConstant %float 0.0476190485
+// %float_n0_156582698 = OpConstant %float -0.156582698
+// %float_1_57079601 = OpConstant %float 1.57079601
+//    %float_n2 = OpConstant %float -2
+//     %float_8 = OpConstant %float 8
+//    %float_16 = OpConstant %float 16
+// %float_1_57079637 = OpConstant %float 1.57079637
+//  %float_0_75 = OpConstant %float 0.75
+// %float_0_03125 = OpConstant %float 0.03125
+// %float_1_89999998 = OpConstant %float 1.89999998
+//   %float_3_5 = OpConstant %float 3.5
+// %float_0_800000012 = OpConstant %float 0.800000012
+//  %float_0_25 = OpConstant %float 0.25
+// %float_0_628318548 = OpConstant %float 0.628318548
+// %float_1_2566371 = OpConstant %float 1.2566371
+// %float_0_0625 = OpConstant %float 0.0625
+// %float_0_00999999978 = OpConstant %float 0.00999999978
+//        %1001 = OpConstantComposite %v3float %float_0 %float_0 %float_0
+// %float_9_99999975en05 = OpConstant %float 9.99999975e-05
+// %VertexBlock = OpTypeStruct %v4float
+// %_ptr_Input_VertexBlock = OpTypePointer Input %VertexBlock
+//          %In = OpVariable %_ptr_Input_VertexBlock Input
+// %_ptr_Input_v4float = OpTypePointer Input %v4float
+// %_ptr_Input_float = OpTypePointer Input %float
+// %gBuffer1Map = OpVariable %_ptr_UniformConstant_212 UniformConstant
+// %PerFrameUniforms = OpTypeStruct %mat4v4float %mat4v4float %mat4v4float %mat4v4float %mat4v4float %mat4v4float %mat4v4float %mat4v4float %mat4v4float %mat4v4float %mat4v4float %mat4v4float %mat4v4float %mat4v4float %mat4v4float %mat4v4float %mat4v4float %mat4v4float %v3float %int %v4float %v4float %v4float %v4float %v4float %mat4v4float %v3float %v3float %v4float %float %float %int %int %v4float %v4float %v4float %v3float %v4float %v4float %v4float %v4float %v3float %float
+//      %uint_6 = OpConstant %uint 6
+// %_arr_v4float_uint_6 = OpTypeArray %v4float %uint_6
+// %_arr_v4float_uint_6_0 = OpTypeArray %v4float %uint_6
+// %CustomPerMeshUniforms = OpTypeStruct %v4float %v4float %v4float %_arr_v4float_uint_6 %_arr_v4float_uint_6_0 %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float %v4float
+// %_arr_mat4v4float_uint_3 = OpTypeArray %mat4v4float %uint_3
+// %CommonPerMeshUniforms = OpTypeStruct %mat4v4float %mat4v4float %float %uint %int %v4float %v4float %v4float %v4float %v4float %v4float %_arr_mat4v4float_uint_3 %v4float %v4float %mat4v4float %mat4v4float %v4float %v4float %v4float %v4float %v4float %v3float %uint %v4float %v4float
+// %UniformBuffer = OpTypeStruct %PerFrameUniforms %CustomPerMeshUniforms %CommonPerMeshUniforms
+// %lUniforms_BLK = OpTypeStruct %UniformBuffer
+// %_ptr_Uniform_lUniforms_BLK = OpTypePointer Uniform %lUniforms_BLK
+//           %_ = OpVariable %_ptr_Uniform_lUniforms_BLK Uniform
+//      %int_28 = OpConstant %int 28
+//       %int_4 = OpConstant %int 4
+// %_ptr_Uniform_v4float = OpTypePointer Uniform %v4float
+// %_ptr_Uniform_mat4v4float = OpTypePointer Uniform %mat4v4float
+// %float_0_0500000007 = OpConstant %float 0.0500000007
+//       %int_2 = OpConstant %int 2
+//      %int_12 = OpConstant %int 12
+// %_ptr_Uniform_float = OpTypePointer Uniform %float
+//      %int_22 = OpConstant %int 22
+// %_ptr_Uniform_uint = OpTypePointer Uniform %uint
+//      %int_21 = OpConstant %int 21
+// %_ptr_Uniform_v3float = OpTypePointer Uniform %v3float
+//      %int_23 = OpConstant %int 23
+//      %int_24 = OpConstant %int 24
+// %gBuffer4Map = OpVariable %_ptr_UniformConstant_212 UniformConstant
+//   %float_255 = OpConstant %float 255
+//   %float_1_5 = OpConstant %float 1.5
+//        %1574 = OpTypeImage %float 2D 0 1 0 1 Unknown
+//        %1575 = OpTypeSampledImage %1574
+// %_ptr_UniformConstant_1575 = OpTypePointer UniformConstant %1575
+// %gLightCookiesMap = OpVariable %_ptr_UniformConstant_1575 UniformConstant
+//      %int_26 = OpConstant %int 26
+// %mat3v3float = OpTypeMatrix %v3float 3
+// %float_0_776721716 = OpConstant %float 0.776721716
+// %float_0_171546698 = OpConstant %float 0.171546698
+// %float_0_0518387891 = OpConstant %float 0.0518387891
+//        %1630 = OpConstantComposite %v3float %float_0_776721716 %float_0_171546698 %float_0_0518387891
+// %float_0_0330350138 = OpConstant %float 0.0330350138
+// %float_0_957649946 = OpConstant %float 0.957649946
+// %float_0_00929595344 = OpConstant %float 0.00929595344
+//        %1634 = OpConstantComposite %v3float %float_0_0330350138 %float_0_957649946 %float_0_00929595344
+// %float_0_0170853343 = OpConstant %float 0.0170853343
+// %float_0_0723957196 = OpConstant %float 0.0723957196
+// %float_0_910301447 = OpConstant %float 0.910301447
+//        %1638 = OpConstantComposite %v3float %float_0_0170853343 %float_0_0723957196 %float_0_910301447
+//        %1639 = OpConstantComposite %mat3v3float %1630 %1634 %1638
+//  %gBufferMap = OpVariable %_ptr_UniformConstant_212 UniformConstant
+// %gBuffer2Map = OpVariable %_ptr_UniformConstant_212 UniformConstant
+// %gBuffer3Map = OpVariable %_ptr_UniformConstant_212 UniformConstant
+// %gBuffer5Map = OpVariable %_ptr_UniformConstant_212 UniformConstant
+//    %uint_256 = OpConstant %uint 256
+//      %int_40 = OpConstant %int 40
+//       %int_5 = OpConstant %int 5
+// %float_0_699999988 = OpConstant %float 0.699999988
+// %gDfgMultiMap = OpVariable %_ptr_UniformConstant_212 UniformConstant
+//  %gDfgAvgMap = OpVariable %_ptr_UniformConstant_212 UniformConstant
+//     %gDtgMap = OpVariable %_ptr_UniformConstant_215 UniformConstant
+// %float_1_14999998 = OpConstant %float 1.14999998
+//        %1829 = OpConstantComposite %v3float %float_1_14999998 %float_1_14999998 %float_1_14999998
+// %_ptr_Output_v4float = OpTypePointer Output %v4float
+//  %out_color0 = OpVariable %_ptr_Output_v4float Output
+//        %3612 = OpConstantComposite %v2float %float_1 %float_1
+// %float_0_0526315793 = OpConstant %float 0.0526315793
+//        %3615 = OpConstantComposite %v2float %float_0_5 %float_0_5
+//        %3616 = OpConstantComposite %v3float %float_1 %float_1 %float_1
+//        %3617 = OpConstantComposite %v3float %float_1_89999998 %float_1_89999998 %float_1_89999998
+//        %3618 = OpConstantComposite %v3float %float_0_800000012 %float_0_800000012 %float_0_800000012
+//        %3620 = OpConstantComposite %v3float %float_0_0476190485 %float_0_0476190485 %float_0_0476190485
+//        %3621 = OpConstantComposite %v3float %float_9_99999975en05 %float_9_99999975en05 %float_9_99999975en05
+// %float_1_05263162 = OpConstant %float 1.05263162
+// %float_0_0158730168 = OpConstant %float 0.0158730168
+// %float_0_00253968267 = OpConstant %float 0.00253968267
+// %float_0_333333343 = OpConstant %float 0.333333343
+//        %3634 = OpConstantComposite %v3float %float_0_333333343 %float_0_333333343 %float_0_333333343
+// %float_0_159154937 = OpConstant %float 0.159154937
+// %float_n0_00253968267 = OpConstant %float -0.00253968267
+//        %3644 = OpUndef %v4float
+//                OpLine %25 753 25
+//        %main = OpFunction %void None %28
+//                OpNoLine
+//          %30 = OpLabel
+//                OpLine %25 767 0
+//        %1248 = OpAccessChain %_ptr_Input_v4float %In %int_0
+//        %1249 = OpLoad %v4float %1248
+//        %1250 = OpVectorShuffle %v2float %1249 %1249 0 1
+//        %1252 = OpAccessChain %_ptr_Input_float %In %int_0 %uint_3
+//        %1253 = OpLoad %float %1252
+//        %1254 = OpCompositeConstruct %v2float %1253 %1253
+//        %1255 = OpFDiv %v2float %1250 %1254
+//                OpLine %25 772 0
+//        %1260 = OpLoad %212 %gBuffer1Map
+//        %1262 = OpImageSampleImplicitLod %v4float %1260 %1255
+//                OpLine %25 776 0
+//        %1283 = OpAccessChain %_ptr_Uniform_v4float %_ %int_0 %int_0 %int_28
+//        %1284 = OpLoad %v4float %1283
+//        %1287 = OpAccessChain %_ptr_Uniform_mat4v4float %_ %int_0 %int_0 %int_4
+//        %1288 = OpLoad %mat4v4float %1287
+//                OpLine %5 166 0
+//        %2168 = OpCompositeExtract %float %1262 0
+//                OpLine %5 127 0
+//        %2173 = OpCompositeExtract %float %1284 1
+//                OpLine %5 128 0
+//        %2176 = OpFMul %float %2168 %2173
+//                OpLine %16 1494 0
+//        %2227 = OpCompositeExtract %float %1255 0
+//        %2229 = OpCompositeExtract %float %1255 1
+//        %2230 = OpFSub %float %float_1 %2229
+//        %2231 = OpCompositeConstruct %v2float %2227 %2230
+//                OpLine %5 179 0
+//        %2185 = OpVectorTimesScalar %v2float %2231 %float_2
+//        %2187 = OpFSub %v2float %2185 %3612
+//        %2189 = OpCompositeExtract %float %2187 0
+//        %2191 = OpCompositeExtract %float %2187 1
+//                OpLine %5 77 0
+//        %2237 = OpCompositeExtract %float %1284 0
+//                OpLine %5 79 0
+//        %2242 = OpFMul %float %2237 %2173
+//        %2244 = OpFDiv %float %2242 %2176
+//        %2246 = OpFSub %float %2244 %2237
+//        %2249 = OpFSub %float %2173 %2237
+//        %2250 = OpFDiv %float %2246 %2249
+//                OpNoLine
+//        %3622 = OpCompositeConstruct %v4float %2189 %2191 %2250 %float_1
+//                OpLine %5 183 0
+//        %2199 = OpMatrixTimesVector %v4float %1288 %3622
+//                OpLine %5 184 0
+//        %2201 = OpVectorShuffle %v3float %2199 %2199 0 1 2
+//        %2203 = OpCompositeExtract %float %2199 3
+//        %2204 = OpCompositeConstruct %v3float %2203 %2203 %2203
+//        %2205 = OpFDiv %v3float %2201 %2204
+//        %2207 = OpCompositeExtract %float %2205 0
+//        %2209 = OpCompositeExtract %float %2205 1
+//        %2211 = OpCompositeExtract %float %2205 2
+//                OpLine %5 185 0
+//        %3387 = OpCompositeInsert %v4float %2207 %3644 0
+//        %3389 = OpCompositeInsert %v4float %2209 %3387 1
+//        %3391 = OpCompositeInsert %v4float %2211 %3389 2
+//                OpLine %5 187 0
+//        %2223 = OpVectorShuffle %v3float %3391 %3391 0 1 2
+//                OpLine %25 787 0
+//        %1303 = OpAccessChain %_ptr_Uniform_float %_ %int_0 %int_2 %int_12 %uint_3
+//        %1304 = OpLoad %float %1303
+//                OpLine %25 788 0
+//        %1309 = OpAccessChain %_ptr_Uniform_uint %_ %int_0 %int_2 %int_22
+//        %1310 = OpLoad %uint %1309
+//                OpLine %25 87 0
+//        %2307 = OpExtInst %v2float %26 UnpackHalf2x16 %1310
+//        %2308 = OpCompositeExtract %float %2307 1
+//                OpLine %25 789 0
+//        %1315 = OpAccessChain %_ptr_Uniform_v3float %_ %int_0 %int_2 %int_21
+//        %1316 = OpLoad %v3float %1315
+//                OpLine %25 790 0
+//        %1319 = OpAccessChain %_ptr_Uniform_v4float %_ %int_0 %int_2 %int_23
+//        %1320 = OpLoad %v4float %1319
+//                OpLine %25 791 0
+//        %1323 = OpAccessChain %_ptr_Uniform_v4float %_ %int_0 %int_2 %int_24
+//        %1324 = OpLoad %v4float %1323
+//                OpLine %25 792 0
+//        %1328 = OpFSub %v3float %1316 %2223
+//                OpLine %25 794 0
+//        %1331 = OpLoad %212 %gBuffer4Map
+//        %1333 = OpImageSampleImplicitLod %v4float %1331 %1255
+//        %1334 = OpCompositeExtract %float %1333 0
+//        %1336 = OpFMul %float %1334 %float_255
+//        %1337 = OpConvertFToU %uint %1336
+//                OpLine %25 103 0
+//        %2312 = OpShiftRightLogical %uint %1310 %int_8
+//        %2313 = OpBitwiseAnd %uint %2312 %uint_255
+//                OpLine %25 796 0
+//        %1345 = OpBitwiseAnd %uint %1337 %uint_255
+//                OpLine %25 797 0
+//        %1348 = OpBitwiseAnd %uint %2313 %1345
+//        %1349 = OpIEqual %bool %1348 %uint_0
+//                OpSelectionMerge %1351 None
+//                OpBranchConditional %1349 %1350 %1351
+//        %1350 = OpLabel
+//                OpLine %25 798 0
+//                OpKill
+//        %1351 = OpLabel
+//                OpLine %25 807 0
+//        %1355 = OpFOrdEqual %bool %2308 %float_2
+//                OpSelectionMerge %1357 None
+//                OpBranchConditional %1355 %1356 %1376
+//        %1376 = OpLabel
+//                OpLine %25 817 0
+//        %1378 = OpFOrdEqual %bool %2308 %float_1
+//                OpSelectionMerge %1380 None
+//                OpBranchConditional %1378 %1379 %1401
+//        %1401 = OpLabel
+//                OpLine %25 831 0
+//        %1403 = OpFOrdEqual %bool %2308 %float_0
+//                OpSelectionMerge %1405 None
+//                OpBranchConditional %1403 %1404 %1407
+//        %1407 = OpLabel
+//                OpLine %25 836 0
+//        %1410 = OpFOrdEqual %bool %2308 %float_1_5
+//                OpSelectionMerge %1412 None
+//                OpBranchConditional %1410 %1411 %1437
+//        %1437 = OpLabel
+//                OpLine %25 849 0
+//        %1439 = OpFOrdEqual %bool %2308 %float_3
+//                OpSelectionMerge %1441 None
+//                OpBranchConditional %1439 %1440 %1464
+//        %1464 = OpLabel
+//                OpLine %25 864 0
+//        %1468 = OpDot %float %1328 %1328
+//                OpLine %25 865 0
+//        %1471 = OpFMul %float %float_0_5 %2308
+//        %1472 = OpExtInst %float %26 Pow %1468 %1471
+//        %1473 = OpFDiv %float %float_1 %1472
+//                OpLine %25 866 0
+//        %1475 = OpExtInst %float %26 FMin %1473 %float_1
+//                OpLine %25 867 0
+//        %1478 = OpFMul %float %1475 %1304
+//                OpLine %25 868 0
+//        %1484 = OpFOrdLessThanEqual %bool %1478 %float_0_0526315793
+//                OpSelectionMerge %1486 None
+//                OpBranchConditional %1484 %1485 %1486
+//        %1485 = OpLabel
+//                OpLine %25 870 0
+//                OpKill
+//        %1486 = OpLabel
+//                OpBranch %1441
+//        %1440 = OpLabel
+//                OpLine %25 852 0
+//        %1445 = OpDot %float %1328 %1328
+//                OpLine %25 853 0
+//        %1447 = OpExtInst %float %26 InverseSqrt %1445
+//        %1449 = OpFDiv %float %1447 %1445
+//                OpLine %25 854 0
+//        %1451 = OpExtInst %float %26 FMin %1449 %float_1
+//                OpLine %25 855 0
+//        %1454 = OpFMul %float %1451 %1304
+//                OpLine %25 856 0
+//        %1460 = OpFOrdLessThanEqual %bool %1454 %float_0_0526315793
+//                OpSelectionMerge %1462 None
+//                OpBranchConditional %1460 %1461 %1462
+//        %1461 = OpLabel
+//                OpLine %25 858 0
+//                OpKill
+//        %1462 = OpLabel
+//                OpBranch %1441
+//        %1441 = OpLabel
+//        %3514 = OpPhi %float %1454 %1462 %1478 %1486
+//                OpBranch %1412
+//        %1411 = OpLabel
+//                OpLine %25 839 0
+//        %1416 = OpDot %float %1328 %1328
+//                OpLine %25 840 0
+//        %1418 = OpExtInst %float %26 InverseSqrt %1416
+//                OpLine %25 841 0
+//        %1421 = OpExtInst %float %26 Sqrt %1418
+//        %1422 = OpFMul %float %1418 %1421
+//                OpLine %25 842 0
+//        %1424 = OpExtInst %float %26 FMin %1422 %float_1
+//                OpLine %25 843 0
+//        %1427 = OpFMul %float %1424 %1304
+//                OpLine %25 844 0
+//        %1433 = OpFOrdLessThanEqual %bool %1427 %float_0_0526315793
+//                OpSelectionMerge %1435 None
+//                OpBranchConditional %1433 %1434 %1435
+//        %1434 = OpLabel
+//                OpLine %25 846 0
+//                OpKill
+//        %1435 = OpLabel
+//                OpBranch %1412
+//        %1412 = OpLabel
+//        %3513 = OpPhi %float %1427 %1435 %3514 %1441
+//                OpBranch %1405
+//        %1404 = OpLabel
+//                OpLine %25 834 0
+//                OpBranch %1405
+//        %1405 = OpLabel
+//        %3512 = OpPhi %float %1304 %1404 %3513 %1412
+//                OpBranch %1380
+//        %1379 = OpLabel
+//                OpLine %25 822 0
+//        %1384 = OpDot %float %1328 %1328
+//                OpLine %25 823 0
+//        %1386 = OpExtInst %float %26 InverseSqrt %1384
+//                OpLine %25 824 0
+//        %1388 = OpExtInst %float %26 FMin %1386 %float_1
+//                OpLine %25 825 0
+//        %1391 = OpFMul %float %1388 %1304
+//                OpLine %25 826 0
+//        %1397 = OpFOrdLessThanEqual %bool %1391 %float_0_0526315793
+//                OpSelectionMerge %1399 None
+//                OpBranchConditional %1397 %1398 %1399
+//        %1398 = OpLabel
+//                OpLine %25 828 0
+//                OpKill
+//        %1399 = OpLabel
+//                OpBranch %1380
+//        %1380 = OpLabel
+//        %3511 = OpPhi %float %1391 %1399 %3512 %1405
+//                OpBranch %1357
+//        %1356 = OpLabel
+//                OpLine %25 810 0
+//        %1361 = OpDot %float %1328 %1328
+//                OpLine %25 811 0
+//        %1365 = OpExtInst %float %26 FMax %float_1 %1361
+//        %1366 = OpFDiv %float %1304 %1365
+//                OpLine %25 812 0
+//        %1372 = OpFOrdLessThanEqual %bool %1366 %float_0_0526315793
+//                OpSelectionMerge %1374 None
+//                OpBranchConditional %1372 %1373 %1374
+//        %1373 = OpLabel
+//                OpLine %25 814 0
+//                OpKill
+//        %1374 = OpLabel
+//                OpBranch %1357
+//        %1357 = OpLabel
+//        %3510 = OpPhi %float %1366 %1374 %3511 %1380
+//                OpLine %25 873 0
+//        %1489 = OpAccessChain %_ptr_Uniform_v4float %_ %int_0 %int_2 %int_12
+//        %1490 = OpLoad %v4float %1489
+//        %1491 = OpVectorShuffle %v3float %1490 %1490 0 1 2
+//        %1494 = OpVectorTimesScalar %v3float %1491 %1304
+//                OpLine %25 879 0
+//        %1497 = OpExtInst %v3float %26 Normalize %1328
+//                OpLine %25 882 0
+//        %1500 = OpCompositeExtract %float %1320 3
+//                OpLine %25 883 0
+//        %1502 = OpFOrdGreaterThan %bool %1500 %float_n2
+//                OpSelectionMerge %1504 None
+//                OpBranchConditional %1502 %1503 %1504
+//        %1503 = OpLabel
+//                OpLine %25 886 0
+//        %1509 = OpVectorShuffle %v3float %1320 %1320 0 1 2
+//        %1511 = OpFNegate %v3float %1497
+//        %1512 = OpDot %float %1509 %1511
+//                OpLine %25 887 0
+//        %1516 = OpFSub %float %1512 %1500
+//        %1517 = OpFMul %float %1516 %float_5
+//        %1518 = OpExtInst %float %26 FClamp %1517 %float_0 %float_1
+//                OpLine %25 888 0
+//        %1521 = OpFMul %float %3510 %1518
+//                OpLine %25 889 0
+//        %1527 = OpFOrdLessThanEqual %bool %1521 %float_0_0526315793
+//                OpSelectionMerge %1529 None
+//                OpBranchConditional %1527 %1528 %1529
+//        %1528 = OpLabel
+//                OpLine %25 891 0
+//                OpKill
+//        %1529 = OpLabel
+//                OpLine %25 110 0
+//        %2317 = OpBitwiseAnd %uint %1310 %uint_255
+//                OpLine %25 895 0
+//        %1537 = OpULessThan %bool %2317 %uint_255
+//                OpSelectionMerge %1539 None
+//                OpBranchConditional %1537 %1538 %1539
+//        %1538 = OpLabel
+//                OpLine %25 898 0
+//        %1545 = OpVectorShuffle %v3float %1324 %1324 0 1 2
+//                OpLine %25 899 0
+//        %1549 = OpExtInst %v3float %26 Cross %1545 %1509
+//                OpLine %25 901 0
+//        %1552 = OpExtInst %float %26 Acos %1500
+//        %1553 = OpExtInst %float %26 Sin %1552
+//        %1554 = OpExtInst %float %26 FAbs %1553
+//                OpLine %25 902 0
+//        %1559 = OpDot %float %1511 %1549
+//        %1563 = OpDot %float %1511 %1545
+//        %1564 = OpFNegate %float %1563
+//        %1565 = OpCompositeConstruct %v2float %1559 %1564
+//                OpLine %25 903 0
+//        %1567 = OpFMul %float %1554 %float_2
+//        %1569 = OpCompositeConstruct %v2float %1567 %1567
+//        %1570 = OpFDiv %v2float %1565 %1569
+//                OpLine %25 904 0
+//        %1573 = OpFAdd %v2float %1570 %3615
+//                OpLine %25 905 0
+//        %1578 = OpLoad %1575 %gLightCookiesMap
+//        %1581 = OpConvertUToF %float %2317
+//        %1582 = OpCompositeExtract %float %1573 0
+//        %1583 = OpCompositeExtract %float %1573 1
+//        %1584 = OpCompositeConstruct %v3float %1582 %1583 %1581
+//        %1585 = OpImageSampleImplicitLod %v4float %1578 %1584
+//        %1586 = OpVectorShuffle %v3float %1585 %1585 0 1 2
+//                OpLine %25 906 0
+//        %1589 = OpFMul %v3float %1494 %1586
+//                OpBranch %1539
+//        %1539 = OpLabel
+//        %3525 = OpPhi %v3float %1494 %1529 %1589 %1538
+//                OpBranch %1504
+//        %1504 = OpLabel
+//        %3524 = OpPhi %v3float %1494 %1357 %3525 %1539
+//        %3515 = OpPhi %float %3510 %1357 %1521 %1539
+//                OpLine %25 910 0
+//        %1592 = OpFSub %float %3515 %float_0_0500000007
+//        %1595 = OpFMul %float %1592 %float_1_05263162
+//                OpLine %25 911 0
+//        %1597 = OpExtInst %float %26 FMax %1595 %float_0
+//                OpLine %25 912 0
+//        %1599 = OpAccessChain %_ptr_Uniform_v3float %_ %int_0 %int_0 %int_26
+//        %1600 = OpLoad %v3float %1599
+//        %1602 = OpFAdd %v3float %2223 %1600
+//                OpLine %25 914 0
+//        %1606 = OpDot %float %1328 %1328
+//                OpLine %25 915 0
+//        %1609 = OpCompositeExtract %float %1324 3
+//        %1612 = OpFMul %float %1609 %1609
+//                OpLine %25 916 0
+//        %1616 = OpFDiv %float %1606 %1612
+//        %1617 = OpExtInst %float %26 Pow %1616 %float_8
+//        %1618 = OpFSub %float %float_1 %1617
+//        %1619 = OpExtInst %float %26 FClamp %1618 %float_0 %float_1
+//                OpLine %25 918 0
+//        %1622 = OpFMul %float %1619 %1619
+//        %1624 = OpFMul %float %1597 %1622
+//                OpLine %25 920 0
+//        %1640 = OpVectorTimesMatrix %v3float %3524 %1639
+//                OpLine %25 937 0
+//        %1643 = OpLoad %212 %gBufferMap
+//        %1645 = OpImageSampleImplicitLod %v4float %1643 %1255
+//                OpLine %25 938 0
+//        %1648 = OpLoad %212 %gBuffer2Map
+//        %1650 = OpImageSampleImplicitLod %v4float %1648 %1255
+//                OpLine %25 939 0
+//        %1653 = OpLoad %212 %gBuffer3Map
+//        %1655 = OpImageSampleImplicitLod %v4float %1653 %1255
+//                OpLine %25 941 0
+//        %1658 = OpLoad %212 %gBuffer5Map
+//        %1660 = OpImageSampleImplicitLod %v4float %1658 %1255
+//                OpLine %7 375 0
+//        %2339 = OpVectorShuffle %v3float %1645 %1645 0 1 2
+//                OpLine %7 378 0
+//        %2341 = OpVectorShuffle %v2float %1650 %1650 0 1
+//                OpLine %7 65 0
+//        %2581 = OpCompositeExtract %float %1650 0
+//        %2582 = OpFOrdGreaterThanEqual %bool %2581 %float_0_5
+//        %2583 = OpSelect %float %2582 %float_1 %float_n1
+//                OpLine %7 66 0
+//        %2585 = OpCompositeExtract %float %1650 1
+//        %2586 = OpFOrdGreaterThanEqual %bool %2585 %float_0_5
+//        %2587 = OpSelect %float %2586 %float_1 %float_n1
+//                OpNoLine
+//        %3624 = OpCompositeConstruct %v2float %2583 %2587
+//                OpLine %7 67 0
+//        %2589 = OpVectorTimesScalar %v2float %2341 %float_2
+//        %2591 = OpFSub %v2float %2589 %3612
+//        %2593 = OpCompositeExtract %float %2591 0
+//        %2595 = OpCompositeExtract %float %2591 1
+//                OpLine %7 68 0
+//        %2598 = OpExtInst %float %26 FAbs %2593
+//        %2599 = OpFSub %float %float_1 %2598
+//        %2602 = OpExtInst %float %26 FAbs %2595
+//        %2603 = OpFSub %float %2599 %2602
+//                OpNoLine
+//        %3625 = OpCompositeConstruct %v3float %2593 %2595 %2603
+//                OpLine %7 69 0
+//        %2607 = OpFOrdGreaterThanEqual %bool %2603 %float_0
+//                OpSelectionMerge %2619 None
+//                OpBranchConditional %2607 %2608 %2611
+//        %2611 = OpLabel
+//                OpLine %7 69 0
+//        %2613 = OpVectorShuffle %v2float %3625 %3625 1 0
+//        %2614 = OpExtInst %v2float %26 FAbs %2613
+//        %2616 = OpFSub %v2float %3612 %2614
+//        %2618 = OpFMul %v2float %2616 %3624
+//                OpBranch %2619
+//        %2608 = OpLabel
+//                OpLine %7 69 0
+//        %2610 = OpVectorShuffle %v2float %3625 %3625 0 1
+//                OpBranch %2619
+//        %2619 = OpLabel
+//        %3565 = OpPhi %v2float %2610 %2608 %2618 %2611
+//        %2622 = OpCompositeExtract %float %3565 0
+//        %3474 = OpCompositeInsert %v3float %2622 %3625 0
+//        %2624 = OpCompositeExtract %float %3565 1
+//        %3476 = OpCompositeInsert %v3float %2624 %3474 1
+//                OpLine %7 71 0
+//        %2626 = OpExtInst %v3float %26 Normalize %3476
+//                OpLine %7 382 0
+//        %2344 = OpVectorShuffle %v2float %1660 %1660 0 1
+//                OpLine %7 145 0
+//        %2631 = OpExtInst %v2float %26 FAbs %2344
+//        %2632 = OpVectorTimesScalar %v2float %2631 %float_2
+//        %2634 = OpFSub %v2float %2632 %3612
+//        %2636 = OpCompositeExtract %float %2634 0
+//        %2638 = OpCompositeExtract %float %2634 1
+//                OpLine %7 146 0
+//        %2641 = OpExtInst %float %26 FAbs %2636
+//        %2644 = OpExtInst %float %26 FAbs %2638
+//        %2645 = OpExtInst %float %26 FMax %2641 %2644
+//        %2646 = OpFSub %float %float_1 %2645
+//                OpNoLine
+//        %3626 = OpCompositeConstruct %v3float %2636 %2638 %2646
+//                OpLine %7 147 0
+//        %2648 = OpCompositeExtract %float %1660 0
+//        %2649 = OpFOrdGreaterThanEqual %bool %2648 %float_0
+//                OpSelectionMerge %2657 None
+//                OpBranchConditional %2649 %2650 %2653
+//        %2653 = OpLabel
+//                OpLine %7 147 0
+//        %2656 = OpFSub %float %2645 %float_1
+//                OpBranch %2657
+//        %2650 = OpLabel
+//                OpLine %7 147 0
+//                OpBranch %2657
+//        %2657 = OpLabel
+//        %3578 = OpPhi %float %2646 %2650 %2656 %2653
+//        %3488 = OpCompositeInsert %v3float %3578 %3626 2
+//                OpLine %7 149 0
+//        %2661 = OpExtInst %v3float %26 Normalize %3488
+//                OpLine %7 388 0
+//        %2347 = OpCompositeExtract %float %1650 2
+//        %2348 = OpFMul %float %2347 %float_1023
+//        %2349 = OpConvertFToU %uint %2348
+//        %2350 = OpBitwiseAnd %uint %2349 %uint_960
+//        %2352 = OpCompositeExtract %float %1650 3
+//        %2353 = OpFMul %float %2352 %float_3
+//        %2354 = OpConvertFToU %uint %2353
+//        %2355 = OpShiftLeftLogical %uint %2354 %int_10
+//        %2356 = OpBitwiseOr %uint %2350 %2355
+//                OpLine %7 161 0
+//        %2664 = OpCompositeExtract %float %1660 1
+//        %2665 = OpFOrdGreaterThanEqual %bool %2664 %float_0
+//                OpLine %7 390 0
+//        %2360 = OpSelect %int %2665 %int_4096 %int_0
+//        %2361 = OpBitcast %uint %2360
+//        %2363 = OpBitwiseOr %uint %2356 %2361
+//                OpLine %7 394 0
+//        %2368 = OpBitwiseAnd %uint %2349 %uint_63
+//        %2369 = OpConvertUToF %float %2368
+//        %2370 = OpFMul %float %2369 %float_0_0158730168
+//                OpLine %7 395 0
+//        %2372 = OpFMul %float %2369 %float_0_00253968267
+//        %2374 = OpFMul %float %2372 %2370
+//                OpLine %7 398 0
+//        %2376 = OpCompositeExtract %float %1655 0
+//                OpLine %7 399 0
+//        %2378 = OpCompositeExtract %float %1655 1
+//                OpLine %7 400 0
+//        %2380 = OpCompositeExtract %float %1655 2
+//                OpLine %7 401 0
+//        %2382 = OpCompositeExtract %float %1655 3
+//                OpLine %25 970 0
+//        %1724 = OpVectorTimesMatrix %v3float %2339 %1639
+//                OpLine %25 973 0
+//        %1727 = OpBitwiseAnd %uint %2363 %uint_256
+//        %1728 = OpINotEqual %bool %1727 %uint_0
+//                OpSelectionMerge %1730 None
+//                OpBranchConditional %1728 %1729 %1736
+//        %1736 = OpLabel
+//                OpLine %25 988 0
+//        %1738 = OpAccessChain %_ptr_Uniform_float %_ %int_0 %int_1 %int_40 %uint_0
+//        %1739 = OpLoad %float %1738
+//        %1740 = OpFOrdGreaterThan %bool %1739 %float_0
+//                OpSelectionMerge %1742 None
+//                OpBranchConditional %1740 %1741 %1742
+//        %1741 = OpLabel
+//                OpLine %25 993 0
+//        %1750 = OpFSub %v3float %1602 %1600
+//                OpLine %25 994 0
+//        %1756 = OpAccessChain %_ptr_Uniform_v4float %_ %int_0 %int_2 %int_5
+//        %1757 = OpLoad %v4float %1756
+//                OpLine %11 90 0
+//        %2670 = OpCompositeExtract %float %1757 3
+//        %2671 = OpCompositeConstruct %v3float %2670 %2670 %2670
+//        %2672 = OpFDiv %v3float %1750 %2671
+//        %2674 = OpVectorShuffle %v3float %1757 %1757 0 1 2
+//        %2678 = OpFDiv %v3float %2674 %2671
+//        %2679 = OpFSub %v3float %2672 %2678
+//        %2680 = OpExtInst %v3float %26 Normalize %2679
+//                OpLine %25 995 0
+//        %1762 = OpDot %float %2680 %2626
+//                OpLine %25 996 0
+//        %1765 = OpFSub %float %float_1 %2378
+//        %1766 = OpFMul %float %1765 %float_3
+//        %1767 = OpExtInst %float %26 FClamp %1766 %float_0 %float_1
+//                OpLine %25 997 0
+//        %1771 = OpFMul %float %1762 %1762
+//        %1773 = OpFMul %float %1771 %1762
+//        %1774 = OpExtInst %float %26 FAbs %1773
+//        %1776 = OpFOrdLessThan %bool %1762 %float_0
+//        %1778 = OpSelect %float %1776 %float_1 %float_0_699999988
+//        %1779 = OpExtInst %float %26 FMin %1774 %1778
+//                OpLine %25 998 0
+//        %1781 = OpFSub %float %float_1 %1779
+//                OpNoLine
+//        %3629 = OpFNegate %float %1767
+//                OpLine %25 1001 0
+//        %1786 = OpExtInst %float %26 Fma %3629 %1781 %float_1
+//        %1788 = OpExtInst %float %26 FMix %2378 %1786 %1739
+//                OpBranch %1742
+//        %1742 = OpLabel
+//        %3594 = OpPhi %float %2378 %1736 %1788 %1741
+//                OpLine %25 1038 0
+//        %1793 = OpFSub %v3float %1600 %1602
+//        %1794 = OpExtInst %v3float %26 Normalize %1793
+//                OpLine %25 1039 0
+//        %1798 = OpVectorTimesScalar %v3float %1640 %1624
+//                OpLine %10 597 0
+//        %2746 = OpExtInst %float %26 FMax %float_0_00999999978 %3594
+//                OpLine %10 598 0
+//        %2749 = OpFMul %float %2746 %2746
+//                OpLine %10 599 0
+//        %2752 = OpFMul %float %2749 %2749
+//                OpLine %10 601 0
+//        %2756 = OpVectorTimesScalar %v3float %1798 %float_3_14159274
+//                OpLine %10 606 0
+//        %2762 = OpVectorTimesScalar %v3float %2626 %float_0_25
+//        %2763 = OpFAdd %v3float %1794 %2762
+//        %2764 = OpExtInst %v3float %26 Normalize %2763
+//        %2765 = OpFNegate %v3float %2764
+//                OpLine %10 608 0
+//        %2769 = OpFAdd %v3float %1497 %1794
+//        %2770 = OpExtInst %v3float %26 Normalize %2769
+//                OpLine %10 610 0
+//        %2773 = OpDot %float %2626 %1497
+//        %2774 = OpExtInst %float %26 FClamp %2773 %float_0 %float_1
+//                OpLine %10 611 0
+//        %2777 = OpDot %float %2626 %1794
+//        %2778 = OpExtInst %float %26 FClamp %2777 %float_0 %float_1
+//                OpLine %10 612 0
+//        %2781 = OpDot %float %2626 %2770
+//        %2782 = OpExtInst %float %26 FClamp %2781 %float_0 %float_1
+//                OpLine %10 613 0
+//        %2785 = OpDot %float %2661 %1497
+//        %2786 = OpExtInst %float %26 FClamp %2785 %float_0 %float_1
+//                OpLine %10 614 0
+//        %2789 = OpDot %float %1794 %2770
+//        %2790 = OpExtInst %float %26 FClamp %2789 %float_0 %float_1
+//                OpLine %10 615 0
+//        %2793 = OpDot %float %2765 %1497
+//        %2794 = OpExtInst %float %26 FClamp %2793 %float_0 %float_1
+//                OpLine %10 620 0
+//        %2798 = OpCompositeConstruct %v3float %2374 %2374 %2374
+//        %2801 = OpCompositeConstruct %v3float %2380 %2380 %2380
+//        %2802 = OpExtInst %v3float %26 FMix %2798 %1724 %2801
+//                OpLine %10 621 0
+//        %2806 = OpExtInst %v3float %26 FMix %1724 %1001 %2801
+//                OpLine %4 39 0
+//        %3007 = OpFMul %float %2778 %2778
+//                OpNoLine
+//        %3631 = OpFNegate %float %2749
+//                OpLine %4 39 0
+//        %3009 = OpExtInst %float %26 Fma %3631 %2749 %float_1
+//        %3012 = OpExtInst %float %26 Fma %3007 %3009 %2752
+//        %3013 = OpExtInst %float %26 Sqrt %3012
+//                OpLine %4 40 0
+//        %3018 = OpFMul %float %2774 %2774
+//        %3023 = OpExtInst %float %26 Fma %3018 %3009 %2752
+//        %3024 = OpExtInst %float %26 Sqrt %3023
+//        %3025 = OpFMul %float %2778 %3024
+//                OpLine %4 41 0
+//        %3028 = OpExtInst %float %26 Fma %2774 %3013 %3025
+//        %3029 = OpFDiv %float %float_0_5 %3028
+//                OpNoLine
+//        %3632 = OpFNegate %float %2782
+//                OpLine %4 53 0
+//        %3037 = OpExtInst %float %26 Fma %2782 %2752 %3632
+//        %3040 = OpExtInst %float %26 Fma %3037 %2782 %float_1
+//                OpLine %4 54 0
+//        %3043 = OpFMul %float %float_3_14159274 %3040
+//        %3045 = OpFMul %float %3043 %3040
+//        %3046 = OpFDiv %float %2752 %3045
+//                OpLine %4 70 0
+//        %3052 = OpFSub %v3float %3616 %2802
+//        %3054 = OpFSub %float %float_1 %2790
+//        %3055 = OpExtInst %float %26 Pow %3054 %float_5
+//        %3056 = OpVectorTimesScalar %v3float %3052 %3055
+//        %3057 = OpFAdd %v3float %2802 %3056
+//                OpLine %10 183 0
+//        %3063 = OpExtInst %float %26 Fma %2382 %float_0_333333343 %float_1
+//                OpLine %10 184 0
+//        %3065 = OpFDiv %float %float_1 %3063
+//                OpLine %10 185 0
+//        %3066 = OpExtInst %float %26 Fma %2382 %float_0_333333343 %2773
+//        %3068 = OpFMul %float %3066 %3065
+//        %3070 = OpFMul %float %3068 %3065
+//        %3071 = OpExtInst %float %26 FClamp %3070 %float_0 %float_1
+//                OpNoLine
+//        %3633 = OpFNegate %float %2382
+//                OpLine %10 251 0
+//        %3080 = OpExtInst %float %26 Fma %3633 %2382 %float_1
+//        %3082 = OpExtInst %float %26 Fma %float_0_75 %3080 %float_0_03125
+//                OpLine %10 253 0
+//        %3085 = OpFSub %v3float %3617 %2806
+//        %3088 = OpFSub %v3float %2806 %3618
+//        %3089 = OpVectorTimesScalar %v3float %3088 %float_3_5
+//        %3094 = OpExtInst %v3float %26 Fma %3089 %3088 %3085
+//                OpLine %10 254 0
+//        %3095 = OpFMul %float %2382 %float_16
+//        %3096 = OpExtInst %float %26 FClamp %3095 %float_0 %float_1
+//                OpLine %10 256 0
+//        %3098 = OpFNegate %v3float %3094
+//        %3100 = OpVectorTimesScalar %v3float %3098 %3082
+//        %3101 = OpExtInst %v3float %26 Exp %3100
+//        %3107 = OpFMul %v3float %3100 %3634
+//        %3108 = OpExtInst %v3float %26 Exp %3107
+//        %3109 = OpVectorTimesScalar %v3float %3108 %float_3
+//        %3110 = OpFAdd %v3float %3101 %3109
+//        %3111 = OpVectorTimesScalar %v3float %3110 %float_0_25
+//        %3113 = OpVectorTimesScalar %v3float %3111 %3096
+//                OpLine %10 511 0
+//        %3132 = OpFSub %float %float_1 %2376
+//                OpLine %19 198 0
+//        %3199 = OpBitcast %int %3132
+//                OpLine %19 199 0
+//        %3201 = OpShiftRightArithmetic %int %3199 %int_1
+//        %3202 = OpIAdd %int %int_532487669 %3201
+//                OpLine %19 200 0
+//        %3204 = OpBitcast %float %3202
+//                OpLine %10 520 0
+//        %3134 = OpFMul %float %2786 %2786
+//        %3135 = OpExtInst %float %26 FMix %float_0_628318548 %float_1_2566371 %3134
+//                OpLine %10 135 0
+//        %3207 = OpFAdd %float %3135 %float_1_57079637
+//                OpLine %10 124 0
+//        %3214 = OpExtInst %float %26 Fma %3207 %float_0_159154937 %float_0_5
+//                OpLine %10 125 0
+//        %3216 = OpExtInst %float %26 Fract %3214
+//        %3217 = OpFSub %float %3216 %float_0_5
+//                OpLine %10 126 0
+//        %3221 = OpFMul %float %float_16 %3217
+//        %3223 = OpExtInst %float %26 FAbs %3217
+//        %3224 = OpFMul %float %3221 %3223
+//                OpNoLine
+//        %3637 = OpFNegate %float %3224
+//                OpLine %10 126 0
+//        %3225 = OpExtInst %float %26 Fma %float_8 %3217 %3637
+//                OpLine %10 522 0
+//        %3139 = OpFSub %float %float_1 %3225
+//                OpLine %10 527 0
+//        %3142 = OpExtInst %float %26 FMax %3204 %3225
+//                OpLine %10 528 0
+//        %3145 = OpFAdd %float %3204 %3225
+//        %3147 = OpFSub %float %3145 %3142
+//                OpLine %10 80 0
+//        %3231 = OpExtInst %float %26 FAbs %3147
+//                OpLine %10 65 0
+//        %3243 = OpFSub %float %float_1 %3231
+//                OpLine %19 198 0
+//        %3264 = OpBitcast %int %3243
+//                OpLine %19 199 0
+//        %3266 = OpShiftRightArithmetic %int %3264 %int_1
+//        %3267 = OpIAdd %int %int_532487669 %3266
+//                OpLine %19 200 0
+//        %3269 = OpBitcast %float %3267
+//                OpLine %10 65 0
+//        %3245 = OpExtInst %float %26 FAbs %3231
+//        %3247 = OpExtInst %float %26 Fma %float_n0_156582698 %3245 %float_1_57079601
+//        %3248 = OpFMul %float %3269 %3247
+//                OpLine %10 81 0
+//        %3233 = OpFOrdGreaterThanEqual %bool %3147 %float_0
+//                OpSelectionMerge %3239 None
+//                OpBranchConditional %3233 %3234 %3236
+//        %3236 = OpLabel
+//        %3638 = OpFNegate %float %3269
+//                OpLine %10 81 0
+//        %3238 = OpExtInst %float %26 Fma %3638 %3247 %float_3_14159274
+//                OpBranch %3239
+//        %3234 = OpLabel
+//                OpBranch %3239
+//        %3239 = OpLabel
+//        %3595 = OpPhi %float %3248 %3234 %3238 %3236
+//                OpLine %10 65 0
+//        %3272 = OpFSub %float %float_1 %3142
+//                OpLine %19 198 0
+//        %3293 = OpBitcast %int %3272
+//                OpLine %19 199 0
+//        %3295 = OpShiftRightArithmetic %int %3293 %int_1
+//        %3296 = OpIAdd %int %int_532487669 %3295
+//                OpLine %19 200 0
+//        %3298 = OpBitcast %float %3296
+//                OpLine %10 65 0
+//        %3274 = OpExtInst %float %26 FAbs %3142
+//        %3276 = OpExtInst %float %26 Fma %float_n0_156582698 %3274 %float_1_57079601
+//        %3301 = OpFSub %float %float_1 %2786
+//                OpLine %19 198 0
+//        %3322 = OpBitcast %int %3301
+//                OpLine %19 199 0
+//        %3324 = OpShiftRightArithmetic %int %3322 %int_1
+//        %3325 = OpIAdd %int %int_532487669 %3324
+//                OpLine %19 200 0
+//        %3327 = OpBitcast %float %3325
+//                OpLine %10 65 0
+//        %3303 = OpExtInst %float %26 FAbs %2786
+//        %3305 = OpExtInst %float %26 Fma %float_n0_156582698 %3303 %float_1_57079601
+//                OpLine %10 532 0
+//        %3156 = OpExtInst %float %26 Fma %3298 %3276 %3595
+//                OpNoLine
+//        %3639 = OpFNegate %float %3298
+//                OpLine %10 533 0
+//        %3159 = OpExtInst %float %26 Fma %3639 %3276 %3595
+//                OpNoLine
+//        %3640 = OpFNegate %float %3159
+//                OpLine %10 535 0
+//        %3164 = OpExtInst %float %26 Fma %3327 %3305 %3640
+//        %3167 = OpFSub %float %3156 %3159
+//        %3168 = OpFDiv %float %3164 %3167
+//        %3169 = OpExtInst %float %26 FClamp %3168 %float_0 %float_1
+//        %3170 = OpFSub %float %float_1 %3169
+//                OpLine %10 107 0
+//        %3330 = OpFMul %float %3170 %3170
+//        %3332 = OpExtInst %float %26 Fma %float_n2 %3170 %float_3
+//        %3333 = OpFMul %float %3330 %3332
+//                OpLine %10 536 0
+//        %3174 = OpFMul %float %3272 %3333
+//                OpLine %10 542 0
+//        %3177 = OpFSub %float %float_2 %3204
+//        %3178 = OpFMul %float %3174 %3177
+//        %3180 = OpFDiv %float %3178 %3139
+//        %3181 = OpFAdd %float %3180 %float_0_0625
+//        %3182 = OpExtInst %float %26 FClamp %3181 %float_0 %float_1
+//                OpLine %10 634 0
+//        %2828 = OpLoad %212 %gDfgMultiMap
+//        %2831 = OpCompositeConstruct %v2float %2774 %3594
+//        %2832 = OpImageSampleExplicitLod %v4float %2828 %2831 Lod %float_0
+//                OpLine %10 635 0
+//        %2837 = OpCompositeConstruct %v2float %2778 %3594
+//        %2838 = OpImageSampleExplicitLod %v4float %2828 %2837 Lod %float_0
+//                OpLine %10 636 0
+//        %2840 = OpLoad %215 %gDtgMap
+//        %2844 = OpCompositeConstruct %v3float %2778 %3594 %2374
+//        %2845 = OpImageSampleExplicitLod %v4float %2840 %2844 Lod %float_0
+//                OpLine %10 637 0
+//        %2847 = OpLoad %212 %gDfgAvgMap
+//        %2849 = OpCompositeConstruct %v2float %3594 %float_0
+//        %2850 = OpImageSampleExplicitLod %v4float %2847 %2849 Lod %float_0
+//                OpNoLine
+//        %3641 = OpFMul %float %2369 %float_n0_00253968267
+//                OpLine %4 62 0
+//        %3338 = OpExtInst %float %26 Fma %3641 %2370 %float_1
+//        %3340 = OpFSub %float %float_1 %2794
+//        %3341 = OpExtInst %float %26 Pow %3340 %float_5
+//        %3342 = OpFMul %float %3338 %3341
+//        %3343 = OpExtInst %float %26 Fma %2372 %2370 %3342
+//                OpLine %10 644 0
+//        %2859 = OpCompositeExtract %float %2832 1
+//                OpLine %10 645 0
+//        %2861 = OpCompositeExtract %float %2838 1
+//                OpLine %10 646 0
+//        %2863 = OpCompositeExtract %float %2850 1
+//                OpLine %4 77 0
+//        %3358 = OpExtInst %float %26 Fma %float_0_952380955 %2374 %float_0_0476190485
+//                OpLine %4 84 0
+//        %3362 = OpVectorTimesScalar %v3float %1724 %float_0_952380955
+//        %3364 = OpFAdd %v3float %3362 %3620
+//                OpLine %10 649 0
+//        %2870 = OpFMul %float %3358 %3358
+//        %2872 = OpFMul %float %2870 %2863
+//        %2875 = OpFSub %float %float_1 %2863
+//                OpNoLine
+//        %3642 = OpFNegate %float %3358
+//                OpLine %10 649 0
+//        %2877 = OpExtInst %float %26 Fma %3642 %2875 %float_1
+//        %2878 = OpExtInst %float %26 FMax %2877 %float_9_99999975en05
+//        %2879 = OpFDiv %float %2872 %2878
+//                OpLine %10 650 0
+//        %2882 = OpFMul %v3float %3364 %3364
+//        %2884 = OpVectorTimesScalar %v3float %2882 %2863
+//        %2888 = OpVectorTimesScalar %v3float %3364 %2875
+//        %2890 = OpFSub %v3float %3616 %2888
+//        %2892 = OpExtInst %v3float %26 FMax %2890 %3621
+//        %2893 = OpFDiv %v3float %2884 %2892
+//                OpLine %10 651 0
+//        %2895 = OpCompositeConstruct %v3float %2879 %2879 %2879
+//        %2899 = OpExtInst %v3float %26 FMix %2895 %2893 %2801
+//                OpLine %10 653 0
+//        %2901 = OpCompositeExtract %float %2832 0
+//        %2905 = OpExtInst %float %26 FMix %2901 %2859 %2374
+//        %2908 = OpFSub %float %float_1 %2859
+//        %2910 = OpExtInst %float %26 Fma %2879 %2908 %2905
+//                OpLine %10 654 0
+//        %2912 = OpCompositeExtract %float %2838 0
+//        %2916 = OpExtInst %float %26 FMix %2912 %2861 %2374
+//        %2919 = OpFSub %float %float_1 %2861
+//        %2921 = OpExtInst %float %26 Fma %2879 %2919 %2916
+//                OpLine %10 655 0
+//        %2923 = OpCompositeExtract %float %2850 0
+//        %2927 = OpExtInst %float %26 FMix %2923 %2863 %2374
+//        %2932 = OpExtInst %float %26 Fma %2879 %2875 %2927
+//                OpLine %10 659 0
+//        %2935 = OpVectorTimesScalar %v3float %3057 %3029
+//        %2937 = OpVectorTimesScalar %v3float %2935 %3046
+//        %2939 = OpVectorTimesScalar %v3float %2937 %2774
+//        %2940 = OpExtInst %v3float %26 FMax %2939 %1001
+//                OpLine %10 662 0
+//        %2944 = OpVectorTimesScalar %v3float %2899 %2919
+//        %2947 = OpVectorTimesScalar %v3float %2944 %2908
+//        %2950 = OpExtInst %float %26 FMax %2875 %float_9_99999975en05
+//        %2951 = OpFMul %float %float_3_14159274 %2950
+//        %2952 = OpCompositeConstruct %v3float %2951 %2951 %2951
+//        %2953 = OpFDiv %v3float %2947 %2952
+//                OpLine %10 665 0
+//        %2956 = OpFSub %float %float_1 %2921
+//        %2957 = OpVectorTimesScalar %v3float %2806 %2956
+//        %2959 = OpFSub %float %float_1 %2910
+//        %2960 = OpVectorTimesScalar %v3float %2957 %2959
+//        %2962 = OpFSub %float %float_1 %2932
+//        %2963 = OpExtInst %float %26 FMax %2962 %float_9_99999975en05
+//        %2964 = OpFMul %float %float_3_14159274 %2963
+//        %2965 = OpCompositeConstruct %v3float %2964 %2964 %2964
+//        %2966 = OpFDiv %v3float %2960 %2965
+//        %2968 = OpVectorTimesScalar %v3float %2966 %3071
+//                OpLine %10 668 0
+//        %2971 = OpCompositeExtract %float %2845 0
+//        %2972 = OpVectorTimesScalar %v3float %2806 %2971
+//        %2974 = OpFSub %float %float_1 %3343
+//        %2975 = OpVectorTimesScalar %v3float %2972 %2974
+//        %2977 = OpFSub %float %float_1 %3358
+//        %2978 = OpExtInst %float %26 FMax %2977 %float_9_99999975en05
+//        %2979 = OpFMul %float %float_3_14159274 %2978
+//        %2980 = OpCompositeConstruct %v3float %2979 %2979 %2979
+//        %2981 = OpFDiv %v3float %2975 %2980
+//        %2983 = OpFMul %v3float %2981 %3113
+//                OpLine %10 671 0
+//        %2987 = OpVectorTimesScalar %v3float %2983 %2794
+//        %2988 = OpFAdd %v3float %2968 %2987
+//        %2991 = OpFAdd %v3float %2940 %2953
+//        %2993 = OpVectorTimesScalar %v3float %2991 %2774
+//        %2994 = OpFAdd %v3float %2988 %2993
+//        %2996 = OpFMul %v3float %2994 %2756
+//        %2998 = OpVectorTimesScalar %v3float %2996 %3182
+//                OpLine %25 1062 0
+//        %1831 = OpExtInst %v3float %26 FMin %1829 %2998
+//                OpLine %25 1064 0
+//                OpBranch %1730
+//        %1729 = OpLabel
+//                OpLine %25 975 0
+//        %1733 = OpVectorTimesScalar %v3float %1724 %1624
+//                OpBranch %1730
+//        %1730 = OpLabel
+//        %3610 = OpPhi %v3float %1733 %1729 %1831 %3239
+//                OpLine %25 1067 0
+//        %1838 = OpCompositeExtract %float %3610 0
+//        %1839 = OpCompositeExtract %float %3610 1
+//        %1840 = OpCompositeExtract %float %3610 2
+//        %1841 = OpCompositeConstruct %v4float %1838 %1839 %1840 %float_1
+//                OpStore %out_color0 %1841
+//                OpReturn
+//                OpFunctionEnd
