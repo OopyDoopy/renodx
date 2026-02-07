@@ -1,7 +1,6 @@
 #version 450
 
 #include "./tonemapping.hlsl"
-#include "./common.hlsl"
 
 layout(set = 1, binding = 0) uniform sampler2D gBufferMap;
 
@@ -26,7 +25,6 @@ void main()
     vec3 _535 = Uncharted2Extended(_239.xyz);
     _535 = CustomTonemap(_535, In.mTexCoordsVec2);
     // vec3 _535 = _239.xyz;
-    _535 = renodx::draw::RenderIntermediatePass(_535);
     out_color0 = vec4(CustomGammaEncode(_535), 1.0);
 
     // float _632 = _535.x;

@@ -6,8 +6,9 @@
 #define ImTextureID ImU64
 
 #define DEBUG_LEVEL_0
-#define DEBUG_LEVEL_1
-#define DEBUG_LEVEL_2
+// #define DEBUG_LEVEL_1
+// #define DEBUG_LEVEL_2
+// #define DEBUG_LEVEL_3
 
 #include <embed/shaders.h>
 
@@ -24,9 +25,34 @@
 
 namespace {
 
-renodx::mods::shader::CustomShaders custom_shaders = {__ALL_CUSTOM_SHADERS};
+  ShaderInjectData shader_injection;
+int draw_counter = 0;
+bool final_draw = false;
 
-ShaderInjectData shader_injection;
+  #define FinalShaderEntry(value)                         \
+  {                                                               \
+    value,                                                        \
+        {                                                         \
+            .crc32 = value,                                       \
+            .code = __##value,                                    \
+            .on_drawn = [](auto cmd_list) {                       \
+              final_draw = true;                                  \
+              return true;                                        \
+            },                                                    \
+        },                                                        \
+  }
+
+renodx::mods::shader::CustomShaders custom_shaders = {
+  FinalShaderEntry(0xF69070B0),
+  __ALL_CUSTOM_SHADERS,
+};
+
+
+
+
+
+
+
 
 renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
@@ -52,6 +78,7 @@ renodx::utils::settings::Settings settings = {
         .min = 80.f,
         .max = 4000.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
+        .is_visible = []() { return LAST_IS_HDR; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapGameNits",
@@ -64,6 +91,7 @@ renodx::utils::settings::Settings settings = {
         .min = 80.f,
         .max = 500.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 1; },
+        .is_visible = []() { return LAST_IS_HDR; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapUINits",
@@ -75,6 +103,7 @@ renodx::utils::settings::Settings settings = {
         .min = 80.f,
         .max = 500.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 1; },
+        .is_visible = []() { return LAST_IS_HDR; },
     },
     new renodx::utils::settings::Setting{
       .key = "CustomHDRBoost",
@@ -87,28 +116,28 @@ renodx::utils::settings::Settings settings = {
       .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
       .parse = [](float value) { return value * 0.01f; },
     },
-      new renodx::utils::settings::Setting{
-        .key = "SceneGradePerChannelBlowout",
-        .binding = &shader_injection.scene_grade_per_channel_blowout,
-        .default_value = 70.f,
-        .label = "Per Channel Blowout",
-        .section = "Scene Grading",
-        .tooltip = "Simulates the highlight desaturation of per-channel tonemapping.",
-        .max = 90.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
-        .parse = [](float value) { return (0.01f * pow(100.f - value, 2.f)); },
-    },
-        new renodx::utils::settings::Setting{
-        .key = "SceneGradeHueShift",
-        .binding = &shader_injection.scene_grade_hue_shift,
-        .default_value = 50.f,
-        .label = "Per Channel Hue Shift",
-        .section = "Scene Grading",
-        .tooltip = "Simulates the hue shifting of per-channel tonemapping. Effect is tied to Per Channel Blowout.",
-        .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1 && CUSTOM_SCENE_GRADE_PER_CHANNEL_BLOWOUT > 0.f; },
-        .parse = [](float value) { return value * 0.01f; },
-    },
+    //   new renodx::utils::settings::Setting{
+    //     .key = "SceneGradePerChannelBlowout",
+    //     .binding = &shader_injection.scene_grade_per_channel_blowout,
+    //     .default_value = 70.f,
+    //     .label = "Per Channel Blowout",
+    //     .section = "Scene Grading",
+    //     .tooltip = "Simulates the highlight desaturation of per-channel tonemapping.",
+    //     .max = 90.f,
+    //     .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1; },
+    //     .parse = [](float value) { return (0.01f * pow(100.f - value, 2.f)); },
+    // },
+    //     new renodx::utils::settings::Setting{
+    //     .key = "SceneGradeHueShift",
+    //     .binding = &shader_injection.scene_grade_hue_shift,
+    //     .default_value = 50.f,
+    //     .label = "Per Channel Hue Shift",
+    //     .section = "Scene Grading",
+    //     .tooltip = "Simulates the hue shifting of per-channel tonemapping. Effect is tied to Per Channel Blowout.",
+    //     .max = 100.f,
+    //     .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 1 && CUSTOM_SCENE_GRADE_PER_CHANNEL_BLOWOUT > 0.f; },
+    //     .parse = [](float value) { return value * 0.01f; },
+    // },
     new renodx::utils::settings::Setting{
         .key = "SceneGradeHueClip",
         .binding = &shader_injection.scene_grade_hue_clip,
@@ -196,7 +225,7 @@ new renodx::utils::settings::Setting{
     new renodx::utils::settings::Setting{
         .key = "ColorGradeBlowout",
         .binding = &shader_injection.tone_map_blowout,
-        .default_value = 0.f,
+        .default_value = 40.f,
         .label = "Blowout",
         .section = "Color Grading",
         .tooltip = "Adds highlight desaturation due to overexposure.",
@@ -237,6 +266,7 @@ new renodx::utils::settings::Setting{
             "JPN CRT",
         },
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 1; },
+        .is_visible = []() { return LAST_IS_HDR; },
     },
         new renodx::utils::settings::Setting{
         .key = "FxDebanding",
@@ -253,6 +283,7 @@ new renodx::utils::settings::Setting{
           if (value == 2.f) return 10.f;
           return 0.f;
         },
+        .is_visible = []() { return LAST_IS_HDR; },
     },
         new renodx::utils::settings::Setting{
         .key = "FxFilmGrain",
@@ -393,6 +424,23 @@ void OnPresetOff() {
         {"FxDebanding", 0.f},
         {"FxFilmGrain", 0.f},
   });
+}
+
+void OnPresent(
+    reshade::api::command_queue* queue,
+    reshade::api::swapchain* swapchain,
+    const reshade::api::rect* source_rect,
+    const reshade::api::rect* dest_rect,
+    uint32_t dirty_rect_count,
+    const reshade::api::rect* dirty_rects) {
+
+  draw_counter++;
+
+  if (draw_counter > 5) {
+    LAST_IS_HDR = final_draw;
+    final_draw = false;
+    draw_counter = 0;
+  }
 }
 
 bool initialized = false;
@@ -660,19 +708,31 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
           .min_dimensions = min_dimensions,
       });
 
+      renodx::mods::swapchain::swap_chain_upgrade_targets.push_back({
+          .old_format = reshade::api::format::r8g8b8a8_typeless,
+          .new_format = reshade::api::format::r10g10b10a2_typeless,
+          .ignore_size = common_ignore_size,
+          .use_resource_view_cloning = renodx::mods::swapchain::use_resource_cloning,
+          .aspect_ratio = 1.f,
+          .aspect_ratio_tolerance = common_aspect_ratio_tolerance,
+          .view_upgrades = view_upgrades,
+          //.min_dimensions = min_dimensions,
+      });
+
       if (!initialized) {
         // renodx::utils::random::binds.push_back(&shader_injection.swap_chain_output_dither_seed);
         initialized = true;
       }
-
+      reshade::register_event<reshade::addon_event::present>(OnPresent);
       break;
     case DLL_PROCESS_DETACH:
+    reshade::unregister_event<reshade::addon_event::present>(OnPresent);
       reshade::unregister_addon(h_module);
       break;
   }
 
   renodx::utils::random::Use(DLL_PROCESS_ATTACH);
-  renodx::mods::swapchain::Use(fdw_reason);
+  //renodx::mods::swapchain::Use(fdw_reason);
   renodx::utils::settings::Use(fdw_reason, &settings, &OnPresetOff);
   renodx::mods::shader::Use(fdw_reason, custom_shaders, &shader_injection);
 
