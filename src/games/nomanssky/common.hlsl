@@ -53,3 +53,8 @@ float3 CustomGammaDecode(float3 color) {
       CustomGammaDecode(color.z)
     );
 }
+
+float3 CustomIntermediate(float3 color) {
+  if (LAST_IS_HDR) return renodx::draw::RenderIntermediatePass(color);
+  return color;
+}

@@ -1,0 +1,355 @@
+#version 450
+//layout(early_fragment_tests) in;
+
+struct PerFrameUniforms
+{
+    mat4 gViewProjectionMat4;
+    mat4 gCameraMat4;
+    mat4 gCameraNoHeadTrackingMat4;
+    mat4 gPrevViewProjectionMat4;
+    mat4 gInverseViewProjectionMat4;
+    mat4 gInverseWorldUpMat4;
+    vec3 gViewPositionVec3;
+    vec3 gVREyeInfoVec3;
+    vec4 gClipPlanesVec4;
+    float gfTime;
+    float gfPrevTime;
+    int giDisableAmbientAllowed;
+    int giFrameIndex;
+    vec4 gDeJitterVec4;
+    vec4 gFrameBufferSizeVec4;
+    vec4 gHeroLightColourVec4;
+    vec4 gHeroLightPositionVec4;
+    vec4 gHeroLightDirectionVec4;
+    vec3 gRenderOffsetVec3;
+    float _padding0;
+};
+
+struct CustomPerMaterialUniforms
+{
+    uvec4 gDynamicFlags;
+    uvec4 gLightLayers;
+    vec4 gTopBlendParamsVec4;
+    vec4 gSunPositionVec4;
+    vec4 gReactivityParamsVec4;
+    vec4 gMaterialParamsVec4;
+    vec4 gMaterialParams2Vec4;
+    vec4 gMaterialColourVec4;
+    vec4 gMaterialSFXVec4;
+    vec4 gMaterialSFXColVec4;
+    vec4 gBiomeDataVec4;
+    vec4 gTileBlendScalesVec4;
+    vec4 gTerrainColour1Vec4;
+    vec4 gTerrainColour2Vec4;
+    vec4 gDissolveDataVec4;
+};
+
+struct CustomPerMeshUniforms
+{
+    vec4 gUVScrollStepVec4;
+    vec4 gCustomParams01Vec4;
+    vec4 gCustomParams02Vec4;
+};
+
+struct CommonPerMeshUniforms
+{
+    mat4 gWorldMat4;
+    mat4 gWorldNormalMat4;
+    float gfFadeValue;
+    uint guContextVariant;
+    int giLodIndex;
+    vec4 gPlanetPositionVec4;
+    vec4 gLightColourVec4;
+    vec4 gLightCustomParamsVec4;
+    mat4 gWorldMotionMat4;
+    mat4 gInverseModelMat4Dummy;
+    vec4 gUserDataVec4;
+};
+
+struct UniformBuffer
+{
+    PerFrameUniforms mpPerFrame;
+    CustomPerMaterialUniforms mpCustomPerMaterial;
+    CustomPerMeshUniforms mpCustomPerMesh;
+    CommonPerMeshUniforms mpCommonPerMesh;
+};
+
+const vec4 _1021[6] = vec4[](vec4(1.0, 0.0, 0.0, 1.0), vec4(0.0, 1.0, 0.0, 1.0), vec4(0.0, 0.0, 1.0, 1.0), vec4(1.0, 1.0, 0.0, 1.0), vec4(0.0, 1.0, 1.0, 1.0), vec4(1.0, 0.0, 1.0, 1.0));
+vec4 _2204;
+
+layout(set = 0, binding = 0, std140) uniform lUniforms_BLK
+{
+    UniformBuffer lUniforms;
+} _534;
+
+layout(set = 1, binding = 18) uniform sampler2D gFadeNoiseMap;
+layout(set = 1, binding = 0) uniform sampler2D gDiffuseMap;
+layout(set = 1, binding = 2) uniform sampler2D gMasksMap;
+layout(set = 1, binding = 3) uniform sampler2D gColouriseMaskMap;
+layout(set = 1, binding = 1) uniform sampler2D gNormalMap;
+
+layout(location = 0) in VertexBlock
+{
+    vec4 mTexCoordsVec4;
+    vec4 mWorldPositionVec3_mfSpare;
+    vec3 mTangentMatRow1Vec3;
+    vec3 mTangentMatRow2Vec3;
+    vec3 mTangentMatRow3Vec3;
+    vec4 mPrevScreenPosition;
+    vec4 mScreenSpacePositionVec4;
+    flat vec3 mfFadeValueForInstance_mfLodIndex_mfShearMotionLength;
+} In;
+
+layout(location = 0) out vec4 out_color0;
+layout(location = 1) out vec4 out_color1;
+layout(location = 2) out vec4 out_color2;
+layout(location = 3) out vec4 out_color3;
+layout(location = 4) out vec4 out_color4;
+layout(location = 5) out vec4 out_color5;
+
+void main()
+{
+    if (!(_534.lUniforms.mpCommonPerMesh.guContextVariant == 7u))
+    {
+        if (In.mfFadeValueForInstance_mfLodIndex_mfShearMotionLength.x < 1.0)
+        {
+            vec3 _1299 = floor(In.mWorldPositionVec3_mfSpare.xyz);
+            vec3 _1301 = fract(In.mWorldPositionVec3_mfSpare.xyz);
+            vec4 _1321 = textureLod(gFadeNoiseMap, (_1299.xy + (vec2(37.0, 17.0) * _1299.z)) + ((_1301 * _1301) * (vec3(3.0) - (_1301 * 2.0))).xy, 0.0);
+            float _1322 = _1321.x;
+            if (In.mfFadeValueForInstance_mfLodIndex_mfShearMotionLength.x < 0.0)
+            {
+                if ((1.0 - _1322) > (In.mfFadeValueForInstance_mfLodIndex_mfShearMotionLength.x + 2.0))
+                {
+                    discard;
+                }
+            }
+            else
+            {
+                if (_1322 > In.mfFadeValueForInstance_mfLodIndex_mfShearMotionLength.x)
+                {
+                    discard;
+                }
+            }
+        }
+    }
+    vec4 _580 = texture(gDiffuseMap, In.mTexCoordsVec4.xy);
+    uint _1345 = _534.lUniforms.mpCustomPerMaterial.gDynamicFlags.y;
+    bool _1347 = (_1345 & 1073741856u) != 0u;
+    float _1883;
+    if (_1347)
+    {
+        float _1876;
+        if (_534.lUniforms.mpCustomPerMaterial.gDissolveDataVec4.w != 0.0)
+        {
+            _1876 = max(0.0, dot(_534.lUniforms.mpCustomPerMaterial.gDissolveDataVec4.xyz, In.mWorldPositionVec3_mfSpare.xyz) - _534.lUniforms.mpCustomPerMaterial.gDissolveDataVec4.w) * 20.0;
+        }
+        else
+        {
+            _1876 = 0.0;
+        }
+        _1883 = _1876;
+    }
+    else
+    {
+        _1883 = 0.0;
+    }
+    bool _1373 = (_1345 & 1073741825u) != 0u;
+    vec4 _1900;
+    if (_1373)
+    {
+        float _1879;
+        if ((_1345 & 1073741828u) != 0u)
+        {
+            _1879 = _580.w;
+        }
+        else
+        {
+            _1879 = 1.0;
+        }
+        float _1880;
+        if ((_1345 & 1073741832u) != 0u)
+        {
+            _1880 = _534.lUniforms.mpCustomPerMaterial.gMaterialColourVec4.w;
+        }
+        else
+        {
+            _1880 = 1.0;
+        }
+        float _1884;
+        if (_1347)
+        {
+            _1884 = float(_1883 <= 1.0);
+        }
+        else
+        {
+            _1884 = 1.0;
+        }
+        float _642 = _1879 * _1880;
+        float _1888;
+        if ((_1345 & 1073741888u) != 0u)
+        {
+            _1888 = fma(-_642, _1884, 1.0);
+        }
+        else
+        {
+            _1888 = _642 * _1884;
+        }
+        vec4 _1780 = _580;
+        _1780.w = _1888;
+        _1900 = _1780;
+    }
+    else
+    {
+        vec4 _1782 = _580;
+        _1782.w = 1.0;
+        _1900 = _1782;
+    }
+    vec4 _668 = texture(gMasksMap, In.mTexCoordsVec4.xy);
+    uint _1401 = _534.lUniforms.mpCustomPerMaterial.gDynamicFlags.x;
+    int _1897;
+    if ((_1401 & 256u) != 0u)
+    {
+        _1897 = 4 - int(fma(texture(gColouriseMaskMap, In.mTexCoordsVec4.xy).x, 4.0, 0.5));
+    }
+    else
+    {
+        _1897 = 0;
+    }
+    vec4 _1906;
+    if (_1897 < 4)
+    {
+        uint _701 = floatBitsToUint(_534.lUniforms.mpCommonPerMesh.gUserDataVec4[_1897]);
+        _1906 = _1900 * vec4(float((_701 & 4278190080u) >> uint(24)) * 0.0039215688593685626983642578125, float((_701 & 16711680u) >> uint(16)) * 0.0039215688593685626983642578125, float((_701 & 65280u) >> uint(8)) * 0.0039215688593685626983642578125, float(_701 & 255u) * 0.0039215688593685626983642578125);
+    }
+    else
+    {
+        _1906 = _1900;
+    }
+    float _1901;
+    if ((_1401 & 8388608u) != 0u)
+    {
+        _1901 = _534.lUniforms.mpCustomPerMesh.gCustomParams01Vec4.z;
+    }
+    else
+    {
+        _1901 = 1.0;
+    }
+    vec2 _760 = In.mTexCoordsVec4.xy * _1901;
+    vec4 _1792;
+    _1792.x = _760.x;
+    _1792.y = _760.y;
+    vec4 _770 = texture(gNormalMap, _1792.xy);
+    vec2 _1415 = (_770.xy * 1.9921875) - vec2(1.0);
+    float _1417 = _1415.x;
+    float _1419 = _1415.y;
+    vec3 _812 = normalize(mat3(In.mTangentMatRow1Vec3, In.mTangentMatRow2Vec3, In.mTangentMatRow3Vec3) * vec3(_1417, _1419, sqrt(max(fma(-_1419, _1419, fma(-_1417, _1417, 1.0)), 0.0))));
+    if (_1373)
+    {
+        if (_1906.w < (((_1345 & 1073741840u) != 0u) ? 0.3499999940395355224609375 : 9.9999997473787516355514526367188e-05))
+        {
+            discard;
+        }
+    }
+    float _1907;
+    if (!((_1401 & 1u) != 0u))
+    {
+        _1907 = 1.0;
+    }
+    else
+    {
+        _1907 = 1.0 - _668.x;
+    }
+    float _1909;
+    if (!((_1401 & 16u) != 0u))
+    {
+        _1909 = 1.0;
+    }
+    else
+    {
+        _1909 = _668.w;
+    }
+    float _1910;
+    if (!((_1401 & 2u) != 0u))
+    {
+        _1910 = _534.lUniforms.mpCustomPerMaterial.gMaterialParamsVec4.z;
+    }
+    else
+    {
+        _1910 = _668.y;
+    }
+    float _1914;
+    if (!((_1401 & 4u) != 0u))
+    {
+        _1914 = 0.0;
+    }
+    else
+    {
+        _1914 = _668.y;
+    }
+    float _1915;
+    if (!((_1401 & 8192u) != 0u))
+    {
+        _1915 = 0.0;
+    }
+    else
+    {
+        _1915 = _534.lUniforms.mpCustomPerMaterial.gMaterialParams2Vec4.x;
+    }
+    float _1916;
+    if (!((_1401 & 8u) != 0u))
+    {
+        _1916 = 1.0;
+    }
+    else
+    {
+        _1916 = _668.z;
+    }
+    vec4 _1940;
+    if (_534.lUniforms.mpCommonPerMesh.giLodIndex < 0)
+    {
+        _1940 = _1906;
+    }
+    else
+    {
+        _1940 = _1021[_534.lUniforms.mpCommonPerMesh.giLodIndex];
+    }
+    vec4 _2194 = vec4(_1940.xyz, clamp(sqrt((_1915 * _1916) * 0.25), 0.0, 1.0));
+    vec2 _1682 = ((In.mPrevScreenPosition.xy / vec2(In.mPrevScreenPosition.w)) - (In.mScreenSpacePositionVec4.xy / vec2(In.mScreenSpacePositionVec4.w))) * 0.5;
+    float _1698 = _812.x;
+    float _1702 = _812.y;
+    vec2 _1706 = _812.xy;
+    float _1708 = abs(_1698);
+    float _1710 = abs(_1702);
+    float _1712 = _812.z;
+    float _1713 = abs(_1712);
+    vec2 _1716 = _1706 / vec2((_1708 + _1710) + _1713);
+    bool _1718 = _1712 >= 0.0;
+    vec2 _2050;
+    if (_1718)
+    {
+        _2050 = _1716;
+    }
+    else
+    {
+        _2050 = (vec2(1.0) - abs(_1716.yx)) * vec2((_1698 >= 0.0) ? 1.0 : (-1.0), (_1702 >= 0.0) ? 1.0 : (-1.0));
+    }
+    uint _1625 = ((((0u | uint(((_1401 & 1048576u) != 0u) ? 64 : 0)) | uint(((_1401 & 2097152u) != 0u) ? 128 : 0)) | uint(((_1401 & 524288u) != 0u) ? 1024 : 0)) | uint((_1347 && (_1883 > 0.0)) ? 256 : 0)) | 0u;
+    vec2 _1763 = (((_1706 / vec2(_1713 + max(_1708, _1710))) * 0.5) + vec2(0.5)) * vec2(_1718 ? 1.0 : (-1.0), ((_1625 & 4096u) != 0u) ? 1.0 : (-1.0));
+    vec4 _2177;
+    if (_1347)
+    {
+        _2177 = mix(_2194, vec4(1.0), vec4(_1883));
+    }
+    else
+    {
+        _2177 = _2194;
+    }
+    out_color0 = _2177;
+    out_color1 = vec4(_1682.x, -_1682.y, 0.0, 0.0);
+    out_color2 = vec4((_2050 * 0.5) + vec2(0.5), float(uint(int(clamp(_1909 * _534.lUniforms.mpCustomPerMaterial.gMaterialParamsVec4.y, 0.0, 1.0) * 63.0)) | (_1625 & 960u)) * 0.000977517105638980865478515625, float(_1625 >> uint(10)) * 0.3333333432674407958984375);
+    out_color3 = vec4(1.0, clamp(_1907 * _534.lUniforms.mpCustomPerMaterial.gMaterialParamsVec4.x, 0.0, 1.0), clamp(_1910, 0.0, 1.0), clamp(_1914 * _534.lUniforms.mpCustomPerMaterial.gMaterialParamsVec4.w, 0.0, 1.0));
+    out_color4 = vec4(float(_534.lUniforms.mpCustomPerMaterial.gLightLayers.x & 255u) * 0.0039215688593685626983642578125, 0.0, 0.0, 0.0);
+    out_color5 = vec4(_1763, 0.0, 0.0);
+}
+

@@ -44,15 +44,15 @@ struct ShaderInjectData {
   float custom_random;
   float swap_chain_output_dither_bits;
 
-  float scene_grade_per_channel_blowout;
-  float scene_grade_hue_shift;
   float swap_chain_custom_color_space;
   float custom_hdr_boost;
-
   float swap_chain_output_dither_seed;
   float scene_grade_hue_clip;
+
   float custom_color_grading;
-  float padding3;
+  bool last_is_hdr;
+  float padding1;
+  float padding2;
 
 };
 
@@ -62,8 +62,8 @@ struct ShaderInjectData {
 #define RENODX_TONE_MAP_TYPE                          shader_injection.tone_map_type
 #define CUSTOM_HDR_BOOST                              shader_injection.custom_hdr_boost
 
-#define CUSTOM_SCENE_GRADE_PER_CHANNEL_BLOWOUT        shader_injection.scene_grade_per_channel_blowout
-#define CUSTOM_SCENE_GRADE_HUE_SHIFT                  shader_injection.scene_grade_hue_shift
+// #define CUSTOM_SCENE_GRADE_PER_CHANNEL_BLOWOUT        shader_injection.scene_grade_per_channel_blowout
+// #define CUSTOM_SCENE_GRADE_HUE_SHIFT                  shader_injection.scene_grade_hue_shift
 #define CUSTOM_SCENE_GRADE_HUE_CLIP                   shader_injection.scene_grade_hue_clip
 #define CUSTOM_COLOR_GRADING                        shader_injection.custom_color_grading
 
@@ -81,6 +81,8 @@ struct ShaderInjectData {
 #define CUSTOM_RANDOM                          shader_injection.custom_random
 #define RENODX_SWAP_CHAIN_OUTPUT_DITHER_BITS   shader_injection.swap_chain_output_dither_bits
 #define RENODX_SWAP_CHAIN_OUTPUT_DITHER_SEED   shader_injection.swap_chain_output_dither_seed
+
+#define LAST_IS_HDR                            shader_injection.last_is_hdr
 
 
 #define RENODX_RENO_DRT_WHITE_CLIP                    100.f
