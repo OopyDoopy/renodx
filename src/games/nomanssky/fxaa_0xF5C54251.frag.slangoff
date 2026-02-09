@@ -1,0 +1,1310 @@
+#version 450
+
+struct PerFrameUniforms
+{
+    mat4 gViewProjectionMat4;
+    mat4 gCameraMat4;
+    mat4 gCameraNoHeadTrackingMat4;
+    mat4 gPrevViewProjectionMat4;
+    mat4 gInverseViewProjectionMat4;
+    mat4 gViewMat4;
+    mat4 gProjectionMat4;
+    mat4 gInverseProjectionMat4;
+    mat4 gThisToPrevViewProjectionMat4;
+    mat4 gInverseViewMat4;
+    mat4 gInverseProjectionSCMat4;
+    mat4 gInverseViewProjectionSCMat4;
+    mat4 gProjectionNoJitterMat4;
+    mat4 gViewProjectionNoJitterMat4;
+    mat4 gInverseViewProjectionNoJitterMat4;
+    mat4 gPrevViewProjectionNoJitterMat4;
+    mat4 gPrevInverseViewProjectionNoJitterMat4;
+    mat4 gPrevInverseViewProjectionSCMat4;
+    vec3 gPrevViewPositionVec3;
+    int giAntiAliasingIndex;
+    vec4 gMBlurSettingsVec4;
+    vec4 gTaaSettingsVec4;
+    vec4 gTessSettingsVec4;
+    vec4 gShellsSettingsVec4;
+    vec4 gFoVValuesVec4;
+    mat4 gInverseWorldUpMat4;
+    vec3 gViewPositionVec3;
+    vec3 gVREyeInfoVec3;
+    vec4 gClipPlanesVec4;
+    float gfTime;
+    float gfPrevTime;
+    int giDisableAmbientAllowed;
+    int giFrameIndex;
+    vec4 gDeJitterVec4;
+    vec4 gFrameBufferSizeVec4;
+    vec4 gShadowSizeVec4;
+    vec3 gShadowProjScaleVec3;
+    vec4 gShadowFadeParamVec4;
+    vec4 gHeroLightColourVec4;
+    vec4 gHeroLightPositionVec4;
+    vec4 gHeroLightDirectionVec4;
+    vec3 gRenderOffsetVec3;
+    float _padding0;
+};
+
+struct CustomPerMeshUniforms
+{
+    vec4 gDoFParamsVec4;
+    vec4 gHDRParamsVec4;
+    vec4 gHBAOParamsVec4;
+    vec4 gThresholdParamsVec4;
+    vec4 gCustomParamsVec4;
+    vec4 gBlurParamsVec4;
+    vec4 gColourLUTParamsVec4;
+    vec4 gColourLUTStrengthsVec4;
+    vec4 gTextureSizeMipLevelVec4;
+    vec4 gSkyUpperParamsVec4;
+    vec4 gLightShaftColourBottomVec4;
+    vec4 gLightShaftColourTopVec4;
+    vec4 gHDRParams2Vec4;
+};
+
+struct CommonPerMeshUniforms
+{
+    mat4 gWorldMat4;
+    mat4 gWorldNormalMat4;
+    float fdFadeValueDummy;
+    uint guContextVariant;
+    int giLodIndex;
+    vec4 gPlanetPositionVec4;
+    vec4 gScanParamsPosVec4;
+    vec4 gScanParamsCfg1Vec4;
+    vec4 gScanParamsCfg2Vec4;
+    vec4 gScanParamsCfg3Vec4;
+    vec4 gScanColourVec4;
+    mat4 gaShadowMat4[3];
+    vec4 gLightColourVec4;
+    vec4 gLightCustomParamsVec4;
+    mat4 gWorldMotionMat4;
+    mat4 gInverseModelMat4Dummy;
+    vec4 gUserDataVec4;
+    vec4 gLightPositionVec4;
+    vec4 gLightDirectionVec4;
+    vec4 gLightOriginVec4;
+};
+
+struct UniformBuffer
+{
+    PerFrameUniforms mpPerFrame;
+    CustomPerMeshUniforms mpCustomPerMesh;
+    CommonPerMeshUniforms mpCommonPerMesh;
+};
+
+vec4 _4635;
+
+layout(set = 0, binding = 0, std140) uniform lUniforms_BLK
+{
+    UniformBuffer lUniforms;
+} _1609;
+
+layout(set = 1, binding = 0) uniform sampler2D gBufferMap;
+layout(set = 1, binding = 1) uniform sampler2D gBuffer1Map;
+
+layout(location = 0) in VertexBlock
+{
+    vec2 mTexCoordsVec2;
+} In;
+
+layout(location = 0) out vec4 out_color0;
+
+void main()
+{
+    vec2 _1641 = In.mTexCoordsVec2;
+    vec4 _4589;
+    do
+    {
+        vec4 _1814 = textureLod(gBuffer1Map, _1641, 0.0);
+        float _1815 = _1814.x;
+        vec4 _1822 = textureGather(gBuffer1Map, _1641);
+        vec4 _1825 = textureGatherOffset(gBuffer1Map, _1641, ivec2(-1));
+        float _1827 = _1822.x;
+        float _1837 = _1822.z;
+        float _1845 = _1825.z;
+        float _1847 = _1825.x;
+        float _1856 = max(max(_1845, _1847), max(_1837, max(_1827, _1815)));
+        float _1865 = _1856 - min(min(_1845, _1847), min(_1837, min(_1827, _1815)));
+        if (_1865 < max(0.031199999153614044189453125, _1856 * 0.125))
+        {
+            _4589 = vec4(textureLod(gBufferMap, _1641, 0.0).xyz, _1815);
+            break;
+        }
+        vec4 _1878 = textureLodOffset(gBuffer1Map, _1641, 0.0, ivec2(1, -1));
+        float _3232 = _1878.x;
+        vec4 _1882 = textureLodOffset(gBuffer1Map, _1641, 0.0, ivec2(-1, 1));
+        float _3236 = _1882.x;
+        float _1888 = _1845 + _1827;
+        float _1893 = _1847 + _1837;
+        float _1911 = _1822.y;
+        float _1912 = _3232 + _1911;
+        float _1914 = _1825.w;
+        float _1930 = _1914 + _3236;
+        bool _1972 = (abs(fma(-2.0, _1847, _1930)) + fma(abs(fma(-2.0, _1815, _1888)), 2.0, abs(fma(-2.0, _1837, _1912)))) >= (abs(fma(-2.0, _1827, _3236 + _1911)) + fma(abs(fma(-2.0, _1815, _1893)), 2.0, abs(fma(-2.0, _1845, _1914 + _3232))));
+        bool _1978 = !_1972;
+        vec4 _3626;
+        if (_1978)
+        {
+            vec4 _3360;
+            _3360.z = _1847;
+            _3626 = _3360;
+        }
+        else
+        {
+            _3626 = _1825;
+        }
+        vec4 _3628;
+        if (_1978)
+        {
+            vec4 _3363;
+            _3363.x = _1837;
+            _3628 = _3363;
+        }
+        else
+        {
+            _3628 = _1822;
+        }
+        float _4636 = _1972 ? _1609.lUniforms.mpPerFrame.gFrameBufferSizeVec4.w : _1609.lUniforms.mpPerFrame.gFrameBufferSizeVec4.z;
+        float _2022 = abs(_3626.z - _1815);
+        float _2024 = abs(_3628.x - _1815);
+        bool _2025 = _2022 >= _2024;
+        float _3650;
+        if (_2025)
+        {
+            _3650 = -_4636;
+        }
+        else
+        {
+            _3650 = _4636;
+        }
+        float _2040 = clamp(abs(fma(fma(_1888 + _1893, 2.0, _1930 + _1912), 0.083333335816860198974609375, -_1815)) * (1.0 / _1865), 0.0, 1.0);
+        float _4637 = _1978 ? 0.0 : _1609.lUniforms.mpPerFrame.gFrameBufferSizeVec4.z;
+        float _4638 = _1972 ? 0.0 : _1609.lUniforms.mpPerFrame.gFrameBufferSizeVec4.w;
+        vec2 _3654;
+        if (_1978)
+        {
+            vec2 _3388 = _1641;
+            _3388.x = fma(_3650, 0.5, _1641.x);
+            _3654 = _3388;
+        }
+        else
+        {
+            _3654 = _1641;
+        }
+        vec2 _3655;
+        if (_1972)
+        {
+            vec2 _3391 = _3654;
+            _3391.y = fma(_3650, 0.5, _3654.y);
+            _3655 = _3391;
+        }
+        else
+        {
+            _3655 = _3654;
+        }
+        float _2088 = _3655.x - _4637;
+        vec2 _4594 = vec2(_2088, _3655.y - _4638);
+        float _2102 = _3655.x + _4637;
+        vec2 _4595 = vec2(_2102, _3655.y + _4638);
+        float _2132 = max(_2022, _2024) * 0.25;
+        float _4597 = -((!_2025) ? (_3628.x + _1815) : (_3626.z + _1815));
+        float _2140 = fma(-2.0, _2040, 3.0) * (_2040 * _2040);
+        bool _2142 = fma(_4597, 0.5, _1815) < 0.0;
+        float _2146 = fma(_4597, 0.5, textureLod(gBuffer1Map, _4594, 0.0).x);
+        float _2150 = fma(_4597, 0.5, textureLod(gBuffer1Map, _4595, 0.0).x);
+        bool _2160 = !(abs(_2146) >= _2132);
+        vec2 _3686;
+        if (_2160)
+        {
+            vec2 _3414 = _4594;
+            _3414.x = _2088 - _4637;
+            _3686 = _3414;
+        }
+        else
+        {
+            _3686 = _4594;
+        }
+        vec2 _3703;
+        if (_2160)
+        {
+            vec2 _3418 = _3686;
+            _3418.y = _3686.y - _4638;
+            _3703 = _3418;
+        }
+        else
+        {
+            _3703 = _3686;
+        }
+        bool _2184 = !(abs(_2150) >= _2132);
+        vec2 _3696;
+        if (_2184)
+        {
+            vec2 _3422 = _4595;
+            _3422.x = _2102 + _4637;
+            _3696 = _3422;
+        }
+        else
+        {
+            _3696 = _4595;
+        }
+        vec2 _3707;
+        if (_2184)
+        {
+            vec2 _3426 = _3696;
+            _3426.y = _3696.y + _4638;
+            _3707 = _3426;
+        }
+        else
+        {
+            _3707 = _3696;
+        }
+        vec2 _4425;
+        vec2 _4438;
+        float _4453;
+        float _4473;
+        if (_2160 || _2184)
+        {
+            float _3711;
+            if (_2160)
+            {
+                _3711 = textureLod(gBuffer1Map, _3703, 0.0).x;
+            }
+            else
+            {
+                _3711 = _2146;
+            }
+            float _3725;
+            if (_2184)
+            {
+                _3725 = textureLod(gBuffer1Map, _3707, 0.0).x;
+            }
+            else
+            {
+                _3725 = _2150;
+            }
+            float _3733;
+            if (_2160)
+            {
+                _3733 = fma(_4597, 0.5, _3711);
+            }
+            else
+            {
+                _3733 = _3711;
+            }
+            float _3734;
+            if (_2184)
+            {
+                _3734 = fma(_4597, 0.5, _3725);
+            }
+            else
+            {
+                _3734 = _3725;
+            }
+            bool _2251 = !(abs(_3733) >= _2132);
+            vec2 _3746;
+            if (_2251)
+            {
+                vec2 _3432 = _3703;
+                _3432.x = _3703.x - _4637;
+                _3746 = _3432;
+            }
+            else
+            {
+                _3746 = _3703;
+            }
+            vec2 _3765;
+            if (_2251)
+            {
+                vec2 _3436 = _3746;
+                _3436.y = _3746.y - _4638;
+                _3765 = _3436;
+            }
+            else
+            {
+                _3765 = _3746;
+            }
+            bool _2275 = !(abs(_3734) >= _2132);
+            vec2 _3758;
+            if (_2275)
+            {
+                vec2 _3440 = _3707;
+                _3440.x = _3707.x + _4637;
+                _3758 = _3440;
+            }
+            else
+            {
+                _3758 = _3707;
+            }
+            vec2 _3769;
+            if (_2275)
+            {
+                vec2 _3444 = _3758;
+                _3444.y = _3758.y + _4638;
+                _3769 = _3444;
+            }
+            else
+            {
+                _3769 = _3758;
+            }
+            vec2 _4426;
+            vec2 _4439;
+            float _4454;
+            float _4474;
+            if (_2251 || _2275)
+            {
+                float _3773;
+                if (_2251)
+                {
+                    _3773 = textureLod(gBuffer1Map, _3765, 0.0).x;
+                }
+                else
+                {
+                    _3773 = _3733;
+                }
+                float _3788;
+                if (_2275)
+                {
+                    _3788 = textureLod(gBuffer1Map, _3769, 0.0).x;
+                }
+                else
+                {
+                    _3788 = _3734;
+                }
+                float _3796;
+                if (_2251)
+                {
+                    _3796 = fma(_4597, 0.5, _3773);
+                }
+                else
+                {
+                    _3796 = _3773;
+                }
+                float _3797;
+                if (_2275)
+                {
+                    _3797 = fma(_4597, 0.5, _3788);
+                }
+                else
+                {
+                    _3797 = _3788;
+                }
+                bool _2342 = !(abs(_3796) >= _2132);
+                vec2 _3809;
+                if (_2342)
+                {
+                    vec2 _3450 = _3765;
+                    _3450.x = _3765.x - _4637;
+                    _3809 = _3450;
+                }
+                else
+                {
+                    _3809 = _3765;
+                }
+                vec2 _3828;
+                if (_2342)
+                {
+                    vec2 _3454 = _3809;
+                    _3454.y = _3809.y - _4638;
+                    _3828 = _3454;
+                }
+                else
+                {
+                    _3828 = _3809;
+                }
+                bool _2366 = !(abs(_3797) >= _2132);
+                vec2 _3821;
+                if (_2366)
+                {
+                    vec2 _3458 = _3769;
+                    _3458.x = _3769.x + _4637;
+                    _3821 = _3458;
+                }
+                else
+                {
+                    _3821 = _3769;
+                }
+                vec2 _3832;
+                if (_2366)
+                {
+                    vec2 _3462 = _3821;
+                    _3462.y = _3821.y + _4638;
+                    _3832 = _3462;
+                }
+                else
+                {
+                    _3832 = _3821;
+                }
+                vec2 _4427;
+                vec2 _4440;
+                float _4455;
+                float _4475;
+                if (_2342 || _2366)
+                {
+                    float _3836;
+                    if (_2342)
+                    {
+                        _3836 = textureLod(gBuffer1Map, _3828, 0.0).x;
+                    }
+                    else
+                    {
+                        _3836 = _3796;
+                    }
+                    float _3851;
+                    if (_2366)
+                    {
+                        _3851 = textureLod(gBuffer1Map, _3832, 0.0).x;
+                    }
+                    else
+                    {
+                        _3851 = _3797;
+                    }
+                    float _3859;
+                    if (_2342)
+                    {
+                        _3859 = fma(_4597, 0.5, _3836);
+                    }
+                    else
+                    {
+                        _3859 = _3836;
+                    }
+                    float _3860;
+                    if (_2366)
+                    {
+                        _3860 = fma(_4597, 0.5, _3851);
+                    }
+                    else
+                    {
+                        _3860 = _3851;
+                    }
+                    bool _2433 = !(abs(_3859) >= _2132);
+                    vec2 _3872;
+                    if (_2433)
+                    {
+                        vec2 _3468 = _3828;
+                        _3468.x = _3828.x - _4637;
+                        _3872 = _3468;
+                    }
+                    else
+                    {
+                        _3872 = _3828;
+                    }
+                    vec2 _3891;
+                    if (_2433)
+                    {
+                        vec2 _3472 = _3872;
+                        _3472.y = _3872.y - _4638;
+                        _3891 = _3472;
+                    }
+                    else
+                    {
+                        _3891 = _3872;
+                    }
+                    bool _2457 = !(abs(_3860) >= _2132);
+                    vec2 _3884;
+                    if (_2457)
+                    {
+                        vec2 _3476 = _3832;
+                        _3476.x = _3832.x + _4637;
+                        _3884 = _3476;
+                    }
+                    else
+                    {
+                        _3884 = _3832;
+                    }
+                    vec2 _3895;
+                    if (_2457)
+                    {
+                        vec2 _3480 = _3884;
+                        _3480.y = _3884.y + _4638;
+                        _3895 = _3480;
+                    }
+                    else
+                    {
+                        _3895 = _3884;
+                    }
+                    vec2 _4428;
+                    vec2 _4441;
+                    float _4456;
+                    float _4476;
+                    if (_2433 || _2457)
+                    {
+                        float _3899;
+                        if (_2433)
+                        {
+                            _3899 = textureLod(gBuffer1Map, _3891, 0.0).x;
+                        }
+                        else
+                        {
+                            _3899 = _3859;
+                        }
+                        float _3914;
+                        if (_2457)
+                        {
+                            _3914 = textureLod(gBuffer1Map, _3895, 0.0).x;
+                        }
+                        else
+                        {
+                            _3914 = _3860;
+                        }
+                        float _3922;
+                        if (_2433)
+                        {
+                            _3922 = fma(_4597, 0.5, _3899);
+                        }
+                        else
+                        {
+                            _3922 = _3899;
+                        }
+                        float _3923;
+                        if (_2457)
+                        {
+                            _3923 = fma(_4597, 0.5, _3914);
+                        }
+                        else
+                        {
+                            _3923 = _3914;
+                        }
+                        bool _2524 = !(abs(_3922) >= _2132);
+                        vec2 _3935;
+                        if (_2524)
+                        {
+                            vec2 _3486 = _3891;
+                            _3486.x = fma(-_4637, 1.5, _3891.x);
+                            _3935 = _3486;
+                        }
+                        else
+                        {
+                            _3935 = _3891;
+                        }
+                        vec2 _3954;
+                        if (_2524)
+                        {
+                            vec2 _3490 = _3935;
+                            _3490.y = fma(-_4638, 1.5, _3935.y);
+                            _3954 = _3490;
+                        }
+                        else
+                        {
+                            _3954 = _3935;
+                        }
+                        bool _2548 = !(abs(_3923) >= _2132);
+                        vec2 _3947;
+                        if (_2548)
+                        {
+                            vec2 _3494 = _3895;
+                            _3494.x = fma(_4637, 1.5, _3895.x);
+                            _3947 = _3494;
+                        }
+                        else
+                        {
+                            _3947 = _3895;
+                        }
+                        vec2 _3958;
+                        if (_2548)
+                        {
+                            vec2 _3498 = _3947;
+                            _3498.y = fma(_4638, 1.5, _3947.y);
+                            _3958 = _3498;
+                        }
+                        else
+                        {
+                            _3958 = _3947;
+                        }
+                        vec2 _4429;
+                        vec2 _4442;
+                        float _4457;
+                        float _4477;
+                        if (_2524 || _2548)
+                        {
+                            float _3962;
+                            if (_2524)
+                            {
+                                _3962 = textureLod(gBuffer1Map, _3954, 0.0).x;
+                            }
+                            else
+                            {
+                                _3962 = _3922;
+                            }
+                            float _3977;
+                            if (_2548)
+                            {
+                                _3977 = textureLod(gBuffer1Map, _3958, 0.0).x;
+                            }
+                            else
+                            {
+                                _3977 = _3923;
+                            }
+                            float _3985;
+                            if (_2524)
+                            {
+                                _3985 = fma(_4597, 0.5, _3962);
+                            }
+                            else
+                            {
+                                _3985 = _3962;
+                            }
+                            float _3986;
+                            if (_2548)
+                            {
+                                _3986 = fma(_4597, 0.5, _3977);
+                            }
+                            else
+                            {
+                                _3986 = _3977;
+                            }
+                            bool _2615 = !(abs(_3985) >= _2132);
+                            vec2 _3998;
+                            if (_2615)
+                            {
+                                vec2 _3504 = _3954;
+                                _3504.x = fma(-_4637, 2.0, _3954.x);
+                                _3998 = _3504;
+                            }
+                            else
+                            {
+                                _3998 = _3954;
+                            }
+                            vec2 _4017;
+                            if (_2615)
+                            {
+                                vec2 _3508 = _3998;
+                                _3508.y = fma(-_4638, 2.0, _3998.y);
+                                _4017 = _3508;
+                            }
+                            else
+                            {
+                                _4017 = _3998;
+                            }
+                            bool _2639 = !(abs(_3986) >= _2132);
+                            vec2 _4010;
+                            if (_2639)
+                            {
+                                vec2 _3512 = _3958;
+                                _3512.x = fma(_4637, 2.0, _3958.x);
+                                _4010 = _3512;
+                            }
+                            else
+                            {
+                                _4010 = _3958;
+                            }
+                            vec2 _4021;
+                            if (_2639)
+                            {
+                                vec2 _3516 = _4010;
+                                _3516.y = fma(_4638, 2.0, _4010.y);
+                                _4021 = _3516;
+                            }
+                            else
+                            {
+                                _4021 = _4010;
+                            }
+                            vec2 _4430;
+                            vec2 _4443;
+                            float _4458;
+                            float _4478;
+                            if (_2615 || _2639)
+                            {
+                                float _4025;
+                                if (_2615)
+                                {
+                                    _4025 = textureLod(gBuffer1Map, _4017, 0.0).x;
+                                }
+                                else
+                                {
+                                    _4025 = _3985;
+                                }
+                                float _4040;
+                                if (_2639)
+                                {
+                                    _4040 = textureLod(gBuffer1Map, _4021, 0.0).x;
+                                }
+                                else
+                                {
+                                    _4040 = _3986;
+                                }
+                                float _4048;
+                                if (_2615)
+                                {
+                                    _4048 = fma(_4597, 0.5, _4025);
+                                }
+                                else
+                                {
+                                    _4048 = _4025;
+                                }
+                                float _4049;
+                                if (_2639)
+                                {
+                                    _4049 = fma(_4597, 0.5, _4040);
+                                }
+                                else
+                                {
+                                    _4049 = _4040;
+                                }
+                                bool _2706 = !(abs(_4048) >= _2132);
+                                vec2 _4061;
+                                if (_2706)
+                                {
+                                    vec2 _3522 = _4017;
+                                    _3522.x = fma(-_4637, 2.0, _4017.x);
+                                    _4061 = _3522;
+                                }
+                                else
+                                {
+                                    _4061 = _4017;
+                                }
+                                vec2 _4080;
+                                if (_2706)
+                                {
+                                    vec2 _3526 = _4061;
+                                    _3526.y = fma(-_4638, 2.0, _4061.y);
+                                    _4080 = _3526;
+                                }
+                                else
+                                {
+                                    _4080 = _4061;
+                                }
+                                bool _2730 = !(abs(_4049) >= _2132);
+                                vec2 _4073;
+                                if (_2730)
+                                {
+                                    vec2 _3530 = _4021;
+                                    _3530.x = fma(_4637, 2.0, _4021.x);
+                                    _4073 = _3530;
+                                }
+                                else
+                                {
+                                    _4073 = _4021;
+                                }
+                                vec2 _4084;
+                                if (_2730)
+                                {
+                                    vec2 _3534 = _4073;
+                                    _3534.y = fma(_4638, 2.0, _4073.y);
+                                    _4084 = _3534;
+                                }
+                                else
+                                {
+                                    _4084 = _4073;
+                                }
+                                vec2 _4431;
+                                vec2 _4444;
+                                float _4459;
+                                float _4479;
+                                if (_2706 || _2730)
+                                {
+                                    float _4088;
+                                    if (_2706)
+                                    {
+                                        _4088 = textureLod(gBuffer1Map, _4080, 0.0).x;
+                                    }
+                                    else
+                                    {
+                                        _4088 = _4048;
+                                    }
+                                    float _4103;
+                                    if (_2730)
+                                    {
+                                        _4103 = textureLod(gBuffer1Map, _4084, 0.0).x;
+                                    }
+                                    else
+                                    {
+                                        _4103 = _4049;
+                                    }
+                                    float _4111;
+                                    if (_2706)
+                                    {
+                                        _4111 = fma(_4597, 0.5, _4088);
+                                    }
+                                    else
+                                    {
+                                        _4111 = _4088;
+                                    }
+                                    float _4112;
+                                    if (_2730)
+                                    {
+                                        _4112 = fma(_4597, 0.5, _4103);
+                                    }
+                                    else
+                                    {
+                                        _4112 = _4103;
+                                    }
+                                    bool _2797 = !(abs(_4111) >= _2132);
+                                    vec2 _4124;
+                                    if (_2797)
+                                    {
+                                        vec2 _3540 = _4080;
+                                        _3540.x = fma(-_4637, 2.0, _4080.x);
+                                        _4124 = _3540;
+                                    }
+                                    else
+                                    {
+                                        _4124 = _4080;
+                                    }
+                                    vec2 _4143;
+                                    if (_2797)
+                                    {
+                                        vec2 _3544 = _4124;
+                                        _3544.y = fma(-_4638, 2.0, _4124.y);
+                                        _4143 = _3544;
+                                    }
+                                    else
+                                    {
+                                        _4143 = _4124;
+                                    }
+                                    bool _2821 = !(abs(_4112) >= _2132);
+                                    vec2 _4136;
+                                    if (_2821)
+                                    {
+                                        vec2 _3548 = _4084;
+                                        _3548.x = fma(_4637, 2.0, _4084.x);
+                                        _4136 = _3548;
+                                    }
+                                    else
+                                    {
+                                        _4136 = _4084;
+                                    }
+                                    vec2 _4147;
+                                    if (_2821)
+                                    {
+                                        vec2 _3552 = _4136;
+                                        _3552.y = fma(_4638, 2.0, _4136.y);
+                                        _4147 = _3552;
+                                    }
+                                    else
+                                    {
+                                        _4147 = _4136;
+                                    }
+                                    vec2 _4432;
+                                    vec2 _4445;
+                                    float _4460;
+                                    float _4480;
+                                    if (_2797 || _2821)
+                                    {
+                                        float _4151;
+                                        if (_2797)
+                                        {
+                                            _4151 = textureLod(gBuffer1Map, _4143, 0.0).x;
+                                        }
+                                        else
+                                        {
+                                            _4151 = _4111;
+                                        }
+                                        float _4166;
+                                        if (_2821)
+                                        {
+                                            _4166 = textureLod(gBuffer1Map, _4147, 0.0).x;
+                                        }
+                                        else
+                                        {
+                                            _4166 = _4112;
+                                        }
+                                        float _4174;
+                                        if (_2797)
+                                        {
+                                            _4174 = fma(_4597, 0.5, _4151);
+                                        }
+                                        else
+                                        {
+                                            _4174 = _4151;
+                                        }
+                                        float _4175;
+                                        if (_2821)
+                                        {
+                                            _4175 = fma(_4597, 0.5, _4166);
+                                        }
+                                        else
+                                        {
+                                            _4175 = _4166;
+                                        }
+                                        bool _2888 = !(abs(_4174) >= _2132);
+                                        vec2 _4187;
+                                        if (_2888)
+                                        {
+                                            vec2 _3558 = _4143;
+                                            _3558.x = fma(-_4637, 2.0, _4143.x);
+                                            _4187 = _3558;
+                                        }
+                                        else
+                                        {
+                                            _4187 = _4143;
+                                        }
+                                        vec2 _4206;
+                                        if (_2888)
+                                        {
+                                            vec2 _3562 = _4187;
+                                            _3562.y = fma(-_4638, 2.0, _4187.y);
+                                            _4206 = _3562;
+                                        }
+                                        else
+                                        {
+                                            _4206 = _4187;
+                                        }
+                                        bool _2912 = !(abs(_4175) >= _2132);
+                                        vec2 _4199;
+                                        if (_2912)
+                                        {
+                                            vec2 _3566 = _4147;
+                                            _3566.x = fma(_4637, 2.0, _4147.x);
+                                            _4199 = _3566;
+                                        }
+                                        else
+                                        {
+                                            _4199 = _4147;
+                                        }
+                                        vec2 _4210;
+                                        if (_2912)
+                                        {
+                                            vec2 _3570 = _4199;
+                                            _3570.y = fma(_4638, 2.0, _4199.y);
+                                            _4210 = _3570;
+                                        }
+                                        else
+                                        {
+                                            _4210 = _4199;
+                                        }
+                                        vec2 _4433;
+                                        vec2 _4446;
+                                        float _4461;
+                                        float _4481;
+                                        if (_2888 || _2912)
+                                        {
+                                            float _4214;
+                                            if (_2888)
+                                            {
+                                                _4214 = textureLod(gBuffer1Map, _4206, 0.0).x;
+                                            }
+                                            else
+                                            {
+                                                _4214 = _4174;
+                                            }
+                                            float _4229;
+                                            if (_2912)
+                                            {
+                                                _4229 = textureLod(gBuffer1Map, _4210, 0.0).x;
+                                            }
+                                            else
+                                            {
+                                                _4229 = _4175;
+                                            }
+                                            float _4237;
+                                            if (_2888)
+                                            {
+                                                _4237 = fma(_4597, 0.5, _4214);
+                                            }
+                                            else
+                                            {
+                                                _4237 = _4214;
+                                            }
+                                            float _4238;
+                                            if (_2912)
+                                            {
+                                                _4238 = fma(_4597, 0.5, _4229);
+                                            }
+                                            else
+                                            {
+                                                _4238 = _4229;
+                                            }
+                                            bool _2979 = !(abs(_4237) >= _2132);
+                                            vec2 _4250;
+                                            if (_2979)
+                                            {
+                                                vec2 _3576 = _4206;
+                                                _3576.x = fma(-_4637, 4.0, _4206.x);
+                                                _4250 = _3576;
+                                            }
+                                            else
+                                            {
+                                                _4250 = _4206;
+                                            }
+                                            vec2 _4269;
+                                            if (_2979)
+                                            {
+                                                vec2 _3580 = _4250;
+                                                _3580.y = fma(-_4638, 4.0, _4250.y);
+                                                _4269 = _3580;
+                                            }
+                                            else
+                                            {
+                                                _4269 = _4250;
+                                            }
+                                            bool _3003 = !(abs(_4238) >= _2132);
+                                            vec2 _4262;
+                                            if (_3003)
+                                            {
+                                                vec2 _3584 = _4210;
+                                                _3584.x = fma(_4637, 4.0, _4210.x);
+                                                _4262 = _3584;
+                                            }
+                                            else
+                                            {
+                                                _4262 = _4210;
+                                            }
+                                            vec2 _4273;
+                                            if (_3003)
+                                            {
+                                                vec2 _3588 = _4262;
+                                                _3588.y = fma(_4638, 4.0, _4262.y);
+                                                _4273 = _3588;
+                                            }
+                                            else
+                                            {
+                                                _4273 = _4262;
+                                            }
+                                            vec2 _4434;
+                                            vec2 _4447;
+                                            float _4462;
+                                            float _4482;
+                                            if (_2979 || _3003)
+                                            {
+                                                float _4277;
+                                                if (_2979)
+                                                {
+                                                    _4277 = textureLod(gBuffer1Map, _4269, 0.0).x;
+                                                }
+                                                else
+                                                {
+                                                    _4277 = _4237;
+                                                }
+                                                float _4292;
+                                                if (_3003)
+                                                {
+                                                    _4292 = textureLod(gBuffer1Map, _4273, 0.0).x;
+                                                }
+                                                else
+                                                {
+                                                    _4292 = _4238;
+                                                }
+                                                float _4300;
+                                                if (_2979)
+                                                {
+                                                    _4300 = fma(_4597, 0.5, _4277);
+                                                }
+                                                else
+                                                {
+                                                    _4300 = _4277;
+                                                }
+                                                float _4301;
+                                                if (_3003)
+                                                {
+                                                    _4301 = fma(_4597, 0.5, _4292);
+                                                }
+                                                else
+                                                {
+                                                    _4301 = _4292;
+                                                }
+                                                bool _3070 = !(abs(_4300) >= _2132);
+                                                vec2 _4313;
+                                                if (_3070)
+                                                {
+                                                    vec2 _3594 = _4269;
+                                                    _3594.x = fma(-_4637, 8.0, _4269.x);
+                                                    _4313 = _3594;
+                                                }
+                                                else
+                                                {
+                                                    _4313 = _4269;
+                                                }
+                                                vec2 _4437;
+                                                if (_3070)
+                                                {
+                                                    vec2 _3598 = _4313;
+                                                    _3598.y = fma(-_4638, 8.0, _4313.y);
+                                                    _4437 = _3598;
+                                                }
+                                                else
+                                                {
+                                                    _4437 = _4313;
+                                                }
+                                                bool _3097 = !(abs(_4301) >= _2132);
+                                                vec2 _4325;
+                                                if (_3097)
+                                                {
+                                                    vec2 _3602 = _4273;
+                                                    _3602.x = fma(_4637, 8.0, _4273.x);
+                                                    _4325 = _3602;
+                                                }
+                                                else
+                                                {
+                                                    _4325 = _4273;
+                                                }
+                                                vec2 _4448;
+                                                if (_3097)
+                                                {
+                                                    vec2 _3606 = _4325;
+                                                    _3606.y = fma(_4638, 8.0, _4325.y);
+                                                    _4448 = _3606;
+                                                }
+                                                else
+                                                {
+                                                    _4448 = _4325;
+                                                }
+                                                _4482 = _4301;
+                                                _4462 = _4300;
+                                                _4447 = _4448;
+                                                _4434 = _4437;
+                                            }
+                                            else
+                                            {
+                                                _4482 = _4238;
+                                                _4462 = _4237;
+                                                _4447 = _4273;
+                                                _4434 = _4269;
+                                            }
+                                            _4481 = _4482;
+                                            _4461 = _4462;
+                                            _4446 = _4447;
+                                            _4433 = _4434;
+                                        }
+                                        else
+                                        {
+                                            _4481 = _4175;
+                                            _4461 = _4174;
+                                            _4446 = _4210;
+                                            _4433 = _4206;
+                                        }
+                                        _4480 = _4481;
+                                        _4460 = _4461;
+                                        _4445 = _4446;
+                                        _4432 = _4433;
+                                    }
+                                    else
+                                    {
+                                        _4480 = _4112;
+                                        _4460 = _4111;
+                                        _4445 = _4147;
+                                        _4432 = _4143;
+                                    }
+                                    _4479 = _4480;
+                                    _4459 = _4460;
+                                    _4444 = _4445;
+                                    _4431 = _4432;
+                                }
+                                else
+                                {
+                                    _4479 = _4049;
+                                    _4459 = _4048;
+                                    _4444 = _4084;
+                                    _4431 = _4080;
+                                }
+                                _4478 = _4479;
+                                _4458 = _4459;
+                                _4443 = _4444;
+                                _4430 = _4431;
+                            }
+                            else
+                            {
+                                _4478 = _3986;
+                                _4458 = _3985;
+                                _4443 = _4021;
+                                _4430 = _4017;
+                            }
+                            _4477 = _4478;
+                            _4457 = _4458;
+                            _4442 = _4443;
+                            _4429 = _4430;
+                        }
+                        else
+                        {
+                            _4477 = _3923;
+                            _4457 = _3922;
+                            _4442 = _3958;
+                            _4429 = _3954;
+                        }
+                        _4476 = _4477;
+                        _4456 = _4457;
+                        _4441 = _4442;
+                        _4428 = _4429;
+                    }
+                    else
+                    {
+                        _4476 = _3860;
+                        _4456 = _3859;
+                        _4441 = _3895;
+                        _4428 = _3891;
+                    }
+                    _4475 = _4476;
+                    _4455 = _4456;
+                    _4440 = _4441;
+                    _4427 = _4428;
+                }
+                else
+                {
+                    _4475 = _3797;
+                    _4455 = _3796;
+                    _4440 = _3832;
+                    _4427 = _3828;
+                }
+                _4474 = _4475;
+                _4454 = _4455;
+                _4439 = _4440;
+                _4426 = _4427;
+            }
+            else
+            {
+                _4474 = _3734;
+                _4454 = _3733;
+                _4439 = _3769;
+                _4426 = _3765;
+            }
+            _4473 = _4474;
+            _4453 = _4454;
+            _4438 = _4439;
+            _4425 = _4426;
+        }
+        else
+        {
+            _4473 = _2150;
+            _4453 = _2146;
+            _4438 = _3707;
+            _4425 = _3703;
+        }
+        float _4470;
+        if (_1978)
+        {
+            _4470 = _1641.y - _4425.y;
+        }
+        else
+        {
+            _4470 = _1641.x - _4425.x;
+        }
+        float _4467;
+        if (_1978)
+        {
+            _4467 = _4438.y - _1641.y;
+        }
+        else
+        {
+            _4467 = _4438.x - _1641.x;
+        }
+        float _3195 = max(((_4470 < _4467) ? ((_4453 < 0.0) != _2142) : ((_4473 < 0.0) != _2142)) ? fma(min(_4470, _4467), (-1.0) / (_4467 + _4470), 0.5) : 0.0, _2140 * _2140);
+        vec2 _4587;
+        if (_1978)
+        {
+            vec2 _3617 = _1641;
+            _3617.x = fma(_3195, _3650, _1641.x);
+            _4587 = _3617;
+        }
+        else
+        {
+            _4587 = _1641;
+        }
+        vec2 _4588;
+        if (_1972)
+        {
+            vec2 _3620 = _4587;
+            _3620.y = fma(_3195, _3650, _4587.y);
+            _4588 = _3620;
+        }
+        else
+        {
+            _4588 = _4587;
+        }
+        _4589 = vec4(textureLod(gBufferMap, _4588, 0.0).xyz, _1815);
+        break;
+    } while(false);
+    out_color0 = vec4(_4589.xyz, texture(gBufferMap, _1641).w);
+}
+
