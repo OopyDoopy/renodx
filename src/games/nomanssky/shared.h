@@ -50,7 +50,7 @@ struct ShaderInjectData {
   float scene_grade_hue_clip;
 
   float custom_color_grading;
-  bool last_is_hdr;
+  float last_is_hdr;
   float padding1;
   float padding2;
 
