@@ -489,11 +489,11 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       // Always set to true for Vulkan
       renodx::mods::shader::allow_multiple_push_constants = true;
       renodx::mods::swapchain::use_resource_cloning = false;
-      // renodx::mods::swapchain::swap_chain_proxy_vertex_shader = __swap_chain_proxy_vertex_shader;
-      // renodx::mods::swapchain::swap_chain_proxy_pixel_shader = __swap_chain_proxy_pixel_shader;
+      renodx::mods::swapchain::swap_chain_proxy_vertex_shader = __swap_chain_proxy_vertex_shader;
+      renodx::mods::swapchain::swap_chain_proxy_pixel_shader = __swap_chain_proxy_pixel_shader;
       renodx::mods::swapchain::target_format = target_format;
 
-      //renodx::mods::swapchain::SetUseHDR10();
+      renodx::mods::swapchain::SetUseHDR10();
 
       renodx::utils::random::binds.push_back(&shader_injection.custom_random);
       renodx::utils::random::binds.push_back(&shader_injection.swap_chain_output_dither_seed);
@@ -745,7 +745,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   }
 
   renodx::utils::random::Use(DLL_PROCESS_ATTACH);
-  //renodx::mods::swapchain::Use(fdw_reason, &shader_injection);
+  renodx::mods::swapchain::Use(fdw_reason, &shader_injection);
   renodx::utils::settings::Use(fdw_reason, &settings, &OnPresetOff);
   renodx::mods::shader::Use(fdw_reason, custom_shaders, &shader_injection);
 
