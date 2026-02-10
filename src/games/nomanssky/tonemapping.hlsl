@@ -269,7 +269,7 @@ float3 DisplayMap(float3 color) {
   renodx::draw::Config config = renodx::draw::BuildConfig();  // Pulls config values
   color = max(0, renodx::color::bt2020::from::BT709(color));
   float tonemap_peak;
-  if (LAST_IS_HDR == 1) {
+  if (true) {
     float peak_nits = config.peak_white_nits / renodx::color::srgb::REFERENCE_WHITE;              // Normalizes peak
     float diffuse_white_nits = config.diffuse_white_nits / renodx::color::srgb::REFERENCE_WHITE;  // Normalizes game brightness
                                                                                                   // float peak_nits = config.peak_white_nits / 80.f;
