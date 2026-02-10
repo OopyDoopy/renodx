@@ -493,6 +493,8 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       // renodx::mods::swapchain::swap_chain_proxy_pixel_shader = __swap_chain_proxy_pixel_shader;
       renodx::mods::swapchain::target_format = target_format;
 
+      //renodx::mods::swapchain::SetUseHDR10();
+
       renodx::utils::random::binds.push_back(&shader_injection.custom_random);
       renodx::utils::random::binds.push_back(&shader_injection.swap_chain_output_dither_seed);
 
@@ -708,27 +710,27 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
     //                                                                  .aspect_ratio_tolerance = common_aspect_ratio_tolerance,
     //                                                                  .view_upgrades = view_upgrades});
 
-      // renodx::mods::swapchain::swap_chain_upgrade_targets.push_back({
-      //     .old_format = reshade::api::format::r11g11b10_float,
-      //     .new_format = reshade::api::format::r16g16b16a16_float,
-      //     .ignore_size = common_ignore_size,
-      //     .use_resource_view_cloning = renodx::mods::swapchain::use_resource_cloning,
-      //     .aspect_ratio = common_aspect_ratio,
-      //     .aspect_ratio_tolerance = common_aspect_ratio_tolerance,
-      //     .view_upgrades = view_upgrades,
-      //     .min_dimensions = min_dimensions,
-      // });
+      renodx::mods::swapchain::swap_chain_upgrade_targets.push_back({
+          .old_format = reshade::api::format::r11g11b10_float,
+          .new_format = reshade::api::format::r16g16b16a16_float,
+          .ignore_size = common_ignore_size,
+          .use_resource_view_cloning = renodx::mods::swapchain::use_resource_cloning,
+          .aspect_ratio = common_aspect_ratio,
+          .aspect_ratio_tolerance = common_aspect_ratio_tolerance,
+          .view_upgrades = view_upgrades,
+          .min_dimensions = min_dimensions,
+      });
 
-      // renodx::mods::swapchain::swap_chain_upgrade_targets.push_back({
-      //     .old_format = reshade::api::format::r8g8b8a8_typeless,
-      //     .new_format = reshade::api::format::r10g10b10a2_typeless,
-      //     .ignore_size = common_ignore_size,
-      //     .use_resource_view_cloning = renodx::mods::swapchain::use_resource_cloning,
-      //     .aspect_ratio = 1.f,
-      //     .aspect_ratio_tolerance = common_aspect_ratio_tolerance,
-      //     .view_upgrades = view_upgrades,
-      //     //.min_dimensions = min_dimensions,
-      // });
+      renodx::mods::swapchain::swap_chain_upgrade_targets.push_back({
+          .old_format = reshade::api::format::r8g8b8a8_typeless,
+          .new_format = reshade::api::format::r10g10b10a2_typeless,
+          .ignore_size = common_ignore_size,
+          .use_resource_view_cloning = renodx::mods::swapchain::use_resource_cloning,
+          .aspect_ratio = 1.f,
+          .aspect_ratio_tolerance = common_aspect_ratio_tolerance,
+          .view_upgrades = view_upgrades,
+          //.min_dimensions = min_dimensions,
+      });
 
       if (!initialized) {
         // renodx::utils::random::binds.push_back(&shader_injection.swap_chain_output_dither_seed);
@@ -743,7 +745,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   }
 
   renodx::utils::random::Use(DLL_PROCESS_ATTACH);
-  //renodx::mods::swapchain::Use(fdw_reason);
+  //renodx::mods::swapchain::Use(fdw_reason, &shader_injection);
   renodx::utils::settings::Use(fdw_reason, &settings, &OnPresetOff);
   renodx::mods::shader::Use(fdw_reason, custom_shaders, &shader_injection);
 
