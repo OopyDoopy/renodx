@@ -172,9 +172,9 @@ void main()
     float3 untonemapped_ap1 = _1414;
     float3 untonemapped_bt709 = renodx::color::bt709::from::AP1(untonemapped_ap1);
 
+    vec3 _1440;
     vec3 sdr_color_bt709;
     float _1427;
-    vec3 _1440;
     if (RENODX_TONE_MAP_TYPE < 2) {
       _1414 = max(0, _1414);
       float _1423 = max(9.9999999747524270787835121154785e-07, max(_1414.x, max(_1414.y, _1414.z)));
@@ -199,54 +199,52 @@ void main()
       _1440 = renodx::color::gamma::EncodeSafe(sdr_color_ap1);
     }
 
-    float3 sdr_graded;
 
-      float _1702 = _763 * _781.lUniforms.mpPerFrame.gClipPlanesVec4.y;
-      float _1571 = clamp(_781.lUniforms.mpCustomPerMesh.gColourLUTParamsVec4.x * _1702, 0.0, 1.0);
-      float _1576 = clamp(_781.lUniforms.mpCustomPerMesh.gColourLUTParamsVec4.y * _1702, 0.0, 1.0);
-      float _1581 = clamp(_781.lUniforms.mpCustomPerMesh.gColourLUTParamsVec4.z * _1702, 0.0, 1.0);
-      float _1583 = 1.0 - textureLod(gBuffer4Map, In.mTexCoordsVec2, 0.0).x;
-      float _1584 = _1581 * _1583;
-      vec3 _2059;
-      if (_1571 > 0.0030000000260770320892333984375)
+
+    float _1702 = _763 * _781.lUniforms.mpPerFrame.gClipPlanesVec4.y;
+    float _1571 = clamp(_781.lUniforms.mpCustomPerMesh.gColourLUTParamsVec4.x * _1702, 0.0, 1.0);
+    float _1576 = clamp(_781.lUniforms.mpCustomPerMesh.gColourLUTParamsVec4.y * _1702, 0.0, 1.0);
+    float _1581 = clamp(_781.lUniforms.mpCustomPerMesh.gColourLUTParamsVec4.z * _1702, 0.0, 1.0);
+    float _1583 = 1.0 - textureLod(gBuffer4Map, In.mTexCoordsVec2, 0.0).x;
+    float _1584 = _1581 * _1583;
+    vec3 _2059;
+    if (_1571 > 0.0030000000260770320892333984375)
     {
         _2059 = vec3(textureLod(gColourLUTFar, _1440, 0.0).xyz);
-      }
+    }
     else
     {
         _2059 = vec3(0.0);
-      }
-      vec3 _2060;
-      if (_1576 > 0.0030000000260770320892333984375)
+    }
+    vec3 _2060;
+    if (_1576 > 0.0030000000260770320892333984375)
     {
         _2060 = vec3(textureLod(gColourLUTStorm, _1440, 0.0).xyz);
-      }
+    }
     else
     {
         _2060 = vec3(0.0);
-      }
-      vec3 _2061;
-      if (_1584 > 0.0030000000260770320892333984375)
+    }
+    vec3 _2061;
+    if (_1584 > 0.0030000000260770320892333984375)
     {
         _2061 = vec3(textureLod(gColourLUTEffect, _1440, 0.0).xyz);
-      }
+    }
     else
     {
         _2061 = vec3(0.0);
-      }
-      sdr_graded = (((vec3(textureLod(gColourLUTBase, _1440, 0.0).xyz) * ((1.0 - ((_781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x + _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y) + _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z)) + fma(_781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z, fma(-_1581, _1583, 1.0), fma(_781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x, 1.0 - _1571, _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y * (1.0 - _1576))))) + ((_2059 * _1571) * _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x)) + ((_2060 * _1576) * _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y)) + ((_2061 * _1584) * _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z);
-    
-
+    }
+    vec3 _1693 = (((vec3(textureLod(gColourLUTBase, _1440, 0.0).xyz) * ((1.0 - ((_781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x + _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y) + _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z)) + fma(_781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z, fma(-_1581, _1583, 1.0), fma(_781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x, 1.0 - _1571, _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y * (1.0 - _1576))))) + ((_2059 * _1571) * _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x)) + ((_2060 * _1576) * _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y)) + ((_2061 * _1584) * _781.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z);
     float3 hdr_color_graded;
     if (RENODX_TONE_MAP_TYPE < 2) {
-      vec3 _1453 = (sdr_graded * fma(sdr_graded, (sdr_graded * 0.305306017398834228515625) + vec3(0.6821711063385009765625), vec3(0.01252287812530994415283203125))) * 0.4011494219303131103515625;
+      vec3 _1453 = (_1693 * fma(_1693, (_1693 * 0.305306017398834228515625) + vec3(0.6821711063385009765625), vec3(0.01252287812530994415283203125))) * 0.4011494219303131103515625;
       vec3 _1743 = _1453 * 0.0900000035762786865234375;
       vec3 _1757 = ((_1453 * 0.300000011920928955078125) + vec3(-0.290000021457672119140625)) * 0.439999997615814208984375;
       vec3 _1775 = vec3(-0.0060000005178153514862060546875) + _1743;
       hdr_color_graded = (((vec3(0.0060000005178153514862060546875) - _1743) / _1757) - (sqrt(fma(_1775, _1775, -((_1453 * 0.072000004351139068603515625) * ((_1453 * 0.06599999964237213134765625) + vec3(-0.063799999654293060302734375))))) / _1757)) / vec3(_1427);
     }
     else {
-      float3 sdr_color_graded = renodx::color::gamma::DecodeSafe(sdr_graded);
+      float3 sdr_color_graded = renodx::color::gamma::DecodeSafe(_1693);
       hdr_color_graded = CustomUpgradeGrading(untonemapped_bt709, sdr_color_bt709, sdr_color_graded);
     }
     out_color0 = vec4(hdr_color_graded, 1.0);
@@ -255,9 +253,6 @@ void main()
     //out_color0 = vec4(untonemapped, 1.0);
 }
 
-
-
-// #include "./tonemapping.hlsl"
 
 // #version 450
 
@@ -305,6 +300,7 @@ void main()
 //     vec4 gHeroLightPositionVec4;
 //     vec4 gHeroLightDirectionVec4;
 //     vec3 gRenderOffsetVec3;
+//     float _padding0;
 // };
 
 // struct CustomPerMeshUniforms
@@ -384,109 +380,96 @@ void main()
 //     vec3 _751 = textureLod(gBufferMap, In.mTexCoordsVec2, 0.0).xyz;
 //     vec4 _768 = textureLod(gBuffer3Map, In.mTexCoordsVec2, 0.0);
 //     float _769 = _768.x;
-//     vec4 _1294 = texture(gBuffer5Map, vec2(0.25));
-//     vec4 _1297 = texture(gBuffer5Map, vec2(0.75, 0.25));
-//     vec4 _1302 = texture(gBuffer5Map, vec2(0.25, 0.75));
-//     vec4 _1307 = texture(gBuffer5Map, vec2(0.75));
-//     vec3 _2047;
+//     vec4 _1299 = texture(gBuffer5Map, vec2(0.25));
+//     vec4 _1302 = texture(gBuffer5Map, vec2(0.75, 0.25));
+//     vec4 _1307 = texture(gBuffer5Map, vec2(0.25, 0.75));
+//     vec4 _1312 = texture(gBuffer5Map, vec2(0.75));
+//     vec3 _2055;
 //     if (_787.lUniforms.mpPerFrame.gFoVValuesVec4.z != 2.0)
 //     {
-//         vec3 _2048;
+//         vec3 _2056;
 //         if (_769 >= 1.0)
 //         {
-//             vec2 _1336 = In.mTexCoordsVec2 + vec2(fract(_787.lUniforms.mpPerFrame.gfTime));
-//             vec2 _1346 = fma(floor(fma(vec2(fract(sin(dot(_1336, vec2(12.98980045318603515625, 78.233001708984375))) * 43758.546875), fract(cos(mod(123456792.0, fma(256.0, dot(vec2(23.1406917572021484375, 2.6651442050933837890625), _1336), 1.0000000116860974230803549289703e-07))))), vec2(31.0), vec2(-15.0))), _787.lUniforms.mpPerFrame.gFrameBufferSizeVec4.zw, In.mTexCoordsVec2);
-//             vec3 _2049;
-//             if (textureLod(gBuffer3Map, _1346, 0.0).x >= 1.0)
+//             vec2 _1341 = In.mTexCoordsVec2 + vec2(fract(_787.lUniforms.mpPerFrame.gfTime));
+//             vec2 _1351 = fma(floor(fma(vec2(fract(sin(dot(_1341, vec2(12.98980045318603515625, 78.233001708984375))) * 43758.546875), fract(cos(mod(123456792.0, fma(256.0, dot(vec2(23.1406917572021484375, 2.6651442050933837890625), _1341), 1.0000000116860974230803549289703e-07))))), vec2(31.0), vec2(-15.0))), _787.lUniforms.mpPerFrame.gFrameBufferSizeVec4.zw, In.mTexCoordsVec2);
+//             vec3 _2057;
+//             if (textureLod(gBuffer3Map, _1351, 0.0).x >= 1.0)
 //             {
-//                 vec3 _1357 = textureLod(gBufferMap, _1346, 0.0).xyz;
-//                 vec3 _1361 = abs(_751 - _1357);
-//                 _2049 = mix(_751, _1357, bvec3(((_1361.x + _1361.y) + _1361.z) < 0.02745098061859607696533203125));
+//                 vec3 _1362 = textureLod(gBufferMap, _1351, 0.0).xyz;
+//                 vec3 _1366 = abs(_751 - _1362);
+//                 _2057 = mix(_751, _1362, bvec3(((_1366.x + _1366.y) + _1366.z) < 0.02745098061859607696533203125));
 //             }
 //             else
 //             {
-//                 _2049 = _751;
+//                 _2057 = _751;
 //             }
-//             _2048 = _2049;
+//             _2056 = _2057;
 //         }
 //         else
 //         {
-//             _2048 = _751;
+//             _2056 = _751;
 //         }
-//         _2047 = _2048;
+//         _2055 = _2056;
 //     }
 //     else
 //     {
-//         _2047 = _751;
+//         _2055 = _751;
 //     }
-
-//     vec3 _1415 = ((_2047 + textureLod(gBuffer2Map, In.mTexCoordsVec2, 0.0).xyz) + (textureLod(gBuffer1Map, In.mTexCoordsVec2, 0.0).xyz * (((_1294.x + _1297.x) + _1302.x) + _1307.x))) * mat3(vec3(1.298702239990234375, -0.227224647998809814453125, -0.07163621485233306884765625), vec3(-0.0445976443588733673095703125, 1.05283248424530029296875, -0.0082119889557361602783203125), vec3(-0.0208283849060535430908203125, -0.079466454684734344482421875, 1.10053479671478271484375));
-
-//     float3 untonemapped_ap1 = _1415;
-//     float3 untonemapped_bt709 = renodx::color::bt709::from::AP1(untonemapped_ap1);
-//     vec3 _1441;
-//     vec3 sdr_color_bt709;
-//     float _1428;
-//     if (RENODX_TONE_MAP_TYPE < 2) {
-//         _1415 = max(vec3(0.0), _1415);
-//       float _1424 = max(9.9999999747524270787835121154785e-07, max(_1415.x, max(_1415.y, _1415.z)));
-//       float _2050;
-//       if (abs(1.0 - _1424) < 0.125)
+//     vec3 _1420 = max(vec3(0.0), ((_2055 + textureLod(gBuffer2Map, In.mTexCoordsVec2, 0.0).xyz) + (textureLod(gBuffer1Map, In.mTexCoordsVec2, 0.0).xyz * (((_1299.x + _1302.x) + _1307.x) + _1312.x))) * mat3(vec3(1.298702239990234375, -0.227224647998809814453125, -0.07163621485233306884765625), vec3(-0.0445976443588733673095703125, 1.05283248424530029296875, -0.0082119889557361602783203125), vec3(-0.0208283849060535430908203125, -0.079466454684734344482421875, 1.10053479671478271484375)));
+//     float _1429 = max(9.9999999747524270787835121154785e-07, max(_1420.x, max(_1420.y, _1420.z)));
+//     float _2058;
+//     if (abs(1.0 - _1429) < 0.125)
 //     {
-//         _2050 = fma(_1424, fma(-_1424, 8.0, 18.0), -6.125) * 0.25;
-//       } else {
-//         _2050 = clamp(_1424, 0.0, 1.0);
-//       }
-//       _1428 = _2050 / _1424;
-//       vec3 _1431 = _1415 * _1428;
-//       vec3 _1499 = _1431 * 0.2199999988079071044921875;
-//       vec3 _1434 = ((fma(_1431, _1499 + vec3(0.0300000011920928955078125), vec3(0.00200000009499490261077880859375)) / fma(_1431, _1499 + vec3(0.300000011920928955078125), vec3(0.060000002384185791015625))) - vec3(0.0333333313465118408203125)) * 2.4928367137908935546875;
-//       vec3 _1441 = vec3(pow(_1434.x, 0.4545454680919647216796875), pow(_1434.y, 0.4545454680919647216796875), pow(_1434.z, 0.4545454680919647216796875));
-//     }
-//     else {
-//       vec3 sdr_color_ap1 = CustomGradingSDRTonemap(untonemapped_ap1);
-//       sdr_color_bt709 = renodx::color::bt709::from::AP1(sdr_color_ap1);
-//       _1441 = renodx::color::gamma::EncodeSafe(sdr_color_ap1);
-//     }
-//     float _1703 = _769 * _787.lUniforms.mpPerFrame.gClipPlanesVec4.y;
-//     float _1572 = clamp(_787.lUniforms.mpCustomPerMesh.gColourLUTParamsVec4.x * _1703, 0.0, 1.0);
-//     float _1577 = clamp(_787.lUniforms.mpCustomPerMesh.gColourLUTParamsVec4.y * _1703, 0.0, 1.0);
-//     float _1582 = clamp(_787.lUniforms.mpCustomPerMesh.gColourLUTParamsVec4.z * _1703, 0.0, 1.0);
-//     float _1584 = 1.0 - textureLod(gBuffer4Map, In.mTexCoordsVec2, 0.0).x;
-//     float _1585 = _1582 * _1584;
-//     vec3 _2057;
-//     if (_1572 > 0.0030000000260770320892333984375)
-//     {
-//         _2057 = vec3(textureLod(gColourLUTFar, _1441, 0.0).xyz);
+//         _2058 = fma(_1429, fma(-_1429, 8.0, 18.0), -6.125) * 0.25;
 //     }
 //     else
 //     {
-//         _2057 = vec3(0.0);
+//         _2058 = clamp(_1429, 0.0, 1.0);
 //     }
-//     vec3 _2058;
+//     float _1433 = _2058 / _1429;
+//     vec3 _1436 = _1420 * _1433;
+//     vec3 _1504 = _1436 * 0.2199999988079071044921875;
+//     vec3 _1439 = ((fma(_1436, _1504 + vec3(0.0300000011920928955078125), vec3(0.00200000009499490261077880859375)) / fma(_1436, _1504 + vec3(0.300000011920928955078125), vec3(0.060000002384185791015625))) - vec3(0.0333333313465118408203125)) * 2.4928367137908935546875;
+//     vec3 _1446 = vec3(pow(_1439.x, 0.4545454680919647216796875), pow(_1439.y, 0.4545454680919647216796875), pow(_1439.z, 0.4545454680919647216796875));
+//     float _1708 = _769 * _787.lUniforms.mpPerFrame.gClipPlanesVec4.y;
+//     float _1577 = clamp(_787.lUniforms.mpCustomPerMesh.gColourLUTParamsVec4.x * _1708, 0.0, 1.0);
+//     float _1582 = clamp(_787.lUniforms.mpCustomPerMesh.gColourLUTParamsVec4.y * _1708, 0.0, 1.0);
+//     float _1587 = clamp(_787.lUniforms.mpCustomPerMesh.gColourLUTParamsVec4.z * _1708, 0.0, 1.0);
+//     float _1589 = 1.0 - textureLod(gBuffer4Map, In.mTexCoordsVec2, 0.0).x;
+//     float _1590 = _1587 * _1589;
+//     vec3 _2065;
 //     if (_1577 > 0.0030000000260770320892333984375)
 //     {
-//         _2058 = vec3(textureLod(gColourLUTStorm, _1441, 0.0).xyz);
+//         _2065 = vec3(textureLod(gColourLUTFar, _1446, 0.0).xyz);
 //     }
 //     else
 //     {
-//         _2058 = vec3(0.0);
+//         _2065 = vec3(0.0);
 //     }
-//     vec3 _2059;
-//     if (_1585 > 0.0030000000260770320892333984375)
+//     vec3 _2066;
+//     if (_1582 > 0.0030000000260770320892333984375)
 //     {
-//         _2059 = vec3(textureLod(gColourLUTEffect, _1441, 0.0).xyz);
+//         _2066 = vec3(textureLod(gColourLUTStorm, _1446, 0.0).xyz);
 //     }
 //     else
 //     {
-//         _2059 = vec3(0.0);
+//         _2066 = vec3(0.0);
 //     }
-//     vec3 _1694 = (((vec3(textureLod(gColourLUTBase, _1441, 0.0).xyz) * ((1.0 - ((_787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x + _787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y) + _787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z)) + fma(_787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z, fma(-_1582, _1584, 1.0), fma(_787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x, 1.0 - _1572, _787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y * (1.0 - _1577))))) + ((_2057 * _1572) * _787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x)) + ((_2058 * _1577) * _787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y)) + ((_2059 * _1585) * _787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z);
-//     vec3 _1454 = (_1694 * fma(_1694, (_1694 * 0.305306017398834228515625) + vec3(0.6821711063385009765625), vec3(0.01252287812530994415283203125))) * 0.4011494219303131103515625;
-//     vec3 _1744 = _1454 * 0.0900000035762786865234375;
-//     vec3 _1758 = ((_1454 * 0.300000011920928955078125) + vec3(-0.290000021457672119140625)) * 0.439999997615814208984375;
-//     vec3 _1776 = vec3(-0.0060000005178153514862060546875) + _1744;
-//     vec3 _1459 = (((vec3(0.0060000005178153514862060546875) - _1744) / _1758) - (sqrt(fma(_1776, _1776, -((_1454 * 0.072000004351139068603515625) * ((_1454 * 0.06599999964237213134765625) + vec3(-0.063799999654293060302734375))))) / _1758)) / vec3(_1428);
-//     out_color0 = vec4(_1459, 1.0);
+//     vec3 _2067;
+//     if (_1590 > 0.0030000000260770320892333984375)
+//     {
+//         _2067 = vec3(textureLod(gColourLUTEffect, _1446, 0.0).xyz);
+//     }
+//     else
+//     {
+//         _2067 = vec3(0.0);
+//     }
+//     vec3 _1699 = (((vec3(textureLod(gColourLUTBase, _1446, 0.0).xyz) * ((1.0 - ((_787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x + _787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y) + _787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z)) + fma(_787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z, fma(-_1587, _1589, 1.0), fma(_787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x, 1.0 - _1577, _787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y * (1.0 - _1582))))) + ((_2065 * _1577) * _787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.x)) + ((_2066 * _1582) * _787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.y)) + ((_2067 * _1590) * _787.lUniforms.mpCustomPerMesh.gColourLUTStrengthsVec4.z);
+//     vec3 _1459 = (_1699 * fma(_1699, (_1699 * 0.305306017398834228515625) + vec3(0.6821711063385009765625), vec3(0.01252287812530994415283203125))) * 0.4011494219303131103515625;
+//     vec3 _1749 = _1459 * 0.0900000035762786865234375;
+//     vec3 _1763 = ((_1459 * 0.300000011920928955078125) + vec3(-0.290000021457672119140625)) * 0.439999997615814208984375;
+//     vec3 _1781 = vec3(-0.0060000005178153514862060546875) + _1749;
+//     vec3 _1464 = (((vec3(0.0060000005178153514862060546875) - _1749) / _1763) - (sqrt(fma(_1781, _1781, -((_1459 * 0.072000004351139068603515625) * ((_1459 * 0.06599999964237213134765625) + vec3(-0.063799999654293060302734375))))) / _1763)) / vec3(_1433);
+//     out_color0 = vec4(_1464, 1.0);
 // }
 
