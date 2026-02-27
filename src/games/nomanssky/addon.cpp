@@ -45,6 +45,7 @@ bool final_draw = false;
 renodx::mods::shader::CustomShaders custom_shaders = {
   FinalShaderEntry(0xF69070B0),
   FinalShaderEntry(0x3A397057),
+  FinalShaderEntry(0x62A3C134),
   __ALL_CUSTOM_SHADERS,
 };
 
