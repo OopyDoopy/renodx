@@ -3004,6 +3004,12 @@ const std::unordered_map<
             },
         },
         {
+            "Descenders.exe",
+            {
+              {"Use_Swapchain_Proxy", 1.f},
+            },
+        },
+        {
             "Distance.exe",
             {
               {"Upgrade_R8G8B8A8_TYPELESS", UPGRADE_TYPE_OUTPUT_SIZE},  
