@@ -158,33 +158,33 @@ float3 ApplySaturationBlowoutHighlightSaturation(float3 tonemapped, float y, ren
   return color;
 }
 
-float3 PreTonemapSliders(float3 untonemapped, float mid_gray = 0.18f) {
-  // if (RENODX_TONE_MAP_TYPE == 0.f) return untonemapped;
+// float3 PreTonemapSliders(float3 untonemapped, float mid_gray = 0.18f) {
+//   // if (RENODX_TONE_MAP_TYPE == 0.f) return untonemapped;
 
-  renodx::color::grade::Config config = renodx::color::grade::config::Create();
-  config.exposure = RENODX_TONE_MAP_EXPOSURE;
-  config.contrast = RENODX_TONE_MAP_CONTRAST;
-  config.flare = RENODX_TONE_MAP_FLARE;
-  config.shadows = RENODX_TONE_MAP_SHADOWS;
-  config.highlights = RENODX_TONE_MAP_HIGHLIGHTS;
+//   renodx::color::grade::Config config = renodx::color::grade::config::Create();
+//   config.exposure = RENODX_TONE_MAP_EXPOSURE;
+//   config.contrast = RENODX_TONE_MAP_CONTRAST;
+//   config.flare = RENODX_TONE_MAP_FLARE;
+//   config.shadows = RENODX_TONE_MAP_SHADOWS;
+//   config.highlights = RENODX_TONE_MAP_HIGHLIGHTS;
 
-  float y = renodx::color::y::from::BT709(untonemapped);
-  float3 outputColor = ApplyExposureContrastFlareHighlightsShadowsByLuminance(untonemapped, y, config, mid_gray);
-  return outputColor;
-}
+//   float y = renodx::color::y::from::BT709(untonemapped);
+//   float3 outputColor = ApplyExposureContrastFlareHighlightsShadowsByLuminance(untonemapped, y, config, mid_gray);
+//   return outputColor;
+// }
 
-float3 PostTonemapSliders(float3 hdr_color) {
-  renodx::color::grade::Config config = renodx::color::grade::config::Create();
-  config.saturation = RENODX_TONE_MAP_SATURATION;
-  config.blowout = RENODX_TONE_MAP_HIGHLIGHT_SATURATION;
-  config.dechroma = RENODX_TONE_MAP_BLOWOUT;
-  config.blowout = -1.f * (RENODX_TONE_MAP_HIGHLIGHT_SATURATION - 1.f);
+// float3 PostTonemapSliders(float3 hdr_color) {
+//   renodx::color::grade::Config config = renodx::color::grade::config::Create();
+//   config.saturation = RENODX_TONE_MAP_SATURATION;
+//   config.blowout = RENODX_TONE_MAP_HIGHLIGHT_SATURATION;
+//   config.dechroma = RENODX_TONE_MAP_BLOWOUT;
+//   config.blowout = -1.f * (RENODX_TONE_MAP_HIGHLIGHT_SATURATION - 1.f);
 
-  float y = renodx::color::y::from::BT709(hdr_color);
-  hdr_color = ApplySaturationBlowoutHighlightSaturation(hdr_color, y, config);
-  //hdr_color = ApplyPerChannelBlowoutHueShift(hdr_color, 0.5f);
-  return hdr_color;
-}
+//   float y = renodx::color::y::from::BT709(hdr_color);
+//   hdr_color = ApplySaturationBlowoutHighlightSaturation(hdr_color, y, config);
+//   //hdr_color = ApplyPerChannelBlowoutHueShift(hdr_color, 0.5f);
+//   return hdr_color;
+// }
 
 float3 CustomPostProcessing(float3 color, float2 uv) {
   //color = ApplyRCAS(color, uv, t1, s1);
@@ -201,25 +201,6 @@ float ComputeReinhardSmoothClampScale(float3 untonemapped, float rolloff_start =
   return scale;
 }
 
-float3 CustomPsychoTest(float3 untonemapped, float peak) {
-
-  float3 outputColor = psychotm_test11(
-      untonemapped,
-      peak,
-      PSYCHO_EXPOSURE,
-      PSYCHO_HIGHLIGHTS,
-      PSYCHO_SHADOWS,
-      PSYCHO_CONTRAST,
-      PSYCHO_PURITY,
-      1.f - PSYCHO_BLEACH,
-      100.f,
-      PSYCHO_HUE_RESTORE,
-      PSYCHO_ADAPTATION_CONTRAST
-  );
-
-  return outputColor;
-}
-
 float3 GammaCorrectionByLuminosity(float3 color, bool pow_to_srgb = false, float gamma = 2.2f) {
   float lumin_in = LuminosityFromBT709(color);
   float lumin_out = renodx::color::correct::GammaSafe(lumin_in, pow_to_srgb, gamma);
@@ -227,7 +208,7 @@ float3 GammaCorrectionByLuminosity(float3 color, bool pow_to_srgb = false, float
   return color_out;
 }
 
-float3 CustomTonemap(float3 untonemapped_bt709, float3 graded_bt709, float mid_gray, float2 uv) {
+float3 CustomTonemap(float3 untonemapped_bt709) {
 
   float calculated_peak = RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS;
 
@@ -238,56 +219,31 @@ float3 CustomTonemap(float3 untonemapped_bt709, float3 graded_bt709, float mid_g
   const float ACES_MIN = 0.0001f;
 
   float3 output_color = untonemapped_bt709;
-  if (RENODX_TONE_MAP_TYPE == 0.f) {
-    // graded_bt709 = PreTonemapSliders(graded_bt709, mid_gray);
-    // graded_bt709 = PostTonemapSliders(graded_bt709);
-    // output_color = renodx::tonemap::neutwo::MaxChannel(graded_bt709, calculated_peak);
+  if (RENODX_TONE_MAP_TYPE == 1.f) {
     output_color = psychotm_test11(
-      graded_bt709 * 0.5f,  // magic number, it's too bright, but the mid gray adjustment seems right :(
-      calculated_peak, 
-      1.f, 
-      1.f, 
-      1.f, 
-      1.f, 
-      1.f, 
-      1.f - PSYCHO_BLEACH,
-      100.f,
-      PSYCHO_HUE_RESTORE);
-  }
-  else if (RENODX_TONE_MAP_TYPE == 1.f) {  // ACES
-    
-
-    // untonemapped_bt709 = PreTonemapSliders(untonemapped_bt709, mid_gray);
-    // untonemapped_bt709 = PostTonemapSliders(untonemapped_bt709);
-
-    float3 untonemapped_ap0 = mul(renodx::color::BT709_TO_AP0_MAT, untonemapped_bt709);
-    float3 rrt_out = renodx::tonemap::aces::RRT(untonemapped_ap0);
-    float3 tonemapped_bt709_ch = renodx::tonemap::aces::ODT(rrt_out, (ACES_MIN) * 48.f, calculated_peak * 48.f) / 48.f;
-
-    output_color = tonemapped_bt709_ch;
-  }
-  else if (RENODX_TONE_MAP_TYPE == 2.f) {  // PsychoV
-    float lumin_in = LuminosityFromBT709(untonemapped_bt709);
-    float lumin_out = renodx::tonemap::aces::ODT(lumin_in, (ACES_MIN) * 48.f, 100.f * 48.f).x / 48.f;
-    // float lumin_out = renodx::color::grade::Contrast(lumin_in, 1.6f, 0.18f);
-    // untonemapped_bt709 = renodx::color::grade::Contrast(untonemapped_bt709, 1.3f, 0.18f);
-    //untonemapped_bt709 = renodx::tonemap::aces::ODT(untonemapped_bt709, (ACES_MIN) * 48.f, 100.f * 48.f) / 48.f;
-    untonemapped_bt709 = renodx::color::correct::Luminance(untonemapped_bt709, lumin_in, lumin_out);
-
-    output_color = CustomPsychoTest(untonemapped_bt709, calculated_peak);
+        untonemapped_bt709,  // bt709_input
+        calculated_peak,
+        RENODX_TONE_MAP_EXPOSURE,
+        RENODX_TONE_MAP_HIGHLIGHTS,
+        RENODX_TONE_MAP_SHADOWS,
+        RENODX_TONE_MAP_CONTRAST / RENODX_TONE_MAP_SATURATION,
+        1.0,
+        1.f - RENODX_TONE_MAP_BLOWOUT,
+        100.f,
+        RENODX_TONE_MAP_HUE_RESTORE,  // hue_restore
+        RENODX_TONE_MAP_ADAPTATION_CONTRAST,   // adaptation_contrast
+        1,
+        RENODX_TONE_MAP_SATURATION  // cone_response_exponent
+    );
   }
 
-  output_color = CustomPostProcessing(output_color, uv);
+  //output_color = CustomPostProcessing(output_color, uv);
 
   if (RENODX_GAMMA_CORRECTION > 0.f) {
     output_color = RENODX_GAMMA_CORRECTION == 1.f ? renodx::color::correct::GammaSafe(output_color) : GammaCorrectionByLuminosity(output_color);
   }
   output_color = renodx::color::bt2020::from::BT709(output_color);
   return renodx::color::pq::EncodeSafe(output_color, RENODX_DIFFUSE_WHITE_NITS);
-}
-
-void CustomVignette(inout float vignette) {
-  vignette = lerp(1.f, vignette, CUSTOM_VIGNETTE);
 }
 
 float3 SampleSDRLUT(float3 color, SamplerState TrilinearClamp, Texture3D SrcLUT) {
