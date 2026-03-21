@@ -449,6 +449,10 @@ float4 main(
     _199 = TEXCOORD.x;
     _200 = TEXCOORD.y;
   }
+
+  // _199 = TEXCOORD.x;
+  // _200 = TEXCOORD.y;
+
   // UI quick-slot effect applies an additional UV shift.
   int _201 = WaveReadLaneFirst(_materialIndex);
   float _209 = WaveReadLaneFirst(BindlessParameters_PostProcessUber_CD[((uint)((int)(select(((uint)_201 < (uint)170000), _201, 0)) + 0u))]._uiQuickSlotEffect);
@@ -865,6 +869,9 @@ float4 main(
     _1360 = _1224;
     _1361 = _1225;
   }
+
+  float3 pre_grading = float3(_1359, _1360, _1361);
+
   // Core post color grading: channel gain, saturation, contrast, invert.
   int _1362 = WaveReadLaneFirst(_materialIndex);
   float _1372 = WaveReadLaneFirst(BindlessParameters_PostProcessUber_CD[((uint)((int)(select(((uint)_1362 < (uint)170000), _1362, 0)) + 0u))]._channelBrightness.x);
@@ -914,6 +921,13 @@ float4 main(
   float _1491 = ((_1481 - (_1467 * 2.0f)) * _1478) + _1467;
   float _1492 = ((_1481 - (_1468 * 2.0f)) * _1478) + _1468;
   float _1493 = ((_1481 - (_1469 * 2.0f)) * _1478) + _1469;
+
+  float3 post_grading = float3(_1491, _1492, _1493);
+  float3 final_grading = lerp(pre_grading, post_grading, 1.f);
+  _1491 = final_grading.x;
+  _1492 = final_grading.y;
+  _1493 = final_grading.z;
+
   int _1494 = WaveReadLaneFirst(_materialIndex);
   float _1502 = WaveReadLaneFirst(BindlessParameters_PostProcessUber_CD[((uint)((int)(select(((uint)_1494 < (uint)170000), _1494, 0)) + 0u))]._borderRatio);
   // Border mask and border color composition.
@@ -1279,6 +1293,9 @@ float4 main(
   } else {
     _2882 = 1.0f;
   }
+
+  float3 pre_localexposure = float3(_2866, _2867, _2868);
+
   // Local tone-map block with ACES-style transfer and adaptive sharpening.
   bool _2885 = (_localToneMappingParams.w > 0.0f);
   if (_2885) {
@@ -1346,6 +1363,10 @@ float4 main(
     _3164 = _2867;
     _3165 = _2868;
   }
+
+  float3 post_localexposure = float3(_3163, _3164, _3165);
+  //float3 final_localexposure = lerp(pre_localexposure, post_localexposure, 1.f);
+
   // Extra radial mask/fade used by special display modes.
   if (_etcParams.y > 1.0f) {
     float _3174 = abs((TEXCOORD.x * 2.0f) + -1.0f);
@@ -1394,6 +1415,7 @@ float4 main(
   SV_Target.x = _3232;
   SV_Target.y = _3233;
   SV_Target.z = _3234;
+
   SV_Target.w = _2882;
   return SV_Target;
 }
