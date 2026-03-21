@@ -1,4 +1,4 @@
-#include "./shared.h"
+#include "../shared.h"
 
 Texture2D<float4> __0__7__0__0__g_bindlessTextures[] : register(t0, space7);
 
