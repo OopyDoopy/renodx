@@ -223,7 +223,7 @@ float3 CustomTonemap(float3 untonemapped_bt709) {
     output_color = psychotm_test11(
         untonemapped_bt709,  // bt709_input
         calculated_peak,
-        RENODX_TONE_MAP_EXPOSURE,
+        RENODX_TONE_MAP_EXPOSURE + 0.25f, // give a slight boost to fall more in line with ACESv2 mid-gray bump
         RENODX_TONE_MAP_HIGHLIGHTS,
         RENODX_TONE_MAP_SHADOWS,
         RENODX_TONE_MAP_CONTRAST / RENODX_TONE_MAP_SATURATION,
