@@ -241,6 +241,76 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
         new renodx::utils::settings::Setting{
+        .key = "ContactShadowQuality",
+        .binding = &shader_injection.contact_shadow_quality,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .can_reset = true,
+        .label = "Screen-Space Shadow Improvements",
+        .section = "Rendering",
+        .tooltip = "Toggles RenoDX contact shadow improvements.\n"
+                   "Off = vanilla 8-step contact shadows.\n"
+                   "On = 60-step ray march with bilinear depth, adaptive thickness, improved stencil filtering, fade-out, and contrast boost.",
+        .labels = {"Off", "On"},
+    },
+        new renodx::utils::settings::Setting{
+        .key = "ShadowQuality",
+        .binding = &shader_injection.shadow_quality,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .can_reset = true,
+        .label = "Shadow Improvements",
+        .section = "Rendering",
+        .tooltip = "Toggles RenoDX shadow quality improvements.\n"
+                   "Off = vanilla shadow sampling (per-frame PCF rotation causes shimmer).\n"
+                   "On = temporally stable PCF sampling (removes frame-dependent rotation from all shadow layers).",
+        .labels = {"Off", "On"},
+    },
+        new renodx::utils::settings::Setting{
+        .key = "ShadowDebugMode",
+        .binding = &shader_injection.shadow_debug_mode,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .can_reset = true,
+        .label = "Shadow Debug View",
+        .section = "Debug",
+        .tooltip = "Visualizes internal shadow layer data. Replaces the shadow buffer output with a diagnostic color.\n"
+                   "Off = normal rendering.\n"
+                   "Terrain Shadow = grey: dark=shadowed, white=lit.\n"
+                   "Dynamic Cascade = cyan=cascade0, yellow=cascade1, dark-red=not covered.\n"
+                   "Static Cascade = green=static0, blue=static1, dark-red=not covered.\n"
+                   "Active Layer Map = false-color which cascade layer is active per pixel.\n"
+                   "Pre-Contact PCF = combined shadow after cascades/near-field, before contact shadows.\n"
+                   "Contact Shadow = dark=occluded by screen-space contact shadow.\n"
+                   "Depth Delta = heatmap of depth-behind-shadowmap (bias diagnosis).\n"
+                   "Penumbra Channel = raw W-channel (gamma-stretched depth advance).\n"
+                   "Stencil ID = false-color by material stencil group.\n"
+                   "Cascade Seams = yellow highlight at dynamic cascade UV boundaries.",
+        .labels = {"Off", "Terrain Shadow", "Dynamic Cascade", "Static Cascade",
+                   "Active Layer Map", "Pre-Contact PCF", "Contact Shadow",
+                   "Depth Delta", "Penumbra Channel", "Stencil ID", "Cascade Seams"},
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "ShadowDisableLayer",
+        .binding = &shader_injection.shadow_disable_layer,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .can_reset = true,
+        .label = "Shadow Layer Disable",
+        .section = "Debug",
+        .tooltip = "Disables a specific shadow layer so you can see its contribution by toggling it off.\n"
+                   "None = all layers active (normal rendering).\n"
+                   "Terrain Shadow = heightmap PCF.\n"
+                   "Dynamic Cascade = character/object cascade shadow maps.\n"
+                   "Static Cascade = baked environment cascade shadow maps.\n"
+                   "Near-Field Contact = ray-marched near-field contact shadows.\n"
+                   "Screen-Space Contact = screen-space contact shadow pass.",
+        .labels = {"None", "Terrain Shadow", "Dynamic Cascade", "Static Cascade",
+                   "Near-Field Contact", "Screen-Space Contact"},
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+        new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Reset All",
         .section = "Options",

@@ -1,4 +1,4 @@
-#include "./common.hlsl"
+#include "../common.hlsl"
 
 Texture2D<float4> __3__36__0__0__g_sceneColor : register(t29, space36);
 
