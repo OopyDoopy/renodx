@@ -215,9 +215,16 @@ float4 main(
   // sRGB-to-linear style decode, blended with a constant bias via _etcParams.w.
   float _214 = 1.0f - abs(_etcParams.w);
   float _218 = saturate(_etcParams.w);
+#if 1
   float _219 = (_214 * select((_184 < 0.040449999272823334f), (_184 * 0.07739938050508499f), exp2(log2((_184 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _218;
   float _220 = (_214 * select((_185 < 0.040449999272823334f), (_185 * 0.07739938050508499f), exp2(log2((_185 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _218;
   float _221 = (_214 * select((_186 < 0.040449999272823334f), (_186 * 0.07739938050508499f), exp2(log2((_186 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _218;
+#else 
+  float _219 = _214 * _184 + _218;
+  float _220 = _214 * _185 + _218;
+  float _221 = _214 * _186 + _218;
+#endif
+
   // Optional invert blend controlled by _colorGradingParams.w.
   if (_colorGradingParams.w > 0.0f) {
     float _226 = saturate(_colorGradingParams.w);
