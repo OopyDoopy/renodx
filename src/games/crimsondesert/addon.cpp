@@ -10,6 +10,8 @@
 
 #include <embed/shaders.h>
 
+#include <atomic>
+#include <d3d12.h>
 #include <deps/imgui/imgui.h>
 #include <include/reshade.hpp>
 
@@ -25,6 +27,153 @@ namespace {
 
 ShaderInjectData shader_injection;
 
+// VRS disable toggle (CPU-side only, not in cbuffer)
+float disable_vrs = 0.f;
+
+// --- VRS vtable hook ---
+using PFN_RSSetShadingRate = void(STDMETHODCALLTYPE*)(
+    ID3D12GraphicsCommandList5*, D3D12_SHADING_RATE, const D3D12_SHADING_RATE_COMBINER*);
+using PFN_RSSetShadingRateImage = void(STDMETHODCALLTYPE*)(
+    ID3D12GraphicsCommandList5*, ID3D12Resource*);
+
+static PFN_RSSetShadingRate     original_RSSetShadingRate = nullptr;
+static PFN_RSSetShadingRateImage original_RSSetShadingRateImage = nullptr;
+static bool vrs_hook_installed = false;
+static std::atomic<uint32_t> vrs_rate_call_count{0};
+static std::atomic<uint32_t> vrs_image_call_count{0};
+
+// Diagnostic: log first N calls in detail, then periodic summaries
+static constexpr uint32_t VRS_LOG_DETAIL_COUNT = 32;
+static constexpr uint32_t VRS_LOG_PERIODIC_INTERVAL = 1000;
+
+static const char* ShadingRateToString(D3D12_SHADING_RATE rate) {
+  switch (rate) {
+    case D3D12_SHADING_RATE_1X1: return "1X1";
+    case D3D12_SHADING_RATE_1X2: return "1X2";
+    case D3D12_SHADING_RATE_2X1: return "2X1";
+    case D3D12_SHADING_RATE_2X2: return "2X2";
+    case D3D12_SHADING_RATE_2X4: return "2X4";
+    case D3D12_SHADING_RATE_4X2: return "4X2";
+    case D3D12_SHADING_RATE_4X4: return "4X4";
+    default: return "UNKNOWN";
+  }
+}
+
+static const char* CombinerToString(D3D12_SHADING_RATE_COMBINER c) {
+  switch (c) {
+    case D3D12_SHADING_RATE_COMBINER_PASSTHROUGH: return "PASSTHROUGH";
+    case D3D12_SHADING_RATE_COMBINER_OVERRIDE:    return "OVERRIDE";
+    case D3D12_SHADING_RATE_COMBINER_MIN:         return "MIN";
+    case D3D12_SHADING_RATE_COMBINER_MAX:         return "MAX";
+    case D3D12_SHADING_RATE_COMBINER_SUM:         return "SUM";
+    default: return "UNKNOWN";
+  }
+}
+
+void STDMETHODCALLTYPE Hooked_RSSetShadingRate(
+    ID3D12GraphicsCommandList5* cmd_list,
+    D3D12_SHADING_RATE baseShadingRate,
+    const D3D12_SHADING_RATE_COMBINER* combiners) {
+  uint32_t count = vrs_rate_call_count.fetch_add(1, std::memory_order_relaxed) + 1;
+
+  if (count <= VRS_LOG_DETAIL_COUNT || (count % VRS_LOG_PERIODIC_INTERVAL) == 0) {
+    char buf[256];
+    if (combiners) {
+      snprintf(buf, sizeof(buf),
+        "VRS: RSSetShadingRate #%u  rate=%s  combiners=[%s, %s]%s",
+        count, ShadingRateToString(baseShadingRate),
+        CombinerToString(combiners[0]), CombinerToString(combiners[1]),
+        (disable_vrs != 0.f) ? "  -> OVERRIDDEN to 1X1" : "");
+    } else {
+      snprintf(buf, sizeof(buf),
+        "VRS: RSSetShadingRate #%u  rate=%s  combiners=null%s",
+        count, ShadingRateToString(baseShadingRate),
+        (disable_vrs != 0.f) ? "  -> OVERRIDDEN to 1X1" : "");
+    }
+    reshade::log::message(reshade::log::level::info, buf);
+  }
+
+  if (disable_vrs != 0.f) {
+    original_RSSetShadingRate(cmd_list, D3D12_SHADING_RATE_1X1, nullptr);
+  } else {
+    original_RSSetShadingRate(cmd_list, baseShadingRate, combiners);
+  }
+}
+
+void STDMETHODCALLTYPE Hooked_RSSetShadingRateImage(
+    ID3D12GraphicsCommandList5* cmd_list,
+    ID3D12Resource* shadingRateImage) {
+  uint32_t count = vrs_image_call_count.fetch_add(1, std::memory_order_relaxed) + 1;
+
+  if (count <= VRS_LOG_DETAIL_COUNT || (count % VRS_LOG_PERIODIC_INTERVAL) == 0) {
+    char buf[256];
+    snprintf(buf, sizeof(buf),
+      "VRS: RSSetShadingRateImage #%u  image=%s%s",
+      count, shadingRateImage ? "non-null" : "null",
+      (disable_vrs != 0.f) ? "  -> OVERRIDDEN to null" : "");
+    reshade::log::message(reshade::log::level::info, buf);
+  }
+
+  if (disable_vrs != 0.f) {
+    original_RSSetShadingRateImage(cmd_list, nullptr);
+  } else {
+    original_RSSetShadingRateImage(cmd_list, shadingRateImage);
+  }
+}
+
+void OnInitCommandList(reshade::api::command_list* cmd_list) {
+  if (vrs_hook_installed) return;
+
+  auto* native_cmd_list = reinterpret_cast<ID3D12GraphicsCommandList*>(cmd_list->get_native());
+  if (native_cmd_list == nullptr) return;
+
+  // QI for ID3D12GraphicsCommandList5 to confirm VRS support
+  ID3D12GraphicsCommandList5* cmd_list5 = nullptr;
+  HRESULT hr = native_cmd_list->QueryInterface(__uuidof(ID3D12GraphicsCommandList5), reinterpret_cast<void**>(&cmd_list5));
+  if (FAILED(hr) || cmd_list5 == nullptr) {
+    reshade::log::message(reshade::log::level::warning, "VRS: Command list does not support ID3D12GraphicsCommandList5, skipping hook");
+    return;
+  }
+
+  // Get vtable pointer from the QI'd interface
+  void** vtable = *reinterpret_cast<void***>(cmd_list5);
+
+  // ID3D12GraphicsCommandList5::RSSetShadingRate = vtable index 77
+  // ID3D12GraphicsCommandList5::RSSetShadingRateImage = vtable index 78
+  constexpr int kVtIdx_RSSetShadingRate = 77;
+  constexpr int kVtIdx_RSSetShadingRateImage = 78;
+
+  // Self-check: log module containing the vtable entry so we can verify it's d3d12.dll
+  {
+    HMODULE hmod = nullptr;
+    GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                       reinterpret_cast<LPCSTR>(vtable[kVtIdx_RSSetShadingRate]), &hmod);
+    char mod_name[MAX_PATH] = {};
+    if (hmod) GetModuleFileNameA(hmod, mod_name, MAX_PATH);
+    char buf[512];
+    snprintf(buf, sizeof(buf), "VRS: vtable[%d] = %p (module: %s)", kVtIdx_RSSetShadingRate, vtable[kVtIdx_RSSetShadingRate], hmod ? mod_name : "UNKNOWN");
+    reshade::log::message(reshade::log::level::info, buf);
+    snprintf(buf, sizeof(buf), "VRS: vtable[%d] = %p", kVtIdx_RSSetShadingRateImage, vtable[kVtIdx_RSSetShadingRateImage]);
+    reshade::log::message(reshade::log::level::info, buf);
+  }
+
+  DWORD old_protect;
+  if (VirtualProtect(&vtable[kVtIdx_RSSetShadingRate], sizeof(void*) * 2, PAGE_READWRITE, &old_protect)) {
+    original_RSSetShadingRate = reinterpret_cast<PFN_RSSetShadingRate>(vtable[kVtIdx_RSSetShadingRate]);
+    original_RSSetShadingRateImage = reinterpret_cast<PFN_RSSetShadingRateImage>(vtable[kVtIdx_RSSetShadingRateImage]);
+
+    vtable[kVtIdx_RSSetShadingRate] = reinterpret_cast<void*>(&Hooked_RSSetShadingRate);
+    vtable[kVtIdx_RSSetShadingRateImage] = reinterpret_cast<void*>(&Hooked_RSSetShadingRateImage);
+
+    VirtualProtect(&vtable[kVtIdx_RSSetShadingRate], sizeof(void*) * 2, old_protect, &old_protect);
+    vrs_hook_installed = true;
+    reshade::log::message(reshade::log::level::info, "VRS: Vtable hook installed (RSSetShadingRate @ idx 77, RSSetShadingRateImage @ idx 78)");
+  } else {
+    reshade::log::message(reshade::log::level::error, "VRS: Failed to VirtualProtect vtable for hook installation");
+  }
+
+  cmd_list5->Release();
+}
 
 renodx::mods::shader::CustomShaders custom_shaders = {__ALL_CUSTOM_SHADERS};
 //renodx::mods::shader::CustomShaders custom_shaders;
@@ -244,7 +393,7 @@ renodx::utils::settings::Settings settings = {
         .key = "ContactShadowQuality",
         .binding = &shader_injection.contact_shadow_quality,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
+        .default_value = 0.f,
         .can_reset = true,
         .label = "Screen-Space Shadow Improvements",
         .section = "Rendering",
@@ -257,13 +406,40 @@ renodx::utils::settings::Settings settings = {
         .key = "ShadowQuality",
         .binding = &shader_injection.shadow_quality,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
+        .default_value = 0.f,
         .can_reset = true,
         .label = "Shadow Improvements",
         .section = "Rendering",
         .tooltip = "Toggles RenoDX shadow quality improvements.\n"
                    "Off = vanilla shadow sampling (per-frame PCF rotation causes shimmer).\n"
                    "On = temporally stable PCF sampling (removes frame-dependent rotation from all shadow layers).",
+        .labels = {"Off", "On"},
+    },
+        new renodx::utils::settings::Setting{
+        .key = "RaytracingQuality",
+        .binding = &shader_injection.rt_quality,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .can_reset = true,
+        .label = "Raytracing Improvements",
+        .section = "Rendering",
+        .tooltip = "Toggles RenoDX raytracing noise improvements.\n"
+                   "Off = vanilla white noise (TEA+MCG) for all RT sampling.\n"
+                   "On = IS-FAST spatio-temporal blue noise for ray generation.\n"
+                   "Debug Noise = visualizes the raw IS-FAST texture sample as color output.",
+        .labels = {"Off", "On", "Debug Noise"},
+    },
+        new renodx::utils::settings::Setting{
+        .key = "DisableVRS",
+        .binding = &disable_vrs,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .can_reset = true,
+        .label = "Disable VRS",
+        .section = "Rendering",
+        .tooltip = "Disables Variable Rate Shading (VRS).\n"
+                   "Off = vanilla VRS (game controls shading rate per-tile).\n"
+                   "On = forces full-resolution 1x1 shading rate everywhere.",
         .labels = {"Off", "On"},
     },
         new renodx::utils::settings::Setting{
@@ -419,6 +595,7 @@ void OnPresetOff() {
     renodx::utils::settings::UpdateSetting("FxFilmGrain", 50.f);
     renodx::utils::settings::UpdateSetting("FxChromaticAberration", 100.f);
     renodx::utils::settings::UpdateSetting("FxSharpening", 100.f);
+    renodx::utils::settings::UpdateSetting("DisableVRS", 0.f);
 }
 
 bool fired_on_init_swapchain = false;
@@ -454,10 +631,12 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       renodx::mods::shader::force_pipeline_cloning = true;
 
       reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
+      reshade::register_event<reshade::addon_event::init_command_list>(OnInitCommandList);
 
       break;
     case DLL_PROCESS_DETACH:
       reshade::unregister_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
+      reshade::unregister_event<reshade::addon_event::init_command_list>(OnInitCommandList);
 
       reshade::unregister_addon(h_module);
       break;

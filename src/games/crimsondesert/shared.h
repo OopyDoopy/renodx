@@ -25,6 +25,7 @@
 #define CUSTOM_SHARPENING                        shader_injection.custom_sharpening
 #define SHADOW_DEBUG_MODE                      shader_injection.shadow_debug_mode
 #define SHADOW_DISABLE_LAYER                    shader_injection.shadow_disable_layer
+#define RT_QUALITY                             shader_injection.rt_quality
 
 //#define TONEMAP_UNDER_UI                      shader_injection.tonemap_under_ui
 
@@ -56,6 +57,7 @@ struct ShaderInjectData {
   float shadow_disable_layer;
   float contact_shadow_quality;
   float shadow_quality;
+  float rt_quality;
   //float tonemap_under_ui;
 };
 
