@@ -97,6 +97,18 @@ const std::string build_time = __TIME__;
 
 float current_settings_mode = 0;
 
+int crimson = 0xD7263D;
+int gold = 0xF2C14E;
+
+// Colors
+int tone_mapping = gold;
+int advanced_tone_mapping = crimson;
+int color_grading = gold;
+int local_lighting = crimson;
+int auto_exposure = gold;
+int effects = crimson;
+int rendering = gold;
+
 renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "SettingsMode",
@@ -118,6 +130,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Tone Mapping",
         .tooltip = "Sets the tone mapper type.\nVanilla uses the unmodified ACESv2 tone mapper with in-game sliders.\nPsychoV uses our custom psychovisual tone mapping system.",
         .labels = {"Vanilla (ACESv2)","PsychoV-11"},
+        .tint = tone_mapping,
         .parse = [](float value) { return value; },
         .is_visible = []() { return last_is_hdr; },
     },
@@ -129,6 +142,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Peak Brightness",
         .section = "Tone Mapping",
         .tooltip = "Sets the value of peak white in nits",
+        .tint = tone_mapping,
         .min = 80.f,
         .max = 4000.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
@@ -142,6 +156,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Game Brightness",
         .section = "Tone Mapping",
         .tooltip = "Sets the value of 100% white in nits",
+        .tint = tone_mapping,
         .min = 80.f,
         .max = 500.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
@@ -151,6 +166,7 @@ renodx::utils::settings::Settings settings = {
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
         .label = "Adjust UI brightness with the in-game slider.\n",
         .section = "Tone Mapping",
+        //.tint = tone_mapping,
         .is_visible = []() { return last_is_hdr; },
     },
     new renodx::utils::settings::Setting{
@@ -160,6 +176,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Hue Restore",
         .section = "Advanced Tone Mapping Properties",
         .tooltip = "Hue retention strength.",
+        .tint = advanced_tone_mapping,
         .min = 0.f,
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
@@ -173,6 +190,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Blowout",
         .section = "Advanced Tone Mapping Properties",
         .tooltip = "Desaturates the brightest portions of the image, also relative to peak brightness.",
+        .tint = advanced_tone_mapping,
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.01f; },
@@ -196,6 +214,7 @@ renodx::utils::settings::Settings settings = {
         .default_value = 1.f,
         .label = "Exposure",
         .section = "Color Grading",
+        .tint = color_grading,
         .max = 2.f,
         .format = "%.2f",
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
@@ -207,6 +226,7 @@ renodx::utils::settings::Settings settings = {
         .default_value = 50.f,
         .label = "Highlights",
         .section = "Color Grading",
+        .tint = color_grading,
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.02f; },
@@ -218,6 +238,7 @@ renodx::utils::settings::Settings settings = {
         .default_value = 50.f,
         .label = "Shadows",
         .section = "Color Grading",
+        .tint = color_grading,
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.02f; },
@@ -226,9 +247,10 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ColorGradeContrast",
         .binding = &shader_injection.tone_map_contrast,
-        .default_value = 60.f,
+        .default_value = 50.f,
         .label = "Contrast",
         .section = "Color Grading",
+        .tint = color_grading,
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.02f; },
@@ -237,9 +259,10 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ColorGradeSaturation",
         .binding = &shader_injection.tone_map_saturation,
-        .default_value = 60.f,
+        .default_value = 50.f,
         .label = "Saturation",
         .section = "Color Grading",
+        .tint = color_grading,
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.02f; },
@@ -253,6 +276,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Adaptation Contrast",
         .section = "Color Grading",
         .tooltip = "Adds contrast primarily to shadowed regions",
+        .tint = color_grading,
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.02f; },
@@ -268,6 +292,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Corrects pink/red flame and torch colors toward warm orange/yellow.\n"
                    "Uses MacLeod-Boynton chromaticity rotation in Stockman-Sharp LMS.\n"
                    "0 = no correction (vanilla pink/red), 100 = full warm fire hue.",
+        .tint = local_lighting,
         .max = 100.f,
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
@@ -282,6 +307,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Adjusts saturation of local light sources (fire, torches, braziers).\n"
                    "Controls MacLeod-Boynton purity distance from achromatic axis.\n"
                    "0 = fully desaturated, 50 = unchanged, 100 = maximum saturation.",
+        .tint = local_lighting,
         .max = 100.f,
         .parse = [](float value) { return value * 0.02f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
@@ -290,6 +316,7 @@ renodx::utils::settings::Settings settings = {
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
         .label = "Improved Auto Exposure was made with HDR output + max settings + RR in mind (other settings may result in overly dark or blown out scenes). It fixes nuclear highlight issues whilst also making night scenes actually dark\n",
         .section = "Auto Exposure",
+        //.tint = auto_exposure,
     },
     new renodx::utils::settings::Setting{
         .key = "ImprovedAutoExposure",
@@ -303,6 +330,7 @@ renodx::utils::settings::Settings settings = {
                    "Off = vanilla exposure adaptation.\n"
                    "On = removes 1.2x brightness overshoot during adaptation.",
         .labels = {"Off", "On"},
+        .tint = auto_exposure,
     },
     new renodx::utils::settings::Setting{
         .key = "DisableAWB",
@@ -316,6 +344,21 @@ renodx::utils::settings::Settings settings = {
                    "Off = vanilla AWB (can cause hue shifts in HDR).\n"
                    "On = AWB disabled (stable hue).",
         .labels = {"Off", "On"},
+        .tint = auto_exposure,
+    },
+    new renodx::utils::settings::Setting{
+        .key = "DisableHeroLights",
+        .binding = &shader_injection.disable_hero_lights,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .can_reset = true,
+        .label = "Disable Hero Lights",
+        .section = "Auto Exposure",
+        .tooltip = "Disables hero lights and character fill lights.\n"
+                   "These are close-up lighting effects applied to characters.\n"
+                   "Only effective when Disable Auto White Balance is also On.",
+        .labels = {"Off", "On"},
+        .is_enabled = []() { return shader_injection.disable_awb > 0.5f; },
     },
     new renodx::utils::settings::Setting{
         .key = "DisableHeroLights",
@@ -340,6 +383,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Effects",
         .tooltip = "Selects between original or RenoDX film grain",
         .labels = {"Vanilla", "Perceptual"},
+        .tint = effects,
         //.is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
@@ -350,6 +394,7 @@ renodx::utils::settings::Settings settings = {
         .label = "FilmGrain",
         .section = "Effects",
         .tooltip = "Controls new perceptual film grain. Reduces banding.",
+        .tint = effects,
         .max = 100.f,
         .is_enabled = []() { return CUSTOM_FILM_GRAIN_TYPE != 0; },
         .parse = [](float value) { return value * 0.01f; },
@@ -362,6 +407,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Chromatic Aberration",
         .section = "Effects",
         .tooltip = "Adjusts chromatic aberration strength. 100 = Vanilla",
+        .tint = effects,
         .max = 100.f,
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
@@ -373,6 +419,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Sharpening",
         .section = "Effects",
         .tooltip = "Adjusts sharpening strength. 100 = Vanilla",
+        .tint = effects,
         .max = 100.f,
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
@@ -424,6 +471,7 @@ renodx::utils::settings::Settings settings = {
                    "Off = vanilla (Default shimmery sun blob + moon uses sun-scale luminance, clips to white ball).\n"
                    "On = Physically based sun additions + moon luminance reduced to reveal texture detail.",
         .labels = {"Off", "On"},
+        .tint = rendering,
     },
         new renodx::utils::settings::Setting{
         .key = "MoonDiskSize",
@@ -450,6 +498,7 @@ renodx::utils::settings::Settings settings = {
                    "Off = vanilla 8-step contact shadows.\n"
                    "On = 60-step ray march with bilinear depth, adaptive thickness, improved stencil filtering, fade-out, and contrast boost.",
         .labels = {"Off", "On"},
+        .tint = rendering,
     },
         new renodx::utils::settings::Setting{
         .key = "ShadowQuality",
@@ -463,6 +512,7 @@ renodx::utils::settings::Settings settings = {
                    "Off = vanilla shadow sampling (per-frame PCF rotation causes shimmer).\n"
                    "On = temporally stable PCF sampling (removes frame-dependent rotation from all shadow layers).",
         .labels = {"Off", "On"},
+        .tint = rendering,
     },
         new renodx::utils::settings::Setting{
         .key = "RaytracingQuality",
@@ -477,6 +527,7 @@ renodx::utils::settings::Settings settings = {
                    "On = IS-FAST spatio-temporal blue noise for ray generation.\n"
                    "Debug Noise = visualizes the raw IS-FAST texture sample as color output.",
         .labels = {"Off", "On", "Debug Noise"},
+        .tint = rendering,
     },
         new renodx::utils::settings::Setting{
         .key = "DiffuseBRDF",
@@ -491,6 +542,7 @@ renodx::utils::settings::Settings settings = {
                    "Hammon 2017 = Earl Hammon's energy-conserving diffuse with multi-scatter compensation.\n"
                    "EON 2025 = Portsmouth/Kutz/Hill energy-preserving Oren-Nayar with exact directional albedo.",
         .labels = {"Vanilla (Burley / Lambert mix)", "Hammon 2017", "EON 2025"},
+        .tint = rendering,
     },
         new renodx::utils::settings::Setting{
         .key = "SmoothTerminator",
@@ -504,6 +556,7 @@ renodx::utils::settings::Settings settings = {
                    "Softens the hard shadow/light boundary on low-poly geometry where interpolated\n"
                    "normals create visible faceted terminator lines.",
         .labels = {"Off", "On"},
+        .tint = rendering,
     },
         new renodx::utils::settings::Setting{
         .key = "SpecularAA",
@@ -517,6 +570,7 @@ renodx::utils::settings::Settings settings = {
                    "Widens roughness based on screen-space normal derivatives to eliminate\n"
                    "specular shimmer/fireflies on distant surfaces.",
         .labels = {"Off", "On"},
+        .tint = rendering,
     },
         new renodx::utils::settings::Setting{
         .key = "Diffraction",
@@ -530,6 +584,7 @@ renodx::utils::settings::Settings settings = {
                    "Adds wavelength-dependent spectral colour fringing to metallic\n"
                    "specular highlights. Only affects metals.",
         .labels = {"Off", "On"},
+        .tint = rendering,
     },
         new renodx::utils::settings::Setting{
         .key = "DisableVRS",
@@ -543,6 +598,7 @@ renodx::utils::settings::Settings settings = {
                    "Off = vanilla VRS (game controls shading rate per-tile).\n"
                    "On = forces full-resolution 1x1 shading rate everywhere.",
         .labels = {"Off", "On"},
+        .tint = rendering,
     },
         new renodx::utils::settings::Setting{
         .key = "ShadowDebugMode",

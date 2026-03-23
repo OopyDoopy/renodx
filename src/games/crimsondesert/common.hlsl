@@ -227,14 +227,14 @@ float3 CustomTonemap(float3 untonemapped_bt709, bool is_sdr = false) {
         RENODX_TONE_MAP_EXPOSURE, // give a slight boost to fall more in line with ACESv2 mid-gray bump
         RENODX_TONE_MAP_HIGHLIGHTS,
         RENODX_TONE_MAP_SHADOWS,
-        RENODX_TONE_MAP_CONTRAST / RENODX_TONE_MAP_SATURATION,
+        (RENODX_TONE_MAP_CONTRAST * 1.2f) / (RENODX_TONE_MAP_SATURATION * 1.2f),
         1.0,
         1.f - RENODX_TONE_MAP_BLOWOUT,
         100.f,
         RENODX_TONE_MAP_HUE_RESTORE,  // hue_restore
         RENODX_TONE_MAP_ADAPTATION_CONTRAST,   // adaptation_contrast
         1,
-        RENODX_TONE_MAP_SATURATION  // cone_response_exponent
+        RENODX_TONE_MAP_SATURATION * 1.2f  // cone_response_exponent
     );
   }
 
