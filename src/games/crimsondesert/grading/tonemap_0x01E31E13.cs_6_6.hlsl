@@ -1,4 +1,4 @@
-#include "./common.hlsl"
+#include "../common.hlsl"
 
 Texture3D<float4> __3__36__0__0__g_displayRenderingTransformLUT : register(t135, space36);
 
@@ -75,9 +75,9 @@ void main(
 
     float3 input_color = lerp(ungraded_bt709, graded_bt709, RENODX_COLOR_GRADE_STRENGTH);
     float3 output_color = CustomTonemap(input_color);
-    #if 1
+    output_color = renodx::color::bt2020::from::BT709(output_color);
+    output_color = renodx::color::pq::EncodeSafe(output_color, RENODX_DIFFUSE_WHITE_NITS);
     output_color = renodx::color::srgb::EncodeSafe(output_color);
-#endif
     __3__38__0__1__g_textureUAV[int2((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y))] = float4(output_color, _12.w);
   } else {
     float3 display_transform_bt709 = ConvertAP1ToBT709(_12.xyz);
@@ -87,11 +87,7 @@ void main(
 
     float4 _125 = __3__36__0__0__g_displayRenderingTransformLUT.SampleLevel(__0__4__0__0__g_staticBilinearClamp, display_transform_lut_uv, 0.0f);
 
-    #if 1
     __3__38__0__1__g_textureUAV[int2((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y))] = float4(select((_125.x <= 0.0031308000907301903f), (_125.x * 12.920000076293945f), (((pow(_125.x, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f)), select((_125.y <= 0.0031308000907301903f), (_125.y * 12.920000076293945f), (((pow(_125.y, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f)), select((_125.z <= 0.0031308000907301903f), (_125.z * 12.920000076293945f), (((pow(_125.z, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f)), _12.w);
-    #else
-    __3__38__0__1__g_textureUAV[int2((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y))] = float4(_125.xyz, _12.w);
-    #endif
   }
   
 }

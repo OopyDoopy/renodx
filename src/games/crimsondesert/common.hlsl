@@ -208,32 +208,33 @@ float3 GammaCorrectionByLuminosity(float3 color, bool pow_to_srgb = false, float
   return color_out;
 }
 
-float3 CustomTonemap(float3 untonemapped_bt709) {
-
+float3 CustomTonemap(float3 untonemapped_bt709, bool is_sdr = false) {
   float calculated_peak = RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS;
+  if (is_sdr) {
+    calculated_peak = 1.f;
+    //untonemapped_bt709 = renodx::color::correct::GammaSafe(untonemapped_bt709, true);
+  }
 
   if (RENODX_GAMMA_CORRECTION > 0.f) {
     calculated_peak = RENODX_GAMMA_CORRECTION == 1.f ? renodx::color::correct::GammaSafe(calculated_peak, true) : GammaCorrectionByLuminosity(calculated_peak, true).x;
   }
 
-  const float ACES_MIN = 0.0001f;
-
   float3 output_color = untonemapped_bt709;
   if (RENODX_TONE_MAP_TYPE == 1.f) {
     output_color = psychotm_test11(
-        untonemapped_bt709,  // bt709_input
+        output_color * 1.1539f,  // mid-gray adjusted
         calculated_peak,
-        RENODX_TONE_MAP_EXPOSURE + 0.25f, // give a slight boost to fall more in line with ACESv2 mid-gray bump
+        RENODX_TONE_MAP_EXPOSURE, // give a slight boost to fall more in line with ACESv2 mid-gray bump
         RENODX_TONE_MAP_HIGHLIGHTS,
         RENODX_TONE_MAP_SHADOWS,
-        RENODX_TONE_MAP_CONTRAST / RENODX_TONE_MAP_SATURATION,
+        (RENODX_TONE_MAP_CONTRAST * 1.2f) / (RENODX_TONE_MAP_SATURATION * 1.2f),
         1.0,
         1.f - RENODX_TONE_MAP_BLOWOUT,
         100.f,
         RENODX_TONE_MAP_HUE_RESTORE,  // hue_restore
         RENODX_TONE_MAP_ADAPTATION_CONTRAST,   // adaptation_contrast
         1,
-        RENODX_TONE_MAP_SATURATION  // cone_response_exponent
+        RENODX_TONE_MAP_SATURATION * 1.2f  // cone_response_exponent
     );
   }
 
@@ -242,8 +243,8 @@ float3 CustomTonemap(float3 untonemapped_bt709) {
   if (RENODX_GAMMA_CORRECTION > 0.f) {
     output_color = RENODX_GAMMA_CORRECTION == 1.f ? renodx::color::correct::GammaSafe(output_color) : GammaCorrectionByLuminosity(output_color);
   }
-  output_color = renodx::color::bt2020::from::BT709(output_color);
-  return renodx::color::pq::EncodeSafe(output_color, RENODX_DIFFUSE_WHITE_NITS);
+
+  return output_color;
 }
 
 float3 SampleSDRLUT(float3 color, SamplerState TrilinearClamp, Texture3D SrcLUT) {
@@ -284,4 +285,15 @@ float3 UpgradeToneMapMaxChannel(
   float3 color_scaled = color_tonemapped_graded * ratio;
 
   return lerp(color_untonemapped, color_scaled, post_process_strength);
+}
+
+float3 ProcessGameOutput(float3 color, bool is_sdr) {
+  if (!is_sdr) {
+    color = renodx::color::srgb::Encode(color);
+  }
+  else {
+    color = renodx::color::bt2020::from::BT709(color);
+    color = renodx::color::pq::EncodeSafe(color, RENODX_DIFFUSE_WHITE_NITS);
+  }
+  return color;
 }

@@ -9,7 +9,7 @@
 
 #define RENODX_TONE_MAP_HUE_RESTORE            shader_injection.tone_map_hue_restore
 #define RENODX_TONE_MAP_BLOWOUT                shader_injection.tone_map_blowout
-#define RENODX_COLOR_GRADE_STRENGTH            shader_injection.color_grade_strength
+#define RENODX_COLOR_GRADE_STRENGTH            1.f
 
 #define RENODX_TONE_MAP_EXPOSURE               shader_injection.tone_map_exposure
 #define RENODX_TONE_MAP_HIGHLIGHTS             shader_injection.tone_map_highlights
@@ -23,6 +23,18 @@
 #define CUSTOM_RANDOM                          shader_injection.custom_random
 #define CUSTOM_CHROMATIC_ABERRATION              shader_injection.custom_chromatic_aberration
 #define CUSTOM_SHARPENING                        shader_injection.custom_sharpening
+#define SHADOW_DEBUG_MODE                      shader_injection.shadow_debug_mode
+#define SHADOW_DISABLE_LAYER                    shader_injection.shadow_disable_layer
+#define RT_QUALITY                             shader_injection.rt_quality
+#define DIFFUSE_BRDF_MODE                      shader_injection.diffuse_brdf_mode
+#define SMOOTH_TERMINATOR                      shader_injection.smooth_terminator
+#define SPECULAR_AA                            shader_injection.specular_aa
+#define DIFFRACTION                            shader_injection.diffraction
+#define LOCAL_LIGHT_HUE_CORRECTION             shader_injection.local_light_hue_correction
+#define LOCAL_LIGHT_SATURATION                 shader_injection.local_light_saturation
+#define DISABLE_AWB                            shader_injection.disable_awb
+#define IMPROVED_AUTO_EXPOSURE                  shader_injection.improved_auto_exposure
+#define SUN_MOON_ADJUSTMENTS                   shader_injection.sun_moon_adjustments
 
 //#define TONEMAP_UNDER_UI                      shader_injection.tonemap_under_ui
 
@@ -50,6 +62,20 @@ struct ShaderInjectData {
   float custom_random;
   float custom_chromatic_aberration;
   float custom_sharpening;
+  float shadow_debug_mode;
+  float shadow_disable_layer;
+  float contact_shadow_quality;
+  float shadow_quality;
+  float rt_quality;
+  float diffuse_brdf_mode;
+  float smooth_terminator;
+  float specular_aa;
+  float diffraction;
+  float local_light_hue_correction;
+  float local_light_saturation;
+  float disable_awb;
+  float improved_auto_exposure;
+  float sun_moon_adjustments;
 };
 
 #ifndef __cplusplus

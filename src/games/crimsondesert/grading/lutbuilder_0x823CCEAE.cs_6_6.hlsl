@@ -1,4 +1,4 @@
-#include "./shared.h"
+#include "../shared.h"
 
 Texture2D<float> __3__36__0__0__g_reachTable : register(t65, space36);
 
