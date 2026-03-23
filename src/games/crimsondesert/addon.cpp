@@ -26,6 +26,8 @@ namespace {
 
 ShaderInjectData shader_injection;
 
+bool last_is_hdr = false;
+
 // VRS disable toggle (CPU-side only, not in cbuffer)
 float disable_vrs = 0.f;
 
@@ -117,7 +119,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Sets the tone mapper type.\nVanilla uses the unmodified ACESv2 tone mapper with in-game sliders.\nPsychoV uses our custom psychovisual tone mapping system.",
         .labels = {"Vanilla (ACESv2)","PsychoV-11"},
         .parse = [](float value) { return value; },
-        .is_visible = []() { return current_settings_mode >= 1.f; },
+        .is_visible = []() { return last_is_hdr; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",
@@ -130,7 +132,7 @@ renodx::utils::settings::Settings settings = {
         .min = 80.f,
         .max = 4000.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
-        //.is_visible = []() { return current_settings_mode >= 1.f; },
+        .is_visible = []() { return last_is_hdr; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapGameNits",
@@ -143,12 +145,13 @@ renodx::utils::settings::Settings settings = {
         .min = 80.f,
         .max = 500.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
-        //.is_visible = []() { return current_settings_mode >= 1.f; },
+        .is_visible = []() { return last_is_hdr; },
     },
         new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
         .label = "Adjust UI brightness with the in-game slider.\n",
         .section = "Tone Mapping",
+        .is_visible = []() { return last_is_hdr; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapHueRestore",
@@ -161,7 +164,7 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.01f; },
-        .is_visible = []() { return settings[0]->GetValue() >= 1; },
+        .is_visible = []() { return settings[0]->GetValue() >= 1 && last_is_hdr; },
     },
         new renodx::utils::settings::Setting{
         .key = "ToneMapBlowout",
@@ -173,20 +176,20 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.01f; },
-        .is_visible = []() { return current_settings_mode >= 1; },
+        .is_visible = []() { return current_settings_mode >= 1 && last_is_hdr; },
     },
-        new renodx::utils::settings::Setting{
-        .key = "ColorGradeStrength",
-        .binding = &shader_injection.color_grade_strength,
-        .default_value = 100.f,
-        .label = "Pre-Tonemap Grade Strength",
-        .section = "Advanced Tone Mapping Properties",
-        .tooltip = "Adjusts how much of the game's dynamic grading applies to the image.",
-        .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
-        .parse = [](float value) { return value * 0.01f; },
-        .is_visible = []() { return current_settings_mode >= 1; },
-    },
+    //     new renodx::utils::settings::Setting{
+    //     .key = "ColorGradeStrength",
+    //     .binding = &shader_injection.color_grade_strength,
+    //     .default_value = 100.f,
+    //     .label = "Pre-Tonemap Grade Strength",
+    //     .section = "Advanced Tone Mapping Properties",
+    //     .tooltip = "Adjusts how much of the game's dynamic grading applies to the image.",
+    //     .max = 100.f,
+    //     .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+    //     .parse = [](float value) { return value * 0.01f; },
+    //     .is_visible = []() { return current_settings_mode >= 1 && last_is_hdr; },
+    // },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeExposure",
         .binding = &shader_injection.tone_map_exposure,
@@ -652,7 +655,7 @@ void OnPresetOff() {
 bool fired_on_init_swapchain = false;
 
 void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
-
+  last_is_hdr = renodx::utils::swapchain::IsHDRColorSpace(swapchain);
   auto peak = renodx::utils::swapchain::GetPeakNits(swapchain);
   if (peak.has_value()) {
     settings[2]->default_value = roundf(peak.value());
