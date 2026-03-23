@@ -289,6 +289,15 @@ cbuffer __3__1__0__0__RenderVoxelConstants : register(b0, space1) {
   float _rtaoIntensity : packoffset(c005.x);
 };
 
+cbuffer RenoDXInjection : register(b13, space50) {
+  float _rndx_diffuse_brdf_mode : packoffset(c5.w);
+  float _rndx_smooth_terminator : packoffset(c6.x);
+  float _rndx_specular_aa       : packoffset(c6.y);
+  float _rndx_diffraction        : packoffset(c6.z);
+};
+
+#include "diffuse_brdf.hlsli"
+
 SamplerState __3__40__0__0__g_sampler : register(s1, space40);
 
 SamplerState __3__40__0__0__g_samplerPoint : register(s4, space40);
@@ -1541,7 +1550,12 @@ void main(
     float _2645 = saturate(dot(float3(_2623, _2624, _2625), float3(_2634, _2635, _2636)));
     float _2647 = float(max(0.010002136h, _2252));
     float _2648 = saturate(_2637);
-    float _2649 = _2647 * _2647;
+    // RenoDX: Geometric Specular AA — filter roughness for specular evaluation
+    float _rndx_spec_rough = _2647;
+    if (_rndx_specular_aa > 0.0f) {
+      _rndx_spec_rough = NDFFilterRoughnessCS(float3(_2609, _2610, _2611), _2647, _rndx_specular_aa);
+    }
+    float _2649 = _rndx_spec_rough * _rndx_spec_rough;
     float _2650 = _2649 * _2649;
     float _2651 = 1.0f - _2650;
     float _2652 = 1.0f - _2645;
@@ -1551,7 +1565,18 @@ void main(
     float _2658 = _2657 * _2657;
     float _2663 = 1.0f - _2640;
     float _2664 = _2663 * _2663;
-    float _2692 = saturate((_2648 * 0.31830987334251404f) * ((((((1.0f - ((_2658 * _2658) * (_2657 * 0.75f))) * (1.0f - ((_2664 * _2664) * (_2663 * 0.75f)))) - _2656) * saturate((_2651 * 2.200000047683716f) + -0.5f)) + _2656) + ((exp2(-0.0f - (max(((_2651 * 73.19999694824219f) + -21.200000762939453f), 8.899999618530273f) * sqrt(_2642))) * _2645) * ((((_2651 * 34.5f) + -59.0f) * _2651) + 24.5f))));
+    float _2692;
+    if (_rndx_diffuse_brdf_mode >= 2.0f) {
+      // EON 2025 — Energy-Preserving Oren-Nayar (exact)
+      float _eon_LdotV = dot(float3(_2623, _2624, _2625), float3(_431, _433, _435));
+      _2692 = _2648 * EON_DiffuseScalar(_2648, _2640, _eon_LdotV, _2647);
+    } else if (_rndx_diffuse_brdf_mode >= 1.0f) {
+      // Hammon 2017 Diffuse BRDF
+      _2692 = _2648 * HammonDiffuseScalar(_2648, _2640, _2642, _2645, _2647);
+    } else {
+      // Vanilla Disney/Burley diffuse
+      _2692 = saturate((_2648 * 0.31830987334251404f) * ((((((1.0f - ((_2658 * _2658) * (_2657 * 0.75f))) * (1.0f - ((_2664 * _2664) * (_2663 * 0.75f)))) - _2656) * saturate((_2651 * 2.200000047683716f) + -0.5f)) + _2656) + ((exp2(-0.0f - (max(((_2651 * 73.19999694824219f) + -21.200000762939453f), 8.899999618530273f) * sqrt(_2642))) * _2645) * ((((_2651 * 34.5f) + -59.0f) * _2651) + 24.5f))));
+    }
     int _2693 = _2580 & 126;
     bool __defer_2622_2703 = false;
     bool __branch_chain_2622;
@@ -1631,6 +1656,22 @@ void main(
       _2816 = 0.0f;
       _2817 = 0.0f;
       _2818 = 0.0f;
+    }
+    // RenoDX: Diffraction on Rough Surfaces (Werner et al. 2024)
+    if (_rndx_diffraction > 0.0f && _2712 > 0.0f) {
+      float3 _rndx_dShift = DiffractionShiftOnly(_2642, _rndx_spec_rough);
+      float3 _rndx_dMod = lerp(float3(1.0f, 1.0f, 1.0f), _rndx_dShift, _rndx_diffraction * _2712);
+      _2816 *= _rndx_dMod.x;
+      _2817 *= _rndx_dMod.y;
+      _2818 *= _rndx_dMod.z;
+    }
+    // RenoDX: Callisto Smooth Terminator (SIGGRAPH 2023)
+    if (_rndx_smooth_terminator > 0.0f) {
+      float _rndx_c2 = CallistoSmoothTerminator(_2648, _2645, _2642, _rndx_smooth_terminator, 0.5f);
+      _2692 *= _rndx_c2;
+      _2816 *= _rndx_c2;
+      _2817 *= _rndx_c2;
+      _2818 *= _rndx_c2;
     }
     if ((_2553) | ((int)(_2693 == 6))) {
       _2827 = ((max(0.0f, (0.30000001192092896f - _2637)) * 0.23190687596797943f) + _2692);
