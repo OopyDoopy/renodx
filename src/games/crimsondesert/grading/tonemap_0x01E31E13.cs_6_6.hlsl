@@ -75,6 +75,8 @@ void main(
 
     float3 input_color = lerp(ungraded_bt709, graded_bt709, RENODX_COLOR_GRADE_STRENGTH);
     float3 output_color = CustomTonemap(input_color);
+    output_color = renodx::color::bt2020::from::BT709(output_color);
+    output_color = renodx::color::pq::EncodeSafe(output_color, RENODX_DIFFUSE_WHITE_NITS);
     output_color = renodx::color::srgb::EncodeSafe(output_color);
     __3__38__0__1__g_textureUAV[int2((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y))] = float4(output_color, _12.w);
   } else {

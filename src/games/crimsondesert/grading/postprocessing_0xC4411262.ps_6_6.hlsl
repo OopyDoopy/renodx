@@ -1,4 +1,6 @@
-#include "../shared.h"
+#include "../common.hlsl"
+#include "../psycho_test11_custom.hlsl"
+
 
 Texture2D<float4> __0__7__0__0__g_bindlessTextures[] : register(t0, space7);
 
@@ -282,6 +284,23 @@ SamplerState __0__4__0__0__g_staticBilinearWrap : register(s0, space4);
 SamplerState __0__4__0__0__g_staticBilinearClamp : register(s3, space4);
 
 SamplerState __0__4__0__0__g_staticPointWrap : register(s8, space4);
+
+float3 ConvertAP1ToBT709(float3 scene_ap1) {
+  return float3(
+      max(0.0f, (((scene_ap1.x * 1.705049991607666f) - (scene_ap1.y * 0.6217899918556213f)) - (scene_ap1.z * 0.08325999975204468f))),
+      max(0.0f, (((scene_ap1.y * 1.1407999992370605f) - (scene_ap1.x * 0.13026000559329987f)) - (scene_ap1.z * 0.01054999977350235f))),
+      max(0.0f, (((scene_ap1.x * -0.024000000208616257f) - (scene_ap1.y * 0.12896999716758728f)) + (scene_ap1.z * 1.1529699563980103f))));
+}
+
+float3 ApplyDisplayCurvesAndSaturation(float3 bt709, bool clamp = true) {
+  float3 graded_components = ((bt709)*_slopeParams.xyz) + _offsetParams.xyz;
+  if (clamp) {
+    graded_components = max(0.0f, graded_components);
+  }
+  float3 curved = exp2(log2(graded_components) * _powerParams.xyz);
+  float display_transform_luminance = dot(curved, float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f));
+  return lerp(display_transform_luminance.xxx, curved, _powerParams.w);
+}
 
 float4 main(
   noperspective float4 SV_Position : SV_Position,
@@ -922,11 +941,11 @@ float4 main(
   float _1492 = ((_1481 - (_1468 * 2.0f)) * _1478) + _1468;
   float _1493 = ((_1481 - (_1469 * 2.0f)) * _1478) + _1469;
 
-  float3 post_grading = float3(_1491, _1492, _1493);
-  float3 final_grading = lerp(pre_grading, post_grading, 1.f);
-  _1491 = final_grading.x;
-  _1492 = final_grading.y;
-  _1493 = final_grading.z;
+  // float3 post_grading = float3(_1491, _1492, _1493);
+  // float3 final_grading = lerp(pre_grading, post_grading, 0.f);
+  // _1491 = final_grading.x;
+  // _1492 = final_grading.y;
+  // _1493 = final_grading.z;
 
   int _1494 = WaveReadLaneFirst(_materialIndex);
   float _1502 = WaveReadLaneFirst(BindlessParameters_PostProcessUber_CD[((uint)((int)(select(((uint)_1494 < (uint)170000), _1494, 0)) + 0u))]._borderRatio);
@@ -1296,7 +1315,7 @@ float4 main(
 
   float3 pre_localexposure = float3(_2866, _2867, _2868);
 
-  // Local tone-map block with ACES-style transfer and adaptive sharpening.
+  // Tone mapping
   bool _2885 = (_localToneMappingParams.w > 0.0f);
   if (_2885) {
     float _2891 = _userImageAdjust.z * _exposure0.x;
@@ -1307,6 +1326,22 @@ float4 main(
     float _2951 = ((_2940 - _2944) * _powerParams.w) + _2944;
     float _2952 = ((_2941 - _2944) * _powerParams.w) + _2944;
     float _2953 = ((_2942 - _2944) * _powerParams.w) + _2944;
+
+    float3 ungraded = float3(_2951, _2952, _2953);
+    float3 graded = psycho_grading_only(
+        ungraded,
+        RENODX_TONE_MAP_EXPOSURE,
+        RENODX_TONE_MAP_HIGHLIGHTS,
+        RENODX_TONE_MAP_SHADOWS,
+        RENODX_TONE_MAP_CONTRAST - 0.2f, // offset HDR defaults
+        RENODX_TONE_MAP_SATURATION - 0.2f,
+        RENODX_TONE_MAP_ADAPTATION_CONTRAST,
+        1.f 
+    );
+    _2951 = graded.r;
+    _2952 = graded.g;
+    _2953 = graded.b;
+
     float _2972 = min(max(log2(mad(_2953, 0.07922374457120895f, mad(_2952, 0.07843360304832458f, (_2951 * 0.8424790501594543f)))), -12.473930358886719f), 4.026069164276123f) + 12.473930358886719f;
     float _2973 = min(max(log2(mad(_2953, 0.07916612923145294f, mad(_2952, 0.8784686326980591f, (_2951 * 0.04232824221253395f)))), -12.473930358886719f), 4.026069164276123f) + 12.473930358886719f;
     float _2974 = min(max(log2(mad(_2953, 0.8791429996490479f, mad(_2952, 0.07843360304832458f, (_2951 * 0.042375653982162476f)))), -12.473930358886719f), 4.026069164276123f) + 12.473930358886719f;
@@ -1358,14 +1393,29 @@ float4 main(
       _3164 = _3092;
       _3165 = _3093;
     }
-  } else {
+  } 
+  // else if (_2885 && RENODX_TONE_MAP_TYPE != 0) {
+  //   float _2891 = _userImageAdjust.z * _exposure0.x;
+
+  //   float3 untonemapped_ap1 = _2891 * float3(_2866, _2867, _2868);
+  //   float3 untonemapped_bt709 = renodx::color::bt709::from::AP1(untonemapped_ap1);
+  //   untonemapped_bt709 = ApplyDisplayCurvesAndSaturation(untonemapped_bt709);
+  //   float3 tonemapped_bt709 = CustomTonemap(untonemapped_bt709, true);
+  //   _3163 = tonemapped_bt709.x;
+  //   _3164 = tonemapped_bt709.y;
+  //   _3165 = tonemapped_bt709.z;
+  // }
+  else {
     _3163 = _2866;
     _3164 = _2867;
     _3165 = _2868;
   }
 
-  float3 post_localexposure = float3(_3163, _3164, _3165);
-  //float3 final_localexposure = lerp(pre_localexposure, post_localexposure, 1.f);
+  // float3 post_localexposure = float3(_3163, _3164, _3165);
+  // float3 final_localexposure = lerp(pre_localexposure, post_localexposure, 0.f);
+  // _3163 = final_localexposure.x;
+  // _3164 = final_localexposure.y;
+  // _3165 = final_localexposure.z;
 
   // Extra radial mask/fade used by special display modes.
   if (_etcParams.y > 1.0f) {

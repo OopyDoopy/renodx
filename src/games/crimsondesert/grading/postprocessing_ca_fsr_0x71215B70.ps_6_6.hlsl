@@ -194,6 +194,14 @@ float4 main(
     _168 = _83;
     _169 = _84;
   }
+
+  float3 sharpening = float3(_167, _168, _169);
+  float3 unsharpened = float3(_82, _83, _84);
+  float3 final_sharpen = lerp(unsharpened, sharpening, CUSTOM_SHARPENING);
+  _167 = final_sharpen.x;
+  _168 = final_sharpen.y;
+  _169 = final_sharpen.z;
+
   float _200 = 1.0f - abs(_etcParams.w);
   float _204 = saturate(_etcParams.w);
 #if 1

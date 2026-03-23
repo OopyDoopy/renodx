@@ -9,7 +9,7 @@
 
 #define RENODX_TONE_MAP_HUE_RESTORE            shader_injection.tone_map_hue_restore
 #define RENODX_TONE_MAP_BLOWOUT                shader_injection.tone_map_blowout
-#define RENODX_COLOR_GRADE_STRENGTH            shader_injection.color_grade_strength
+#define RENODX_COLOR_GRADE_STRENGTH            1.f
 
 #define RENODX_TONE_MAP_EXPOSURE               shader_injection.tone_map_exposure
 #define RENODX_TONE_MAP_HIGHLIGHTS             shader_injection.tone_map_highlights
