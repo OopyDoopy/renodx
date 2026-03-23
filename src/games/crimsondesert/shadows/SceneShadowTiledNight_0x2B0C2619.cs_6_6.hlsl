@@ -160,6 +160,7 @@ cbuffer RenoDXShadowDebugInjection : register(b13, space50) {
   float _rndx_shadow_debug_mode       : packoffset(c4.z);
   float _rndx_disable_layer           : packoffset(c4.w);
   float _rndx_contact_shadow_quality   : packoffset(c5.x);
+  float _rndx_shadow_quality           : packoffset(c5.y);
 };
 
 SamplerState __0__4__0__0__g_staticBilinearClamp : register(s3, space4);
@@ -385,6 +386,12 @@ void main(
       }
     } else {
       _550 = 1.0f;
+    }
+    // RenoDX: Terrain shadow boundary fade — eliminates hard pop-in at shadow map edge
+    if (_rndx_shadow_quality > 0.5f && _550 < 1.0f) {
+      float _tfu = max(0.0f, (abs(_186 * 2.0f - 1.0f) - 0.9f) * 10.0f);
+      float _tfv = max(0.0f, (abs(_190 * 2.0f - 1.0f) - 0.9f) * 10.0f);
+      _550 = lerp(_550, 1.0f, saturate(sqrt(_tfu * _tfu + _tfv * _tfv)));
     }
     float _558 = sqrt(((_147 * _147) + (_146 * _146)) + (_148 * _148));
     float _578 = mad((float4(_dynamicShadowProjRelativeTexScale[1][0].z, _dynamicShadowProjRelativeTexScale[1][1].z, _dynamicShadowProjRelativeTexScale[1][2].z, _dynamicShadowProjRelativeTexScale[1][3].z).x), _148, mad((float4(_dynamicShadowProjRelativeTexScale[1][0].y, _dynamicShadowProjRelativeTexScale[1][1].y, _dynamicShadowProjRelativeTexScale[1][2].y, _dynamicShadowProjRelativeTexScale[1][3].y).x), _147, ((float4(_dynamicShadowProjRelativeTexScale[1][0].x, _dynamicShadowProjRelativeTexScale[1][1].x, _dynamicShadowProjRelativeTexScale[1][2].x, _dynamicShadowProjRelativeTexScale[1][3].x).x) * _146))) + (float4(_dynamicShadowProjRelativeTexScale[1][0].w, _dynamicShadowProjRelativeTexScale[1][1].w, _dynamicShadowProjRelativeTexScale[1][2].w, _dynamicShadowProjRelativeTexScale[1][3].w).x);

@@ -10,7 +10,6 @@
 
 #include <embed/shaders.h>
 
-#include <atomic>
 #include <d3d12.h>
 #include <deps/imgui/imgui.h>
 #include <include/reshade.hpp>
@@ -30,150 +29,63 @@ ShaderInjectData shader_injection;
 // VRS disable toggle (CPU-side only, not in cbuffer)
 float disable_vrs = 0.f;
 
-// --- VRS vtable hook ---
+// --- VRS override via pre-draw injection ---
+// The game uses Tier 2 VRS (per-primitive via SV_ShadingRate in vertex shaders),
+// not per-draw RSSetShadingRate calls. To disable VRS we must inject
+// RSSetShadingRate(1X1, {OVERRIDE, OVERRIDE}) before each draw, which tells
+// the hardware to ignore the per-primitive and per-tile shading rates.
 using PFN_RSSetShadingRate = void(STDMETHODCALLTYPE*)(
     ID3D12GraphicsCommandList5*, D3D12_SHADING_RATE, const D3D12_SHADING_RATE_COMBINER*);
-using PFN_RSSetShadingRateImage = void(STDMETHODCALLTYPE*)(
-    ID3D12GraphicsCommandList5*, ID3D12Resource*);
 
-static PFN_RSSetShadingRate     original_RSSetShadingRate = nullptr;
-static PFN_RSSetShadingRateImage original_RSSetShadingRateImage = nullptr;
-static bool vrs_hook_installed = false;
-static std::atomic<uint32_t> vrs_rate_call_count{0};
-static std::atomic<uint32_t> vrs_image_call_count{0};
+static bool vrs_native_ptr_resolved = false;
+static PFN_RSSetShadingRate native_RSSetShadingRate = nullptr;
 
-// Diagnostic: log first N calls in detail, then periodic summaries
-static constexpr uint32_t VRS_LOG_DETAIL_COUNT = 32;
-static constexpr uint32_t VRS_LOG_PERIODIC_INTERVAL = 1000;
-
-static const char* ShadingRateToString(D3D12_SHADING_RATE rate) {
-  switch (rate) {
-    case D3D12_SHADING_RATE_1X1: return "1X1";
-    case D3D12_SHADING_RATE_1X2: return "1X2";
-    case D3D12_SHADING_RATE_2X1: return "2X1";
-    case D3D12_SHADING_RATE_2X2: return "2X2";
-    case D3D12_SHADING_RATE_2X4: return "2X4";
-    case D3D12_SHADING_RATE_4X2: return "4X2";
-    case D3D12_SHADING_RATE_4X4: return "4X4";
-    default: return "UNKNOWN";
-  }
-}
-
-static const char* CombinerToString(D3D12_SHADING_RATE_COMBINER c) {
-  switch (c) {
-    case D3D12_SHADING_RATE_COMBINER_PASSTHROUGH: return "PASSTHROUGH";
-    case D3D12_SHADING_RATE_COMBINER_OVERRIDE:    return "OVERRIDE";
-    case D3D12_SHADING_RATE_COMBINER_MIN:         return "MIN";
-    case D3D12_SHADING_RATE_COMBINER_MAX:         return "MAX";
-    case D3D12_SHADING_RATE_COMBINER_SUM:         return "SUM";
-    default: return "UNKNOWN";
-  }
-}
-
-void STDMETHODCALLTYPE Hooked_RSSetShadingRate(
-    ID3D12GraphicsCommandList5* cmd_list,
-    D3D12_SHADING_RATE baseShadingRate,
-    const D3D12_SHADING_RATE_COMBINER* combiners) {
-  uint32_t count = vrs_rate_call_count.fetch_add(1, std::memory_order_relaxed) + 1;
-
-  if (count <= VRS_LOG_DETAIL_COUNT || (count % VRS_LOG_PERIODIC_INTERVAL) == 0) {
-    char buf[256];
-    if (combiners) {
-      snprintf(buf, sizeof(buf),
-        "VRS: RSSetShadingRate #%u  rate=%s  combiners=[%s, %s]%s",
-        count, ShadingRateToString(baseShadingRate),
-        CombinerToString(combiners[0]), CombinerToString(combiners[1]),
-        (disable_vrs != 0.f) ? "  -> OVERRIDDEN to 1X1" : "");
-    } else {
-      snprintf(buf, sizeof(buf),
-        "VRS: RSSetShadingRate #%u  rate=%s  combiners=null%s",
-        count, ShadingRateToString(baseShadingRate),
-        (disable_vrs != 0.f) ? "  -> OVERRIDDEN to 1X1" : "");
-    }
-    reshade::log::message(reshade::log::level::info, buf);
-  }
-
-  if (disable_vrs != 0.f) {
-    original_RSSetShadingRate(cmd_list, D3D12_SHADING_RATE_1X1, nullptr);
-  } else {
-    original_RSSetShadingRate(cmd_list, baseShadingRate, combiners);
-  }
-}
-
-void STDMETHODCALLTYPE Hooked_RSSetShadingRateImage(
-    ID3D12GraphicsCommandList5* cmd_list,
-    ID3D12Resource* shadingRateImage) {
-  uint32_t count = vrs_image_call_count.fetch_add(1, std::memory_order_relaxed) + 1;
-
-  if (count <= VRS_LOG_DETAIL_COUNT || (count % VRS_LOG_PERIODIC_INTERVAL) == 0) {
-    char buf[256];
-    snprintf(buf, sizeof(buf),
-      "VRS: RSSetShadingRateImage #%u  image=%s%s",
-      count, shadingRateImage ? "non-null" : "null",
-      (disable_vrs != 0.f) ? "  -> OVERRIDDEN to null" : "");
-    reshade::log::message(reshade::log::level::info, buf);
-  }
-
-  if (disable_vrs != 0.f) {
-    original_RSSetShadingRateImage(cmd_list, nullptr);
-  } else {
-    original_RSSetShadingRateImage(cmd_list, shadingRateImage);
-  }
-}
-
-void OnInitCommandList(reshade::api::command_list* cmd_list) {
-  if (vrs_hook_installed) return;
+// Resolve the native RSSetShadingRate function pointer once from a command list
+static void ResolveVRSNativePtr(reshade::api::command_list* cmd_list) {
+  if (vrs_native_ptr_resolved) return;
 
   auto* native_cmd_list = reinterpret_cast<ID3D12GraphicsCommandList*>(cmd_list->get_native());
   if (native_cmd_list == nullptr) return;
 
-  // QI for ID3D12GraphicsCommandList5 to confirm VRS support
   ID3D12GraphicsCommandList5* cmd_list5 = nullptr;
   HRESULT hr = native_cmd_list->QueryInterface(__uuidof(ID3D12GraphicsCommandList5), reinterpret_cast<void**>(&cmd_list5));
-  if (FAILED(hr) || cmd_list5 == nullptr) {
-    reshade::log::message(reshade::log::level::warning, "VRS: Command list does not support ID3D12GraphicsCommandList5, skipping hook");
-    return;
-  }
+  if (FAILED(hr) || cmd_list5 == nullptr) return;
 
-  // Get vtable pointer from the QI'd interface
   void** vtable = *reinterpret_cast<void***>(cmd_list5);
+  native_RSSetShadingRate = reinterpret_cast<PFN_RSSetShadingRate>(vtable[77]);
+  vrs_native_ptr_resolved = true;
 
-  // ID3D12GraphicsCommandList5::RSSetShadingRate = vtable index 77
-  // ID3D12GraphicsCommandList5::RSSetShadingRateImage = vtable index 78
-  constexpr int kVtIdx_RSSetShadingRate = 77;
-  constexpr int kVtIdx_RSSetShadingRateImage = 78;
-
-  // Self-check: log module containing the vtable entry so we can verify it's d3d12.dll
-  {
-    HMODULE hmod = nullptr;
-    GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                       reinterpret_cast<LPCSTR>(vtable[kVtIdx_RSSetShadingRate]), &hmod);
-    char mod_name[MAX_PATH] = {};
-    if (hmod) GetModuleFileNameA(hmod, mod_name, MAX_PATH);
-    char buf[512];
-    snprintf(buf, sizeof(buf), "VRS: vtable[%d] = %p (module: %s)", kVtIdx_RSSetShadingRate, vtable[kVtIdx_RSSetShadingRate], hmod ? mod_name : "UNKNOWN");
-    reshade::log::message(reshade::log::level::info, buf);
-    snprintf(buf, sizeof(buf), "VRS: vtable[%d] = %p", kVtIdx_RSSetShadingRateImage, vtable[kVtIdx_RSSetShadingRateImage]);
-    reshade::log::message(reshade::log::level::info, buf);
-  }
-
-  DWORD old_protect;
-  if (VirtualProtect(&vtable[kVtIdx_RSSetShadingRate], sizeof(void*) * 2, PAGE_READWRITE, &old_protect)) {
-    original_RSSetShadingRate = reinterpret_cast<PFN_RSSetShadingRate>(vtable[kVtIdx_RSSetShadingRate]);
-    original_RSSetShadingRateImage = reinterpret_cast<PFN_RSSetShadingRateImage>(vtable[kVtIdx_RSSetShadingRateImage]);
-
-    vtable[kVtIdx_RSSetShadingRate] = reinterpret_cast<void*>(&Hooked_RSSetShadingRate);
-    vtable[kVtIdx_RSSetShadingRateImage] = reinterpret_cast<void*>(&Hooked_RSSetShadingRateImage);
-
-    VirtualProtect(&vtable[kVtIdx_RSSetShadingRate], sizeof(void*) * 2, old_protect, &old_protect);
-    vrs_hook_installed = true;
-    reshade::log::message(reshade::log::level::info, "VRS: Vtable hook installed (RSSetShadingRate @ idx 77, RSSetShadingRateImage @ idx 78)");
-  } else {
-    reshade::log::message(reshade::log::level::error, "VRS: Failed to VirtualProtect vtable for hook installation");
-  }
-
+  reshade::log::message(reshade::log::level::info, "VRS: Resolved native RSSetShadingRate function pointer for pre-draw injection");
   cmd_list5->Release();
 }
+
+// Pre-draw hook: inject RSSetShadingRate(1X1, {OVERRIDE, OVERRIDE}) to disable per-primitive VRS
+static void OnVRSPreDraw(reshade::api::command_list* cmd_list) {
+  if (disable_vrs == 0.f) return;
+  if (!vrs_native_ptr_resolved) ResolveVRSNativePtr(cmd_list);
+  if (native_RSSetShadingRate == nullptr) return;
+
+  auto* native = reinterpret_cast<ID3D12GraphicsCommandList5*>(cmd_list->get_native());
+  D3D12_SHADING_RATE_COMBINER combiners[2] = {
+    D3D12_SHADING_RATE_COMBINER_OVERRIDE,  // overrides per-primitive (VS SV_ShadingRate)
+    D3D12_SHADING_RATE_COMBINER_OVERRIDE   // overrides per-tile (shading rate image)
+  };
+  native_RSSetShadingRate(native, D3D12_SHADING_RATE_1X1, combiners);
+}
+
+static bool OnVRSDraw(reshade::api::command_list* cmd_list, uint32_t, uint32_t, uint32_t, uint32_t) {
+  OnVRSPreDraw(cmd_list);
+  return false;  // don't skip the draw
+}
+static bool OnVRSDrawIndexed(reshade::api::command_list* cmd_list, uint32_t, uint32_t, uint32_t, int32_t, uint32_t) {
+  OnVRSPreDraw(cmd_list);
+  return false;
+}
+static bool OnVRSDrawOrDispatchIndirect(reshade::api::command_list* cmd_list, reshade::api::indirect_command, reshade::api::resource, uint64_t, uint32_t, uint32_t) {
+  OnVRSPreDraw(cmd_list);
+  return false;
+}
+
 
 renodx::mods::shader::CustomShaders custom_shaders = {__ALL_CUSTOM_SHADERS};
 //renodx::mods::shader::CustomShaders custom_shaders;
@@ -343,7 +255,66 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.02f; },
         .is_visible = []() { return current_settings_mode >= 1; },
     },
-            new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
+        .key = "LocalLightHueCorrection",
+        .binding = &shader_injection.local_light_hue_correction,
+        .default_value = 25.f,
+        .can_reset = true,
+        .label = "Flame Hue Correction",
+        .section = "Local Lighting",
+        .tooltip = "Corrects pink/red flame and torch colors toward warm orange/yellow.\n"
+                   "Uses MacLeod-Boynton chromaticity rotation in Stockman-Sharp LMS.\n"
+                   "0 = no correction (vanilla pink/red), 100 = full warm fire hue.",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "LocalLightSaturation",
+        .binding = &shader_injection.local_light_saturation,
+        .default_value = 43.f,
+        .can_reset = true,
+        .label = "Flame Saturation",
+        .section = "Local Lighting",
+        .tooltip = "Adjusts saturation of local light sources (fire, torches, braziers).\n"
+                   "Controls MacLeod-Boynton purity distance from achromatic axis.\n"
+                   "0 = fully desaturated, 50 = unchanged, 100 = maximum saturation.",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.02f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "Improved Auto Exposure was made with max settings + RR in mind (other settings may result in overly dark scenes). It fixes nuclear highlight issues whilst also making night scenes actually dark\n",
+        .section = "Auto Exposure",
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ImprovedAutoExposure",
+        .binding = &shader_injection.improved_auto_exposure,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .can_reset = true,
+        .label = "Improved Auto Exposure",
+        .section = "Auto Exposure",
+        .tooltip = "Improves the game's auto exposure system for HDR.\n"
+                   "Off = vanilla exposure adaptation.\n"
+                   "On = removes 1.2x brightness overshoot during adaptation.",
+        .labels = {"Off", "On"},
+    },
+    new renodx::utils::settings::Setting{
+        .key = "DisableAWB",
+        .binding = &shader_injection.disable_awb,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .can_reset = true,
+        .label = "Disable Auto White Balance",
+        .section = "Auto Exposure",
+        .tooltip = "Disables the game's per-channel auto white balance.\n"
+                   "Off = vanilla AWB (can cause hue shifts in HDR).\n"
+                   "On = AWB disabled (stable hue).",
+        .labels = {"Off", "On"},
+    },
+        new renodx::utils::settings::Setting{
         .key = "FxFilmGrainType",
         .binding = &shader_injection.custom_film_grain_type,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -389,6 +360,19 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
+         new renodx::utils::settings::Setting{
+        .key = "SunMoonAdjustments",
+        .binding = &shader_injection.sun_moon_adjustments,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .can_reset = true,
+        .label = "Sun/Moon Adjustments",
+        .section = "Rendering",
+        .tooltip = "Applies size and brightness fixes to the sun and moon disks.\n"
+                   "Off = vanilla (small disks, HDR brickwalling on moon).\n"
+                   "On = 3x larger disks, luminance clamped to sane HDR range.",
+        .labels = {"Off", "On"},
+    },
         new renodx::utils::settings::Setting{
         .key = "ContactShadowQuality",
         .binding = &shader_injection.contact_shadow_quality,
@@ -430,10 +414,63 @@ renodx::utils::settings::Settings settings = {
         .labels = {"Off", "On", "Debug Noise"},
     },
         new renodx::utils::settings::Setting{
+        .key = "DiffuseBRDF",
+        .binding = &shader_injection.diffuse_brdf_mode,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 2.f,
+        .can_reset = true,
+        .label = "Diffuse BRDF",
+        .section = "Rendering",
+        .tooltip = "Selects the diffuse BRDF model used in deferred lighting.\n"
+                   "Vanilla (Burley) = game's default Disney/Burley diffuse with extended retro-reflection.\n"
+                   "Hammon 2017 = Earl Hammon's energy-conserving diffuse with multi-scatter compensation.\n"
+                   "EON 2025 = Portsmouth/Kutz/Hill energy-preserving Oren-Nayar with exact directional albedo.",
+        .labels = {"Vanilla (Burley)", "Hammon 2017", "EON 2025"},
+    },
+        new renodx::utils::settings::Setting{
+        .key = "SmoothTerminator",
+        .binding = &shader_injection.smooth_terminator,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .can_reset = true,
+        .label = "Smooth Terminator",
+        .section = "Rendering",
+        .tooltip = "Callisto Smooth Terminator (Striking Distance Studios, SIGGRAPH 2023).\n"
+                   "Softens the hard shadow/light boundary on low-poly geometry where interpolated\n"
+                   "normals create visible faceted terminator lines.",
+        .labels = {"Off", "On"},
+    },
+        new renodx::utils::settings::Setting{
+        .key = "SpecularAA",
+        .binding = &shader_injection.specular_aa,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .can_reset = true,
+        .label = "Specular Anti-Aliasing",
+        .section = "Rendering",
+        .tooltip = "Geometric Specular Anti-Aliasing (Tokuyoshi & Kaplanyan 2021).\n"
+                   "Widens roughness based on screen-space normal derivatives to eliminate\n"
+                   "specular shimmer/fireflies on distant surfaces.",
+        .labels = {"Off", "On"},
+    },
+        new renodx::utils::settings::Setting{
+        .key = "Diffraction",
+        .binding = &shader_injection.diffraction,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .can_reset = true,
+        .label = "Diffraction",
+        .section = "Rendering",
+        .tooltip = "Diffraction on Rough Surfaces (Werner et al. 2024, JCGT).\n"
+                   "Adds wavelength-dependent spectral colour fringing to metallic\n"
+                   "specular highlights. Only affects metals.",
+        .labels = {"Off", "On"},
+    },
+        new renodx::utils::settings::Setting{
         .key = "DisableVRS",
         .binding = &disable_vrs,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
+        .default_value = 1.f,
         .can_reset = true,
         .label = "Disable VRS",
         .section = "Rendering",
@@ -595,7 +632,21 @@ void OnPresetOff() {
     renodx::utils::settings::UpdateSetting("FxFilmGrain", 50.f);
     renodx::utils::settings::UpdateSetting("FxChromaticAberration", 100.f);
     renodx::utils::settings::UpdateSetting("FxSharpening", 100.f);
+
+    renodx::utils::settings::UpdateSetting("LocalLightHueCorrection", 0.f);
+    renodx::utils::settings::UpdateSetting("LocalLightSaturation", 50.f);
+    
+    renodx::utils::settings::UpdateSetting("SunMoonAdjustments", 0.f);
+    renodx::utils::settings::UpdateSetting("ContactShadowQuality", 0.f);
+    renodx::utils::settings::UpdateSetting("ShadowQuality", 0.f);
+    renodx::utils::settings::UpdateSetting("RaytracingQuality", 0.f);
+    renodx::utils::settings::UpdateSetting("DiffuseBRDF", 0.f);
+    renodx::utils::settings::UpdateSetting("SmoothTerminator", 0.f);
+    renodx::utils::settings::UpdateSetting("SpecularAA", 0.f);
+    renodx::utils::settings::UpdateSetting("Diffraction", 0.f);
     renodx::utils::settings::UpdateSetting("DisableVRS", 0.f);
+    renodx::utils::settings::UpdateSetting("DisableAWB", 0.f);
+    renodx::utils::settings::UpdateSetting("ImprovedAutoExposure", 0.f);
 }
 
 bool fired_on_init_swapchain = false;
@@ -631,12 +682,19 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       renodx::mods::shader::force_pipeline_cloning = true;
 
       reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
-      reshade::register_event<reshade::addon_event::init_command_list>(OnInitCommandList);
+
+      // Register VRS override hooks BEFORE mods::shader registers its draw hooks,
+      // so our pre-draw injection fires first
+      reshade::register_event<reshade::addon_event::draw>(OnVRSDraw);
+      reshade::register_event<reshade::addon_event::draw_indexed>(OnVRSDrawIndexed);
+      reshade::register_event<reshade::addon_event::draw_or_dispatch_indirect>(OnVRSDrawOrDispatchIndirect);
 
       break;
     case DLL_PROCESS_DETACH:
       reshade::unregister_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
-      reshade::unregister_event<reshade::addon_event::init_command_list>(OnInitCommandList);
+      reshade::unregister_event<reshade::addon_event::draw>(OnVRSDraw);
+      reshade::unregister_event<reshade::addon_event::draw_indexed>(OnVRSDrawIndexed);
+      reshade::unregister_event<reshade::addon_event::draw_or_dispatch_indirect>(OnVRSDrawOrDispatchIndirect);
 
       reshade::unregister_addon(h_module);
       break;
