@@ -147,8 +147,9 @@ uint _rndx_pcg(uint v) {
   uint word  = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
   return (word >> 22u) ^ word;
 }
-float2 _rndx_sample_noise(uint2 pixelCoord, float frameIndex) {
-  uint h = _rndx_pcg(pixelCoord.x + pixelCoord.y * 8192u);
+float2 _rndx_sample_noise(uint2 pixelCoord, float frameIndex, uint streamIndex = 0u) {
+  // streamIndex decorrelates different sampling uses across pipeline stages
+  uint h = _rndx_pcg(pixelCoord.x + pixelCoord.y * 8192u + streamIndex * 65537u);
   float off1 = float(h) * (1.0f / 4294967296.0f);
   float off2 = float(_rndx_pcg(h)) * (1.0f / 4294967296.0f);
   float n = frameIndex;
@@ -660,7 +661,17 @@ void main(
         float _938 = rsqrt(dot(float3(_395, _396, _397), float3(_395, _396, _397)));
         float _945 = (_543 * 0.31830987334251404f) * max(0.10000000149011612f, dot(float3(_210, _211, _212), float3((_938 * _395), (_938 * _396), (_938 * _397))));
         float _946 = _945 * _548;
-        float _961 = select(((_401) | (_339)), 32.0f, (256.0f - (saturate(_exposure3.w * 10.0f) * 192.0f)));
+        // [RenoDX] Smooth exposure M-cap: sigmoid replaces linear cliff
+        // Vanilla: 256 - saturate(exp*10)*192 → snaps from 256 to 64 over a tiny range
+        // RenoDX: logistic sigmoid with gentle rolloff centered at exposure=0.5
+        //   cap range stays [64, 256], but transitions smoothly across the full exposure range
+        float _961;
+        if (_rndx_rt_quality > 0.5f) {
+          float _rndx_t = 1.0f / (1.0f + exp(-6.0f * (_exposure3.w - 0.5f)));
+          _961 = select(((_401) | (_339)), 32.0f, lerp(256.0f, 64.0f, _rndx_t));
+        } else {
+          _961 = select(((_401) | (_339)), 32.0f, (256.0f - (saturate(_exposure3.w * 10.0f) * 192.0f)));
+        }
         bool _970 = ((int)((float((uint)((uint)(((int)(_179 * -856141137)) & 16777215))) * 5.960464477539063e-08f) < (1.0f / _961))) | ((int)(float((uint)_876) > _961));
         int _971 = select(_970, 0, _877);
         float _973 = select(_970, 0.0f, (((float((uint)_877) * _878) * _926) * _932)) + _946;

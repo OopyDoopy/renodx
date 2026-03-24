@@ -569,47 +569,66 @@ void main(
   int _437 = _57 + -53;
   bool _438 = ((uint)_437 < (uint)15);
   bool _439 = (_438) || (_436);
-  // === RenoDX: Skip AWB R/G/B histogram writes when AWB is disabled ===
-  bool _439_awb_override = (DISABLE_AWB > 0.0f) ? true : _439;
-  if (!_439_awb_override) {
-    float _441 = _402.z;
-    float _442 = select(_404, _441, _399);
-    float _443 = _402.y;
-    float _444 = select(_404, _443, _399);
-    float _445 = _402.x;
-    float _446 = select(_404, _445, _399);
-    float4 _447 = _histogramParam;
-    float _448 = _447.x;
-    float _449 = _447.y;
-    float _450 = log2(_446);
-    float _451 = _450 * _448;
-    float _452 = _451 + _449;
-    float _453 = saturate(_452);
-    float _454 = log2(_444);
-    float _455 = _454 * _448;
-    float _456 = _455 + _449;
-    float _457 = saturate(_456);
-    float _458 = log2(_442);
-    float _459 = _458 * _448;
-    float _460 = _459 + _449;
-    float _461 = saturate(_460);
-    float _462 = _453 * 255.0f;
-    float _463 = _457 * 255.0f;
-    float _464 = _461 * 255.0f;
-    uint _465 = uint(_462);
-    uint _466 = uint(_463);
-    uint _467 = uint(_464);
-    int _469; InterlockedAdd(g_tempHistogramR[_465], _411, _469);
-    int _471; InterlockedAdd(g_tempHistogramG[_466], _411, _471);
-    int _473; InterlockedAdd(g_tempHistogramB[_467], _411, _473);
+  // === RenoDX: AWB R/G/B histogram writes ===
+  // When AWB is disabled we MUST still write to the R/G/B histograms using the
+  // neutral luminance bin (_420) for all three channels.  This ensures that
+  // CalculateManyLightsBounds reads a valid neutral (R=G=B=255) packed correction
+  // from _exposure1.z instead of R=G=B=0, which would silently exclude hero lights
+  // and character fill lights from rendering (they are encoded with negative raw
+  // colors that only become positive after the AWB color matrix is applied).
+  if (!_439) {
+    if (DISABLE_AWB > 0.0f) {
+      // Neutral path: write the luminance bin to all three channels so they share
+      // an equal distribution → packed AWB correction converges to (1,1,1) neutral.
+      // Exception: if hero lights/fill lights are also disabled, skip the write
+      // entirely so the histograms stay zero → packed correction = (0,0,0) →
+      // negative-luminance lights are excluded from the bounds UAV and go dark.
+      if (DISABLE_HERO_LIGHTS < 0.5f) {
+        int _rn; InterlockedAdd(g_tempHistogramR[_420], _411, _rn);
+        int _gn; InterlockedAdd(g_tempHistogramG[_420], _411, _gn);
+        int _bn; InterlockedAdd(g_tempHistogramB[_420], _411, _bn);
+      }
+    } else {
+      // Per-channel AWB path: use actual per-channel luminance values.
+      float _441 = _402.z;
+      float _442 = select(_404, _441, _399);
+      float _443 = _402.y;
+      float _444 = select(_404, _443, _399);
+      float _445 = _402.x;
+      float _446 = select(_404, _445, _399);
+      float4 _447 = _histogramParam;
+      float _448 = _447.x;
+      float _449 = _447.y;
+      float _450 = log2(_446);
+      float _451 = _450 * _448;
+      float _452 = _451 + _449;
+      float _453 = saturate(_452);
+      float _454 = log2(_444);
+      float _455 = _454 * _448;
+      float _456 = _455 + _449;
+      float _457 = saturate(_456);
+      float _458 = log2(_442);
+      float _459 = _458 * _448;
+      float _460 = _459 + _449;
+      float _461 = saturate(_460);
+      float _462 = _453 * 255.0f;
+      float _463 = _457 * 255.0f;
+      float _464 = _461 * 255.0f;
+      uint _465 = uint(_462);
+      uint _466 = uint(_463);
+      uint _467 = uint(_464);
+      int _469; InterlockedAdd(g_tempHistogramR[_465], _411, _469);
+      int _471; InterlockedAdd(g_tempHistogramG[_466], _411, _471);
+      int _473; InterlockedAdd(g_tempHistogramB[_467], _411, _473);
+    }
   }
   GroupMemoryBarrierWithGroupSync();
   int _475 = g_tempHistogram2[(int)(SV_GroupIndex)];
   uint _477; InterlockedAdd(__3__39__0__1__g_histogram2UAV[(int)(SV_GroupIndex)], _475, _477);
   int _478 = g_tempHistogram[(int)(SV_GroupIndex)];
   uint _480; InterlockedAdd(__3__39__0__1__g_histogramUAV[(int)(SV_GroupIndex)], _478, _480);
-  // === RenoDX: Also gate the global AWB histogram flush on DISABLE_AWB ===
-  if (_296 && (DISABLE_AWB == 0.0f)) {
+  // === RenoDX: Flush R/G/B temp histograms to global UAVs (neutral or per-channel) ===
+  if (_296) {
     int _483 = g_tempHistogramR[(int)(SV_GroupIndex)];
     uint _485; InterlockedAdd(__3__39__0__1__g_histogramRUAV[(int)(SV_GroupIndex)], _483, _485);
     int _487 = g_tempHistogramG[(int)(SV_GroupIndex)];

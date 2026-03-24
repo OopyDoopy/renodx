@@ -288,7 +288,7 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "Improved Auto Exposure was made with max settings + RR in mind (other settings may result in overly dark scenes). It fixes nuclear highlight issues whilst also making night scenes actually dark\n",
+        .label = "Improved Auto Exposure was made with HDR output + max settings + RR in mind (other settings may result in overly dark or blown out scenes). It fixes nuclear highlight issues whilst also making night scenes actually dark\n",
         .section = "Auto Exposure",
     },
     new renodx::utils::settings::Setting{
@@ -316,6 +316,20 @@ renodx::utils::settings::Settings settings = {
                    "Off = vanilla AWB (can cause hue shifts in HDR).\n"
                    "On = AWB disabled (stable hue).",
         .labels = {"Off", "On"},
+    },
+    new renodx::utils::settings::Setting{
+        .key = "DisableHeroLights",
+        .binding = &shader_injection.disable_hero_lights,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .can_reset = true,
+        .label = "Disable Hero Lights",
+        .section = "Auto Exposure",
+        .tooltip = "Disables hero lights and character fill lights.\n"
+                   "These are close-up lighting effects applied to characters.\n"
+                   "Only effective when Disable Auto White Balance is also On.",
+        .labels = {"Off", "On"},
+        .is_enabled = []() { return shader_injection.disable_awb > 0.5f; },
     },
         new renodx::utils::settings::Setting{
         .key = "FxFilmGrainType",
@@ -363,18 +377,66 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
-         new renodx::utils::settings::Setting{
-        .key = "SunMoonAdjustments",
-        .binding = &shader_injection.sun_moon_adjustments,
+        new renodx::utils::settings::Setting{
+        .key = "FxLensFlareStrength",
+        .binding = &shader_injection.lens_flare_strength,
+        .default_value = 100.f,
+        .label = "Lens Flare Strength",
+        .section = "Effects",
+        .tooltip = "Controls the intensity of all lens flare effects. 100 = Vanilla, 0 = Off.",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.01f; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "BloomStrength",
+        .binding = &shader_injection.bloom_strength,
+        .default_value = 100.f,
+        .can_reset = true,
+        .label = "Bloom Strength",
+        .section = "Effects",
+        .tooltip = "Controls the overall intensity of the bloom effect.\n"
+                   "100 = Vanilla strength, 0 = bloom disabled.",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.01f; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "SkyScattering",
+        .binding = &shader_injection.sky_scattering,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 0.f,
         .can_reset = true,
-        .label = "Sun/Moon Adjustments",
+        .label = "Spectral Sky Scattering",
         .section = "Rendering",
-        .tooltip = "Applies size and brightness fixes to the sun and moon disks.\n"
-                   "Off = vanilla (small disks, HDR brickwalling on moon).\n"
-                   "On = 3x larger disks, luminance clamped to sane HDR range.",
+        .tooltip = "Toggles Spectral rendering atmospheric scattering.\n"
+                   "Off = vanilla RGB Rayleigh scattering.\n"
+                   "On = Garcia Linan spectral rendering scattering.",
         .labels = {"Off", "On"},
+    },
+        new renodx::utils::settings::Setting{
+        .key = "SunMoonAdjustments",
+        .binding = &shader_injection.sun_moon_adjustments,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .can_reset = true,
+        .label = "Sun Improvements + Moon Adjustments",
+        .section = "Rendering",
+        .tooltip = "Improves Sun and applies a 10x brightness reduction to the moon disk.\n"
+                   "Off = vanilla (Default shimmery sun blob + moon uses sun-scale luminance, clips to white ball).\n"
+                   "On = Physically based sun additions + moon luminance reduced to reveal texture detail.",
+        .labels = {"Off", "On"},
+    },
+        new renodx::utils::settings::Setting{
+        .key = "MoonDiskSize",
+        .binding = &shader_injection.moon_disk_size,
+        .default_value = 1.f,
+        .can_reset = true,
+        .label = "Moon Disk Size",
+        .section = "Rendering",
+        .tooltip = "Scales the angular size of the moon disk.\n"
+                   "1 = vanilla size. 10 = 10x larger.",
+        .min = 1.f,
+        .max = 10.f,
+        .format = "%.1fx",
     },
         new renodx::utils::settings::Setting{
         .key = "ContactShadowQuality",
@@ -425,10 +487,10 @@ renodx::utils::settings::Settings settings = {
         .label = "Diffuse BRDF",
         .section = "Rendering",
         .tooltip = "Selects the diffuse BRDF model used in deferred lighting.\n"
-                   "Vanilla (Burley) = game's default Disney/Burley diffuse with extended retro-reflection.\n"
+                   "Vanilla (Burley / Lambert mix) = game's default Disney/Burley diffuse with extended retro-reflection.\n"
                    "Hammon 2017 = Earl Hammon's energy-conserving diffuse with multi-scatter compensation.\n"
                    "EON 2025 = Portsmouth/Kutz/Hill energy-preserving Oren-Nayar with exact directional albedo.",
-        .labels = {"Vanilla (Burley)", "Hammon 2017", "EON 2025"},
+        .labels = {"Vanilla (Burley / Lambert mix)", "Hammon 2017", "EON 2025"},
     },
         new renodx::utils::settings::Setting{
         .key = "SmoothTerminator",
@@ -636,9 +698,13 @@ void OnPresetOff() {
     renodx::utils::settings::UpdateSetting("FxChromaticAberration", 100.f);
     renodx::utils::settings::UpdateSetting("FxSharpening", 100.f);
 
+    renodx::utils::settings::UpdateSetting("BloomQuality", 0.f);
+    renodx::utils::settings::UpdateSetting("BloomStrength", 100.f);
+
     renodx::utils::settings::UpdateSetting("LocalLightHueCorrection", 0.f);
     renodx::utils::settings::UpdateSetting("LocalLightSaturation", 50.f);
     
+    renodx::utils::settings::UpdateSetting("SkyScattering", 0.f);
     renodx::utils::settings::UpdateSetting("SunMoonAdjustments", 0.f);
     renodx::utils::settings::UpdateSetting("ContactShadowQuality", 0.f);
     renodx::utils::settings::UpdateSetting("ShadowQuality", 0.f);
@@ -649,6 +715,7 @@ void OnPresetOff() {
     renodx::utils::settings::UpdateSetting("Diffraction", 0.f);
     renodx::utils::settings::UpdateSetting("DisableVRS", 0.f);
     renodx::utils::settings::UpdateSetting("DisableAWB", 0.f);
+    renodx::utils::settings::UpdateSetting("DisableHeroLights", 0.f);
     renodx::utils::settings::UpdateSetting("ImprovedAutoExposure", 0.f);
 }
 

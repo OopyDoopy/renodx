@@ -140,8 +140,9 @@ uint _rndx_pcg(uint v) {
   uint word  = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
   return (word >> 22u) ^ word;
 }
-float2 _rndx_sample_noise(uint2 pixelCoord, float frameIndex) {
-  uint h = _rndx_pcg(pixelCoord.x + pixelCoord.y * 8192u);
+float2 _rndx_sample_noise(uint2 pixelCoord, float frameIndex, uint streamIndex = 0u) {
+  // streamIndex decorrelates different sampling uses across pipeline stages
+  uint h = _rndx_pcg(pixelCoord.x + pixelCoord.y * 8192u + streamIndex * 65537u);
   float off1 = float(h) * (1.0f / 4294967296.0f);
   float off2 = float(_rndx_pcg(h)) * (1.0f / 4294967296.0f);
   float n = frameIndex;
@@ -174,6 +175,16 @@ void main(
   uint _54 = __3__36__0__0__g_depthStencil.Load(int3(_47, _49, 0));
   int _56 = (uint)((uint)(_54.x)) >> 24;
   float _59 = float((uint)((uint)(_54.x & 16777215))) * 5.960465188081798e-08f;
+
+  // [RenoDX] Debug: visualize stream-indexed R2 noise when rt_quality == 2
+  // R = stream 0 (ray gen), G = stream 1 (bilateral octahedron), B = stream 3 (spatial neighbor)
+  if (_rndx_rt_quality > 1.5f) {
+    float2 s0 = _rndx_sample_noise(uint2(_47, _49), _frameNumber.x, 0u);
+    float2 s1 = _rndx_sample_noise(uint2(_47, _49), _frameNumber.x, 1u);
+    float2 s3 = _rndx_sample_noise(uint2(_47, _49), _frameNumber.x, 3u);
+    __3__38__0__1__g_textureResultUAV[int2(_47, _49)] = float4(s0.x, s1.x, s3.x, 0.0f);
+    return;
+  }
   bool _151;
   int _153;
   int _211;
@@ -290,7 +301,17 @@ void main(
         while(true) {
           float4 _485 = __3__36__0__0__g_tiledRadianceCachePlane.Load(int3(_477, _476, 0));
           uint _495 = _478 * -1964877855;
-          float4 _505 = __3__36__0__0__g_tiledRadianceCacheOctahedron.Load(int3(((int)(uint(float((uint)((uint)(((int)(_478 * 48271)) & 16777215))) * 4.7624109811295057e-07f) + (_477 << 3))), ((int)(uint(float((uint)((uint)(_495 & 16777215))) * 4.7624109811295057e-07f) + (_476 << 3))), 0));
+          // [RenoDX] R2+CP blue noise for octahedron sub-sample selection
+          int _rndx_octX, _rndx_octY;
+          if (_rndx_rt_quality > 0.5f) {
+            float2 _rndx_oct = _rndx_sample_noise(SV_DispatchThreadID.xy, _frameNumber.x, 1u + (uint)_483);
+            _rndx_octX = (int)(uint(_rndx_oct.x * 8.0f) + ((uint)_477 << 3));
+            _rndx_octY = (int)(uint(_rndx_oct.y * 8.0f) + ((uint)_476 << 3));
+          } else {
+            _rndx_octX = ((int)(uint(float((uint)((uint)(((int)(_478 * 48271)) & 16777215))) * 4.7624109811295057e-07f) + (_477 << 3)));
+            _rndx_octY = ((int)(uint(float((uint)((uint)(_495 & 16777215))) * 4.7624109811295057e-07f) + (_476 << 3)));
+          }
+          float4 _505 = __3__36__0__0__g_tiledRadianceCacheOctahedron.Load(int3(_rndx_octX, _rndx_octY, 0));
           uint _524 = (_477 + _294) + (((uint)(uint(_bufferSizeAndInvSize.x)) >> 5) * _476);
           uint _532 = ((uint)((((int)((_524 << 4) + -1383041155u)) ^ ((int)(_524 + -1640531527u))) ^ ((int)(((uint)((uint)(_524) >> 5)) + 2123724318u)))) + ((uint)(int4(_frameNumber).x));
           uint _540 = ((uint)((((int)((_532 << 4) + -1556008596u)) ^ ((int)(_532 + 1013904242u))) ^ (((uint)(_532) >> 5) + -939442524))) + _524;
@@ -312,11 +333,23 @@ void main(
           } else {
             _657 = _636;
           }
-          int _664 = (int)(uint(floor(float((uint)((uint)(((int)(_657 * 48271)) & 16777215))) * 9.53614687659865e-07f))) & 15;
+          // [RenoDX] Bilateral jitter: R2 blue noise with reduced range (±4px vs vanilla ±16px)
+          // Vanilla ±16px pulls samples from different geometry at boundaries, causing shimmer.
+          // skip the table entirely, map R2 directly to ±4px offset.
           uint _675 = _477 << 5;
           uint _676 = _476 << 5;
-          float _690 = ((_bufferSizeAndInvSize.z * 2.0f) * (float((uint)((((uint)(_global_0[((int)(0u + (_664 * 2)))])) << 1) + ((uint)(_675 | 16)))) + 0.5f)) + -1.0f;
-          float _693 = 1.0f - ((_bufferSizeAndInvSize.w * 2.0f) * (float((uint)((((uint)(_global_0[((int)(1u + (_664 * 2)))])) << 1) + ((uint)(_676 | 16)))) + 0.5f));
+          float _690, _693;
+          if (_rndx_rt_quality > 0.5f) {
+            float2 _rndx_jitter2d = _rndx_sample_noise(SV_DispatchThreadID.xy, _frameNumber.x, 5u + (uint)_483);
+            int _rndx_jX = (int)(_rndx_jitter2d.x * 8.0f) - 4;  // [-4, +3]
+            int _rndx_jY = (int)(_rndx_jitter2d.y * 8.0f) - 4;  // [-4, +3]
+            _690 = ((_bufferSizeAndInvSize.z * 2.0f) * (float((uint)((uint)(_rndx_jX) + (_675 | 16u))) + 0.5f)) + -1.0f;
+            _693 = 1.0f - ((_bufferSizeAndInvSize.w * 2.0f) * (float((uint)((uint)(_rndx_jY) + (_676 | 16u))) + 0.5f));
+          } else {
+            int _664 = (int)(uint(floor(float((uint)((uint)(((int)(_657 * 48271)) & 16777215))) * 9.53614687659865e-07f))) & 15;
+            _690 = ((_bufferSizeAndInvSize.z * 2.0f) * (float((uint)((((uint)(_global_0[((int)(0u + (_664 * 2)))])) << 1) + ((uint)(_675 | 16)))) + 0.5f)) + -1.0f;
+            _693 = 1.0f - ((_bufferSizeAndInvSize.w * 2.0f) * (float((uint)((((uint)(_global_0[((int)(1u + (_664 * 2)))])) << 1) + ((uint)(_676 | 16)))) + 0.5f));
+          }
           float _694 = max(1.0000000116860974e-07f, (_nearFarProj.x / _485.w));
           float _730 = mad((float4(_invViewProjRelative[0].z, _invViewProjRelative[1].z, _invViewProjRelative[2].z, _invViewProjRelative[3].z).w), _694, mad((float4(_invViewProjRelative[0].y, _invViewProjRelative[1].y, _invViewProjRelative[2].y, _invViewProjRelative[3].y).w), _693, (_690 * (float4(_invViewProjRelative[0].x, _invViewProjRelative[1].x, _invViewProjRelative[2].x, _invViewProjRelative[3].x).w)))) + (float4(_invViewProjRelative[0].w, _invViewProjRelative[1].w, _invViewProjRelative[2].w, _invViewProjRelative[3].w).w);
           float _734 = _123 - ((mad((float4(_invViewProjRelative[0].z, _invViewProjRelative[1].z, _invViewProjRelative[2].z, _invViewProjRelative[3].z).x), _694, mad((float4(_invViewProjRelative[0].y, _invViewProjRelative[1].y, _invViewProjRelative[2].y, _invViewProjRelative[3].y).x), _693, (_690 * (float4(_invViewProjRelative[0].x, _invViewProjRelative[1].x, _invViewProjRelative[2].x, _invViewProjRelative[3].x).x)))) + (float4(_invViewProjRelative[0].w, _invViewProjRelative[1].w, _invViewProjRelative[2].w, _invViewProjRelative[3].w).x)) / _730);
