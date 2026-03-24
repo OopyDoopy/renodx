@@ -235,7 +235,7 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.01f; },
-        .is_visible = []() { return settings[0]->GetValue() >= 1 && last_is_hdr; },
+        .is_visible = []() { return current_settings_mode >= 1 && last_is_hdr; },
     },
         new renodx::utils::settings::Setting{
         .key = "ToneMapBlowout",
@@ -881,9 +881,9 @@ void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
   last_is_hdr = renodx::utils::swapchain::IsHDRColorSpace(swapchain);
   auto peak = renodx::utils::swapchain::GetPeakNits(swapchain);
   if (peak.has_value()) {
-    settings[2]->default_value = roundf(peak.value());
+    settings[3]->default_value = roundf(peak.value());
   } else {
-    settings[2]->default_value = 1000.f;
+    settings[3]->default_value = 1000.f;
   }
 }
 
