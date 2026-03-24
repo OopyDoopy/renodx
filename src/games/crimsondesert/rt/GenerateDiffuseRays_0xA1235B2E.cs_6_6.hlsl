@@ -128,9 +128,10 @@ uint _rndx_pcg(uint v) {
   uint word  = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
   return (word >> 22u) ^ word;
 }
-float2 _rndx_sample_noise(uint2 pixelCoord, float frameIndex) {
+float2 _rndx_sample_noise(uint2 pixelCoord, float frameIndex, uint streamIndex = 0u) {
   // Cranley-Patterson: per-pixel hash → two independent [0,1) offsets
-  uint h = _rndx_pcg(pixelCoord.x + pixelCoord.y * 8192u);
+  // streamIndex decorrelates different sampling uses (hemisphere, jitter, neighbor, etc.)
+  uint h = _rndx_pcg(pixelCoord.x + pixelCoord.y * 8192u + streamIndex * 65537u);
   float off1 = float(h) * (1.0f / 4294967296.0f);
   float off2 = float(_rndx_pcg(h)) * (1.0f / 4294967296.0f);
   // R2 additive recurrence: alpha = (1/phi2, 1/phi2^2), phi2 ≈ 1.32472
@@ -161,15 +162,6 @@ void main(
   _global_2[((int)(1u + (((int)(_16 + (_17 * 8))) * 3)))] = 0.0f;
   _global_2[((int)(2u + (((int)(_16 + (_17 * 8))) * 3)))] = 0.0f;
   GroupMemoryBarrierWithGroupSync();
-
-  // [RenoDX] Debug: visualize noise when rt_quality == 2
-  if (_rndx_rt_quality > 1.5f) {
-    float2 noise = _rndx_sample_noise(SV_DispatchThreadID.xy, _frameNumber.x);
-    float4 dbg_color = float4(noise.x, noise.y, 0.0f, 1.0f);
-    __3__38__0__1__g_raytracingHitResultUAV[int2(SV_DispatchThreadID.xy)] = dbg_color;
-    __3__38__0__1__g_raytracingDiffuseRayInversePDFUAV[int2(SV_DispatchThreadID.xy)] = 1.0f;
-    return;
-  }
 
   float _57 = (float4(g_screenSpaceScale.x, g_screenSpaceScale.y, __padding.x, __padding.y).x) * _bufferSizeAndInvSize.x;
   uint _59 = __3__36__0__0__g_depthStencil.Load(int3((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y), 0));

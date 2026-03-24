@@ -1,5 +1,6 @@
 #include "../shared.h"
 #include "../local-direct-lighting/local_light_common.hlsl"
+#include "../lighting/diffuse_brdf.hlsli"
 
 struct ManyLightsData {
   float4 _position;
@@ -782,7 +783,17 @@ void main(
           float _616 = _613 + _611;
           float _617 = _614 + _611;
           float _618 = _615 + _611;
-          float _619 = _595 * 0.31830987334251404f;
+          float _619;
+          if (DIFFUSE_BRDF_MODE >= 2.0f) {
+            float _sNdotL = saturate(_595);
+            float _eon_LdotV = dot(float3(_584, _585, _586), float3(_550, _551, _552));
+            _619 = _sNdotL * EON_DiffuseScalar(_sNdotL, _598, _eon_LdotV, _413);
+          } else if (DIFFUSE_BRDF_MODE >= 1.0f) {
+            float _sNdotL = saturate(_595);
+            _619 = _sNdotL * HammonDiffuseScalar(_sNdotL, _598, _600, _601, _413);
+          } else {
+            _619 = _595 * 0.31830987334251404f;
+          }
           float _620 = saturate(_596);
           float _621 = 1.0f - _414;
           float _622 = _598 * _621;
@@ -879,6 +890,22 @@ void main(
           _705 = _648;
           _706 = _649;
           _707 = _650;
+        }
+        // RenoDX: Diffraction on Rough Surfaces (Werner et al. 2024)
+        if (DIFFRACTION > 0.0f && float(_337) > 0.0f) {
+          float3 _rndx_dShift = DiffractionShiftOnly(_600, _413);
+          float3 _rndx_dMod = lerp(float3(1.0f, 1.0f, 1.0f), _rndx_dShift, DIFFRACTION * float(_337));
+          _705 *= _rndx_dMod.x;
+          _706 *= _rndx_dMod.y;
+          _707 *= _rndx_dMod.z;
+        }
+        // RenoDX: Callisto Smooth Terminator (SIGGRAPH 2023)
+        if (SMOOTH_TERMINATOR > 0.0f) {
+          float _rndx_st = CallistoSmoothTerminator(_595, _601, _600, SMOOTH_TERMINATOR, 0.5f);
+          _651 *= _rndx_st;
+          _705 *= _rndx_st;
+          _706 *= _rndx_st;
+          _707 *= _rndx_st;
         }
         float _708 = _449 * _543;
         float _709 = _542 * _708;

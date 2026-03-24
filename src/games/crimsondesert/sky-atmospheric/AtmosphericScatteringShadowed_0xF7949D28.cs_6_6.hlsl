@@ -1,3 +1,5 @@
+#include "sky_spectral_common.hlsl"
+
 Texture2D<float4> __3__36__0__0__g_terrainShadowDepth : register(t40, space36);
 
 Texture2DArray<float4> __3__36__0__0__g_shadowDepthArray : register(t82, space36);
@@ -1017,24 +1019,25 @@ void main(
           float _1799 = float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 16) & 255)));
           float _1802 = float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 8) & 255)));
           float _1804 = float((uint)((uint)((int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w) & 255)));
+          if (SKY_SCATTERING) { float _skyRef1 = _1804; _1799 = _skyRef1 * SKY_RAYLEIGH_CH1; _1802 = _skyRef1 * SKY_RAYLEIGH_CH2; }
           float _1811 = (float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).y) * 1.9999999494757503e-05f;
           float _1812 = _1811 * ((float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).z) + 1.0f);
           float _1813 = _1812 * (_1747.y + _1788);
           float _1822 = (float4(_cloudScatteringCoefficient, _cloudPhaseConstFront, _cloudPhaseConstBack, _cloudAltitude).x) / (float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).z);
           float _1823 = _1822 * (_1696 + _1791);
-          float _1824 = (_1799 * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 2.05560013455397e-06f);
+          float _1824 = (_1799 * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_1);
           float _1825 = _1824 * _1792;
           float _1826 = _1823 + _1813;
-          float _1828 = (_1802 * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 4.978800461685751e-06f);
+          float _1828 = (_1802 * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_2);
           float _1829 = _1828 * _1792;
-          float _1831 = (_1804 * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 2.1360001767334325e-07f);
+          float _1831 = (_1804 * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_3);
           float _1832 = _1831 * _1792;
           float _1837 = exp2((_1825 + _1826) * -1.4426950216293335f);
           float _1838 = exp2((_1829 + _1826) * -1.4426950216293335f);
           float _1839 = exp2((_1832 + _1826) * -1.4426950216293335f);
-          float _1852 = ((_1838 * 0.3395099937915802f) + (_1837 * 0.6131200194358826f)) + (_1839 * 0.047370001673698425f);
-          float _1853 = ((_1838 * 0.9163600206375122f) + (_1837 * 0.07020000368356705f)) + (_1839 * 0.013450000435113907f);
-          float _1854 = ((_1838 * 0.10958000272512436f) + (_1837 * 0.02061999961733818f)) + (_1839 * 0.8697999715805054f);
+          float _1852 = ((_1838 * _sky_mtx[0][1]) + (_1837 * _sky_mtx[0][0])) + (_1839 * _sky_mtx[0][2]);
+          float _1853 = ((_1838 * _sky_mtx[1][1]) + (_1837 * _sky_mtx[1][0])) + (_1839 * _sky_mtx[1][2]);
+          float _1854 = ((_1838 * _sky_mtx[2][1]) + (_1837 * _sky_mtx[2][0])) + (_1839 * _sky_mtx[2][2]);
           float _1855 = _841 * _822;
           float _1856 = _1852 * _1855;
           float _1857 = _1853 * _1855;
@@ -1059,11 +1062,17 @@ void main(
           float _1971 = exp2(((_1831 * _1787) + _1960) * -1.4426950216293335f);
           float _1991 = _841 * _1811;
           float _1995 = _1822 * (_1043 + _1777);
-          float _1998 = (((_1970 * 0.3395099937915802f) + (_1969 * 0.6131200194358826f)) + (_1971 * 0.047370001673698425f)) * (((_1799 * _1874) + _1995) + (_mieScatterColor.x * _1991));
+          float _1998 = SKY_SCATTERING
+            ? (SKY_RAY_INSCATTER(0, _1969,_1970,_1971, _1799,_1802,_1804, _1874) + SKY_VAN_DOT(0, _1969,_1970,_1971) * (_1995 + _mieScatterColor.x * _1991))
+            : (((_1970 * _sky_mtx[0][1]) + (_1969 * _sky_mtx[0][0])) + (_1971 * _sky_mtx[0][2])) * (((_1799 * _1874) + _1995) + (_mieScatterColor.x * _1991));
           float _2003 = (((((_1903 * _1856) * _mieScatterColor.x) + ((_1799 * _1876) * _1852)) + ((_1924 + (_1913 * _1852)) * _1822)) + (_1998 * _626)) * _286;
-          float _2006 = (((_1970 * 0.9163600206375122f) + (_1969 * 0.07020000368356705f)) + (_1971 * 0.013450000435113907f)) * (((_1802 * _1874) + _1995) + (_mieScatterColor.y * _1991));
+          float _2006 = SKY_SCATTERING
+            ? (SKY_RAY_INSCATTER(1, _1969,_1970,_1971, _1799,_1802,_1804, _1874) + SKY_VAN_DOT(1, _1969,_1970,_1971) * (_1995 + _mieScatterColor.y * _1991))
+            : (((_1970 * _sky_mtx[1][1]) + (_1969 * _sky_mtx[1][0])) + (_1971 * _sky_mtx[1][2])) * (((_1802 * _1874) + _1995) + (_mieScatterColor.y * _1991));
           float _2011 = (((((_1903 * _1857) * _mieScatterColor.y) + ((_1802 * _1876) * _1853)) + ((_1927 + (_1913 * _1853)) * _1822)) + (_2006 * _627)) * _286;
-          float _2014 = (((_1970 * 0.10958000272512436f) + (_1969 * 0.02061999961733818f)) + (_1971 * 0.8697999715805054f)) * ((_1995 + (_1804 * _1874)) + (_mieScatterColor.z * _1991));
+          float _2014 = SKY_SCATTERING
+            ? (SKY_RAY_INSCATTER(2, _1969,_1970,_1971, _1799,_1802,_1804, _1874) + SKY_VAN_DOT(2, _1969,_1970,_1971) * (_1995 + _mieScatterColor.z * _1991))
+            : (((_1970 * _sky_mtx[2][1]) + (_1969 * _sky_mtx[2][0])) + (_1971 * _sky_mtx[2][2])) * ((_1995 + (_1804 * _1874)) + (_mieScatterColor.z * _1991));
           float _2019 = (((((_1903 * _1858) * _mieScatterColor.z) + ((_1804 * _1876) * _1854)) + ((_1930 + (_1913 * _1854)) * _1822)) + (_2014 * _628)) * _286;
           float _2020 = _1774.x + _1787;
           float _2022 = _1812 * (_1774.y + _1788);
@@ -1077,9 +1086,18 @@ void main(
           float _2052 = (_217 * 0.05968310311436653f) * _1874;
           float _2063 = (_1991 * _1897) * (_217 / exp2(log2(_1890 - ((float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).w) * _218)) * 1.5f));
           float _2075 = (_1822 * _822) * ((((_233 * 2.0f) * _1043) * _1870) + (((_225 * 64.0f) * _1777) * _1866));
-          float _2083 = (((((((_2063 * _mieScatterColor.x) + (_1799 * _2052)) * _822) + _2075) * (((_2034 * 0.3395099937915802f) + (_2033 * 0.6131200194358826f)) + (_2035 * 0.047370001673698425f))) + (_1998 * _629)) * _286) + _263;
-          float _2091 = (((((((_2063 * _mieScatterColor.y) + (_1802 * _2052)) * _822) + _2075) * (((_2034 * 0.9163600206375122f) + (_2033 * 0.07020000368356705f)) + (_2035 * 0.013450000435113907f))) + (_2006 * _630)) * _286) + _262;
-          float _2099 = (((((((_2063 * _mieScatterColor.z) + (_1804 * _2052)) * _822) + _2075) * (((_2034 * 0.10958000272512436f) + (_2033 * 0.02061999961733818f)) + (_2035 * 0.8697999715805054f))) + (_2014 * _631)) * _286) + _261;
+          float _2083 = (((SKY_SCATTERING
+            ? (SKY_RAY_INSCATTER(0, _2033,_2034,_2035, _1799,_1802,_1804, _2052*_822) + SKY_VAN_DOT(0, _2033,_2034,_2035) * (_2075 + _2063*_822 * _mieScatterColor.x))
+            : (((_2063 * _mieScatterColor.x) + (_1799 * _2052)) * _822 + _2075) * (((_2034 * _sky_mtx[0][1]) + (_2033 * _sky_mtx[0][0])) + (_2035 * _sky_mtx[0][2])))
+            + (_1998 * _629)) * _286) + _263;
+          float _2091 = (((SKY_SCATTERING
+            ? (SKY_RAY_INSCATTER(1, _2033,_2034,_2035, _1799,_1802,_1804, _2052*_822) + SKY_VAN_DOT(1, _2033,_2034,_2035) * (_2075 + _2063*_822 * _mieScatterColor.y))
+            : (((_2063 * _mieScatterColor.y) + (_1802 * _2052)) * _822 + _2075) * (((_2034 * _sky_mtx[1][1]) + (_2033 * _sky_mtx[1][0])) + (_2035 * _sky_mtx[1][2])))
+            + (_2006 * _630)) * _286) + _262;
+          float _2099 = (((SKY_SCATTERING
+            ? (SKY_RAY_INSCATTER(2, _2033,_2034,_2035, _1799,_1802,_1804, _2052*_822) + SKY_VAN_DOT(2, _2033,_2034,_2035) * (_2075 + _2063*_822 * _mieScatterColor.z))
+            : (((_2063 * _mieScatterColor.z) + (_1804 * _2052)) * _822 + _2075) * (((_2034 * _sky_mtx[2][1]) + (_2033 * _sky_mtx[2][0])) + (_2035 * _sky_mtx[2][2])))
+            + (_2014 * _631)) * _286) + _261;
           if (_1777 > 0.0010000000474974513f) {
             float _2103 = (float4(_cloudScatteringCoefficient, _cloudPhaseConstFront, _cloudPhaseConstBack, _cloudAltitude).y) * 0.5f;
             float _2104 = _2103 * _2103;
@@ -1096,12 +1114,12 @@ void main(
             float _2174 = exp2((_2026 + _2166) * -1.4426950216293335f);
             float _2175 = exp2((_2028 + _2166) * -1.4426950216293335f);
             float _2192 = _2151 * (_2149 * (_217 / exp2(log2((1.0f - ((float4(_cloudScatteringCoefficient, _cloudPhaseConstFront, _cloudPhaseConstBack, _cloudAltitude).y) * _215)) + _2104) * 1.5f)));
-            _2200 = ((_2192 * (((_2174 * 0.3395099937915802f) + (_2173 * 0.6131200194358826f)) + (_2175 * 0.047370001673698425f))) + _2083);
-            _2201 = ((_2192 * (((_2174 * 0.9163600206375122f) + (_2173 * 0.07020000368356705f)) + (_2175 * 0.013450000435113907f))) + _2091);
-            _2202 = ((_2192 * (((_2174 * 0.10958000272512436f) + (_2173 * 0.02061999961733818f)) + (_2175 * 0.8697999715805054f))) + _2099);
-            _2203 = ((_2152 * (((_2129 * 0.3395099937915802f) + (_2128 * 0.6131200194358826f)) + (_2130 * 0.047370001673698425f))) + _2003);
-            _2204 = ((_2152 * (((_2129 * 0.9163600206375122f) + (_2128 * 0.07020000368356705f)) + (_2130 * 0.013450000435113907f))) + _2011);
-            _2205 = ((_2152 * (((_2129 * 0.10958000272512436f) + (_2128 * 0.02061999961733818f)) + (_2130 * 0.8697999715805054f))) + _2019);
+            _2200 = ((_2192 * (((_2174 * _sky_mtx[0][1]) + (_2173 * _sky_mtx[0][0])) + (_2175 * _sky_mtx[0][2]))) + _2083);
+            _2201 = ((_2192 * (((_2174 * _sky_mtx[1][1]) + (_2173 * _sky_mtx[1][0])) + (_2175 * _sky_mtx[1][2]))) + _2091);
+            _2202 = ((_2192 * (((_2174 * _sky_mtx[2][1]) + (_2173 * _sky_mtx[2][0])) + (_2175 * _sky_mtx[2][2]))) + _2099);
+            _2203 = ((_2152 * (((_2129 * _sky_mtx[0][1]) + (_2128 * _sky_mtx[0][0])) + (_2130 * _sky_mtx[0][2]))) + _2003);
+            _2204 = ((_2152 * (((_2129 * _sky_mtx[1][1]) + (_2128 * _sky_mtx[1][0])) + (_2130 * _sky_mtx[1][2]))) + _2011);
+            _2205 = ((_2152 * (((_2129 * _sky_mtx[2][1]) + (_2128 * _sky_mtx[2][0])) + (_2130 * _sky_mtx[2][2]))) + _2019);
           } else {
             _2200 = _2083;
             _2201 = _2091;
@@ -1506,16 +1524,16 @@ void main(
             float _3477 = _3476 * ((float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).z) + 1.0f);
             float _3487 = (float4(_cloudScatteringCoefficient, _cloudPhaseConstFront, _cloudPhaseConstBack, _cloudAltitude).x) / (float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).z);
             float _3488 = _3487 * (_3363 + _3456);
-            float _3489 = (_3464 * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 2.05560013455397e-06f);
+            float _3489 = (_3464 * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_1);
             float _3491 = _3488 + (_3477 * (_3414.y + _3453));
-            float _3493 = (_3467 * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 4.978800461685751e-06f);
-            float _3496 = (_3469 * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 2.1360001767334325e-07f);
+            float _3493 = (_3467 * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_2);
+            float _3496 = (_3469 * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_3);
             float _3502 = exp2(((_3489 * _3457) + _3491) * -1.4426950216293335f);
             float _3503 = exp2(((_3493 * _3457) + _3491) * -1.4426950216293335f);
             float _3504 = exp2(((_3496 * _3457) + _3491) * -1.4426950216293335f);
-            float _3517 = ((_3503 * 0.3395099937915802f) + (_3502 * 0.6131200194358826f)) + (_3504 * 0.047370001673698425f);
-            float _3518 = ((_3503 * 0.9163600206375122f) + (_3502 * 0.07020000368356705f)) + (_3504 * 0.013450000435113907f);
-            float _3519 = ((_3503 * 0.10958000272512436f) + (_3502 * 0.02061999961733818f)) + (_3504 * 0.8697999715805054f);
+            float _3517 = ((_3503 * _sky_mtx[0][1]) + (_3502 * _sky_mtx[0][0])) + (_3504 * _sky_mtx[0][2]);
+            float _3518 = ((_3503 * _sky_mtx[1][1]) + (_3502 * _sky_mtx[1][0])) + (_3504 * _sky_mtx[1][2]);
+            float _3519 = ((_3503 * _sky_mtx[2][1]) + (_3502 * _sky_mtx[2][0])) + (_3504 * _sky_mtx[2][2]);
             float _3520 = _3517 * _2506;
             float _3521 = _3518 * _2506;
             float _3522 = _3519 * _2506;
@@ -1539,9 +1557,9 @@ void main(
             float _3627 = exp2(((_3489 * _3452) + _3618) * -1.4426950216293335f);
             float _3628 = exp2(((_3493 * _3452) + _3618) * -1.4426950216293335f);
             float _3629 = exp2(((_3496 * _3452) + _3618) * -1.4426950216293335f);
-            float _3642 = ((_3628 * 0.3395099937915802f) + (_3627 * 0.6131200194358826f)) + (_3629 * 0.047370001673698425f);
-            float _3643 = ((_3628 * 0.9163600206375122f) + (_3627 * 0.07020000368356705f)) + (_3629 * 0.013450000435113907f);
-            float _3644 = ((_3628 * 0.10958000272512436f) + (_3627 * 0.02061999961733818f)) + (_3629 * 0.8697999715805054f);
+            float _3642 = ((_3628 * _sky_mtx[0][1]) + (_3627 * _sky_mtx[0][0])) + (_3629 * _sky_mtx[0][2]);
+            float _3643 = ((_3628 * _sky_mtx[1][1]) + (_3627 * _sky_mtx[1][0])) + (_3629 * _sky_mtx[1][2]);
+            float _3644 = ((_3628 * _sky_mtx[2][1]) + (_3627 * _sky_mtx[2][0])) + (_3629 * _sky_mtx[2][2]);
             float _3649 = _2506 * _3476;
             float _3653 = _3487 * (_2709 + _2370);
             float _3655 = _3642 * ((_mieScatterColor.x * _3649) + _3653);
@@ -1556,9 +1574,9 @@ void main(
             float _3698 = exp2(((_3489 * _3685) + _3689) * -1.4426950216293335f);
             float _3699 = exp2(((_3493 * _3685) + _3689) * -1.4426950216293335f);
             float _3700 = exp2(((_3496 * _3685) + _3689) * -1.4426950216293335f);
-            float _3713 = ((_3699 * 0.3395099937915802f) + (_3698 * 0.6131200194358826f)) + (_3700 * 0.047370001673698425f);
-            float _3714 = ((_3699 * 0.9163600206375122f) + (_3698 * 0.07020000368356705f)) + (_3700 * 0.013450000435113907f);
-            float _3715 = ((_3699 * 0.10958000272512436f) + (_3698 * 0.02061999961733818f)) + (_3700 * 0.8697999715805054f);
+            float _3713 = ((_3699 * _sky_mtx[0][1]) + (_3698 * _sky_mtx[0][0])) + (_3700 * _sky_mtx[0][2]);
+            float _3714 = ((_3699 * _sky_mtx[1][1]) + (_3698 * _sky_mtx[1][0])) + (_3700 * _sky_mtx[1][2]);
+            float _3715 = ((_3699 * _sky_mtx[2][1]) + (_3698 * _sky_mtx[2][0])) + (_3700 * _sky_mtx[2][2]);
             float _3716 = _217 * 0.05968310311436653f;
             float _3727 = (_3649 * _3557) * (_217 / exp2(log2(_3550 - ((float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).w) * _218)) * 1.5f));
             float _3738 = ((((_233 * 2.0f) * _2709) * _3534) + (((_225 * 64.0f) * _2370) * _3530)) * _3487;
@@ -1706,9 +1724,9 @@ void main(
             float _4144 = (_4140 + _4077) * _4139;
             float _4164 = (((float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).z) + 1.0f) * (float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).y)) * ((sqrt((float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).x) * _4127) * 1.9999999494757503e-05f) * exp2((_4132 / (float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).x)) * 1.4426950216293335f));
             float _4165 = _4164 * (_4141 + _4083);
-            float _4171 = (float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 16) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 2.05560013455397e-06f);
-            float _4174 = (float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 8) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 4.978800461685751e-06f);
-            float _4177 = (float((uint)((uint)((int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 2.1360001767334325e-07f);
+            float _4171 = (float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 16) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_1);
+            float _4174 = (float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 8) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_2);
+            float _4177 = (float((uint)((uint)((int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_3);
             float _4183 = exp2(((_4171 * _4144) + _4165) * -1.4426950216293335f);
             float _4184 = exp2(((_4174 * _4144) + _4165) * -1.4426950216293335f);
             float _4185 = exp2(((_4177 * _4144) + _4165) * -1.4426950216293335f);
@@ -1924,9 +1942,9 @@ void main(
           float _4144 = (_4140 + _4077) * _4139;
           float _4164 = (((float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).z) + 1.0f) * (float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).y)) * ((sqrt((float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).x) * _4127) * 1.9999999494757503e-05f) * exp2((_4132 / (float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).x)) * 1.4426950216293335f));
           float _4165 = _4164 * (_4141 + _4083);
-          float _4171 = (float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 16) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 2.05560013455397e-06f);
-          float _4174 = (float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 8) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 4.978800461685751e-06f);
-          float _4177 = (float((uint)((uint)((int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 2.1360001767334325e-07f);
+          float _4171 = (float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 16) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_1);
+          float _4174 = (float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 8) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_2);
+          float _4177 = (float((uint)((uint)((int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_3);
           float _4183 = exp2(((_4171 * _4144) + _4165) * -1.4426950216293335f);
           float _4184 = exp2(((_4174 * _4144) + _4165) * -1.4426950216293335f);
           float _4185 = exp2(((_4177 * _4144) + _4165) * -1.4426950216293335f);
@@ -2133,9 +2151,9 @@ void main(
       float _4742 = (_4738 + _4675) * _4737;
       float _4762 = (((float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).z) + 1.0f) * (float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).y)) * ((sqrt((float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).x) * _4725) * 1.9999999494757503e-05f) * exp2((_4730 / (float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).x)) * 1.4426950216293335f));
       float _4763 = _4762 * (_4739 + _4681);
-      float _4768 = (float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 16) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 2.05560013455397e-06f);
-      float _4771 = (float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 8) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 4.978800461685751e-06f);
-      float _4774 = (float((uint)((uint)((int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 2.1360001767334325e-07f);
+      float _4768 = (float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 16) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_1);
+      float _4771 = (float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 8) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_2);
+      float _4774 = (float((uint)((uint)((int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_3);
       float _4780 = exp2(((_4768 * _4742) + _4763) * -1.4426950216293335f);
       float _4781 = exp2(((_4771 * _4742) + _4763) * -1.4426950216293335f);
       float _4782 = exp2(((_4774 * _4742) + _4763) * -1.4426950216293335f);
@@ -2196,21 +2214,21 @@ void main(
       _4978 = _4392;
     }
     float _5012 = (((float4(_cloudScatteringCoefficient, _cloudPhaseConstFront, _cloudPhaseConstBack, _cloudAltitude).x) / (float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).z)) * (_4377 + _4376)) + (((_4375 * 1.9999999494757503e-05f) * (float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).y)) * ((float4(_mieScaledHeight, _mieAerosolDensity, _mieAerosolAbsorption, _miePhaseConst).z) + 1.0f));
-    float _5023 = exp2(((((float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 16) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 2.05560013455397e-06f)) * _4374) + _5012) * -1.4426950216293335f);
-    float _5024 = exp2(((((float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 8) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 4.978800461685751e-06f)) * _4374) + _5012) * -1.4426950216293335f);
-    float _5025 = exp2((_5012 + ((((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * 2.1360001767334325e-07f) + (float((uint)((uint)((int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w) & 255))) * 1.960784317134312e-07f)) * _4374)) * -1.4426950216293335f);
+    float _5023 = exp2(((((float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 16) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_1)) * _4374) + _5012) * -1.4426950216293335f);
+    float _5024 = exp2(((((float((uint)((uint)(((uint)((uint)(int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w)) >> 8) & 255))) * 1.960784317134312e-07f) + ((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_2)) * _4374) + _5012) * -1.4426950216293335f);
+    float _5025 = exp2((_5012 + ((((float4(_ozoneRatio, _directionalLightLuminanceScale, _distanceScale, _heightFogDensity).x) * SKY_OZONE_3) + (float((uint)((uint)((int4(_earthRadius, _atmosphereThickness, _rayleighScaledHeight, _rayleighScatteringColor).w) & 255))) * 1.960784317134312e-07f)) * _4374)) * -1.4426950216293335f);
     float _5044 = (((_4973 * _precomputedAmbient7.y) * _5023) + _4378) + (((_5023 * _4976) + _4381) * _precomputedAmbient7.w);
     float _5045 = (((_4974 * _precomputedAmbient7.y) * _5024) + _4379) + (((_5024 * _4977) + _4382) * _precomputedAmbient7.w);
     float _5046 = (((_4975 * _precomputedAmbient7.y) * _5025) + _4380) + (((_5025 * _4978) + _4383) * _precomputedAmbient7.w);
     float _5047 = _5023 * _4970;
     float _5048 = _5024 * _4971;
     float _5049 = _5025 * _4972;
-    _5081 = (((_5048 * 0.3395099937915802f) + (_5047 * 0.6131200194358826f)) + (_5049 * 0.047370001673698425f));
-    _5082 = (((_5048 * 0.9163600206375122f) + (_5047 * 0.07020000368356705f)) + (_5049 * 0.013450000435113907f));
-    _5083 = (((_5048 * 0.10958000272512436f) + (_5047 * 0.02061999961733818f)) + (_5049 * 0.8697999715805054f));
-    _5084 = (((_5045 * 0.3395099937915802f) + (_5044 * 0.6131200194358826f)) + (_5046 * 0.047370001673698425f));
-    _5085 = (((_5045 * 0.9163600206375122f) + (_5044 * 0.07020000368356705f)) + (_5046 * 0.013450000435113907f));
-    _5086 = (((_5045 * 0.10958000272512436f) + (_5044 * 0.02061999961733818f)) + (_5046 * 0.8697999715805054f));
+    _5081 = (((_5048 * _sky_mtx[0][1]) + (_5047 * _sky_mtx[0][0])) + (_5049 * _sky_mtx[0][2]));
+    _5082 = (((_5048 * _sky_mtx[1][1]) + (_5047 * _sky_mtx[1][0])) + (_5049 * _sky_mtx[1][2]));
+    _5083 = (((_5048 * _sky_mtx[2][1]) + (_5047 * _sky_mtx[2][0])) + (_5049 * _sky_mtx[2][2]));
+    _5084 = (((_5045 * _sky_mtx[0][1]) + (_5044 * _sky_mtx[0][0])) + (_5046 * _sky_mtx[0][2]));
+    _5085 = (((_5045 * _sky_mtx[1][1]) + (_5044 * _sky_mtx[1][0])) + (_5046 * _sky_mtx[1][2]));
+    _5086 = (((_5045 * _sky_mtx[2][1]) + (_5044 * _sky_mtx[2][0])) + (_5046 * _sky_mtx[2][2]));
   } else {
     _5081 = 1.0f;
     _5082 = 1.0f;

@@ -1,3 +1,5 @@
+#include "../shared.h"
+
 Texture2D<float3> __3__36__0__0__g_ghostHalo : register(t0, space36);
 
 Texture2D<float3> __3__36__0__0__g_blade : register(t6, space36);
@@ -44,8 +46,9 @@ float3 main(
   float3 _57 = __3__36__0__0__g_blade.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(_41, _49), 0.0f);
   float _65 = ((float4(_lensFlareColorScale, __3__1__0__0__GlobalPushConstants_006y, __3__1__0__0__GlobalPushConstants_006z, __3__1__0__0__GlobalPushConstants_006w).x) * 8.0f) * select(((float4(_lensFlareColorScale, __3__1__0__0__GlobalPushConstants_006y, __3__1__0__0__GlobalPushConstants_006z, __3__1__0__0__GlobalPushConstants_006w).x) < 1.000100016593933f), 1.0f, ((1.0f / min(max(0.5f, _exposure0.y), 10.0f)) + (max(0.009999999776482582f, min(1.0f, _exposure0.y)) * 3.0f)));
   float _69 = (float4(_lensFlareColorScale, __3__1__0__0__GlobalPushConstants_006y, __3__1__0__0__GlobalPushConstants_006z, __3__1__0__0__GlobalPushConstants_006w).x) * 0.5f;
-  SV_Target.x = exp2(log2((_69 * (((_42.x + _37.x) + _50.x) + _57.x)) + (_65 * _21.x)));
-  SV_Target.y = exp2(log2((_69 * (((_42.y + _37.y) + _50.y) + _57.y)) + (_65 * _21.y)));
-  SV_Target.z = exp2(log2((_69 * (((_42.z + _37.z) + _50.z) + _57.z)) + (_65 * _21.z)));
+  float _lensStrength = LENS_FLARE_STRENGTH;
+  SV_Target.x = exp2(log2((_69 * (((_42.x + _37.x) + _50.x) + _57.x)) + (_65 * _21.x))) * _lensStrength;
+  SV_Target.y = exp2(log2((_69 * (((_42.y + _37.y) + _50.y) + _57.y)) + (_65 * _21.y))) * _lensStrength;
+  SV_Target.z = exp2(log2((_69 * (((_42.z + _37.z) + _50.z) + _57.z)) + (_65 * _21.z))) * _lensStrength;
   return SV_Target;
 }

@@ -123,8 +123,9 @@ uint _rndx_pcg(uint v) {
   uint word  = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
   return (word >> 22u) ^ word;
 }
-float2 _rndx_sample_noise(uint2 pixelCoord, float frameIndex) {
-  uint h = _rndx_pcg(pixelCoord.x + pixelCoord.y * 8192u);
+float2 _rndx_sample_noise(uint2 pixelCoord, float frameIndex, uint streamIndex = 0u) {
+  // streamIndex decorrelates different sampling uses across pipeline stages
+  uint h = _rndx_pcg(pixelCoord.x + pixelCoord.y * 8192u + streamIndex * 65537u);
   float off1 = float(h) * (1.0f / 4294967296.0f);
   float off2 = float(_rndx_pcg(h)) * (1.0f / 4294967296.0f);
   float n = frameIndex;
@@ -235,8 +236,16 @@ void main(
     _365 = 0;
     while(true) {
       uint _371 = _362 * -1964877855;
-      int _390 = int(min(max(float((int)(int(((float((uint)((uint)(((int)(_362 * 48271)) & 16777215))) * 1.1920928955078125e-07f) + -1.0f) * _313) + (int)(SV_DispatchThreadID.x))), 0.0f), (_bufferSizeAndInvSize.x + -1.0f)));
-      int _391 = int(min(max(float((int)(int(((float((uint)((uint)(_371 & 16777215))) * 1.1920928955078125e-07f) + -1.0f) * _313) + (int)(SV_DispatchThreadID.y))), 0.0f), (_bufferSizeAndInvSize.y + -1.0f)));
+      // [RenoDX] R2+CP blue noise for spatial neighbor selection
+      int _390, _391;
+      if (_rndx_rt_quality > 0.5f) {
+        float2 _rndx_nbr = _rndx_sample_noise(SV_DispatchThreadID.xy, _frameNumber.x, 3u + _365);
+        _390 = int(min(max(float(int((_rndx_nbr.x * 2.0f - 1.0f) * _313) + (int)(SV_DispatchThreadID.x)), 0.0f), (_bufferSizeAndInvSize.x - 1.0f)));
+        _391 = int(min(max(float(int((_rndx_nbr.y * 2.0f - 1.0f) * _313) + (int)(SV_DispatchThreadID.y)), 0.0f), (_bufferSizeAndInvSize.y - 1.0f)));
+      } else {
+        _390 = int(min(max(float((int)(int(((float((uint)((uint)(((int)(_362 * 48271)) & 16777215))) * 1.1920928955078125e-07f) + -1.0f) * _313) + (int)(SV_DispatchThreadID.x))), 0.0f), (_bufferSizeAndInvSize.x + -1.0f)));
+        _391 = int(min(max(float((int)(int(((float((uint)((uint)(_371 & 16777215))) * 1.1920928955078125e-07f) + -1.0f) * _313) + (int)(SV_DispatchThreadID.y))), 0.0f), (_bufferSizeAndInvSize.y + -1.0f)));
+      }
       uint _393 = __3__36__0__0__g_depthOpaque.Load(int3(_390, _391, 0));
       uint _399 = __3__36__0__0__g_sceneNormal.Load(int3(_390, _391, 0));
       float _415 = min(1.0f, ((float((uint)((uint)(_399.x & 1023))) * 0.001956947147846222f) + -1.0f));

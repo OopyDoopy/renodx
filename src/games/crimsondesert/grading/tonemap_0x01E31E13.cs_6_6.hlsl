@@ -67,6 +67,36 @@ void main(
   float _21 = _userImageAdjust.z * _exposure0.x;
   _12.xyz *= _21;
 
+  // --- HDR transition highlight dimming ---
+  // When exposure hasn't fully adapted to a bright scene (e.g. stepping
+  // outside from an interior), highlights blow out. We detect this by
+  // comparing current exposure × scene mean luminance against a properly-
+  // adapted baseline. During the transition, we apply a per-pixel soft
+  // compression to the brightest parts of the image. Once exposure converges,
+  // the compression relaxes and HDR highlights are preserved at full punch.
+  if (IMPROVED_AUTO_EXPOSURE > 0.5f) {
+    // _exposure2.x = trimmed mean luminance, _exposure0.x = adapted exposure
+    // Product is high during dark→bright transition (exposure still boosted)
+    float exposedMean = _exposure0.x * _exposure2.x;
+    // For a properly adapted scene this product is roughly 0.05-0.15
+    // During transition it shoots up well past 0.3
+    float transitionStrength = saturate((exposedMean - AE_TRANSITION_THRESHOLD) * 3.0f);
+
+    if (transitionStrength > 0.001f) {
+      float pixelLum = dot(_12.xyz, float3(0.2126f, 0.7152f, 0.0722f));
+      // Threshold above which we start compressing highlights
+      // Adapts: lower during transition to catch more of the blown-out range
+      float knee = lerp(AE_KNEE_ADAPTED, AE_KNEE_TRANSITION, transitionStrength);
+
+      if (pixelLum > knee) {
+        // Soft Reinhard-style compression above the knee
+        float excess = pixelLum - knee;
+        float compressStrength = lerp(0.1f, AE_COMPRESS_MAX, transitionStrength);
+        float compressed = knee + excess / (1.0f + excess * compressStrength);
+        _12.xyz *= compressed / pixelLum;
+      }
+    }
+  }
 
   if (RENODX_TONE_MAP_TYPE != 0) {
     float3 ungraded_ap1 = _12.xyz;

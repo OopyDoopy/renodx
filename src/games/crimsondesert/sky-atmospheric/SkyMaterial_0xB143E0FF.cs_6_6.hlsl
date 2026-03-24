@@ -508,26 +508,71 @@ void main(
     float _331 = _329 + _309;
     float _332 = _329 + _310;
     float _337 = dot(float3(_133, _134, _135), float3(_sunDirection.x, _sunDirection.y, _sunDirection.z));
-    // Sun size: apply 2x boost when sun/moon adjustments enabled
-    float _sunSizeAngleAdj = (SUN_MOON_ADJUSTMENTS > 0.5f) ? (_sunSizeAngle * 2.0f) : _sunSizeAngle;
-    float _340 = _sunSizeAngleAdj * 0.01745329238474369f;
-    float _341 = acos(_337);
-    bool _342 = (_341 < _340);
-    float _343 = select(_342, 1.0f, 0.0f);
-    // Sun luminance: clamp to peak nits when adjustments enabled
-    float _sunLumClamp = (SUN_MOON_ADJUSTMENTS > 0.5f) ? min(_precomputedAmbient7.x, RENODX_PEAK_WHITE_NITS) : min(1e+06f, _precomputedAmbient7.x);
-    float _346 = _sunLumClamp;
-    float _347 = _346 - _330;
-    float _348 = _346 - _331;
-    float _349 = _346 - _332;
-    float _350 = _343 * _347;
-    float _351 = _343 * _348;
-    float _352 = _343 * _349;
-    float _353 = _350 + _330;
-    float _354 = _351 + _331;
-    float _355 = _352 + _332;
-    // Moon size: apply 2x boost when sun/moon adjustments enabled
-    float _moonSizeAngleAdj = (SUN_MOON_ADJUSTMENTS > 0.5f) ? (_moonSizeAngle * 2.0f) : _moonSizeAngle;
+    float _340 = _sunSizeAngle * 0.01745329238474369f;
+    float _341 = acos(clamp(_337, -1.0f, 1.0f));
+    float _353, _354, _355;
+    if (SUN_MOON_ADJUSTMENTS > 0.5f) {
+
+      float _sunRadius = _340 * 2.5f;
+
+      // --- Chromatic edge dispersion -------------------------------------------
+      // Blue channel is refracted ~2% wider than red at the limb (atmospheric dispersion).
+      float _sunRadiusR = _sunRadius;
+      float _sunRadiusG = _sunRadius * 1.01f;
+      float _sunRadiusB = _sunRadius * 1.02f;
+      float _pixelAngle = _sunRadius * 0.05f;
+      float _sunEdgeR = 1.0f - smoothstep(_sunRadiusR - _pixelAngle, _sunRadiusR + _pixelAngle, _341);
+      float _sunEdgeG = 1.0f - smoothstep(_sunRadiusG - _pixelAngle, _sunRadiusG + _pixelAngle, _341);
+      float _sunEdgeB = 1.0f - smoothstep(_sunRadiusB - _pixelAngle, _sunRadiusB + _pixelAngle, _341);
+
+      // --- Limb darkening (Hestroffer power-law) --------------------------------
+      float _r = saturate(_341 / max(_sunRadius, 1e-6f));
+      float _mu = sqrt(1.0f - _r * _r);
+      float _limbDark = pow(max(0.001f, _mu), 0.6f);
+
+      // Sun disk color: warm center (5778K-ish) cools very slightly to the limb.
+      // Pure white at center, slight cool tint near edge via _limbDark slope.
+      float _sunMaskR = _sunEdgeR * _limbDark;
+      float _sunMaskG = _sunEdgeG * _limbDark;
+      float _sunMaskB = _sunEdgeB * (_limbDark * 0.92f + 0.08f); // blue recovers slightly at rim
+
+      // 10x brightness reduction to tame bloom and shimmer
+      float _sunLum = min(100000.0f, _precomputedAmbient7.x) * 0.1f;
+
+      // --- K-corona: analytical 1/(1+r²) falloff past the disk rim ---------------
+      // Mimics electron-scattering corona; independent of bloom pipeline.
+      float _coronaR = max(0.0f, _341 - _sunRadiusR) / max(_sunRadius, 1e-6f);
+      float _corona  = _sunLum * 0.006f / (1.0f + _coronaR * _coronaR * 10.0f);
+      // Corona is slightly warm (reddish); tint channels accordingly.
+      float _coronaContribR = _corona * 1.10f;
+      float _coronaContribG = _corona * 0.95f;
+      float _coronaContribB = _corona * 0.75f;
+
+      // --- Mie near-sun halo: Henyey-Greenstein phase using scene aerosol data --
+      // _337 = cosθ (already computed), _miePhaseConst = g (eccentricity)
+      // Gate by sun elevation: fade out as sun approaches/passes horizon to prevent
+      // the HG forward-scatter lobe lighting up the nighttime sky.
+      float _sunElevation = saturate(_sunDirection.y * 10.0f); // 0 at horizon, 1 when >0.1 above
+      float _g    = _miePhaseConst;
+      float _g2   = _g * _g;
+      float _HG   = (1.0f - _g2) / pow(max(1e-6f, 1.0f + _g2 - 2.0f * _g * _337), 1.5f);
+      // Scale by aerosol density; near-sun halo visible in hazy air only.
+      float _mieHalo = _sunElevation * _mieAerosolDensity * _sunLum * 0.0003f * _HG;
+
+      _353 = _sunMaskR * (_sunLum - _330) + _330 + _coronaContribR + _mieHalo;
+      _354 = _sunMaskG * (_sunLum - _331) + _331 + _coronaContribG + _mieHalo;
+      _355 = _sunMaskB * (_sunLum - _332) + _332 + _coronaContribB + _mieHalo;
+    } else {
+      // Vanilla: hard binary disk, original luminance cap
+      bool _342 = (_341 < _340);
+      float _343 = select(_342, 1.0f, 0.0f);
+      float _346 = min(1e+06f, _precomputedAmbient7.x);
+      _353 = _343 * (_346 - _330) + _330;
+      _354 = _343 * (_346 - _331) + _331;
+      _355 = _343 * (_346 - _332) + _332;
+    }
+    // Moon size: scale by user controlled multiplier (1x = vanilla, up to 10x)
+    float _moonSizeAngleAdj = _moonSizeAngle * max(1.0f, MOON_DISK_SIZE);
     float _362 = _moonSizeAngleAdj * 0.01745329238474369f;
     float _363 = sin(_362);
     float _364 = -0.0f - _moonDirection.x;
@@ -592,14 +637,11 @@ void main(
       float _425 = _423 * 0.5f;
       float _426 = _424 + 0.5f;
       float _427 = _425 + 0.5f;
-      // Moon luminance: Reinhard soft rolloff to prevent HDR brickwalling.
-      // Sky values are in physical nit-scale units (sun ~1e6). The rolloff knee at
-      // RENODX_PEAK_WHITE_NITS compresses extreme values while preserving texture
-      // contrast and phase variation — never hard-clips, approaches knee asymptotically.
+
+      // Moon luminance: flat 100x brightness reduction to prevent brickwalling.
       float _moonRaw = _precomputedAmbient7.z;
-      float _moonKnee = RENODX_PEAK_WHITE_NITS;
       float _moonLum = (SUN_MOON_ADJUSTMENTS > 0.5f)
-          ? (_moonRaw * _moonKnee / (_moonRaw + _moonKnee))
+          ? (_moonRaw * 0.01f)
           : _moonRaw;
       float _429 = _413 * _moonLum;
       _431 = _429;
