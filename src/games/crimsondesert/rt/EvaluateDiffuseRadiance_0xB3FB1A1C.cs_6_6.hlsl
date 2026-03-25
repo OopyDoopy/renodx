@@ -1,3 +1,5 @@
+#include "../shared.h"
+
 struct SurfelData {
   uint _baseColor;
   uint _normal;
@@ -287,10 +289,6 @@ cbuffer __3__1__0__0__RenderVoxelConstants : register(b0, space1) {
   float4 _lightingParams : packoffset(c003.x);
   float4 _tiledRadianceCacheParams : packoffset(c004.x);
   float _rtaoIntensity : packoffset(c005.x);
-};
-
-cbuffer RenoDXRTInjection : register(b13, space50) {
-  float _rndx_rt_quality : packoffset(c5.z);
 };
 
 SamplerState __3__40__0__0__g_sampler : register(s1, space40);
@@ -763,7 +761,7 @@ void main(
                   float _670 = ((select(_658, (((_512 * 0.10958000272512436f) + (_511 * 0.02061999961733818f)) + (_513 * 0.8697999715805054f)), _220.z) * _540) * _654) + _458;
                   float _671 = _654 + _462;
                   int _672 = _463 + 1;
-                  if ((uint)_672 < (uint)(_rndx_rt_quality > 0.5f ? 8 : 4)) {
+                  if ((uint)_672 < (uint)(RT_QUALITY > 0.5f ? 8 : 4)) {
                     _456 = _668;
                     _457 = _669;
                     _458 = _670;
@@ -1502,7 +1500,7 @@ void main(
                               float _1954 = (((((_1807 * 0.10958000272512436f) + (_1806 * 0.02061999961733818f)) + (_1808 * 0.8697999715805054f)) * _1835) * _1945) + _1756;
                               float _1955 = _1945 + _1757;
                               int _1956 = _1758 + 1;
-                              if ((uint)_1956 < (uint)(_rndx_rt_quality > 0.5f ? 8 : 4)) {
+                              if ((uint)_1956 < (uint)(RT_QUALITY > 0.5f ? 8 : 4)) {
                                 _1754 = _1952;
                                 _1755 = _1953;
                                 _1756 = _1954;

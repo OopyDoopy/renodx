@@ -1,10 +1,5 @@
-// shadow_debug_night.hlsli — RenoDX Shadow Debug: Layer Disable + RTV Views (Night variant)
+// Shadow Debug: Layer Disable + RTV Views (Night variant)
 // ─────────────────────────────────────────────────────────────
-// Requires at global scope:
-//   cbuffer RenoDXShadowDebugInjection : register(b13, space50)
-//     { float _rndx_shadow_debug_mode : packoffset(c4.z);
-//       float _rndx_disable_layer     : packoffset(c4.w); };
-//
 // Caller-defined macros:
 //   SHADOW_DBG_CONTACT_INV   (2B0C: _2595 / 439A: _2579)
 //   SHADOW_DBG_OUT_R/G/B/A   (2B0C: _2610-_2613 / 439A: _2594-_2597)
@@ -26,7 +21,7 @@
 // 0=None, 1=Terrain, 2=Dynamic Cascade, 3=Static Cascade,
 // 4=Near-Field Contact (N/A at night), 5=Screen-Space Contact
 {
-  int _dis = int(_rndx_disable_layer);
+  int _dis = int(SHADOW_DISABLE_LAYER);
   if (_dis > 0) {
     // Terrain component (force to 1.0 if disabling terrain)
     float _d_terrain = (_dis == 1) ? 1.0f : _550;
@@ -60,7 +55,7 @@
 
 // ── RTV Debug Views ──────────────────────────────────────────
 {
-  int _dbg = int(_rndx_shadow_debug_mode);
+  int _dbg = int(SHADOW_DEBUG_MODE);
   if (_dbg > 0) {
     float _dbg_v = 0.0f;
 

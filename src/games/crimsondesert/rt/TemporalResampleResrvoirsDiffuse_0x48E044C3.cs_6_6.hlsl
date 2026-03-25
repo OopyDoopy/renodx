@@ -1,3 +1,5 @@
+#include "../shared.h"
+
 Texture2D<uint> __3__36__0__0__g_sceneNormal : register(t50, space36);
 
 Texture2D<uint> __3__36__0__0__g_sceneNormalPrev : register(t81, space36);
@@ -136,12 +138,7 @@ cbuffer __3__1__0__0__RenderVoxelConstants : register(b0, space1) {
   float _rtaoIntensity : packoffset(c005.x);
 };
 
-// [RenoDX] RT quality injection
-cbuffer RenoDXRTInjection : register(b13, space50) {
-  float _rndx_rt_quality : packoffset(c5.z);
-};
-
-// [RenoDX] R2 quasi-random noise with Cranley-Patterson rotation
+// RenoDX: R2 noise
 uint _rndx_pcg(uint v) {
   uint state = v * 747796405u + 2891336453u;
   uint word  = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -661,12 +658,13 @@ void main(
         float _938 = rsqrt(dot(float3(_395, _396, _397), float3(_395, _396, _397)));
         float _945 = (_543 * 0.31830987334251404f) * max(0.10000000149011612f, dot(float3(_210, _211, _212), float3((_938 * _395), (_938 * _396), (_938 * _397))));
         float _946 = _945 * _548;
-        // [RenoDX] Smooth exposure M-cap: sigmoid replaces linear cliff
-        // Vanilla: 256 - saturate(exp*10)*192 → snaps from 256 to 64 over a tiny range
-        // RenoDX: logistic sigmoid with gentle rolloff centered at exposure=0.5
-        //   cap range stays [64, 256], but transitions smoothly across the full exposure range
+        // RenoDX: Smooth exposure M-cap sigmoid replaces linear cliff
+        // Vanilla did 256 - saturate(exp*10)*192 → snaps from 256 to 64 over a tiny range
+        // RenoDX does logistic sigmoid with gentle rolloff centered at exposure=0.5
+        // cap range stays [64, 256], but transitions smoothly across the full exposure range
+        // Seems Pearl Abyss may have used a smooth curve? They gimped bounced lighting to reduce noise
         float _961;
-        if (_rndx_rt_quality > 0.5f) {
+        if (RT_QUALITY > 0.5f) {
           float _rndx_t = 1.0f / (1.0f + exp(-6.0f * (_exposure3.w - 0.5f)));
           _961 = select(((_401) | (_339)), 32.0f, lerp(256.0f, 64.0f, _rndx_t));
         } else {

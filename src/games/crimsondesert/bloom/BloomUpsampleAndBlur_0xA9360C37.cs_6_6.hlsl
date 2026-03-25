@@ -1,5 +1,4 @@
 #include "../shared.h"
-#include "bloom_common.hlsl"
 
 Texture2D<float3> __3__36__0__0__g_higherRes : register(t77, space36);
 

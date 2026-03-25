@@ -1,3 +1,5 @@
+#include "../shared.h"
+
 Texture2D<uint> __3__36__0__0__g_depthStencil : register(t31, space36);
 
 Texture2D<float2> __3__36__0__0__g_sceneAO : register(t166, space36);
@@ -129,12 +131,7 @@ cbuffer __3__1__0__0__FilteringConstants : register(b0, space1) {
   float4 _tiledRadianceCacheParams : packoffset(c002.x);
 };
 
-// [RenoDX] RT quality injection
-cbuffer RenoDXRTInjection : register(b13, space50) {
-  float _rndx_rt_quality : packoffset(c5.z);
-};
-
-// [RenoDX] R2 quasi-random noise with Cranley-Patterson rotation
+// RenoDX: R2 noise 
 uint _rndx_pcg(uint v) {
   uint state = v * 747796405u + 2891336453u;
   uint word  = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -176,9 +173,9 @@ void main(
   int _56 = (uint)((uint)(_54.x)) >> 24;
   float _59 = float((uint)((uint)(_54.x & 16777215))) * 5.960465188081798e-08f;
 
-  // [RenoDX] Debug: visualize stream-indexed R2 noise when rt_quality == 2
+  // RenoDX Debug: visualise stream-indexed R2 noise when rt_quality == 2 (Debug Noise)
   // R = stream 0 (ray gen), G = stream 1 (bilateral octahedron), B = stream 3 (spatial neighbor)
-  if (_rndx_rt_quality > 1.5f) {
+  if (RT_QUALITY > 1.5f) {
     float2 s0 = _rndx_sample_noise(uint2(_47, _49), _frameNumber.x, 0u);
     float2 s1 = _rndx_sample_noise(uint2(_47, _49), _frameNumber.x, 1u);
     float2 s3 = _rndx_sample_noise(uint2(_47, _49), _frameNumber.x, 3u);
@@ -301,9 +298,9 @@ void main(
         while(true) {
           float4 _485 = __3__36__0__0__g_tiledRadianceCachePlane.Load(int3(_477, _476, 0));
           uint _495 = _478 * -1964877855;
-          // [RenoDX] R2+CP blue noise for octahedron sub-sample selection
+          // RenoDX: R2+CP blue noise for octahedron sub-sample selection
           int _rndx_octX, _rndx_octY;
-          if (_rndx_rt_quality > 0.5f) {
+          if (RT_QUALITY > 0.5f) {
             float2 _rndx_oct = _rndx_sample_noise(SV_DispatchThreadID.xy, _frameNumber.x, 1u + (uint)_483);
             _rndx_octX = (int)(uint(_rndx_oct.x * 8.0f) + ((uint)_477 << 3));
             _rndx_octY = (int)(uint(_rndx_oct.y * 8.0f) + ((uint)_476 << 3));
@@ -333,13 +330,13 @@ void main(
           } else {
             _657 = _636;
           }
-          // [RenoDX] Bilateral jitter: R2 blue noise with reduced range (±4px vs vanilla ±16px)
+          // RenoDX: Bilateral jitter: R2 blue noise with reduced range (±4px vs vanilla ±16px)
           // Vanilla ±16px pulls samples from different geometry at boundaries, causing shimmer.
           // skip the table entirely, map R2 directly to ±4px offset.
           uint _675 = _477 << 5;
           uint _676 = _476 << 5;
           float _690, _693;
-          if (_rndx_rt_quality > 0.5f) {
+          if (RT_QUALITY > 0.5f) {
             float2 _rndx_jitter2d = _rndx_sample_noise(SV_DispatchThreadID.xy, _frameNumber.x, 5u + (uint)_483);
             int _rndx_jX = (int)(_rndx_jitter2d.x * 8.0f) - 4;  // [-4, +3]
             int _rndx_jY = (int)(_rndx_jitter2d.y * 8.0f) - 4;  // [-4, +3]

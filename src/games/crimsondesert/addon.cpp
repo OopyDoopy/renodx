@@ -26,7 +26,7 @@ namespace {
 
 ShaderInjectData shader_injection;
 
-bool debug = false;
+bool debug = true;
 bool last_is_hdr = false;
 
 // VRS disable toggle (CPU-side only, not in cbuffer)
@@ -383,7 +383,7 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "Improved Auto Exposure was made with HDR output + max settings + RR in mind (other settings may result in overly dark or blown out scenes). It fixes nuclear highlight issues whilst also making night scenes actually dark\n",
+        .label = "Alternative Auto Exposure was made with HDR output + max settings + RR in mind (other settings may result in overly dark or blown out scenes). It fixes nuclear highlight issues whilst also making night scenes actually dark\n",
         .section = "Auto Exposure",
         //.tint = auto_exposure,
         .is_visible = []() { return debug; }
@@ -394,9 +394,9 @@ renodx::utils::settings::Settings settings = {
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 0.f,
         .can_reset = true,
-        .label = "Improved Auto Exposure",
+        .label = "Alternative Auto Exposure",
         .section = "Auto Exposure",
-        .tooltip = "Improves the game's auto exposure system for HDR.\n"
+        .tooltip = "Customised AE that makes nights darker throughout the game whilst solving nuclear lighting for interiors.\n"
                    "Off = vanilla exposure adaptation.\n"
                    "On = removes 1.2x brightness overshoot during adaptation.",
         .labels = {"Off", "On"},
@@ -444,6 +444,129 @@ renodx::utils::settings::Settings settings = {
                    "Only effective when Disable Auto White Balance is also On.",
         .labels = {"Off", "On"},
         .is_enabled = []() { return shader_injection.disable_awb > 0.5f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "AE_DarkPowerOutdoor",
+        .binding = &shader_injection.ae_dark_power_outdoor,
+        .default_value = 25.f,
+        .can_reset = true,
+        .label = "Dark Power (Outdoor)",
+        .section = "Auto Exposure",
+        .tooltip = "Controls how aggressively auto exposure compensates for dark outdoor scenes.\n"
+                   "Lower = less brightening of dark areas.",
+        .tint = auto_exposure,
+        .max = 100.f,
+        .is_enabled = []() { return shader_injection.improved_auto_exposure > 0.5f; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return debug; }
+    },
+    new renodx::utils::settings::Setting{
+        .key = "AE_DarkPowerIndoor",
+        .binding = &shader_injection.ae_dark_power_indoor,
+        .default_value = 55.f,
+        .can_reset = true,
+        .label = "Dark Power (Indoor)",
+        .section = "Auto Exposure",
+        .tooltip = "Controls how aggressively auto exposure compensates for dark indoor scenes.\n"
+                   "Lower = less brightening of dark areas.",
+        .tint = auto_exposure,
+        .max = 100.f,
+        .is_enabled = []() { return shader_injection.improved_auto_exposure > 0.5f; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return debug; }
+    },
+    new renodx::utils::settings::Setting{
+        .key = "AE_BrightPowerOutdoor",
+        .binding = &shader_injection.ae_bright_power_outdoor,
+        .default_value = 100.f,
+        .can_reset = true,
+        .label = "Bright Power (Outdoor)",
+        .section = "Auto Exposure",
+        .tooltip = "Controls how aggressively auto exposure compensates for bright outdoor scenes.\n"
+                   "Lower = less dimming of bright areas.",
+        .tint = auto_exposure,
+        .max = 150.f,
+        .is_enabled = []() { return shader_injection.improved_auto_exposure > 0.5f; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return debug; }
+    },
+    new renodx::utils::settings::Setting{
+        .key = "AE_BrightPowerIndoor",
+        .binding = &shader_injection.ae_bright_power_indoor,
+        .default_value = 100.f,
+        .can_reset = true,
+        .label = "Bright Power (Indoor)",
+        .section = "Auto Exposure",
+        .tooltip = "Controls how aggressively auto exposure compensates for bright indoor scenes.\n"
+                   "Lower = less dimming of bright areas.",
+        .tint = auto_exposure,
+        .max = 100.f,
+        .is_enabled = []() { return shader_injection.improved_auto_exposure > 0.5f; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return debug; }
+    },
+    new renodx::utils::settings::Setting{
+        .key = "AE_AdaptSpeedBoost",
+        .binding = &shader_injection.ae_adapt_speed_boost,
+        .default_value = 30.f,
+        .can_reset = true,
+        .label = "Adaptation Speed Boost",
+        .section = "Auto Exposure",
+        .tooltip = "Multiplier for temporal adaptation speed.\n"
+                   "Higher = faster eye adaptation.",
+        .tint = auto_exposure,
+        .max = 100.f,
+        .is_enabled = []() { return shader_injection.improved_auto_exposure > 0.5f; },
+        .parse = [](float value) { return value * 0.1f; },
+        .is_visible = []() { return debug; }
+    },
+    new renodx::utils::settings::Setting{
+        .key = "AE_EVBias",
+        .binding = &shader_injection.ae_ev_bias,
+        .default_value = -1.f,
+        .can_reset = true,
+        .label = "EV Bias",
+        .section = "Auto Exposure",
+        .tooltip = "Exposure Value bias applied to the final exposure output.\n"
+                   "Negative = darker, Positive = brighter.",
+        .tint = auto_exposure,
+        .min = -4.f,
+        .max = 4.f,
+        .format = "%.1f EV",
+        .is_enabled = []() { return shader_injection.improved_auto_exposure > 0.5f; },
+        .is_visible = []() { return debug; }
+    },
+    new renodx::utils::settings::Setting{
+        .key = "AE_MinLum",
+        .binding = &shader_injection.ae_min_lum,
+        .default_value = 1.f,
+        .can_reset = true,
+        .label = "Min Luminance",
+        .section = "Auto Exposure",
+        .tooltip = "Minimum luminance clamp (overrides per region/ToD values).\n"
+                   "Slider value is multiplied by 0.001.",
+        .tint = auto_exposure,
+        .max = 100.f,
+        .is_enabled = []() { return shader_injection.improved_auto_exposure > 0.5f; },
+        .parse = [](float value) { return value * 0.001f; },
+        .is_visible = []() { return debug; }
+    },
+    new renodx::utils::settings::Setting{
+        .key = "AE_MaxLum",
+        .binding = &shader_injection.ae_max_lum,
+        .default_value = 100.f,
+        .can_reset = true,
+        .label = "Max Luminance",
+        .section = "Auto Exposure",
+        .tooltip = "Maximum luminance clamp (overrides per region/ToD values).\n"
+                   "Slider value is multiplied by 0.1.",
+        .tint = auto_exposure,
+        .min = 1.f,
+        .max = 100.f,
+        .is_enabled = []() { return shader_injection.improved_auto_exposure > 0.5f; },
+        .parse = [](float value) { return value * 0.1f; },
+        .is_visible = []() { return debug; }
+        
     },
         new renodx::utils::settings::Setting{
         .key = "FxFilmGrainType",
@@ -518,6 +641,12 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.01f; },
     },
         new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "This section includes graphical changes to various parts of the game, was built with RR + max graphics settings in mind\n",
+        .section = "Rendering",
+        .tint = rendering,
+    },
+        new renodx::utils::settings::Setting{
         .key = "SkyScattering",
         .binding = &shader_injection.sky_scattering,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -539,7 +668,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Sun Improvements + Moon Adjustments",
         .section = "Rendering",
         .tooltip = "Improves Sun and applies a 10x brightness reduction to the moon disk.\n"
-                   "Off = vanilla (Default shimmery sun blob + moon uses sun-scale luminance, clips to white ball).\n"
+                   "Off = vanilla (Default shimmery sun blob + moon uses sun scale luminance, clips to white ball).\n"
                    "On = Physically based sun additions + moon luminance reduced to reveal texture detail.",
         .labels = {"Off", "On"},
         .tint = rendering,
@@ -601,9 +730,9 @@ renodx::utils::settings::Settings settings = {
         .section = "Rendering",
         .tooltip = "Toggles RenoDX raytracing noise improvements.\n"
                    "Off = vanilla white noise (TEA+MCG) for all RT sampling.\n"
-                   "On = IS-FAST spatio-temporal blue noise for ray generation.\n"
-                   "Debug Noise = visualizes the raw IS-FAST texture sample as color output.",
-        .labels = {"Off", "On", "Debug Noise"},
+                   "SPMIS = R2 blue noise + Stochastic Pairwise MIS spatial resampling.\n"
+                   "Debug Noise = visualizes the raw noise texture sample as colour output.",
+        .labels = {"Off", "SPMIS", "Debug Noise"},
         .tint = rendering,
         //.is_visible = []() { return current_settings_mode >= 1.f; },
         .is_visible = []() { return debug; }
@@ -838,6 +967,7 @@ void OnPresetOff() {
     renodx::utils::settings::UpdateSetting("FxFilmGrainType", 0.f);
     renodx::utils::settings::UpdateSetting("FxFilmGrain", 50.f);
     renodx::utils::settings::UpdateSetting("FxChromaticAberration", 100.f);
+    renodx::utils::settings::UpdateSetting("FxLensFlareStrength", 100.f);
     renodx::utils::settings::UpdateSetting("FxSharpening", 100.f);
 
     renodx::utils::settings::UpdateSetting("BloomQuality", 0.f);

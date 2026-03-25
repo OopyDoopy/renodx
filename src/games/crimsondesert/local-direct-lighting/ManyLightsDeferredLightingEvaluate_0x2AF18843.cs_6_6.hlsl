@@ -891,7 +891,7 @@ void main(
           _706 = _649;
           _707 = _650;
         }
-        // RenoDX: Diffraction on Rough Surfaces (Werner et al. 2024)
+        // RenoDX: Diffraction on Rough Surfaces
         if (DIFFRACTION > 0.0f && float(_337) > 0.0f) {
           float3 _rndx_dShift = DiffractionShiftOnly(_600, _413);
           float3 _rndx_dMod = lerp(float3(1.0f, 1.0f, 1.0f), _rndx_dShift, DIFFRACTION * float(_337));
@@ -899,7 +899,7 @@ void main(
           _706 *= _rndx_dMod.y;
           _707 *= _rndx_dMod.z;
         }
-        // RenoDX: Callisto Smooth Terminator (SIGGRAPH 2023)
+        // RenoDX: Callisto Smooth Terminator
         if (SMOOTH_TERMINATOR > 0.0f) {
           float _rndx_st = CallistoSmoothTerminator(_595, _601, _600, SMOOTH_TERMINATOR, 0.5f);
           _651 *= _rndx_st;
