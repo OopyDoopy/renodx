@@ -1,7 +1,7 @@
 #ifndef RENODX_LOCAL_LIGHT_COMMON_HLSL_
 #define RENODX_LOCAL_LIGHT_COMMON_HLSL_
 
-#include "../psycho_test11.hlsl"
+#include "../psycho_test11_custom.hlsl"
 
 // ============================================================================
 // Local Light Hue Correction — MB Space (Stockman-Sharp LMS + BT.2020)
