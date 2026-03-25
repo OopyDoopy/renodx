@@ -315,7 +315,7 @@ void main(
         float _210 = select(_207, _189, 0.0f);
         float _211 = select(_207, _190, 1.0f);
 
-        // RenoDX: Apply MB hue correction to flame VFX color
+        // RenoDX: Apply MB hue correction to flame VFX colour
         if (LOCAL_LIGHT_HUE_CORRECTION > 0.f || abs(LOCAL_LIGHT_SATURATION - 1.f) > 1e-6f) {
           float3 _vfx_corrected = ApplyLocalLightHueCorrection(
               float3(_208, _209, _210),

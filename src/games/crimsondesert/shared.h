@@ -28,6 +28,8 @@
 
 #define SHADOW_DEBUG_MODE                      shader_injection.shadow_debug_mode
 #define SHADOW_DISABLE_LAYER                   shader_injection.shadow_disable_layer
+#define CONTACT_SHADOW_QUALITY                 shader_injection.contact_shadow_quality
+#define SHADOW_QUALITY                         shader_injection.shadow_quality
 #define RT_QUALITY                             shader_injection.rt_quality
 #define DIFFUSE_BRDF_MODE                      shader_injection.diffuse_brdf_mode
 #define SMOOTH_TERMINATOR                      shader_injection.smooth_terminator
@@ -42,13 +44,16 @@
 #define MOON_DISK_SIZE                         shader_injection.moon_disk_size
 #define SKY_SCATTERING                         shader_injection.sky_scattering
 
-// Auto exposure tuning (hardcoded defaults to save cbuffer space)
-#define AE_DARK_POWER_OUTDOOR                  0.25f
-#define AE_DARK_POWER_INDOOR                   0.55f
-#define AE_BRIGHT_POWER_OUTDOOR                1.0f
-#define AE_BRIGHT_POWER_INDOOR                 1.0f
-#define AE_ADAPT_SPEED_BOOST                   3.0f
-#define AE_EV_BIAS                             (-1.0f)
+// Auto exposure tuning
+#define AE_DARK_POWER_OUTDOOR                  shader_injection.ae_dark_power_outdoor
+#define AE_DARK_POWER_INDOOR                   shader_injection.ae_dark_power_indoor
+#define AE_BRIGHT_POWER_OUTDOOR                shader_injection.ae_bright_power_outdoor
+#define AE_BRIGHT_POWER_INDOOR                 shader_injection.ae_bright_power_indoor
+#define AE_ADAPT_SPEED_BOOST                   shader_injection.ae_adapt_speed_boost
+#define AE_EV_BIAS                             shader_injection.ae_ev_bias
+// Luminance clamp overrides — locks out per-region/weather dynamic adjustments
+#define AE_MIN_LUM                             shader_injection.ae_min_lum
+#define AE_MAX_LUM                             shader_injection.ae_max_lum
 // Tonemap highlight dimming (hardcoded defaults)
 #define AE_TRANSITION_THRESHOLD                0.0f
 #define AE_KNEE_ADAPTED                        0.0f
@@ -100,6 +105,15 @@ struct ShaderInjectData {
   float sky_scattering;
   float lens_flare_strength;
   float bloom_strength;
+
+  float ae_dark_power_outdoor;
+  float ae_dark_power_indoor;
+  float ae_bright_power_outdoor;
+  float ae_bright_power_indoor;
+  float ae_adapt_speed_boost;
+  float ae_ev_bias;
+  float ae_min_lum;
+  float ae_max_lum;
 };
 
 #ifndef __cplusplus

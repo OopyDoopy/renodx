@@ -1,3 +1,5 @@
+#include "../shared.h"
+
 Texture2D<uint> __3__36__0__0__g_sceneNormal : register(t50, space36);
 
 Texture2D<uint> __3__36__0__0__g_depthOpaque : register(t49, space36);
@@ -112,12 +114,7 @@ cbuffer __3__1__0__0__RenderVoxelConstants : register(b0, space1) {
   float _rtaoIntensity : packoffset(c005.x);
 };
 
-// [RenoDX] RT quality injection
-cbuffer RenoDXRTInjection : register(b13, space50) {
-  float _rndx_rt_quality : packoffset(c5.z);
-};
-
-// [RenoDX] R2 quasi-random noise with Cranley-Patterson rotation
+// RenoDX: R2 
 uint _rndx_pcg(uint v) {
   uint state = v * 747796405u + 2891336453u;
   uint word  = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -224,6 +221,181 @@ void main(
   float _305 = (float((uint)_289) * asfloat(_262.y)) * _302;
   float _313 = select((_renderParams.x > 0.0f), 32.0f, 8.0f);
   int _316 = max(4, (16 / max(1, _289)));
+
+  // ============================================================
+  // RenoDX: SPMIS Spatial Resampling (rt_quality >= 1)
+  // Stochastic Pairwise MIS for large kernel unbiased spatial reuse.
+  // 24 R2 blue-noise disk-sampled neighbors, pairwise MIS weights,
+  // adaptive radius, Jacobian corrected domain transfer.
+  // vanilla RIS path below is completely untouched for base game.
+  // ============================================================
+  if (RT_QUALITY >= 0.5f) {
+    static const int   SPMIS_N     = 24;
+    static const float SPMIS_INV_N = 1.0f / 24.0f;
+    static const float SPMIS_PI    = 3.14159265358979f;
+
+    // Aliases for center pixel preamble data
+    float3 spmis_P   = float3(_243, _244, _245);                                    // world pos
+    float3 spmis_Nq  = float3(_280 * _276, _280 * _277, _280 * _278);              // re-encoded normal
+    float  spmis_Wq  = asfloat(_262.y);                                             // reservoir weight
+
+    // Streaming reservoir selection state
+    float  spmis_sum_w    = 0.0f;
+    float  spmis_sel_lum  = _288;                        // default: center luminance
+    float3 spmis_sel_hit  = float3(_284, _285, _286);    // default: center hit pos
+    float  spmis_sel_phat = _302;                         // default: center p_hat
+    uint   spmis_rng      = (uint)_167;                   // TEA hash seed for selection
+
+    // --- Self reuse (canonical sample) ---
+    // m_0 = 1 / (1 + M_q / N)
+    float spmis_self_mis = 1.0f / (1.0f + float(_289) * SPMIS_INV_N);
+    float spmis_w_self   = spmis_self_mis * spmis_Wq * _302;
+    spmis_sum_w          = spmis_w_self;
+
+    // Adaptive search radius: wider when temporal history is thin (low M)
+    float spmis_radius = select((_renderParams.x > 0.0f),
+                                select((_289 <= 4), 48.0f, 32.0f),
+                                select((_289 <= 4), 12.0f, 8.0f));
+
+    // --- Neighbor iteration (24 R2 spiral disk samples) ---
+    for (int spmis_i = 0; spmis_i < SPMIS_N; spmis_i++) {
+      float2 spmis_xi = _rndx_sample_noise(SV_DispatchThreadID.xy,
+                                            float(_frameNumber.x),
+                                            3u + (uint)spmis_i);
+      float spmis_r     = spmis_radius * sqrt(spmis_xi.x);
+      float spmis_theta = 2.0f * SPMIS_PI * spmis_xi.y;
+      int spmis_nx = int(SV_DispatchThreadID.x) + int(spmis_r * cos(spmis_theta));
+      int spmis_ny = int(SV_DispatchThreadID.y) + int(spmis_r * sin(spmis_theta));
+
+      // Skip out of bounds neighbors instead of clamping to edge (avoids
+      // duplicate edge samples that bias the estimate at screen borders)
+      if (spmis_nx < 0 || spmis_nx >= int(_bufferSizeAndInvSize.x) ||
+          spmis_ny < 0 || spmis_ny >= int(_bufferSizeAndInvSize.y)) continue;
+      if (spmis_nx == int(SV_DispatchThreadID.x) &&
+          spmis_ny == int(SV_DispatchThreadID.y)) continue;
+
+      // Load neighbor depth + surface normal
+      uint spmis_d_raw = __3__36__0__0__g_depthOpaque.Load(int3(spmis_nx, spmis_ny, 0)).x;
+      uint spmis_n_raw = __3__36__0__0__g_sceneNormal.Load(int3(spmis_nx, spmis_ny, 0)).x;
+
+      // Decode neighbor surface normal (10-bit per axis)
+      float spmis_snx = min(1.0f, float(spmis_n_raw & 1023u)          * 0.001956947147846222f - 1.0f);
+      float spmis_sny = min(1.0f, float((spmis_n_raw >> 10u) & 1023u) * 0.001956947147846222f - 1.0f);
+      float spmis_snz = min(1.0f, float((spmis_n_raw >> 20u) & 1023u) * 0.001956947147846222f - 1.0f);
+
+      // Reconstruct neighbor world position (mul(clip, M) matches decompiled access)
+      float spmis_ndc_x = ((float(spmis_nx) + 0.5f) * 2.0f * _bufferSizeAndInvSize.z) - 1.0f;
+      float spmis_ndc_y = 1.0f - ((float(spmis_ny) + 0.5f) * 2.0f * _bufferSizeAndInvSize.w);
+      float spmis_depth = max(1.0000000116860974e-07f,
+                              float(spmis_d_raw & 16777215u) * 5.960465188081798e-08f);
+      float4 spmis_wh = mul(_invViewProjRelative,
+                            float4(spmis_ndc_x, spmis_ndc_y, spmis_depth, 1.0f));
+      float3 spmis_Ps = spmis_wh.xyz / spmis_wh.w;
+
+      // Validation 1: depth plane test (uses raw center normal, matches vanilla)
+      if (abs(dot(float3(_196, _197, _198), spmis_Ps - spmis_P))
+          > max(0.5f, _nearFarProj.x / _206)) continue;
+
+      // Re encode neighbor normal (quantisation roundtrip, matches vanilla)
+      float spmis_ns_s = rsqrt(dot(float3(spmis_snx, spmis_sny, spmis_snz),
+                                   float3(spmis_snx, spmis_sny, spmis_snz))) * 511.0f;
+      float spmis_rnx = min(1.0f, float(uint(spmis_ns_s * spmis_snx + 511.5f) & 1023u)
+                                   * 0.001956947147846222f - 1.0f);
+      float spmis_rny = min(1.0f, float(uint(spmis_ns_s * spmis_sny + 511.5f) & 1023u)
+                                   * 0.001956947147846222f - 1.0f);
+      float spmis_rnz = min(1.0f, float(uint(spmis_ns_s * spmis_snz + 511.5f) & 1023u)
+                                   * 0.001956947147846222f - 1.0f);
+      float  spmis_rn_inv = rsqrt(dot(float3(spmis_rnx, spmis_rny, spmis_rnz),
+                                       float3(spmis_rnx, spmis_rny, spmis_rnz)));
+      float3 spmis_Ns = float3(spmis_rn_inv * spmis_rnx,
+                                spmis_rn_inv * spmis_rny,
+                                spmis_rn_inv * spmis_rnz);
+
+      // Validation 2: hemisphere test (raw center N vs re-encoded neighbor N)
+      if (dot(float3(_196, _197, _198), spmis_Ns) < 0.0f) continue;
+
+      // Load neighbor reservoir
+      uint4 spmis_hg = __3__36__0__0__g_diffuseGIReservoirHitGeometry.Load(
+                            int3(spmis_nx, spmis_ny, 0));
+      uint2 spmis_hr = __3__36__0__0__g_diffuseGIReservoirRadiance.Load(
+                            int3(spmis_nx, spmis_ny, 0));
+      float3 spmis_hitPos = float3(asfloat(spmis_hg.x),
+                                    asfloat(spmis_hg.y),
+                                    asfloat(spmis_hg.z));
+      float spmis_lum_s = f16tof32(spmis_hr.x >> 16u);
+      int   spmis_M_s   = spmis_hr.x & 1023;
+      float spmis_W_s   = asfloat(spmis_hr.y);
+
+      // Decode hit surface normal (10-bit packed in .w)
+      float spmis_hnx = min(1.0f, float(spmis_hg.w & 1023u)          * 0.001956947147846222f - 1.0f);
+      float spmis_hny = min(1.0f, float((spmis_hg.w >> 10u) & 1023u) * 0.001956947147846222f - 1.0f);
+      float spmis_hnz = min(1.0f, float((spmis_hg.w >> 20u) & 1023u) * 0.001956947147846222f - 1.0f);
+      float  spmis_hn_inv = rsqrt(dot(float3(spmis_hnx, spmis_hny, spmis_hnz),
+                                       float3(spmis_hnx, spmis_hny, spmis_hnz)));
+      float3 spmis_hitN = float3(spmis_hn_inv * spmis_hnx,
+                                  spmis_hn_inv * spmis_hny,
+                                  spmis_hn_inv * spmis_hnz);
+
+      // Target PDF at center q for neighbor's sample x_s
+      float3 spmis_d_cq    = spmis_hitPos - spmis_P;
+      float  spmis_dsq_cq  = dot(spmis_d_cq, spmis_d_cq);
+      float3 spmis_dir_cq  = spmis_d_cq * rsqrt(spmis_dsq_cq);
+      float  spmis_cos_q   = max(0.10000000149011612f, dot(spmis_Nq, spmis_dir_cq));
+      float  spmis_phat_q  = spmis_lum_s * 0.31830987334251404f * spmis_cos_q;
+
+      // Target PDF at neighbor s for neighbor's sample x_s
+      float3 spmis_d_sq    = spmis_hitPos - spmis_Ps;
+      float  spmis_dsq_sq  = dot(spmis_d_sq, spmis_d_sq);
+      float3 spmis_dir_sq  = spmis_d_sq * rsqrt(spmis_dsq_sq);
+      float  spmis_cos_s   = max(0.10000000149011612f, dot(spmis_Ns, spmis_dir_sq));
+      float  spmis_phat_s  = spmis_lum_s * 0.31830987334251404f * spmis_cos_s;
+
+      // Jacobian for solid-angle domain change (q → s)
+      float spmis_cos_hq = abs(dot(spmis_dir_cq, spmis_hitN));
+      float spmis_cos_hs = abs(dot(spmis_dir_sq, spmis_hitN));
+      float spmis_J_num   = spmis_cos_hq * spmis_dsq_sq;
+      float spmis_J_denom = spmis_cos_hs * spmis_dsq_cq;
+      float spmis_J = (spmis_J_denom > 1e-10f)
+                       ? min(spmis_J_num / spmis_J_denom, 10.0f)
+                       : 0.0f;
+
+      // Pairwise MIS weight: m_i = p_q(x_s) / (p_q(x_s) + (M_s/N)*p_s(x_s)*J)
+      float spmis_denom = spmis_phat_q
+                           + SPMIS_INV_N * float(spmis_M_s) * spmis_phat_s * spmis_J;
+      float spmis_mis = (spmis_denom > 1e-10f) ? (spmis_phat_q / spmis_denom) : 0.0f;
+
+      // Streaming reservoir selection
+      float spmis_w_i = spmis_mis * spmis_W_s * spmis_phat_q;
+      spmis_sum_w += spmis_w_i;
+      spmis_rng = _rndx_pcg(spmis_rng + (uint)spmis_i);
+      float spmis_u = float(spmis_rng) * (1.0f / 4294967296.0f);
+      if (spmis_u * spmis_sum_w <= spmis_w_i) {
+        spmis_sel_lum  = spmis_lum_s;
+        spmis_sel_hit  = spmis_hitPos;
+        spmis_sel_phat = spmis_phat_q;
+      }
+    }
+
+    // Finalize: W = sum_weights / p_hat(selected)
+    float spmis_Wf = (spmis_sel_phat > 1e-10f) ? (spmis_sum_w / spmis_sel_phat) : 0.0f;
+    spmis_Wf = saturate(spmis_Wf);  // safety clamp for RR compatibility
+
+    float  spmis_out = max(0.0f, spmis_sel_lum * spmis_Wf);
+    half   spmis_h   = half(spmis_out);
+    float3 spmis_d   = spmis_sel_hit - spmis_P;
+    float  spmis_len = sqrt(dot(spmis_d, spmis_d));
+    float  spmis_inv = 1.0f / max(9.999999974752427e-07f, spmis_len);
+
+    int2 spmis_px = int2(int(SV_DispatchThreadID.x), int(SV_DispatchThreadID.y));
+    __3__38__0__1__g_diffuseResultUAV[spmis_px] = half4(spmis_h, spmis_h, spmis_h, 0.0h);
+    __3__38__0__1__g_raytracingHitResultUAV[spmis_px] =
+        float4(spmis_d.x * spmis_inv, spmis_d.y * spmis_inv, spmis_d.z * spmis_inv, spmis_len);
+    __3__38__0__1__g_raytracingDiffuseRayInversePDFUAV[spmis_px] = spmis_Wf;
+    return;
+  }
+  // ============================================================
+  // Vanilla RIS path (unchanged)
+  // ============================================================
   if (!(_316 == 0)) {
     _357 = _289;
     _358 = _288;
@@ -236,9 +408,9 @@ void main(
     _365 = 0;
     while(true) {
       uint _371 = _362 * -1964877855;
-      // [RenoDX] R2+CP blue noise for spatial neighbor selection
+      // RenoDX: R2+CP blue noise for spatial neighbor selection
       int _390, _391;
-      if (_rndx_rt_quality > 0.5f) {
+      if (RT_QUALITY > 0.5f) {
         float2 _rndx_nbr = _rndx_sample_noise(SV_DispatchThreadID.xy, _frameNumber.x, 3u + _365);
         _390 = int(min(max(float(int((_rndx_nbr.x * 2.0f - 1.0f) * _313) + (int)(SV_DispatchThreadID.x)), 0.0f), (_bufferSizeAndInvSize.x - 1.0f)));
         _391 = int(min(max(float(int((_rndx_nbr.y * 2.0f - 1.0f) * _313) + (int)(SV_DispatchThreadID.y)), 0.0f), (_bufferSizeAndInvSize.y - 1.0f)));

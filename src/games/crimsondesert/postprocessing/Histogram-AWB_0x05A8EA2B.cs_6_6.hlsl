@@ -569,13 +569,14 @@ void main(
   int _437 = _57 + -53;
   bool _438 = ((uint)_437 < (uint)15);
   bool _439 = (_438) || (_436);
-  // === RenoDX: AWB R/G/B histogram writes ===
+  // RenoDX: AWB R/G/B histogram writes
+  //
   // When AWB is disabled we MUST still write to the R/G/B histograms using the
-  // neutral luminance bin (_420) for all three channels.  This ensures that
+  // neutral luminance bin (_420) for all three channels.  This makes sure that
   // CalculateManyLightsBounds reads a valid neutral (R=G=B=255) packed correction
   // from _exposure1.z instead of R=G=B=0, which would silently exclude hero lights
   // and character fill lights from rendering (they are encoded with negative raw
-  // colors that only become positive after the AWB color matrix is applied).
+  // colours that only become positive after the AWB colour matrix is applied).
   if (!_439) {
     if (DISABLE_AWB > 0.0f) {
       // Neutral path: write the luminance bin to all three channels so they share
@@ -627,6 +628,7 @@ void main(
   uint _477; InterlockedAdd(__3__39__0__1__g_histogram2UAV[(int)(SV_GroupIndex)], _475, _477);
   int _478 = g_tempHistogram[(int)(SV_GroupIndex)];
   uint _480; InterlockedAdd(__3__39__0__1__g_histogramUAV[(int)(SV_GroupIndex)], _478, _480);
+
   // === RenoDX: Flush R/G/B temp histograms to global UAVs (neutral or per-channel) ===
   if (_296) {
     int _483 = g_tempHistogramR[(int)(SV_GroupIndex)];

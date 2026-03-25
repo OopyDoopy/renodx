@@ -194,10 +194,12 @@ void main(
   uint _54 = _53 + _33;
   uint _55 = _34 + SV_GroupThreadID.y;
   uint _56 = _55 + _52;
+
   // Bypass tiled dispatch indirection to fix coordinate mismatch under Ray Reconstruction.
   // The tile culling pass populates g_tileIndex at a resolution that doesn't match the
-  // raymarching buffers when RR is active, causing stale/misplaced writes (black mesh artifacts).
+  // raymarching buffers when RR is active, causing black mesh artifacts.
   // Using SV_DispatchThreadID directly ensures coordinates always match the target buffers.
+
   _54 = SV_DispatchThreadID.x;
   _56 = SV_DispatchThreadID.y;
   int _59 = _frameNumber.x & 1;

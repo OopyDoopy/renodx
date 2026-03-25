@@ -372,9 +372,12 @@ void main(
           float _192 = max(9.999999717180685e-10f, _191);
           float _193 = max(_181, 9.999999747378752e-05f);
           float _194 = _180 / _193;
-          // Vanilla min/max clamps (game push constants)
-          float _195 = max(_194, _param1.z);
-          float _196 = min(_195, _param1.w);
+          // When IMPROVED is on, override the game's per region and ToD controls
+          // min/max luminance clamps with fixed values, I hope this solves double darkening
+          float _ae_min_lum = (IMPROVED_AUTO_EXPOSURE > 0.5f) ? AE_MIN_LUM : _param1.z;
+          float _ae_max_lum = (IMPROVED_AUTO_EXPOSURE > 0.5f) ? AE_MAX_LUM : _param1.w;
+          float _195 = max(_194, _ae_min_lum);
+          float _196 = min(_195, _ae_max_lum);
           float _197 = sqrt(_192);
           float _198 = max(9.999999974752427e-07f, _196);
           _200 = 1;
@@ -488,7 +491,7 @@ void main(
             float _320 = __3__39__0__1__g_autoWhiteBalanceColorUAV[1].w;
             float _321 = saturate(_320);
             float _322 = _321 * _param3.z;
-            // Sky visibility exposure bias — disable when improved auto exposure is on
+            // Sky visibility exposure bias
             float _323 = (IMPROVED_AUTO_EXPOSURE > 0.5f) ? 0.0f : (_322 + _param2.z);
             float _324 = max(_198, 9.999999747378752e-05f);
             float _325 = min(_324, 7.0f);
@@ -521,10 +524,8 @@ void main(
             float _350;
             if (IMPROVED_AUTO_EXPOSURE > 0.5f) {
               // --- HDR asymmetric exposure adaptation ---
-              // For HDR we have dynamic range headroom, so we don't need to
-              // compress everything into SDR's narrow 0-1 band.
-              // Strategy: reduce vanilla's adaptation strength via a power curve
-              // in log-space, modulated by sky visibility and scene brightness.
+              // We reduce vanilla's adaptation strength via a power curve
+              // in log space, modulated by sky visibility and scene brightness.
               //
               // _287 = sqrt(sky occlusion): 0 = outdoor, 1 = indoor
               // logVanilla > 0 → dark scene (vanilla brightens)
@@ -551,11 +552,9 @@ void main(
             if (_353) {
               float _357 = __3__39__0__1__g_exposureUAV[1];
               if (IMPROVED_AUTO_EXPOSURE > 0.5f) {
-                // Unified log-space temporal adaptation.
-                // Vanilla uses two separate interpolation spaces (1/exp vs linear)
-                // which causes visible jitter when the target oscillates around
-                // the previous value due to histogram noise. Log-space lerp is
-                // symmetric and smooth in both directions.
+                // Unified log space temporal adaptation becasue Vanilla uses two separate interpolation spaces (1/exp vs linear) 
+                // Causes visible jitter when the target oscillates around the previous value due to histogram noise. 
+                // Log space lerp is symmetric and smooth in both directions.
                 float logPrev = log2(max(_357, 0.0001f));
                 float logTgt  = log2(max(_350, 0.0001f));
 
@@ -602,7 +601,7 @@ void main(
                 }
               }
             } else {
-              // Temporal reset (loading screens, menus, etc.)
+              // Temporal reset (loading screens, menus)
               if (IMPROVED_AUTO_EXPOSURE > 0.5f) {
                 // Preserve previous exposure to prevent spikes from garbage
                 // histogram data during transitions. Temporal adaptation will
