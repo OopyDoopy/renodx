@@ -1,6 +1,7 @@
 #include "./shared.h"
-#include "./psycho_test11.hlsl"
+#include "./psycho_test11_custom.hlsl"
 #include "./macleod_boynton.hlsli"
+#include "./lilium_rcas.hlsl"
 
 float NR(float x, float sigma, float n) {
   float ax = abs(x);
@@ -186,9 +187,14 @@ float3 ApplySaturationBlowoutHighlightSaturation(float3 tonemapped, float y, ren
 //   return hdr_color;
 // }
 
-float3 CustomPostProcessing(float3 color, float2 uv) {
-  //color = ApplyRCAS(color, uv, t1, s1);
-  color = renodx::effects::ApplyFilmGrain(color, uv, CUSTOM_RANDOM, CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);
+// decode_type: 0 = PQ, 1 = sRGB, 2 = Gamma 2.2, 3 = Linear
+float3 CustomPostProcessing(float3 color, float2 uv, Texture2D<float4> texture, SamplerState sampler, int decode_type, float pq_scaling = 100.f) {
+  if (CUSTOM_SHARPENING_TYPE == 1) {
+    color = ApplyRCAS(color, uv, texture, sampler, decode_type, pq_scaling);
+  }
+  if (CUSTOM_FILM_GRAIN_TYPE == 1) {
+    color = renodx::effects::ApplyFilmGrain(color, uv, CUSTOM_RANDOM, CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);
+  }
   return color;
 }
 
@@ -221,20 +227,23 @@ float3 CustomTonemap(float3 untonemapped_bt709, bool is_sdr = false) {
 
   float3 output_color = untonemapped_bt709;
   if (RENODX_TONE_MAP_TYPE == 1.f) {
+    float contrast = RENODX_TONE_MAP_CONTRAST * 1.2f;
+    float saturation = RENODX_TONE_MAP_SATURATION * 1.2f;
+
     output_color = psychotm_test11(
         output_color * 1.1539f,  // mid-gray adjusted
         calculated_peak,
-        RENODX_TONE_MAP_EXPOSURE, // give a slight boost to fall more in line with ACESv2 mid-gray bump
+        RENODX_TONE_MAP_EXPOSURE,
         RENODX_TONE_MAP_HIGHLIGHTS,
         RENODX_TONE_MAP_SHADOWS,
-        (RENODX_TONE_MAP_CONTRAST * 1.2f) / (RENODX_TONE_MAP_SATURATION * 1.2f),
+        contrast / saturation,
         1.0,
-        1.f - RENODX_TONE_MAP_BLOWOUT,
+        RENODX_TONE_MAP_BLOWOUT,
         100.f,
         RENODX_TONE_MAP_HUE_RESTORE,  // hue_restore
         RENODX_TONE_MAP_ADAPTATION_CONTRAST,   // adaptation_contrast
         1,
-        RENODX_TONE_MAP_SATURATION * 1.2f  // cone_response_exponent
+        saturation  // cone_response_exponent
     );
   }
 

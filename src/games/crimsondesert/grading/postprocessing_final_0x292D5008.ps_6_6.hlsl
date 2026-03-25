@@ -166,21 +166,29 @@ float4 main(
     _84 = _38;
   }
 
-  if (CUSTOM_FILM_GRAIN_TYPE == 1) {
-    float3 color_ap1 = float3(_82, _83, _84);
-    float3 color_bt709 = renodx::color::bt709::from::AP1(color_ap1);
-    color_bt709 = CustomPostProcessing(color_bt709, TEXCOORD);
-    color_ap1 = renodx::color::ap1::from::BT709(color_bt709);
-    _82 = color_ap1.x;
-    _83 = color_ap1.y;
-    _84 = color_ap1.z;
+  if (CUSTOM_FILM_GRAIN_TYPE != 0 || CUSTOM_SHARPENING_TYPE != 0) {
+    float3 color_pq = float3(_82, _83, _84);
+
+    float scaling = RENODX_TONE_MAP_TYPE == 0 ? 100.0f : RENODX_DIFFUSE_WHITE_NITS;
+    float3 color_bt2020 = renodx::color::pq::DecodeSafe(color_pq, scaling);
+    float3 color_bt709 = renodx::color::bt709::from::BT2020(color_bt2020);
+    color_bt709 = CustomPostProcessing(color_bt709, TEXCOORD, __3__36__0__0__g_sceneColor, __0__4__0__0__g_staticBilinearClamp, 0, scaling);
+    color_bt2020 = renodx::color::bt2020::from::BT709(color_bt709);
+    color_pq = renodx::color::pq::EncodeSafe(color_bt2020, scaling);
+    
+    _82 = color_pq.x;
+    _83 = color_pq.y;
+    _84 = color_pq.z;
   }
 
   uint _90 = uint(_screenSizeAndInvSize.x * TEXCOORD.x);
   uint _91 = uint(_screenSizeAndInvSize.y * TEXCOORD.y);
   float _93 = __3__36__0__0__g_depth.Sample(__0__4__0__0__g_staticPointBlackBorder, float2(TEXCOORD.x, TEXCOORD.y));
+
+
+
   // Depth-gated local filter (cross neighborhood) that attenuates itself near strong contrast.
-  if (!(((bool)(_93.x < 1.0000000116860974e-07f)) | ((bool)(_93.x == 1.0f)))) {
+  if (!(((bool)(_93.x < 1.0000000116860974e-07f)) | ((bool)(_93.x == 1.0f))) && CUSTOM_SHARPENING_TYPE == 0) {
     float _101 = select((_postProcessParams.z >= 1.0f), 1.0f, 0.25f);
     float4 _108 = __3__36__0__0__g_sceneColor.Load(int3(_90, ((uint)(_91 + -1u)), 0));
     float4 _113 = __3__36__0__0__g_sceneColor.Load(int3(((uint)(_90 + -1u)), _91, 0));
@@ -196,26 +204,20 @@ float4 main(
     float _174 = _173 * _173;
     float _175 = _174 * _174;
     float _176 = _175 * _175;
-    _184 = ((_176 * _166) + _82);
-    _185 = ((_176 * _167) + _83);
-    _186 = ((_176 * _168) + _84);
+    _184 = ((_176 * _166 * CUSTOM_SHARPENING) + _82);
+    _185 = ((_176 * _167 * CUSTOM_SHARPENING) + _83);
+    _186 = ((_176 * _168 * CUSTOM_SHARPENING) + _84);
+
   } else {
     _184 = _82;
     _185 = _83;
     _186 = _84;
-  }
-
-  float3 sharpening = float3(_184, _185, _186);
-  float3 unsharpened = float3(_82, _83, _84);
-  float3 final_sharpen = lerp(unsharpened, sharpening, CUSTOM_SHARPENING);
-  _184 = final_sharpen.x;
-  _185 = final_sharpen.y;
-  _186 = final_sharpen.z;
+ }
 
   // sRGB-to-linear style decode, blended with a constant bias via _etcParams.w.
   float _214 = 1.0f - abs(_etcParams.w);
   float _218 = saturate(_etcParams.w);
-#if 1
+#if 0
   float _219 = (_214 * select((_184 < 0.040449999272823334f), (_184 * 0.07739938050508499f), exp2(log2((_184 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _218;
   float _220 = (_214 * select((_185 < 0.040449999272823334f), (_185 * 0.07739938050508499f), exp2(log2((_185 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _218;
   float _221 = (_214 * select((_186 < 0.040449999272823334f), (_186 * 0.07739938050508499f), exp2(log2((_186 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _218;
@@ -236,13 +238,29 @@ float4 main(
     _244 = _220;
     _245 = _221;
   }
-  float _252 = (pow(_243, 0.012683313339948654f));
-  float _253 = (pow(_244, 0.012683313339948654f));
-  float _254 = (pow(_245, 0.012683313339948654f));
   // Radial mask from center. _postProcessParams.x controls edge falloff strength.
   float _284 = abs((TEXCOORD.x * 2.0f) + -1.0f);
   float _285 = abs((TEXCOORD.y * 2.0f) + -1.0f);
   float _289 = saturate(1.0f - (dot(float2(_284, _285), float2(_284, _285)) * _postProcessParams.x));
+#if 0 // Experimenting with changing encodeing
+  // Apply radial mask directly in linear domain (input is already linear BT.709).
+  float _299 = _289 * _243;
+  float _300 = _289 * _244;
+  float _301 = _289 * _245;
+  // Letterbox gate: black out top/bottom bands defined by _viewDir.w.
+  bool _334 = (((bool)(!(SV_Position.y < _viewDir.w)))) & (((bool)(!(SV_Position.y >= (_screenSizeAndInvSize.y - _viewDir.w)))));
+  SV_Target.x = select(_334, _299, 0.0f);
+  SV_Target.y = select(_334, _300, 0.0f);
+  SV_Target.z = select(_334, _301, 0.0f);
+
+  SV_Target.xyz = renodx::color::bt2020::from::BT709(SV_Target.xyz);
+  float scaling = RENODX_TONE_MAP_TYPE == 0 ? 1.f : RENODX_DIFFUSE_WHITE_NITS;
+  SV_Target.xyz = renodx::color::pq::EncodeSafe(SV_Target.xyz, scaling);
+
+#else
+  float _252 = (pow(_243, 0.012683313339948654f));
+  float _253 = (pow(_244, 0.012683313339948654f));
+  float _254 = (pow(_245, 0.012683313339948654f));
   // Apply radial mask in PQ-like domain, then map back.
   float _299 = exp2(log2(_289 * exp2(log2(max(0.0f, (_252 + -0.8359375f)) / (18.8515625f - (_252 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
   float _300 = exp2(log2(_289 * exp2(log2(max(0.0f, (_253 + -0.8359375f)) / (18.8515625f - (_253 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
@@ -252,6 +270,7 @@ float4 main(
   SV_Target.x = select(_334, exp2(log2((1.0f / ((_299 * 18.6875f) + 1.0f)) * ((_299 * 18.8515625f) + 0.8359375f)) * 78.84375f), 0.0f);
   SV_Target.y = select(_334, exp2(log2((1.0f / ((_300 * 18.6875f) + 1.0f)) * ((_300 * 18.8515625f) + 0.8359375f)) * 78.84375f), 0.0f);
   SV_Target.z = select(_334, exp2(log2((1.0f / ((_301 * 18.6875f) + 1.0f)) * ((_301 * 18.8515625f) + 0.8359375f)) * 78.84375f), 0.0f);
+#endif
   // Preserve source alpha.
   SV_Target.w = _14.w;
   return SV_Target;

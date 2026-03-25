@@ -165,19 +165,19 @@ float4 main(
   }
 
   if (CUSTOM_FILM_GRAIN_TYPE == 1) {
-    float3 color_ap1 = float3(_82, _83, _84);
-    float3 color_bt709 = renodx::color::bt709::from::AP1(color_ap1);
-    color_bt709 = CustomPostProcessing(color_bt709, TEXCOORD);
-    color_ap1 = renodx::color::ap1::from::BT709(color_bt709);
-    _82 = color_ap1.x;
-    _83 = color_ap1.y;
-    _84 = color_ap1.z;
+    float3 color_bt709 = float3(_82, _83, _84);
+    color_bt709 = renodx::color::srgb::Decode(color_bt709);
+    color_bt709 = CustomPostProcessing(color_bt709, TEXCOORD, __3__36__0__0__g_sceneColor, __0__4__0__0__g_staticBilinearClamp, 1);
+    color_bt709 = renodx::color::srgb::Encode(color_bt709);
+    _82 = color_bt709.x;
+    _83 = color_bt709.y;
+    _84 = color_bt709.z;
   }
 
   uint _90 = uint(_screenSizeAndInvSize.x * TEXCOORD.x);
   uint _91 = uint(_screenSizeAndInvSize.y * TEXCOORD.y);
   float _93 = __3__36__0__0__g_depth.Sample(__0__4__0__0__g_staticPointBlackBorder, float2(TEXCOORD.x, TEXCOORD.y));
-  if (!(((bool)(_93.x < 1.0000000116860974e-07f)) | ((bool)(_93.x == 1.0f)))) {
+  if (!(((bool)(_93.x < 1.0000000116860974e-07f)) | ((bool)(_93.x == 1.0f))) && CUSTOM_SHARPENING_TYPE == 0) {
     float _101 = select((_postProcessParams.z >= 1.0f), 1.0f, 0.25f);
     float4 _108 = __3__36__0__0__g_sceneColor.Load(int3(_90, ((uint)(_91 + -1u)), 0));
     float4 _113 = __3__36__0__0__g_sceneColor.Load(int3(((uint)(_90 + -1u)), _91, 0));
@@ -189,18 +189,19 @@ float4 main(
     _167 = saturate(((_141 * (((_113.x + _108.x) + _118.x) + _123.x)) + _82) * _144);
     _168 = saturate(((_141 * (((_113.y + _108.y) + _118.y) + _123.y)) + _83) * _144);
     _169 = saturate(((_141 * (((_113.z + _108.z) + _118.z) + _123.z)) + _84) * _144);
+
+    float3 sharpened = float3(_167, _168, _169);
+    float3 unsharpened = float3(_82, _83, _84);
+    float3 final_sharpen = lerp(unsharpened, sharpened, CUSTOM_SHARPENING);
+    _167 = final_sharpen.x;
+    _168 = final_sharpen.y;
+    _169 = final_sharpen.z;
+
   } else {
     _167 = _82;
     _168 = _83;
     _169 = _84;
   }
-
-  float3 sharpening = float3(_167, _168, _169);
-  float3 unsharpened = float3(_82, _83, _84);
-  float3 final_sharpen = lerp(unsharpened, sharpening, CUSTOM_SHARPENING);
-  _167 = final_sharpen.x;
-  _168 = final_sharpen.y;
-  _169 = final_sharpen.z;
 
   float _200 = 1.0f - abs(_etcParams.w);
   float _204 = saturate(_etcParams.w);
@@ -234,6 +235,9 @@ float4 main(
   SV_Target.x = select(_283, (_274 * exp2(log2(saturate((_238 * (_229 + -0.5f)) + _242)) * _254)), 0.0f);
   SV_Target.y = select(_283, (_274 * exp2(log2(saturate((_238 * (_230 + -0.5f)) + _242)) * _254)), 0.0f);
   SV_Target.z = select(_283, (_274 * exp2(log2(saturate((_238 * (_231 + -0.5f)) + _242)) * _254)), 0.0f);
+
+  SV_Target.xyz = CUSTOM_SDR_BLACK_CRUSH_FIX == 1 ? renodx::color::correct::Gamma(SV_Target.xyz, true) : SV_Target.xyz;
+
   SV_Target.w = _14.w;
   return SV_Target;
 }
