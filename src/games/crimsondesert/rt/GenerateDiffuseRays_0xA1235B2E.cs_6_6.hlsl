@@ -1,3 +1,5 @@
+#include "../shared.h"
+
 Texture2D<uint> __3__36__0__0__g_sceneNormal : register(t50, space36);
 
 Texture2D<uint> __3__36__0__0__g_depthStencil : register(t31, space36);
@@ -115,25 +117,16 @@ cbuffer __3__1__0__0__RenderVoxelConstants : register(b0, space1) {
   float _rtaoIntensity : packoffset(c005.x);
 };
 
-// [RenoDX] RT quality injection
-cbuffer RenoDXRTInjection : register(b13, space50) {
-  float _rndx_rt_quality : packoffset(c5.z);
-};
-
-// [RenoDX] R2 quasi-random noise with Cranley-Patterson rotation
-// R2 gives low-discrepancy convergence; per-pixel PCG hash provides spatial
-// decorrelation so neighbors don't shimmer in unison. Zero external resources.
+// RenoDX: R2 noise (doesnt seem to do much)
 uint _rndx_pcg(uint v) {
   uint state = v * 747796405u + 2891336453u;
   uint word  = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
   return (word >> 22u) ^ word;
 }
-float2 _rndx_sample_noise(uint2 pixelCoord, float frameIndex) {
-  // Cranley-Patterson: per-pixel hash → two independent [0,1) offsets
-  uint h = _rndx_pcg(pixelCoord.x + pixelCoord.y * 8192u);
+float2 _rndx_sample_noise(uint2 pixelCoord, float frameIndex, uint streamIndex = 0u) {
+  uint h = _rndx_pcg(pixelCoord.x + pixelCoord.y * 8192u + streamIndex * 65537u);
   float off1 = float(h) * (1.0f / 4294967296.0f);
   float off2 = float(_rndx_pcg(h)) * (1.0f / 4294967296.0f);
-  // R2 additive recurrence: alpha = (1/phi2, 1/phi2^2), phi2 ≈ 1.32472
   float n = frameIndex;
   return frac(float2(off1 + n * 0.7548776662466927f,
                      off2 + n * 0.5698402909980532f));
@@ -161,15 +154,6 @@ void main(
   _global_2[((int)(1u + (((int)(_16 + (_17 * 8))) * 3)))] = 0.0f;
   _global_2[((int)(2u + (((int)(_16 + (_17 * 8))) * 3)))] = 0.0f;
   GroupMemoryBarrierWithGroupSync();
-
-  // [RenoDX] Debug: visualize noise when rt_quality == 2
-  if (_rndx_rt_quality > 1.5f) {
-    float2 noise = _rndx_sample_noise(SV_DispatchThreadID.xy, _frameNumber.x);
-    float4 dbg_color = float4(noise.x, noise.y, 0.0f, 1.0f);
-    __3__38__0__1__g_raytracingHitResultUAV[int2(SV_DispatchThreadID.xy)] = dbg_color;
-    __3__38__0__1__g_raytracingDiffuseRayInversePDFUAV[int2(SV_DispatchThreadID.xy)] = 1.0f;
-    return;
-  }
 
   float _57 = (float4(g_screenSpaceScale.x, g_screenSpaceScale.y, __padding.x, __padding.y).x) * _bufferSizeAndInvSize.x;
   uint _59 = __3__36__0__0__g_depthStencil.Load(int3((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y), 0));
@@ -283,10 +267,10 @@ void main(
       } else {
         _2157 = _2136;
       }
-      // [RenoDX] R2+CP blue noise hemisphere sampling
+      // RenoDX: R2 noise (doesnt seem to do much)
       float _2169;
       float _2172;
-      if (_rndx_rt_quality > 0.5f) {
+      if (RT_QUALITY > 0.5f) {
         float2 _isfast = _rndx_sample_noise(SV_DispatchThreadID.xy, _frameNumber.x);
         _2169 = _isfast.x;
         _2172 = _isfast.y * 4294967296.0;
@@ -704,10 +688,10 @@ void main(
                     } else {
                       _2157 = _2136;
                     }
-                    // [RenoDX] R2+CP blue noise hemisphere sampling
+                    // RenoDX: R2 noise (doesnt seem to do much)
                     float _2169;
                     float _2172;
-                    if (_rndx_rt_quality > 0.5f) {
+                    if (RT_QUALITY > 0.5f) {
                       float2 _isfast = _rndx_sample_noise(SV_DispatchThreadID.xy, _frameNumber.x);
                       _2169 = _isfast.x;
                       _2172 = _isfast.y * 4294967296.0;
@@ -771,10 +755,10 @@ void main(
                   } else {
                     _2157 = _2136;
                   }
-                  // [RenoDX] R2+CP blue noise hemisphere sampling
+                  // RenoDX: R2 noise (doesnt seem to do much)
                   float _2169;
                   float _2172;
-                  if (_rndx_rt_quality > 0.5f) {
+                  if (RT_QUALITY > 0.5f) {
                     float2 _isfast = _rndx_sample_noise(SV_DispatchThreadID.xy, _frameNumber.x);
                     _2169 = _isfast.x;
                     _2172 = _isfast.y * 4294967296.0;
@@ -866,10 +850,10 @@ void main(
         } else {
           _2157 = _2136;
         }
-        // [RenoDX] R2+CP blue noise hemisphere sampling
+        // RenoDX: R2 noise (doesnt seem to do much)
         float _2169;
         float _2172;
-        if (_rndx_rt_quality > 0.5f) {
+        if (RT_QUALITY > 0.5f) {
           float2 _isfast = _rndx_sample_noise(SV_DispatchThreadID.xy, _frameNumber.x);
           _2169 = _isfast.x;
           _2172 = _isfast.y * 4294967296.0;

@@ -1,3 +1,5 @@
+#include "../shared.h"
+
 #define SHADOW_DBG_CONTACT_INV  _3060
 #define SHADOW_DBG_OUT_R        _3075
 #define SHADOW_DBG_OUT_G        _3076
@@ -162,13 +164,6 @@ cbuffer __3__35__0__0__NearFieldShadowConstantBuffer : register(b43, space35) {
 cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _shadowAOParams : packoffset(c000.x);
   float4 _tiledRadianceCacheParams : packoffset(c001.x);
-};
-
-cbuffer RenoDXShadowDebugInjection : register(b13, space50) {
-  float _rndx_shadow_debug_mode       : packoffset(c4.z);
-  float _rndx_disable_layer           : packoffset(c4.w);
-  float _rndx_contact_shadow_quality   : packoffset(c5.x);
-  float _rndx_shadow_quality           : packoffset(c5.y);
 };
 
 SamplerState __0__4__0__0__g_staticBilinearClamp : register(s3, space4);
@@ -413,8 +408,8 @@ void main(
     } else {
       _553 = 1.0f;
     }
-    // RenoDX: Terrain shadow boundary fade — eliminates hard pop-in at shadow map edge
-    if (_rndx_shadow_quality > 0.5f && _553 < 1.0f) {
+    // RenoDX: Terrain shadow boundary fade — eliminates hard pop-in at shadow map edge (doesnt seem to help)
+    if (SHADOW_QUALITY > 0.5f && _553 < 1.0f) {
       float _tfu = max(0.0f, (abs(_189 * 2.0f - 1.0f) - 0.9f) * 10.0f);
       float _tfv = max(0.0f, (abs(_193 * 2.0f - 1.0f) - 0.9f) * 10.0f);
       _553 = lerp(_553, 1.0f, saturate(sqrt(_tfu * _tfu + _tfv * _tfv)));
@@ -946,7 +941,7 @@ void main(
         float _2418 = (_2384 * -0.0625f) * _2396;
         float _2419 = _2397 * 0.125f;
         // RenoDX: scale step sizes so 60 steps cover same distance as vanilla 8
-        if (_rndx_contact_shadow_quality > 0.5f) { _2416 *= (8.0f / 60.0f); _2418 *= (8.0f / 60.0f); _2419 *= (8.0f / 60.0f); }
+        if (CONTACT_SHADOW_QUALITY > 0.5f) { _2416 *= (8.0f / 60.0f); _2418 *= (8.0f / 60.0f); _2419 *= (8.0f / 60.0f); }
         float _2426 = max(_2268, (1.0f / max((abs(_2416) * _bufferSizeAndInvSize.x), (abs(_2418) * _bufferSizeAndInvSize.y))));
         float _2433 = 0.5f / _bufferSizeAndInvSize.x;
         _2435 = 0;
@@ -1033,7 +1028,7 @@ void main(
             _2870 = ((_2582 * _2419) + _2438);
             _2871 = _2457;
           } else {
-            if ((uint)_2441 < ((_rndx_contact_shadow_quality > 0.5f) ? (uint)59 : (uint)7)) {
+            if ((uint)_2441 < ((CONTACT_SHADOW_QUALITY > 0.5f) ? (uint)59 : (uint)7)) {
               _2574 = ((_2460 * _2416) + _2436);
               _2575 = ((_2460 * _2418) + _2437);
               _2576 = ((_2460 * _2419) + _2438);
@@ -1047,7 +1042,7 @@ void main(
               _2578 = _2442;
             }
             int _2579 = _2441 + 1;
-            if ((uint)_2579 < ((_rndx_contact_shadow_quality > 0.5f) ? (uint)60 : (uint)8)) {
+            if ((uint)_2579 < ((CONTACT_SHADOW_QUALITY > 0.5f) ? (uint)60 : (uint)8)) {
               _2435 = _2551;
               _2436 = _2574;
               _2437 = _2575;
@@ -1089,7 +1084,7 @@ void main(
         float _2692 = (_2658 * -0.0625f) * _2670;
         float _2693 = _2671 * 0.125f;
         // RenoDX: scale step sizes so 60 steps cover same distance as vanilla 8
-        if (_rndx_contact_shadow_quality > 0.5f) { _2690 *= (8.0f / 60.0f); _2692 *= (8.0f / 60.0f); _2693 *= (8.0f / 60.0f); }
+        if (CONTACT_SHADOW_QUALITY > 0.5f) { _2690 *= (8.0f / 60.0f); _2692 *= (8.0f / 60.0f); _2693 *= (8.0f / 60.0f); }
         float _2700 = max(_2268, (1.0f / max((abs(_2690) * _bufferSizeAndInvSize.x), (abs(_2692) * _bufferSizeAndInvSize.y))));
         float _2707 = 0.5f / _bufferSizeAndInvSize.x;
         _2709 = 0;
@@ -1176,7 +1171,7 @@ void main(
             _2870 = ((_2856 * _2693) + _2714);
             _2871 = _2731;
           } else {
-            if ((uint)_2709 < ((_rndx_contact_shadow_quality > 0.5f) ? (uint)59 : (uint)7)) {
+            if ((uint)_2709 < ((CONTACT_SHADOW_QUALITY > 0.5f) ? (uint)59 : (uint)7)) {
               _2848 = (_2711 + _2734);
               _2849 = (_2712 + (_2734 * _2690));
               _2850 = (_2713 + (_2734 * _2692));
@@ -1190,7 +1185,7 @@ void main(
               _2852 = _2716;
             }
             int _2853 = _2709 + 1;
-            if ((uint)_2853 < ((_rndx_contact_shadow_quality > 0.5f) ? (uint)60 : (uint)8)) {
+            if ((uint)_2853 < ((CONTACT_SHADOW_QUALITY > 0.5f) ? (uint)60 : (uint)8)) {
               _2709 = _2853;
               _2710 = _2734;
               _2711 = _2848;

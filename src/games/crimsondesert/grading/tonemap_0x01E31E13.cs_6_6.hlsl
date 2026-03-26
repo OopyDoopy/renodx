@@ -67,6 +67,36 @@ void main(
   float _21 = _userImageAdjust.z * _exposure0.x;
   _12.xyz *= _21;
 
+  // --- HDR transition highlight dimming ---
+  // When exposure hasn't fully adapted to a bright scene (e.g. stepping
+  // outside from an interior), highlights blow out. We detect this by
+  // comparing current exposure × scene mean luminance against a properly-
+  // adapted baseline. During the transition, we apply a per-pixel soft
+  // compression to the brightest parts of the image. Once exposure converges,
+  // the compression relaxes and HDR highlights are preserved at full punch.
+  if (IMPROVED_AUTO_EXPOSURE > 0.5f) {
+    // _exposure2.x = trimmed mean luminance, _exposure0.x = adapted exposure
+    // Product is high during dark→bright transition (exposure still boosted)
+    float exposedMean = _exposure0.x * _exposure2.x;
+    // For a properly adapted scene this product is roughly 0.05-0.15
+    // During transition it shoots up well past 0.3
+    float transitionStrength = saturate((exposedMean - AE_TRANSITION_THRESHOLD) * 3.0f);
+
+    if (transitionStrength > 0.001f) {
+      float pixelLum = dot(_12.xyz, float3(0.2126f, 0.7152f, 0.0722f));
+      // Threshold above which we start compressing highlights
+      // Adapts: lower during transition to catch more of the blown-out range
+      float knee = lerp(AE_KNEE_ADAPTED, AE_KNEE_TRANSITION, transitionStrength);
+
+      if (pixelLum > knee) {
+        // Soft Reinhard-style compression above the knee
+        float excess = pixelLum - knee;
+        float compressStrength = lerp(0.1f, AE_COMPRESS_MAX, transitionStrength);
+        float compressed = knee + excess / (1.0f + excess * compressStrength);
+        _12.xyz *= compressed / pixelLum;
+      }
+    }
+  }
 
   if (RENODX_TONE_MAP_TYPE != 0) {
     float3 ungraded_ap1 = _12.xyz;
@@ -77,7 +107,7 @@ void main(
     float3 output_color = CustomTonemap(input_color);
     output_color = renodx::color::bt2020::from::BT709(output_color);
     output_color = renodx::color::pq::EncodeSafe(output_color, RENODX_DIFFUSE_WHITE_NITS);
-    output_color = renodx::color::srgb::EncodeSafe(output_color);
+    // output_color = renodx::color::srgb::EncodeSafe(output_color);
     __3__38__0__1__g_textureUAV[int2((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y))] = float4(output_color, _12.w);
   } else {
     float3 display_transform_bt709 = ConvertAP1ToBT709(_12.xyz);
@@ -87,7 +117,11 @@ void main(
 
     float4 _125 = __3__36__0__0__g_displayRenderingTransformLUT.SampleLevel(__0__4__0__0__g_staticBilinearClamp, display_transform_lut_uv, 0.0f);
 
-    __3__38__0__1__g_textureUAV[int2((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y))] = float4(select((_125.x <= 0.0031308000907301903f), (_125.x * 12.920000076293945f), (((pow(_125.x, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f)), select((_125.y <= 0.0031308000907301903f), (_125.y * 12.920000076293945f), (((pow(_125.y, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f)), select((_125.z <= 0.0031308000907301903f), (_125.z * 12.920000076293945f), (((pow(_125.z, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f)), _12.w);
+    float3 output_color = _125.xyz;
+    //float3 output_color = renodx::color::pq::DecodeSafe(_125.xyz, 1.f);
+    //output_color = renodx::color::bt709::from::BT2020(output_color);
+    __3__38__0__1__g_textureUAV[int2((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y))] = float4(output_color, _12.w);
+    //__3__38__0__1__g_textureUAV[int2((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y))] = float4(select((_125.x <= 0.0031308000907301903f), (_125.x * 12.920000076293945f), (((pow(_125.x, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f)), select((_125.y <= 0.0031308000907301903f), (_125.y * 12.920000076293945f), (((pow(_125.y, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f)), select((_125.z <= 0.0031308000907301903f), (_125.z * 12.920000076293945f), (((pow(_125.z, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f)), _12.w);
   }
   
 }

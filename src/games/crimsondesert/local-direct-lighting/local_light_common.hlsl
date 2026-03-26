@@ -1,31 +1,23 @@
 #ifndef RENODX_LOCAL_LIGHT_COMMON_HLSL_
 #define RENODX_LOCAL_LIGHT_COMMON_HLSL_
 
-#include "../psycho_test11.hlsl"
+#include "../psycho_test11_custom.hlsl"
 
 // ============================================================================
 // Local Light Hue Correction — MB Space (Stockman-Sharp LMS + BT.2020)
 // ============================================================================
-// Corrects authored pink/red flame light color toward physically plausible
-// warm orange/yellow via MacLeod-Boynton chromaticity rotation.
+// Corrects authored pink/red flame light colour toward warm orange/yellow via MacLeod-Boynton chromaticity rotation.
 //
-// Reference fire colors in MB space (precomputed from Stockman-Sharp LMS):
+// Reference fire colours in MB space (precomputed from Stockman-Sharp LMS):
 //   ~2000K blackbody → warm orange, low S (blue cone), high L/(L+M)
 //   Pink/magenta    → elevated S, shifted r from white
 //
 // The correction rotates the MB hue direction from white toward a target
 // warm-fire hue, preserving MB luminosity (weighted L+M) and modulating
 // purity independently.
-
-// Target fire hue: warm candle flame (~2200K appearance).
-// Precomputed: BT.709 linear (1.0, 0.55, 0.08) → BT.2020 → Stockman-Sharp LMS → MB.
-// MB white D65 ≈ (0.69833, 0.02048)
-// Candle flame MB ≈ (0.73373, 0.00499)
-// Direction from white: (+0.03540, -0.01548), normalized: (0.91618, -0.40076)
-// This direction increases L/(L+M) and decreases S/(L+M), which is the
-// characteristic warm-fire shift: more long-wavelength, less short-wavelength.
+//
 static const float2 FIRE_TARGET_MB_DIR = float2(0.91618f, -0.40076f);
-
+//
 // Applies MB hue rotation toward warm fire target + optional purity scaling.
 //
 // hue_strength: 0 = no hue change, 1 = fully rotate to fire target direction.

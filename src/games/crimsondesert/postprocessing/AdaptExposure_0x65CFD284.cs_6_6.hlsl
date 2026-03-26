@@ -372,9 +372,12 @@ void main(
           float _192 = max(9.999999717180685e-10f, _191);
           float _193 = max(_181, 9.999999747378752e-05f);
           float _194 = _180 / _193;
-          // Vanilla min/max clamps (game push constants)
-          float _195 = max(_194, _param1.z);
-          float _196 = min(_195, _param1.w);
+          // When IMPROVED is on, override the game's per region and ToD controls
+          // min/max luminance clamps with fixed values, I hope this solves double darkening
+          float _ae_min_lum = (IMPROVED_AUTO_EXPOSURE > 0.5f) ? AE_MIN_LUM : _param1.z;
+          float _ae_max_lum = (IMPROVED_AUTO_EXPOSURE > 0.5f) ? AE_MAX_LUM : _param1.w;
+          float _195 = max(_194, _ae_min_lum);
+          float _196 = min(_195, _ae_max_lum);
           float _197 = sqrt(_192);
           float _198 = max(9.999999974752427e-07f, _196);
           _200 = 1;
@@ -488,7 +491,7 @@ void main(
             float _320 = __3__39__0__1__g_autoWhiteBalanceColorUAV[1].w;
             float _321 = saturate(_320);
             float _322 = _321 * _param3.z;
-            // Sky visibility exposure bias — disable when improved auto exposure is on
+            // Sky visibility exposure bias
             float _323 = (IMPROVED_AUTO_EXPOSURE > 0.5f) ? 0.0f : (_322 + _param2.z);
             float _324 = max(_198, 9.999999747378752e-05f);
             float _325 = min(_324, 7.0f);
@@ -520,23 +523,27 @@ void main(
 
             float _350;
             if (IMPROVED_AUTO_EXPOSURE > 0.5f) {
-              // --- HDR contrast-aware exposure compression ---
-              // _197 = scene luminance std dev, _198 = trimmed mean luminance
-              // Coefficient of variation: how much contrast relative to mean
-              float coeffVar = _197 / max(_198, 0.001f);
-              // High contrast (coeffVar >> 1) → compress more toward neutral
-              // Low contrast (coeffVar ~ 0) → let exposure track the mean normally
-              float compressAmount = saturate(coeffVar * 0.5f);  // 0..1
-
-              // Neutral exposure target: ~1.0 (scene renders at natural brightness)
-              // In log space: lerp between vanilla target and neutral based on contrast
-              float logVanilla = log2(max(_350_vanilla, 0.001f));
-              float logNeutral = 0.0f;  // log2(1.0) = 0 → exposure multiplier of 1
-              float logTarget = lerp(logVanilla, logNeutral, compressAmount * 0.6f);
-
-              // Clamp: don't let exposure go too extreme in either direction
-              // Preserve black floor (min ~0.3) and reduce highlight blowout (max ~3.0)
-              _350 = clamp(exp2(logTarget), 0.3f, 3.0f);
+              // --- HDR asymmetric exposure adaptation ---
+              // We reduce vanilla's adaptation strength via a power curve
+              // in log space, modulated by sky visibility and scene brightness.
+              //
+              // _287 = sqrt(sky occlusion): 0 = outdoor, 1 = indoor
+              // logVanilla > 0 → dark scene (vanilla brightens)
+              // logVanilla < 0 → bright scene (vanilla dims)
+              float logVanilla = log2(max(_350_vanilla, 0.0001f));
+              float logTarget;
+              if (logVanilla >= 0.0f) {
+                // DARK SCENE: vanilla wants to brighten. For HDR, reduce the
+                // boost so nights stay actually dark and interiors aren't nuclear.
+                float power = lerp(AE_DARK_POWER_OUTDOOR, AE_DARK_POWER_INDOOR, _287);
+                logTarget = logVanilla * power;
+              } else {
+                // BRIGHT SCENE: vanilla wants to dim. For HDR, preserve most of
+                // the dimming for outdoor/day to prevent blowout.
+                float power = lerp(AE_BRIGHT_POWER_OUTDOOR, AE_BRIGHT_POWER_INDOOR, _287);
+                logTarget = logVanilla * power;
+              }
+              _350 = clamp(exp2(logTarget), 0.02f, 5.0f);
             } else {
               _350 = _350_vanilla;
             }
@@ -544,32 +551,66 @@ void main(
             bool _353 = !(_temporalReprojectionParams.w > 0.5f);
             if (_353) {
               float _357 = __3__39__0__1__g_exposureUAV[1];
-              bool _358 = (_350 > _357);
-              if (_358) {
-                // Vanilla uses 1.2x overshoot when brightening; our fix removes it
-                float _362 = (IMPROVED_AUTO_EXPOSURE > 0.5f) ? _349 : (_349 * 1.2000000476837158f);
-                float _363 = 1.0f / _357;
-                float _364 = _362 - _363;
-                float _365 = _param2.x * _timeNoScale.z;
-                float _366 = -0.0f - _365;
-                float _367 = exp2(_366);
-                float _368 = 1.0f - _367;
-                float _369 = _368 * _364;
-                float _370 = _369 + _363;
-                float _371 = 1.0f / _370;
-                _381 = _371;
+              if (IMPROVED_AUTO_EXPOSURE > 0.5f) {
+                // Unified log space temporal adaptation becasue Vanilla uses two separate interpolation spaces (1/exp vs linear) 
+                // Causes visible jitter when the target oscillates around the previous value due to histogram noise. 
+                // Log space lerp is symmetric and smooth in both directions.
+                float logPrev = log2(max(_357, 0.0001f));
+                float logTgt  = log2(max(_350, 0.0001f));
+
+                // Pick adaptation speed based on direction
+                float speed;
+                if (logTgt > logPrev) {
+                  // Scene darkening → exposure rising (use brightening speed)
+                  speed = _param2.x;
+                } else {
+                  // Scene brightening → exposure falling (use darkening speed)
+                  // Apply speed boost proportional to gap for fast transitions
+                  float logGap = logPrev - logTgt;
+                  float speedBoost = 1.0f + saturate(logGap) * AE_ADAPT_SPEED_BOOST;
+                  speed = _param2.y * speedBoost;
+                }
+
+                float tau = 1.0f - exp2(-speed * _timeNoScale.z);
+                float logNew = lerp(logPrev, logTgt, tau);
+                _381 = exp2(logNew);
               } else {
-                float _373 = _350 - _357;
-                float _374 = _param2.y * _timeNoScale.z;
-                float _375 = -0.0f - _374;
-                float _376 = exp2(_375);
-                float _377 = 1.0f - _376;
-                float _378 = _377 * _373;
-                float _379 = _378 + _357;
-                _381 = _379;
+                // --- Vanilla asymmetric temporal adaptation ---
+                bool _358 = (_350 > _357);
+                if (_358) {
+                  float _362 = _349 * 1.2000000476837158f;
+                  float _363 = 1.0f / _357;
+                  float _364 = _362 - _363;
+                  float _365 = _param2.x * _timeNoScale.z;
+                  float _366 = -0.0f - _365;
+                  float _367 = exp2(_366);
+                  float _368 = 1.0f - _367;
+                  float _369 = _368 * _364;
+                  float _370 = _369 + _363;
+                  float _371 = 1.0f / _370;
+                  _381 = _371;
+                } else {
+                  float _373 = _350 - _357;
+                  float _374 = _param2.y * _timeNoScale.z;
+                  float _375 = -0.0f - _374;
+                  float _376 = exp2(_375);
+                  float _377 = 1.0f - _376;
+                  float _378 = _377 * _373;
+                  float _379 = _378 + _357;
+                  _381 = _379;
+                }
               }
             } else {
-              _381 = _350;
+              // Temporal reset (loading screens, menus)
+              if (IMPROVED_AUTO_EXPOSURE > 0.5f) {
+                // Preserve previous exposure to prevent spikes from garbage
+                // histogram data during transitions. Temporal adaptation will
+                // smoothly converge once gameplay resumes.
+                float prevExposure = __3__39__0__1__g_exposureUAV[1];
+                _381 = (prevExposure > 0.001f) ? prevExposure : _350;
+              } else {
+                _381 = _350;
+              }
             }
             _383 = 0;
             _384 = 0.0f;
@@ -616,7 +657,8 @@ void main(
                   _424 = 1.0f;
                 }
                 float _425 = _424 * _381;
-                _427 = _425;
+                // Apply EV bias for IMPROVED mode (compensates for zeroed _323 push-constant correction)
+                _427 = (IMPROVED_AUTO_EXPOSURE > 0.5f) ? (_425 * exp2(AE_EV_BIAS)) : _425;
               } else {
                 _427 = _param3.y;
               }

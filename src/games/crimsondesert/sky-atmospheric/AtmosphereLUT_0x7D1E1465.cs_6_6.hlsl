@@ -1,3 +1,5 @@
+#include "sky_spectral_common.hlsl"
+
 Texture3D<float4> __3__36__0__0__g_texPrecomputedLUTMultiGather : register(t63, space36);
 
 RWTexture3D<float4> __3__48__0__1__g_texPrecomputedLUTMultiUAV : register(u2, space48);
@@ -208,6 +210,13 @@ void main(
       float _282 = float((uint)((int)(((uint)((int)(_rayleighScatteringColor)) >> 16) & 255))) * 1.960784317134312e-07f;
       float _283 = float((uint)((int)(((uint)((int)(_rayleighScatteringColor)) >> 8) & 255))) * 1.960784317134312e-07f;
       float _284 = float((uint)((int)(_rayleighScatteringColor & 255))) * 1.960784317134312e-07f;
+      // SKY_SCATTERING: override Rayleigh β with Stockman-Sharp LMS ratios
+      if (SKY_SCATTERING) {
+        float _skyBetaRef = _284;  // B channel (S cone, 440nm) as reference
+        _282 = _skyBetaRef * SKY_RAYLEIGH_CH1;  // L cone (565nm)
+        _283 = _skyBetaRef * SKY_RAYLEIGH_CH2;  // M cone (540nm)
+        // _284 unchanged: S cone = B channel (same wavelength)
+      }
       float _288 = _mieAerosolDensity * 1.9999999494757503e-05f;
       float _290 = (_288 * (_mieAerosolAbsorption + 1.0f)) * _271;
       float _312 = dot(float3(_249, _250, 0.0f), float3(_145, _146, 0.0f));
@@ -220,11 +229,11 @@ void main(
         _354 = ((exp2(log2(saturate((_331 - _312) / (_331 + 1.0f))) * 0.20000000298023224f) * 0.4921875f) + 0.00390625f);
       }
       float4 _364 = __3__36__0__0__g_texPrecomputedLUTMultiGather.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float3(((exp2(log2(saturate((_316 + -16.0f) / (_atmosphereThickness + -32.0f))) * 0.5f) * 0.96875f) + 0.015625f), _354, ((1.0f - exp2(-1.1541560888290405f - (dot(float3(_249, _250, 0.0f), float3(_96, _88, 0.0f)) * 4.039546012878418f))) * 1.028091311454773f)), 0.0f);
-      float _368 = _364.x * exp2((((_282 + (_ozoneRatio * 2.05560013455397e-06f)) * _270) + _290) * -1.4426950216293335f);
+      float _368 = _364.x * exp2((((_282 + (_ozoneRatio * SKY_OZONE_1)) * _270) + _290) * -1.4426950216293335f);
       float _369 = _368 * _263;
-      float _370 = _364.y * exp2((((_283 + (_ozoneRatio * 4.978800461685751e-06f)) * _270) + _290) * -1.4426950216293335f);
+      float _370 = _364.y * exp2((((_283 + (_ozoneRatio * SKY_OZONE_2)) * _270) + _290) * -1.4426950216293335f);
       float _371 = _370 * _263;
-      float _372 = _364.z * exp2((((_284 + (_ozoneRatio * 2.1360001767334325e-07f)) * _270) + _290) * -1.4426950216293335f);
+      float _372 = _364.z * exp2((((_284 + (_ozoneRatio * SKY_OZONE_3)) * _270) + _290) * -1.4426950216293335f);
       float _373 = _372 * _263;
       float _374 = _368 * _264;
       float _375 = _370 * _264;

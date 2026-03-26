@@ -1,3 +1,5 @@
+#include "../shared.h"
+
 Texture2D<float3> __3__36__0__0__g_glareSource : register(t28, space36);
 
 Texture2D<float3> __3__36__0__0__g_colorAdatationSource : register(t76, space36);

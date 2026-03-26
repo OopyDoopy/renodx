@@ -1,5 +1,6 @@
 #include "../shared.h"
 #include "../local-direct-lighting/local_light_common.hlsl"
+#include "../lighting/diffuse_brdf.hlsli"
 
 struct ManyLightsData {
   float4 _position;
@@ -1336,7 +1337,15 @@ void main(
             float _1026 = _1025 * _434;
             float _1027 = _1026 + 1.0f;
             float _1028 = saturate(_788);
-            float _1029 = _1028 * 0.31830987334251404f;
+            float _1029;
+            if (DIFFUSE_BRDF_MODE >= 2.0f) {
+              float _eon_LdotV2 = dot(float3(_777, _778, _779), float3(_743, _744, _745));
+              _1029 = _1028 * EON_DiffuseScalar(_1028, _791, _eon_LdotV2, _606);
+            } else if (DIFFUSE_BRDF_MODE >= 1.0f) {
+              _1029 = _1028 * HammonDiffuseScalar(_1028, _791, _793, _794, _606);
+            } else {
+              _1029 = _1028 * 0.31830987334251404f;
+            }
             float _1030 = _1029 * _1027;
             float _1031 = log2(_791);
             float _1032 = _1031 * 4.0f;
@@ -1473,7 +1482,17 @@ void main(
               float _1156 = _1153 + _1151;
               float _1157 = _1154 + _1151;
               float _1158 = _1155 + _1151;
-              float _1159 = _788 * 0.31830987334251404f;
+              float _1159;
+              if (DIFFUSE_BRDF_MODE >= 2.0f) {
+                float _sNdotL = saturate(_788);
+                float _eon_LdotV = dot(float3(_777, _778, _779), float3(_743, _744, _745));
+                _1159 = _sNdotL * EON_DiffuseScalar(_sNdotL, _791, _eon_LdotV, _606);
+              } else if (DIFFUSE_BRDF_MODE >= 1.0f) {
+                float _sNdotL = saturate(_788);
+                _1159 = _sNdotL * HammonDiffuseScalar(_sNdotL, _791, _793, _794, _606);
+              } else {
+                _1159 = _788 * 0.31830987334251404f;
+              }
               float _1160 = saturate(_789);
               float _1161 = 1.0f - _607;
               float _1162 = _791 * _1161;
@@ -1580,6 +1599,22 @@ void main(
               _1251 = _1191;
             }
           }
+        }
+        // RenoDX: Diffraction on Rough Surfaces
+        if (DIFFRACTION > 0.0f && float(_532) > 0.0f) {
+          float3 _rndx_dShift = DiffractionShiftOnly(_793, _606);
+          float3 _rndx_dMod = lerp(float3(1.0f, 1.0f, 1.0f), _rndx_dShift, DIFFRACTION * float(_532));
+          _1248 *= _rndx_dMod.x;
+          _1249 *= _rndx_dMod.y;
+          _1250 *= _rndx_dMod.z;
+        }
+        // RenoDX: Callisto Smooth Terminator
+        if (SMOOTH_TERMINATOR > 0.0f) {
+          float _rndx_st = CallistoSmoothTerminator(_788, _794, _793, SMOOTH_TERMINATOR, 0.5f);
+          _1251 *= _rndx_st;
+          _1248 *= _rndx_st;
+          _1249 *= _rndx_st;
+          _1250 *= _rndx_st;
         }
         float _1252 = _642 * _736;
         float _1253 = _735 * _1252;

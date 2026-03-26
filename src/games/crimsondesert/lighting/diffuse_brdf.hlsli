@@ -1,9 +1,6 @@
-// diffuse_brdf.hlsli — RenoDX alternative diffuse BRDF models
-// Included by RenderDiffuseTiled shaders when DIFFUSE_BRDF_MODE > 0.
-//
-// All functions return a SCALAR diffuse factor (no albedo weighting).
-// The game's pipeline applies albedo downstream.
-// Multiply the return value by saturate(NdotL) externally if needed.
+// All functions return a scalar diffuse factor (no albedo weighting)
+// The game's pipeline applies albedo downstream
+// Multiply the return value by saturate(NdotL) externally if needed
 
 #ifndef DIFFUSE_BRDF_HLSLI
 #define DIFFUSE_BRDF_HLSLI
@@ -14,8 +11,7 @@ static const float RDXL_INV_PI = 0.31830987334251404f;
 // ============================================================================
 // Hammon 2017 Diffuse BRDF (scalar)
 // ----------------------------------------------------------------------------
-// Earl Hammon Jr., GDC 2017 — "PBR Diffuse Lighting for GGX + Smith
-// Microsurfaces"
+// Earl Hammon Jr., GDC 2017
 //
 // Energy-conserving diffuse with multi-scatter compensation.
 // Returns scalar: single + multi (no albedo, no NdotL).
@@ -43,23 +39,23 @@ float HammonDiffuseScalar(
 }
 
 // ============================================================================
-// EON — Energy-Preserving Oren–Nayar Diffuse BRDF (scalar, exact)
+// EON — Energy Preserving Oren Nayar Diffuse BRDF (scalar, exact)
 // ----------------------------------------------------------------------------
 // Portsmouth, Kutz & Hill 2025 — "EON: A Practical Energy-Preserving
 // Rough Diffuse BRDF"
 //
-// Uses the EXACT directional albedo (not polynomial approximation).
-// Returns scalar: (f_ss + f_ms) with rho = 1 (no albedo, no NdotL).
+// Uses the EXACT directional albedo (not polynomial approximation)
+// Returns scalar: (f_ss + f_ms) with rho = 1 (no albedo, no NdotL)
 //
 // Parameters use world-space dot products; the azimuthal s-term is
-// reconstructed from  s = dot(L,V) - NdotL * NdotV.
+// reconstructed from  s = dot(L,V) - NdotL * NdotV
 // ============================================================================
 
 // FON constants
 static const float EON_C1 = 0.5f - 2.0f / (3.0f * RDXL_PI);  // ~0.2876
 static const float EON_C2 = 2.0f / 3.0f - 28.0f / (15.0f * RDXL_PI);  // ~0.0716
 
-// FON Directional Albedo — Exact closed-form
+// FON Directional Albedo — Exact closed form
 float EON_E_FON_Exact_L(float mu, float r)
 {
   float AF = 1.0f / (1.0f + EON_C1 * r);
@@ -71,7 +67,6 @@ float EON_E_FON_Exact_L(float mu, float r)
 }
 
 // EON scalar evaluation (exact E_FON, rho = 1)
-//
 // NdotL, NdotV : saturated cos-theta for light/view
 // LdotV        : dot(L, V) — NOT saturated, can be negative
 // roughness    : linear roughness [0,1]
@@ -91,18 +86,18 @@ float EON_DiffuseScalar(
   // (grazing foliage, complex geometry).  CLTC importance sampling in
   // path tracing naturally avoids these configurations, but in a deferred
   // rasterizer we must clamp.  Threshold 0.1 matches Hammon's approach
-  // for NdotH and caps sovertF at s/0.1 ≈ 10 max.
+  // for NdotH and caps sovertF at s/0.1 ≈ 10 max
   float sovertF = (s > 0.0f) ? (s / max(max(mu_i, mu_o), 0.1f)) : s;
 
   // FON A coefficient
   float AF = 1.0f / (1.0f + EON_C1 * roughness);
 
-  // Single-scatter (rho = 1) — clamped to non-negative.
-  // Negative values occur when s is large-negative (backlit geometry)
+  // Single-scatter (rho = 1) — clamped to non negative.
+  // Negative values occur when s is large negative (backlit geometry)
   // with high roughness: (1 + r * s) < 0.  The paper handles this
   // via multi-scatter energy compensation, but with rho=1 scalar
   // mode the correction is imperfect.  Clamping f_ss ≥ 0 prevents
-  // the "darker than Lambert" artifact.
+  // the darker than Lambert artifact
   float f_ss = max(0.0f, RDXL_INV_PI * AF * (1.0f + roughness * sovertF));
 
   // Directional albedos (exact)
@@ -128,10 +123,10 @@ float EON_DiffuseScalar(
 // ============================================================================
 // Callisto Smooth Terminator (SIGGRAPH 2023)
 // ----------------------------------------------------------------------------
-// Striking Distance Studios — slides 90/98.
+// Taken from Striking Distance Studios — slides 90/98
 // Softens the hard light/dark boundary on low-poly geometry where
-// interpolated normals create a visible faceted terminator line.
-// Returns scalar c2 that multiplies the entire BRDF (diffuse + specular).
+// interpolated normals create a visible faceted terminator line
+// Returns scalar c2 that multiplies the entire BRDF (diffuse + specular)
 //
 //   o — intensity [0,1] (0 = off, higher = smoother)
 //   p — edge length [0,1] (default 0.5)
@@ -158,16 +153,16 @@ float CallistoSmoothTerminator(
 // Geometric Specular Anti-Aliasing — Compute Shader Compatible
 // ----------------------------------------------------------------------------
 // Tokuyoshi & Kaplanyan 2021: "Improved Geometric Specular Anti-Aliasing"
-// Adapted for compute shaders using QuadReadAcrossX/Y instead of ddx/ddy.
+// Adapted for compute shaders using QuadReadAcrossX/Y instead of ddx/ddy
 //
 // Widens roughness based on screen-space normal derivatives to eliminate
-// specular shimmer on distant surfaces where normals alias at sub-pixel.
+// specular shimmer on distant surfaces where normals alias at sub-pixel
 //
 //   normalWS  — world-space shading normal (normalised)
 //   roughness — linear roughness [0,1]
 //   strength  — user control [0,1]: 0=off, 1=full filtering
 //
-// Returns: filtered linear roughness.
+// Returns: filtered linear roughness
 // ============================================================================
 float NDFFilterRoughnessCS(
     float3 normalWS,
@@ -191,19 +186,18 @@ float NDFFilterRoughnessCS(
 }
 
 // ============================================================================
-// Diffraction on Rough Surfaces — Shift-Only Fast Path
+// Diffraction on Rough Surfaces — Shift Only Fast Path
 // ----------------------------------------------------------------------------
-// Werner et al. 2024 (JCGT) / Clausen et al. 2023 spectral shift function.
-// Adds wavelength-dependent colour fringing to metallic specular highlights.
+// Werner et al. 2024 (JCGT) / Clausen et al. 2023 spectral shift function
+// Adds wavelength dependent colour fringing to metallic specular highlights
 //
-// Only the spectral shift is applied (no speckle noise) — near-zero cost
-// and does not require ddx/ddy, making it suitable for compute shaders.
+// Only the spectral shift is applied (no speckle noise)
 //
 //   NdotH     — saturate(dot(N, H))
 //   roughness — GGX alpha (linear roughness)
 //
-// Returns: float3 RGB modifier to multiply into specular.
-//          Values near 1.0 with subtle colour variation.
+// Returns: float3 RGB modifier to multiply into specular
+//          Values near 1.0 with subtle colour variation
 // ============================================================================
 
 struct DiffractionParams {

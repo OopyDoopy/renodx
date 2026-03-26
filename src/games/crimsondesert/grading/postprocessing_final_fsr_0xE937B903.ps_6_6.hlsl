@@ -163,18 +163,23 @@ float4 main(
   }
 
   if (CUSTOM_FILM_GRAIN_TYPE == 1) {
-    float3 color_ap1 = float3(_81, _82, _83);
-    float3 color_bt709 = renodx::color::bt709::from::AP1(color_ap1);
-    color_bt709 = CustomPostProcessing(color_bt709, TEXCOORD);
-    color_ap1 = renodx::color::ap1::from::BT709(color_bt709);
-    _81 = color_ap1.x;
-    _82 = color_ap1.y;
-    _83 = color_ap1.z;
+    float3 color_pq = float3(_81, _82, _83);
+
+    float scaling = RENODX_TONE_MAP_TYPE == 0 ? 100.0f : RENODX_DIFFUSE_WHITE_NITS;
+    float3 color_bt2020 = renodx::color::pq::DecodeSafe(color_pq, scaling);
+    float3 color_bt709 = renodx::color::bt709::from::BT2020(color_bt2020);
+    color_bt709 = CustomPostProcessing(color_bt709, TEXCOORD, __3__36__0__0__g_sceneColor, __0__4__0__0__g_staticBilinearClamp, 0, scaling);
+    color_bt2020 = renodx::color::bt2020::from::BT709(color_bt709);
+    color_pq = renodx::color::pq::EncodeSafe(color_bt2020, scaling);
+
+    _81 = color_pq.x;
+    _82 = color_pq.y;
+    _83 = color_pq.z;
   }
 
   float _111 = 1.0f - abs(_etcParams.w);
   float _115 = saturate(_etcParams.w);
-#if 1
+#if 0
   float _116 = (_111 * select((_81 < 0.040449999272823334f), (_81 * 0.07739938050508499f), exp2(log2((_81 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _115;
   float _117 = (_111 * select((_82 < 0.040449999272823334f), (_82 * 0.07739938050508499f), exp2(log2((_82 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _115;
   float _118 = (_111 * select((_83 < 0.040449999272823334f), (_83 * 0.07739938050508499f), exp2(log2((_83 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _115;
