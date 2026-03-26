@@ -210,6 +210,9 @@ float4 main(
   SV_Target.x = _202;
   SV_Target.y = _203;
   SV_Target.z = _204;
+
+  SV_Target.xyz = CUSTOM_SDR_BLACK_CRUSH_FIX == 1 ? renodx::color::correct::Gamma(SV_Target.xyz, true) : SV_Target.xyz;
+
   SV_Target.w = _13.w;
   return SV_Target;
 }
