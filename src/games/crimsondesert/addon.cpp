@@ -957,61 +957,23 @@ renodx::utils::settings::Settings settings = {
         //.is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
-        .label = "RenoDX Discord",
+        .value_type = renodx::utils::settings::SettingValueType::CUSTOM,
+        .label = "Links",
         .section = "Links",
         .group = "button-line-1",
-        .tint = 0x5865F2,
-        .on_change = []() {
-          renodx::utils::platform::Launch("https://discord.gg/QgXDCfccRy");
-        },
-    },
-    new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
-        .label = "Github",
-        .section = "Links",
-        .group = "button-line-1",
-        .on_change = []() {
-          renodx::utils::platform::Launch("https://github.com/clshortfuse/renodx");
-        },
-    },
-        new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
-        .label = "More RenoDX Mods",
-        .section = "Links",
-        .group = "button-line-1",
-        .on_change = []() {
-          renodx::utils::platform::Launch("https://github.com/clshortfuse/renodx/wiki/Mods/");
-        },
-    },
-        new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
-        .label = "Forge's Ko-Fi",
-        .section = "Links",
-        .group = "button-line-1",
-        .tint = 0xFF5F5F,
-        .on_change = []() {
-          renodx::utils::platform::LaunchURL("https://ko-fi.com/forge87682");
-        },
-    },
-        new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
-        .label = "Jon's Ko-Fi",
-        .section = "Links",
-        .group = "button-line-1",
-        .tint = 0xFF5F5F,
-        .on_change = []() {
-          renodx::utils::platform::LaunchURL("https://ko-fi.com/kickfister");
-        },
-    },
-        new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
-        .label = "ShortFuse's Ko-Fi",
-        .section = "Links",
-        .group = "button-line-1",
-        .tint = 0xFF5F5F,
-        .on_change = []() {
-          renodx::utils::platform::LaunchURL("https://ko-fi.com/shortfuse");
+        .on_draw = []() {
+          ImGui::TextLinkOpenURL("RenoDX Discord", "https://discord.gg/QgXDCfccRy");
+          ImGui::SameLine();
+          ImGui::TextLinkOpenURL("Github", "https://github.com/clshortfuse/renodx");
+          ImGui::SameLine();
+          ImGui::TextLinkOpenURL("More RenoDX Mods", "https://github.com/clshortfuse/renodx/wiki/Mods/");
+          ImGui::SameLine();
+          ImGui::TextLinkOpenURL("Forge's Ko-Fi", "https://ko-fi.com/forge87682");
+          ImGui::SameLine();
+          ImGui::TextLinkOpenURL("Jon's Ko-Fi", "https://ko-fi.com/kickfister");
+          ImGui::SameLine();
+          ImGui::TextLinkOpenURL("ShortFuse's Ko-Fi", "https://ko-fi.com/shortfuse");
+          return false;
         },
     },
     new renodx::utils::settings::Setting{
