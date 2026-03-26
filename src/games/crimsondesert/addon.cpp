@@ -1016,6 +1016,11 @@ renodx::utils::settings::Settings settings = {
         .label = "Extra special thanks to Shortfuse for all the extra work on the shader decompiler for this one!",
         .section = "About",
     },
+        new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "Credit to Lilium for the RCAS implementation!",
+        .section = "About",
+    },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
         .label = "This build was compiled on " + build_date + " at " + build_time + ".",
