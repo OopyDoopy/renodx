@@ -280,7 +280,7 @@ renodx::utils::settings::Settings settings = {
         new renodx::utils::settings::Setting{
         .key = "ToneMapBlowout",
         .binding = &shader_injection.tone_map_blowout,
-        .default_value = 100.f,
+        .default_value = 0.f,
         .label = "Blowout",
         .section = "Advanced Tone Mapping Properties",
         .tooltip = "Desaturates the brightest portions of the image, also relative to peak brightness.",
