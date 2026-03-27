@@ -41,7 +41,9 @@
 #define LOCAL_LIGHT_SATURATION                 shader_injection.local_light_saturation
 #define DISABLE_AWB                            shader_injection.disable_awb
 #define DISABLE_HERO_LIGHTS                    shader_injection.disable_hero_lights
+
 #define IMPROVED_AUTO_EXPOSURE                 shader_injection.improved_auto_exposure
+
 #define SUN_MOON_ADJUSTMENTS                   shader_injection.sun_moon_adjustments
 #define MOON_DISK_SIZE                         shader_injection.moon_disk_size
 #define SKY_SCATTERING                         shader_injection.sky_scattering
@@ -102,7 +104,9 @@ struct ShaderInjectData {
   float local_light_saturation;
   float disable_awb;
   float disable_hero_lights;
+
   float improved_auto_exposure;
+
   float sun_moon_adjustments;
   float moon_disk_size;
   float sky_scattering;
