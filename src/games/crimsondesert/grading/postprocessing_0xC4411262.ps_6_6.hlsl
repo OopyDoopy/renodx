@@ -1317,7 +1317,10 @@ float4 main(
   // Tone mapping
   bool _2885 = (_localToneMappingParams.w > 0.0f);
   if (_2885) {
-    float _2891 = _userImageAdjust.z * _exposure0.x;
+    float new_exposure = _exposure0.x;
+    //if (IMPROVED_AUTO_EXPOSURE_V2 == 1) new_exposure = min(_exposure0.x, 2.0f * IMPROVED_AUTO_EXPOSURE_V2_FLOOR);
+
+    float _2891 = _userImageAdjust.z * new_exposure;
     float _2940 = exp2(log2(max(0.0f, (((_2891 * max(0.0f, (((_2866 * 1.705049991607666f) - (_2867 * 0.6217899918556213f)) - (_2868 * 0.08325999975204468f)))) * _slopeParams.x) + _offsetParams.x))) * _powerParams.x);
     float _2941 = exp2(log2(max(0.0f, (((max(0.0f, (((_2867 * 1.1407999992370605f) - (_2866 * 0.13026000559329987f)) - (_2868 * 0.01054999977350235f))) * _2891) * _slopeParams.y) + _offsetParams.y))) * _powerParams.y);
     float _2942 = exp2(log2(max(0.0f, (((max(0.0f, (((_2866 * -0.024000000208616257f) - (_2867 * 0.12896999716758728f)) + (_2868 * 1.1529699563980103f))) * _2891) * _slopeParams.z) + _offsetParams.z))) * _powerParams.z);

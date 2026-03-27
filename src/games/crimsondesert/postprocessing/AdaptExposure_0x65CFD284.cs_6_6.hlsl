@@ -374,8 +374,8 @@ void main(
           float _194 = _180 / _193;
           // When IMPROVED is on, override the game's per region and ToD controls
           // min/max luminance clamps with fixed values, I hope this solves double darkening
-          float _ae_min_lum = (IMPROVED_AUTO_EXPOSURE > 0.5f) ? AE_MIN_LUM : _param1.z;
-          float _ae_max_lum = (IMPROVED_AUTO_EXPOSURE > 0.5f) ? AE_MAX_LUM : _param1.w;
+          float _ae_min_lum = (IMPROVED_AUTO_EXPOSURE == 2) ? AE_MIN_LUM : _param1.z;
+          float _ae_max_lum = (IMPROVED_AUTO_EXPOSURE == 2) ? AE_MAX_LUM : _param1.w;
           float _195 = max(_194, _ae_min_lum);
           float _196 = min(_195, _ae_max_lum);
           float _197 = sqrt(_192);
@@ -492,7 +492,7 @@ void main(
             float _321 = saturate(_320);
             float _322 = _321 * _param3.z;
             // Sky visibility exposure bias
-            float _323 = (IMPROVED_AUTO_EXPOSURE > 0.5f) ? 0.0f : (_322 + _param2.z);
+            float _323 = (IMPROVED_AUTO_EXPOSURE == 2) ? 0.0f : (_322 + _param2.z);
             float _324 = max(_198, 9.999999747378752e-05f);
             float _325 = min(_324, 7.0f);
             float _326 = _325 + -0.009999999776482582f;
@@ -513,7 +513,7 @@ void main(
             float _341 = saturate(_287);
             float _342 = sqrt(_341);
             float _343 = _339 - _340;
-            float _344 = (IMPROVED_AUTO_EXPOSURE > 0.5f) ? 0.0f : (_343 * _342);
+            float _344 = (IMPROVED_AUTO_EXPOSURE == 2) ? 0.0f : (_343 * _342);
             float _345 = _198 * 8.0f;
             float _346 = log2(_345);
             float _347 = _346 - _340;
@@ -522,7 +522,7 @@ void main(
             float _350_vanilla = 0.8333333134651184f / _349;
 
             float _350;
-            if (IMPROVED_AUTO_EXPOSURE > 0.5f) {
+            if (IMPROVED_AUTO_EXPOSURE == 2) {
               // --- HDR asymmetric exposure adaptation ---
               // We reduce vanilla's adaptation strength via a power curve
               // in log space, modulated by sky visibility and scene brightness.
@@ -551,7 +551,7 @@ void main(
             bool _353 = !(_temporalReprojectionParams.w > 0.5f);
             if (_353) {
               float _357 = __3__39__0__1__g_exposureUAV[1];
-              if (IMPROVED_AUTO_EXPOSURE > 0.5f) {
+              if (IMPROVED_AUTO_EXPOSURE == 2) {
                 // Unified log space temporal adaptation becasue Vanilla uses two separate interpolation spaces (1/exp vs linear) 
                 // Causes visible jitter when the target oscillates around the previous value due to histogram noise. 
                 // Log space lerp is symmetric and smooth in both directions.
@@ -602,7 +602,7 @@ void main(
               }
             } else {
               // Temporal reset (loading screens, menus)
-              if (IMPROVED_AUTO_EXPOSURE > 0.5f) {
+              if (IMPROVED_AUTO_EXPOSURE == 2) {
                 // Preserve previous exposure to prevent spikes from garbage
                 // histogram data during transitions. Temporal adaptation will
                 // smoothly converge once gameplay resumes.
@@ -612,6 +612,8 @@ void main(
                 _381 = _350;
               }
             }
+
+
             _383 = 0;
             _384 = 0.0f;
             _385 = 0.0f;
@@ -658,12 +660,16 @@ void main(
                 }
                 float _425 = _424 * _381;
                 // Apply EV bias for IMPROVED mode (compensates for zeroed _323 push-constant correction)
-                _427 = (IMPROVED_AUTO_EXPOSURE > 0.5f) ? (_425 * exp2(AE_EV_BIAS)) : _425;
+                _427 = (IMPROVED_AUTO_EXPOSURE == 2) ? (_425 * exp2(AE_EV_BIAS)) : _425;
               } else {
                 _427 = _param3.y;
               }
+
+              if (IMPROVED_AUTO_EXPOSURE == 1) _427 = min(_427, lerp(1.f, 11.f, AE_DARK_POWER_OUTDOOR));
+
               __3__39__0__1__g_exposureUAV[0] = _427;
               float _428 = select(_414, _param3.y, _381);
+
               __3__39__0__1__g_exposureUAV[1] = _428;
               __3__39__0__1__g_exposureUAV[2] = _param0.x;
               __3__39__0__1__g_exposureUAV[3] = _param0.y;
