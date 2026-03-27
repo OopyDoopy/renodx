@@ -175,6 +175,8 @@ int auto_exposure = gold;
 int effects = crimson;
 int rendering = gold;
 
+renodx::utils::settings::Setting* tone_map_peak_nits_setting = nullptr;
+
 renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "SettingsMode",
@@ -211,7 +213,7 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value; },
         .is_visible = []() { return hdr_settings_toggle == 1; },
     },
-    new renodx::utils::settings::Setting{
+    tone_map_peak_nits_setting = new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",
         .binding = &shader_injection.peak_white_nits,
         .default_value = 1000.f,
@@ -1080,9 +1082,9 @@ void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
 
   auto peak = renodx::utils::swapchain::GetPeakNits(swapchain);
   if (peak.has_value()) {
-    settings[4]->default_value = roundf(peak.value());
+    tone_map_peak_nits_setting->default_value = roundf(peak.value());
   } else {
-    settings[4]->default_value = 1000.f;
+    tone_map_peak_nits_setting->default_value = 1000.f;
   }
 }
 
