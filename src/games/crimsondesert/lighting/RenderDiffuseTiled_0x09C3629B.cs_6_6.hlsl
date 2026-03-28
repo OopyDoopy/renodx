@@ -1544,7 +1544,7 @@ void main(
     float _2645 = saturate(dot(float3(_2623, _2624, _2625), float3(_2634, _2635, _2636)));
     float _2647 = float(max(0.010002136h, _2252));
     float _2648 = saturate(_2637);
-    // RenoDX: Geometric Specular AA — filter roughness for specular evaluation
+    // RenoDX: Geometric Specular AA
     float _rndx_spec_rough = _2647;
     if (SPECULAR_AA > 0.0f) {
       _rndx_spec_rough = NDFFilterRoughnessCS(float3(_2609, _2610, _2611), _2647, SPECULAR_AA);
@@ -1561,14 +1561,14 @@ void main(
     float _2664 = _2663 * _2663;
     float _2692;
     if (DIFFUSE_BRDF_MODE >= 2.0f) {
-      // EON 2025 — Energy-Preserving Oren-Nayar (exact)
+      // EON 2025 Diffuse
       float _eon_LdotV = dot(float3(_2623, _2624, _2625), float3(_431, _433, _435));
       _2692 = _2648 * EON_DiffuseScalar(_2648, _2640, _eon_LdotV, _2647);
     } else if (DIFFUSE_BRDF_MODE >= 1.0f) {
-      // Hammon 2017 Diffuse BRDF
+      // Hammon 2017 Diffuse
       _2692 = _2648 * HammonDiffuseScalar(_2648, _2640, _2642, _2645, _2647);
     } else {
-      // Vanilla Disney/Burley diffuse
+      // Vanilla Burley Diffuse
       _2692 = saturate((_2648 * 0.31830987334251404f) * ((((((1.0f - ((_2658 * _2658) * (_2657 * 0.75f))) * (1.0f - ((_2664 * _2664) * (_2663 * 0.75f)))) - _2656) * saturate((_2651 * 2.200000047683716f) + -0.5f)) + _2656) + ((exp2(-0.0f - (max(((_2651 * 73.19999694824219f) + -21.200000762939453f), 8.899999618530273f) * sqrt(_2642))) * _2645) * ((((_2651 * 34.5f) + -59.0f) * _2651) + 24.5f))));
     }
     int _2693 = _2580 & 126;
@@ -1653,7 +1653,16 @@ void main(
     }
     // RenoDX: Diffraction on Rough Surfaces
     if (DIFFRACTION > 0.0f && _2712 > 0.0f) {
-      float3 _rndx_dShift = DiffractionShiftOnly(_2642, _rndx_spec_rough);
+      float3 _rndx_dShift = DiffractionShiftAndSpeckleCS(
+        _2642,                                    // NdotH
+        _2640,                                    // NdotV
+        _rndx_spec_rough,                         // roughness
+        float2(_95, _96),                         // screen UV
+        _107,                                     // linear depth
+        float3(_2634, _2635, _2636),              // half vector H
+        float3(_2609, _2610, _2611),              // shading normal N
+        float3(_2714, _2715, _2716)               // F0 (base reflectance)
+      );
       float3 _rndx_dMod = lerp(float3(1.0f, 1.0f, 1.0f), _rndx_dShift, DIFFRACTION * _2712);
       _2816 *= _rndx_dMod.x;
       _2817 *= _rndx_dMod.y;
@@ -1667,14 +1676,49 @@ void main(
       _2817 *= _rndx_c2;
       _2818 *= _rndx_c2;
     }
+    // RenoDX: Foliage Transmission
+    bool isFoliage = ((uint)(_103 - 12) < 7u);
+    float foliageTransR = 0.0f;
+    float foliageTransG = 0.0f;
+    float foliageTransB = 0.0f;
+    if (FOLIAGE_TRANSMISSION > 0.0f && isFoliage) {
+      float thickness = 0.5f;
+      float wrap = 0.3f * FOLIAGE_TRANSMISSION;
+      float energyScale = 1.0f - thickness * FOLIAGE_TRANSMISSION;
+      float wrappedNdotL = max(0.0f, (_2637 + wrap) / (1.0f + wrap));
+      float vanillaNdotL = saturate(_2637);
+      if (vanillaNdotL > 0.01f) {
+        _2692 *= (wrappedNdotL / vanillaNdotL) * energyScale;
+      } else {
+        _2692 = wrappedNdotL * 0.31830987334251404f * energyScale;
+      }
+      // Back face transmission: multiply by shadow colour (_2543/4/5) and light intensity
+      // so shadowed foliage does not transmit unshadowed light
+      // Maybe I will figure out a better way
+      float transmissionNdotL = pow(saturate(-_2637), 1.5f);
+      foliageTransR = transmissionNdotL * thickness * FOLIAGE_TRANSMISSION * _2714 * _2543 * _2626;
+      foliageTransG = transmissionNdotL * thickness * FOLIAGE_TRANSMISSION * _2715 * _2544 * _2627;
+      foliageTransB = transmissionNdotL * thickness * FOLIAGE_TRANSMISSION * _2716 * _2545 * _2628;
+    }
+    // RenoDX: Foliage diffuse energy compensation
+    if (FOLIAGE_TRANSMISSION > 0.0f && isFoliage) {
+      float _fNdotV = max(_2640, 0.001);
+      float _fNdotL = saturate(_2637);
+      float _fOneMinusV = 1.0 - _fNdotV;
+      float _fOneMinusL = 1.0 - _fNdotL;
+      float _fGrazingBoost = _fOneMinusV * _fOneMinusV * _fOneMinusL;
+      float _fRoughFactor = _2647 * _2647;
+      float _fCompensation = _fGrazingBoost * _fRoughFactor * 10.0;
+      _2692 += _fCompensation * _fNdotL * RDXL_INV_PI;
+    }
     if ((_2553) | ((int)(_2693 == 6))) {
       _2827 = ((max(0.0f, (0.30000001192092896f - _2637)) * 0.23190687596797943f) + _2692);
     } else {
       _2827 = _2692;
     }
-    float _2834 = ((_2543 * _2827) * _2626) + (_1202 * _1147);
-    float _2835 = ((_2544 * _2827) * _2627) + (_1203 * _1147);
-    float _2836 = ((_2545 * _2827) * _2628) + (_1204 * _1147);
+    float _2834 = ((_2543 * _2827) * _2626) + (_1202 * _1147) + foliageTransR;
+    float _2835 = ((_2544 * _2827) * _2627) + (_1203 * _1147) + foliageTransG;
+    float _2836 = ((_2545 * _2827) * _2628) + (_1204 * _1147) + foliageTransB;
     uint _2839 = (int4(_frameNumber).x) * 13;
     [branch]
     if (((((int)(_2839 + _85)) | ((int)(_2839 + _87))) & 31) == 0) {

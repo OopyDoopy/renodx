@@ -651,6 +651,10 @@ void main(
   float _4852;
   float _4853;
   float _4897;
+  // RenoDX: Foliage transmission accumulator
+  float foliageTransR = 0.0f;
+  float foliageTransG = 0.0f;
+  float foliageTransB = 0.0f;
   half _4946;
   half _4947;
   half _4948;
@@ -2749,7 +2753,7 @@ void main(
       _3518 = _3490;
       _3519 = _3491;
     }
-    // RenoDX: Geometric Specular AA — filter roughness for specular evaluation
+    // RenoDX: Geometric Specular AA
     float _rndx_spec_rough = _3388;
     if (SPECULAR_AA > 0.0f) {
       _rndx_spec_rough = NDFFilterRoughnessCS(float3(_3463, _3464, _3465), _3388, SPECULAR_AA);
@@ -3074,6 +3078,8 @@ void main(
     if (__defer_3581_3894) {
       if (!_3606) {
         bool _3905 = (_3563 == 0);
+        // RenoDX: Foliage stencil detection (stencil 12..18 inclusive)
+        bool isFoliage = ((uint)(_112 - 12) < 7u);
         if (_3905) {
           if (((int)(_3596 > 0.0f)) | ((int)(_3597 > 0.0f))) {
             _4073 = 0.0f;
@@ -3097,14 +3103,14 @@ void main(
               float _4098 = _4097 * _4097;
               float _4125;
               if (DIFFUSE_BRDF_MODE >= 2.0f) {
-                // EON 2025 — Energy-Preserving Oren-Nayar (exact)
+                // EON 2025 Diffuse
                 float _eon_LdotV = dot(float3(_3582, _3583, _3584), float3(_996, _997, _998));
                 _4125 = _4084 * EON_DiffuseScalar(_4084, _3599, _eon_LdotV, _3388);
               } else if (DIFFUSE_BRDF_MODE >= 1.0f) {
-                // Hammon 2017 Diffuse BRDF
+                // Hammon 2017 Diffuse
                 _4125 = _4084 * HammonDiffuseScalar(_4084, _3599, _3601, _3604, _3388);
               } else {
-                // Vanilla Disney/Burley diffuse
+                // Vanilla Burley Diffuse
                 _4125 = (_4084 * 0.31830987334251404f) * ((((_3604 * ((((_4085 * 34.5f) + -59.0f) * _4085) + 24.5f)) * exp2(-0.0f - (max(((_4085 * 73.19999694824219f) + -21.200000762939453f), 8.899999618530273f) * sqrt(_3601)))) + _4090) + ((((1.0f - ((_4092 * _4092) * (_4091 * 0.75f))) * (1.0f - ((_4098 * _4098) * (_4097 * 0.75f)))) - _4090) * saturate((_4085 * 2.200000047683716f) + -0.5f)));
               }
               float _4128 = saturate(1.0f - saturate(_3602));
@@ -3130,7 +3136,13 @@ void main(
               }
               // RenoDX: Diffraction on Rough Surfaces
               if (DIFFRACTION > 0.0f && _3396 > 0.0f) {
-                float3 _rndx_dShift = DiffractionShiftOnly(_3601, _rndx_spec_rough);
+                float3 _rndx_dShift = DiffractionShiftAndSpeckleCS(
+                  _3601, _3599, _rndx_spec_rough,
+                  float2(_104, _105), _116,
+                  float3(_3593, _3594, _3595),
+                  float3(_3463, _3464, _3465),
+                  float3(_3378, _3379, _3380)
+                );
                 float3 _rndx_dMod = lerp(float3(1.0f, 1.0f, 1.0f), _rndx_dShift, DIFFRACTION * _3396);
                 _4171 *= _rndx_dMod.x;
                 _4172 *= _rndx_dMod.y;
@@ -3143,6 +3155,34 @@ void main(
                 _4171 *= _rndx_c2;
                 _4172 *= _rndx_c2;
                 _4173 *= _rndx_c2;
+              }
+              // RenoDX: Foliage Transmission (first instance — standard path)
+              if (FOLIAGE_TRANSMISSION > 0.0f && isFoliage) {
+                float thickness = 0.5f;
+                float wrap = 0.3f * FOLIAGE_TRANSMISSION;
+                float energyScale = 1.0f - thickness * FOLIAGE_TRANSMISSION;
+                float wrappedNdotL = max(0.0f, (_3596 + wrap) / (1.0f + wrap));
+                float vanillaNdotL = saturate(_3596);
+                if (vanillaNdotL > 0.01f) {
+                  _4125 *= (wrappedNdotL / vanillaNdotL) * energyScale;
+                } else {
+                  _4125 = wrappedNdotL * 0.31830987334251404f * energyScale;
+                }
+                float transmissionNdotL = pow(saturate(-_3596), 1.5f);
+                foliageTransR = transmissionNdotL * thickness * FOLIAGE_TRANSMISSION * _3378 * _3348 * _3585;
+                foliageTransG = transmissionNdotL * thickness * FOLIAGE_TRANSMISSION * _3379 * _3349 * _3586;
+                foliageTransB = transmissionNdotL * thickness * FOLIAGE_TRANSMISSION * _3380 * _3350 * _3587;
+              }
+              // RenoDX: Foliage diffuse energy compensation
+              if (FOLIAGE_TRANSMISSION > 0.0f && isFoliage) {
+                float _fNdotV = max(_3599, 0.001);
+                float _fNdotL = saturate(_3596);
+                float _fOneMinusV = 1.0 - _fNdotV;
+                float _fOneMinusL = 1.0 - _fNdotL;
+                float _fGrazingBoost = _fOneMinusV * _fOneMinusV * _fOneMinusL;
+                float _fRoughFactor = _3388 * _3388;
+                float _fCompensation = _fGrazingBoost * _fRoughFactor * 10.0;
+                _4125 += _fCompensation * _fNdotL * RDXL_INV_PI;
               }
               bool _4174 = (_3429 == 65);
               bool __defer_4170_4212 = false;
@@ -3274,14 +3314,14 @@ void main(
             float _4098 = _4097 * _4097;
             float _4125;
             if (DIFFUSE_BRDF_MODE >= 2.0f) {
-              // EON 2025 — Energy-Preserving Oren-Nayar (exact)
+              // EON 2025 Diffuse
               float _eon_LdotV = dot(float3(_3582, _3583, _3584), float3(_996, _997, _998));
               _4125 = _4084 * EON_DiffuseScalar(_4084, _3599, _eon_LdotV, _3388);
             } else if (DIFFUSE_BRDF_MODE >= 1.0f) {
-              // Hammon 2017 Diffuse BRDF
+              // Hammon 2017 Diffuse
               _4125 = _4084 * HammonDiffuseScalar(_4084, _3599, _3601, _3604, _3388);
             } else {
-              // Vanilla Disney/Burley diffuse
+              // Vanilla Burley Diffuse
               _4125 = (_4084 * 0.31830987334251404f) * ((((_3604 * ((((_4085 * 34.5f) + -59.0f) * _4085) + 24.5f)) * exp2(-0.0f - (max(((_4085 * 73.19999694824219f) + -21.200000762939453f), 8.899999618530273f) * sqrt(_3601)))) + _4090) + ((((1.0f - ((_4092 * _4092) * (_4091 * 0.75f))) * (1.0f - ((_4098 * _4098) * (_4097 * 0.75f)))) - _4090) * saturate((_4085 * 2.200000047683716f) + -0.5f)));
             }
             float _4128 = saturate(1.0f - saturate(_3602));
@@ -3305,21 +3345,55 @@ void main(
               _4172 = 0.0f;
               _4173 = 0.0f;
             }
-            // RenoDX: Diffraction on Rough Surfaces (Werner et al. 2024)
+            // RenoDX: Diffraction on Rough Surfaces
             if (DIFFRACTION > 0.0f && _3396 > 0.0f) {
-              float3 _rndx_dShift = DiffractionShiftOnly(_3601, _rndx_spec_rough);
+              float3 _rndx_dShift = DiffractionShiftAndSpeckleCS(
+                _3601, _3599, _rndx_spec_rough,
+                float2(_104, _105), _116,
+                float3(_3593, _3594, _3595),
+                float3(_3463, _3464, _3465),
+                float3(_3378, _3379, _3380)
+              );
               float3 _rndx_dMod = lerp(float3(1.0f, 1.0f, 1.0f), _rndx_dShift, DIFFRACTION * _3396);
               _4171 *= _rndx_dMod.x;
               _4172 *= _rndx_dMod.y;
               _4173 *= _rndx_dMod.z;
             }
-            // RenoDX: Callisto Smooth Terminator (SIGGRAPH 2023)
+            // RenoDX: Callisto Smooth Terminator
             if (SMOOTH_TERMINATOR > 0.0f) {
               float _rndx_c2 = CallistoSmoothTerminator(_4084, _3604, _3601, SMOOTH_TERMINATOR, 0.5f);
               _4125 *= _rndx_c2;
               _4171 *= _rndx_c2;
               _4172 *= _rndx_c2;
               _4173 *= _rndx_c2;
+            }
+            // RenoDX: Foliage Transmission (second instance — character/special path)
+            if (FOLIAGE_TRANSMISSION > 0.0f && isFoliage) {
+              float thickness = 0.5f;
+              float wrap = 0.3f * FOLIAGE_TRANSMISSION;
+              float energyScale = 1.0f - thickness * FOLIAGE_TRANSMISSION;
+              float wrappedNdotL = max(0.0f, (_3596 + wrap) / (1.0f + wrap));
+              float vanillaNdotL = saturate(_3596);
+              if (vanillaNdotL > 0.01f) {
+                _4125 *= (wrappedNdotL / vanillaNdotL) * energyScale;
+              } else {
+                _4125 = wrappedNdotL * 0.31830987334251404f * energyScale;
+              }
+              float transmissionNdotL = pow(saturate(-_3596), 1.5f);
+              foliageTransR = transmissionNdotL * thickness * FOLIAGE_TRANSMISSION * _3378 * _3348 * _3585;
+              foliageTransG = transmissionNdotL * thickness * FOLIAGE_TRANSMISSION * _3379 * _3349 * _3586;
+              foliageTransB = transmissionNdotL * thickness * FOLIAGE_TRANSMISSION * _3380 * _3350 * _3587;
+            }
+            // RenoDX: Foliage diffuse energy compensation (second path)
+            if (FOLIAGE_TRANSMISSION > 0.0f && isFoliage) {
+              float _fNdotV2 = max(_3599, 0.001);
+              float _fNdotL2 = saturate(_3596);
+              float _fOneMinusV2 = 1.0 - _fNdotV2;
+              float _fOneMinusL2 = 1.0 - _fNdotL2;
+              float _fGrazingBoost2 = _fOneMinusV2 * _fOneMinusV2 * _fOneMinusL2;
+              float _fRoughFactor2 = _3388 * _3388;
+              float _fCompensation2 = _fGrazingBoost2 * _fRoughFactor2 * 10.0;
+              _4125 += _fCompensation2 * _fNdotL2 * RDXL_INV_PI;
             }
             bool _4174 = (_3429 == 65);
             bool __defer_4170_4212 = false;
@@ -4196,9 +4270,9 @@ void main(
         }
       }
     }
-    float _4860 = _4845 + _3077;
-    float _4861 = _4846 + _3078;
-    float _4862 = _4847 + _3079;
+    float _4860 = _4845 + _3077 + foliageTransR;
+    float _4861 = _4846 + _3078 + foliageTransG;
+    float _4862 = _4847 + _3079 + foliageTransB;
     uint _4865 = (int4(_frameNumber).x) * 13;
     [branch]
     if (((((int)(_4865 + _94)) | ((int)(_4865 + _96))) & 31) == 0) {

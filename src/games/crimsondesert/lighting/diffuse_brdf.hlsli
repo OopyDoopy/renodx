@@ -13,7 +13,7 @@ static const float RDXL_INV_PI = 0.31830987334251404f;
 // ----------------------------------------------------------------------------
 // Earl Hammon Jr., GDC 2017
 //
-// Energy-conserving diffuse with multi-scatter compensation.
+// Energy conserving diffuse with multi scatter compensation.
 // Returns scalar: single + multi (no albedo, no NdotL).
 // ============================================================================
 float HammonDiffuseScalar(
@@ -39,21 +39,27 @@ float HammonDiffuseScalar(
 }
 
 // ============================================================================
-// EON — Energy Preserving Oren Nayar Diffuse BRDF (scalar, exact)
+// EON 2025 — Energy Preserving Oren Nayar Diffuse BRDF (scalar, exact)
 // ----------------------------------------------------------------------------
-// Portsmouth, Kutz & Hill 2025 — "EON: A Practical Energy-Preserving
+// Portsmouth, Kutz & Hill 2025 — "EON: A Practical Energy Preserving
 // Rough Diffuse BRDF"
 //
 // Uses the EXACT directional albedo (not polynomial approximation)
 // Returns scalar: (f_ss + f_ms) with rho = 1 (no albedo, no NdotL)
 //
-// Parameters use world-space dot products; the azimuthal s-term is
-// reconstructed from  s = dot(L,V) - NdotL * NdotV
+// We use world space dot products but we did two intentional raster adaptations since 
+// RT is kinda bad for Crimson + ran into issue with full EON
+//
+// - sovertF denominator is clamped to 0.1 minimum
+// - f_ss is clamped to ≥ 0
+//
+// Game does scalar BRDF × albedo, we could fixing it but that would require passing 
+// per channel albedo into the BRDF, which needs a restructuring
 // ============================================================================
 
 // FON constants
-static const float EON_C1 = 0.5f - 2.0f / (3.0f * RDXL_PI);  // ~0.2876
-static const float EON_C2 = 2.0f / 3.0f - 28.0f / (15.0f * RDXL_PI);  // ~0.0716
+static const float EON_C1 = 0.5f - 2.0f / (3.0f * RDXL_PI); 
+static const float EON_C2 = 2.0f / 3.0f - 28.0f / (15.0f * RDXL_PI); 
 
 // FON Directional Albedo — Exact closed form
 float EON_E_FON_Exact_L(float mu, float r)
@@ -67,7 +73,7 @@ float EON_E_FON_Exact_L(float mu, float r)
 }
 
 // EON scalar evaluation (exact E_FON, rho = 1)
-// NdotL, NdotV : saturated cos-theta for light/view
+// NdotL, NdotV : saturated cos theta for light/view
 // LdotV        : dot(L, V) — NOT saturated, can be negative
 // roughness    : linear roughness [0,1]
 float EON_DiffuseScalar(
@@ -81,21 +87,19 @@ float EON_DiffuseScalar(
   // In world space:   s = dot(L, V) - NdotL * NdotV
   float s = LdotV - mu_i * mu_o;
 
-  // FON s/t ratio — clamped denominator for rasterization stability.
+  // FON s/t ratio — clamped denominator for stability.
   // The paper's formulation diverges when both mu_i and mu_o are small
-  // (grazing foliage, complex geometry).  CLTC importance sampling in
-  // path tracing naturally avoids these configurations, but in a deferred
-  // rasterizer we must clamp.  Threshold 0.1 matches Hammon's approach
+  // (grazing foliage, complex geometry). Threshold 0.1 matches Hammon's approach
   // for NdotH and caps sovertF at s/0.1 ≈ 10 max
   float sovertF = (s > 0.0f) ? (s / max(max(mu_i, mu_o), 0.1f)) : s;
 
   // FON A coefficient
   float AF = 1.0f / (1.0f + EON_C1 * roughness);
 
-  // Single-scatter (rho = 1) — clamped to non negative.
+  // Single scatter (rho = 1) — clamped to non negative.
   // Negative values occur when s is large negative (backlit geometry)
   // with high roughness: (1 + r * s) < 0.  The paper handles this
-  // via multi-scatter energy compensation, but with rho=1 scalar
+  // via multi scatter energy compensation, but with rho=1 scalar
   // mode the correction is imperfect.  Clamping f_ss ≥ 0 prevents
   // the darker than Lambert artifact
   float f_ss = max(0.0f, RDXL_INV_PI * AF * (1.0f + roughness * sovertF));
@@ -107,7 +111,7 @@ float EON_DiffuseScalar(
   // Average albedo
   float avgEF = AF * (1.0f + EON_C2 * roughness);
 
-  // Multi-scatter with rho = 1:
+  // Multi scatter with rho = 1:
   //   rho_ms = rho^2 * avgEF / (1 - rho * (1 - avgEF))
   //          = 1 * avgEF / (1 - 1 * (1 - avgEF))
   //          = avgEF / avgEF = 1
@@ -121,12 +125,14 @@ float EON_DiffuseScalar(
 }
 
 // ============================================================================
-// Callisto Smooth Terminator (SIGGRAPH 2023)
+// Callisto Smooth Terminator
 // ----------------------------------------------------------------------------
 // Taken from Striking Distance Studios — slides 90/98
-// Softens the hard light/dark boundary on low-poly geometry where
+// Softens the hard light/dark boundary on low poly geometry where
 // interpolated normals create a visible faceted terminator line
 // Returns scalar c2 that multiplies the entire BRDF (diffuse + specular)
+//
+// Solves some harsh lines that I saw from local lights
 //
 //   o — intensity [0,1] (0 = off, higher = smoother)
 //   p — edge length [0,1] (default 0.5)
@@ -150,15 +156,18 @@ float CallistoSmoothTerminator(
 }
 
 // ============================================================================
-// Geometric Specular Anti-Aliasing — Compute Shader Compatible
+// Geometric Specular Anti Aliasing 
 // ----------------------------------------------------------------------------
-// Tokuyoshi & Kaplanyan 2021: "Improved Geometric Specular Anti-Aliasing"
+// Tokuyoshi & Kaplanyan 2021: "Improved Geometric Specular Anti Aliasing"
 // Adapted for compute shaders using QuadReadAcrossX/Y instead of ddx/ddy
 //
-// Widens roughness based on screen-space normal derivatives to eliminate
-// specular shimmer on distant surfaces where normals alias at sub-pixel
+// Widens roughness based on screen space normal derivatives to eliminate
+// specular shimmer on distant surfaces where normals alias at sub pixel
 //
-//   normalWS  — world-space shading normal (normalised)
+// This does more than just AA since the base game nuked specular details on
+// some meshes and decals like puddles during the night
+//
+//   normalWS  — world space shading normal (normalised)
 //   roughness — linear roughness [0,1]
 //   strength  — user control [0,1]: 0=off, 1=full filtering
 //
@@ -169,92 +178,175 @@ float NDFFilterRoughnessCS(
     float  roughness,
     float  strength)
 {
-  // Approximate screen-space derivatives via wave quad intrinsics
+  // Approximate screen space derivatives via wave quad intrinsics
   float3 dndu = QuadReadAcrossX(normalWS) - normalWS;
   float3 dndv = QuadReadAcrossY(normalWS) - normalWS;
 
   static const float SIGMA2 = 0.15915494f;  // 1/(2pi)
   float kernelRoughness2 = 2.0f * SIGMA2 * (dot(dndu, dndu) + dot(dndv, dndv));
 
-  // kappa = 0.18 clamping threshold (Kaplanyan 2016 / Tokuyoshi 2021)
+  // kappa = 0.18 clamping threshold 
   static const float KAPPA = 0.18f;
   float clampedKernel = min(kernelRoughness2, KAPPA) * strength;
 
   float alpha  = roughness * roughness;
   float alpha2 = saturate(alpha * alpha + clampedKernel);
-  return sqrt(sqrt(alpha2));  // back to linear roughness
+  return sqrt(sqrt(alpha2)); 
 }
 
 // ============================================================================
-// Diffraction on Rough Surfaces — Shift Only Fast Path
+// Diffraction on Rough Surfaces (Werner et al. 2024, JCGT)
 // ----------------------------------------------------------------------------
-// Werner et al. 2024 (JCGT) / Clausen et al. 2023 spectral shift function
-// Adds wavelength dependent colour fringing to metallic specular highlights
+// Spectral shift + speckle noise for metallic specular highlights.
+// 
+// Since we dont have access to per metal, we use F0 aware. This allows us to
+// still have metal dependant hue shifts
 //
-// Only the spectral shift is applied (no speckle noise)
+// neutral metal - red to blue
+// gold - yellow to orange/red
+// ect
 //
-//   NdotH     — saturate(dot(N, H))
-//   roughness — GGX alpha (linear roughness)
-//
-// Returns: float3 RGB modifier to multiply into specular
-//          Values near 1.0 with subtle colour variation
+// Paper params (Table 1):
+//   Rough (α≈0.39): w=2.3394, h=0.001025
+//   Smooth (α≈0.14): w=6.4455, h=0.00077
+//   shiftScatter = (1.0, 0.88, 0.76), shiftIntensity = (0.95, 1.0, 1.05)
 // ============================================================================
 
-struct DiffractionParams {
-  float  alpha;
-  float  w;
-  float  h;
-  float3 shiftScatter;
-  float3 shiftIntensity;
-};
+// 3D Simplex Noise (Gustavson) — for RGB speckle
+float4 _dfr_permute4(float4 x) { return fmod((x * 34.0 + 1.0) * x, 289.0); }
+float4 _dfr_taylorInvSqrt(float4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
 
-DiffractionParams DiffractionParamsRoughMetal()
+float _dfr_snoise3(float3 v)
 {
-  DiffractionParams p;
-  p.alpha          = 0.3922;
-  p.w              = 3.8261;
-  p.h              = 0.00198;
-  p.shiftScatter   = float3(1.0, 0.88, 0.76);
-  p.shiftIntensity = float3(0.95, 1.0, 1.05);
-  return p;
+  static const float2 C = float2(1.0 / 6.0, 1.0 / 3.0);
+  float3 i  = floor(v + dot(v, C.yyy));
+  float3 x0 = v - i + dot(i, C.xxx);
+  float3 g  = step(x0.yzx, x0.xyz);
+  float3 l  = 1.0 - g;
+  float3 i1 = min(g, l.zxy);
+  float3 i2 = max(g, l.zxy);
+  float3 x1 = x0 - i1 + C.xxx;
+  float3 x2 = x0 - i2 + C.yyy;
+  float3 x3 = x0 - 0.5;
+  i = fmod(i, 289.0);
+  float4 p = _dfr_permute4(
+    _dfr_permute4(
+      _dfr_permute4(
+        i.z + float4(0.0, i1.z, i2.z, 1.0))
+      + i.y + float4(0.0, i1.y, i2.y, 1.0))
+    + i.x + float4(0.0, i1.x, i2.x, 1.0));
+  float4 j  = p - 49.0 * floor(p / 49.0);
+  float4 x_ = floor(j / 7.0);
+  float4 y_ = floor(j - 7.0 * x_);
+  float4 gx = x_ / 7.0 + 1.0 / 14.0 - 0.5;
+  float4 gy = y_ / 7.0 + 1.0 / 14.0 - 0.5;
+  float4 gz = 1.0 - abs(gx) - abs(gy);
+  float4 b0 = float4(gx.xy, gy.xy);
+  float4 b1 = float4(gx.zw, gy.zw);
+  float4 s0 = floor(b0) * 2.0 + 1.0;
+  float4 s1 = floor(b1) * 2.0 + 1.0;
+  float4 sh = -step(gz, 0.0);
+  float4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
+  float4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+  float3 g0 = float3(a0.xy, gz.x);
+  float3 g1 = float3(a0.zw, gz.y);
+  float3 g2 = float3(a1.xy, gz.z);
+  float3 g3 = float3(a1.zw, gz.w);
+  float4 norm = _dfr_taylorInvSqrt(float4(
+      dot(g0, g0), dot(g1, g1), dot(g2, g2), dot(g3, g3)));
+  g0 *= norm.x;  g1 *= norm.y;  g2 *= norm.z;  g3 *= norm.w;
+  float4 m = max(0.6 - float4(dot(x0, x0), dot(x1, x1),
+                               dot(x2, x2), dot(x3, x3)), 0.0);
+  m = m * m;
+  return 42.0 * dot(m * m, float4(dot(g0, x0), dot(g1, x1),
+                                   dot(g2, x2), dot(g3, x3)));
 }
 
-DiffractionParams DiffractionParamsSmoothMetal()
+// spectral shift + speckle + F0 aware hue modulation.
+// Returns float3 modifier centered around 1.0 to multiply into specular.
+float3 DiffractionShiftAndSpeckleCS(
+    float  NdotH,
+    float  NdotV,
+    float  roughness,
+    float2 screenUV,
+    float  linearDepth,
+    float3 halfVec,
+    float3 normal,
+    float3 F0)
 {
-  DiffractionParams p;
-  p.alpha          = 0.14033;
-  p.w              = 6.4455;
-  p.h              = 0.00077;
-  p.shiftScatter   = float3(1.0, 0.88, 0.76);
-  p.shiftIntensity = float3(0.95, 1.0, 1.05);
-  return p;
-}
+  // -- Roughness interpolated params (paper Table 1) --
+  float t = saturate((0.3922 - roughness) / (0.3922 - 0.14033));
+  float w = lerp(2.3394, 6.4455, t);
+  float h = lerp(0.001025, 0.00077, t);
+  static const float3 shiftScatter   = float3(1.0, 0.88, 0.76);
+  static const float3 shiftIntensity = float3(0.95, 1.0, 1.05);
 
-DiffractionParams DiffractionParamsFromRoughness(float alpha)
-{
-  DiffractionParams rough  = DiffractionParamsRoughMetal();
-  DiffractionParams smooth = DiffractionParamsSmoothMetal();
-  float t = saturate((0.3922 - alpha) / (0.3922 - 0.14033));
-  DiffractionParams p;
-  p.alpha          = alpha;
-  p.w              = lerp(rough.w, smooth.w, t);
-  p.h              = lerp(rough.h, smooth.h, t);
-  p.shiftScatter   = lerp(rough.shiftScatter, smooth.shiftScatter, t);
-  p.shiftIntensity = lerp(rough.shiftIntensity, smooth.shiftIntensity, t);
-  return p;
-}
-
-float3 DiffractionShift(float thetaM, DiffractionParams params)
-{
-  float cosWT = cos(params.w * thetaM);
-  return params.shiftScatter * cosWT * params.h + params.shiftIntensity;
-}
-
-float3 DiffractionShiftOnly(float NdotH, float roughness)
-{
-  DiffractionParams params = DiffractionParamsFromRoughness(roughness);
+  // -- Spectral shift (paper Eq. 7) --
   float thetaM = acos(NdotH);
-  return DiffractionShift(thetaM, params);
+  float cosWT  = cos(w * thetaM);
+  float3 rawShift = shiftScatter * cosWT * h + shiftIntensity;
+  float3 shiftDev = rawShift - 1.0;
+
+  // -- F0-aware hue modulation --
+  float  F0avg  = max(dot(F0, float3(0.333, 0.333, 0.333)), 0.01);
+  float3 F0norm = F0 / F0avg;
+  float  chromaSpread = max(max(F0norm.x, F0norm.y), F0norm.z)
+                      - min(min(F0norm.x, F0norm.y), F0norm.z);
+  float  coloredness  = saturate(chromaSpread * 1.5);
+  float3 coloredDev   = (F0norm - 1.0) * abs(shiftDev.x + shiftDev.z) * 0.5;
+  float3 finalDev     = lerp(shiftDev, coloredDev, coloredness);
+  float3 shift        = 1.0 + finalDev * 4.0 * 0.7;
+
+  // -- Speckle noise (paper Listing 2, compute-shader path) --
+  float uvScale = lerp(500.0, 800.0, t);
+  float2 scaledUV = screenUV * uvScale;
+
+  // Screen space derivatives via quad intrinsics
+  float2 duvdx = QuadReadAcrossX(scaledUV) - scaledUV;
+  float2 duvdy = QuadReadAcrossY(scaledUV) - scaledUV;
+  float  delta_uv = max(length(duvdx), length(duvdy));
+  float  sqrtSPP  = delta_uv * 2.0;  // / UV_TO_SPECKLE_FACTOR(0.5)
+
+  // Amplitude reduction (paper Eq. 14)
+  float ampMod = 1.0 - saturate(max(sqrtSPP - 1.0, 0.0));
+
+  // Polar encoded half vector for view/light dependent pattern (paper §5.2)
+  float  hr = length(halfVec);
+  float  h_a = (atan2(halfVec.y, halfVec.x) - atan2(normal.y, normal.x)) * 7.0;
+  float  h_p = (asin(clamp(halfVec.z / max(hr, 1e-7), -1.0, 1.0))
+              - asin(clamp(normal.z / max(length(normal), 1e-7), -1.0, 1.0))) * 7.0;
+
+  // Sample noise — 3 decorrelated channels
+  float3 noise = float3(0.0, 0.0, 0.0);
+  if (sqrtSPP <= 1.0) {
+    noise.r = _dfr_snoise3(float3(scaledUV, h_a));
+    noise.g = _dfr_snoise3(float3(scaledUV + 17.3, h_a + 7.1));
+    noise.b = _dfr_snoise3(float3(scaledUV + 31.7, h_p));
+  } else if (sqrtSPP <= 2.0) {
+    // Transition: 4-tap multisample
+    static const float2 msOff[4] = {
+      float2(-0.25, -0.25), float2(0.25, -0.25),
+      float2(-0.25,  0.25), float2(0.25,  0.25)
+    };
+    [unroll] for (int s = 0; s < 4; s++) {
+      float2 uv = scaledUV + msOff[s] * delta_uv;
+      noise.r += _dfr_snoise3(float3(uv, h_a));
+      noise.g += _dfr_snoise3(float3(uv + 17.3, h_a + 7.1));
+      noise.b += _dfr_snoise3(float3(uv + 31.7, h_p));
+    }
+    noise *= 0.25;
+  }
+
+  // Covariance scaling (paper Eq. 12) — floored so speckle is visible at highlight peak
+  float covCos = cos(w * thetaM);
+  float covScale = sqrt(max(1.0 - covCos * covCos, 0.15)) * lerp(0.5, 0.3, t);
+  noise *= covScale * ampMod;
+
+  // F0 tinted speckle
+  float3 speckleTint = lerp(float3(1.0, 1.0, 1.0), F0norm, coloredness * 0.5);
+  float3 speckle = noise * 0.5 * speckleTint;
+
+  return shift + speckle;
 }
 
 #endif  // DIFFUSE_BRDF_HLSLI

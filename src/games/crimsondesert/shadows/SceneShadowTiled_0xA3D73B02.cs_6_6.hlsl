@@ -1,5 +1,15 @@
 #include "../shared.h"
 
+// ── Foliage Contact Shadow Material ID Reference ─────────────────────
+// ID 12 = Tree leaves + larger bushes (close/medium range)
+// ID 13 = Small-scale foliage (close/medium range)
+// ID 14 = Small-scale foliage (close/medium range)
+// ID 15 = Distant tree LODs + larger bushes (medium/long range)
+// ID 16 = Same Larger bushes as ID 15 + smaller bushes (close/medium range, no trees)
+// ID 17 = Grass, flowers, small foliage (close/medium range)
+// ID 18 = Very small bushes + grass not covered by other IDs (close/medium range)
+// ─────────────────────────────────────────────────────────────────────
+
 #define SHADOW_DBG_CONTACT_INV  _3060
 #define SHADOW_DBG_OUT_R        _3075
 #define SHADOW_DBG_OUT_G        _3076
@@ -258,6 +268,9 @@ void main(
   float _2291;
   float _2292;
   float _2293;
+  float _2052;
+  float _2056;
+  float _2060;
   int _2435;
   float _2436;
   float _2437;
@@ -407,12 +420,6 @@ void main(
       }
     } else {
       _553 = 1.0f;
-    }
-    // RenoDX: Terrain shadow boundary fade — eliminates hard pop-in at shadow map edge (doesnt seem to help)
-    if (SHADOW_QUALITY > 0.5f && _553 < 1.0f) {
-      float _tfu = max(0.0f, (abs(_189 * 2.0f - 1.0f) - 0.9f) * 10.0f);
-      float _tfv = max(0.0f, (abs(_193 * 2.0f - 1.0f) - 0.9f) * 10.0f);
-      _553 = lerp(_553, 1.0f, saturate(sqrt(_tfu * _tfu + _tfv * _tfv)));
     }
     float _561 = sqrt(((_150 * _150) + (_149 * _149)) + (_151 * _151));
     float _581 = mad((float4(_dynamicShadowProjRelativeTexScale[1][0].z, _dynamicShadowProjRelativeTexScale[1][1].z, _dynamicShadowProjRelativeTexScale[1][2].z, _dynamicShadowProjRelativeTexScale[1][3].z).x), _151, mad((float4(_dynamicShadowProjRelativeTexScale[1][0].y, _dynamicShadowProjRelativeTexScale[1][1].y, _dynamicShadowProjRelativeTexScale[1][2].y, _dynamicShadowProjRelativeTexScale[1][3].y).x), _150, ((float4(_dynamicShadowProjRelativeTexScale[1][0].x, _dynamicShadowProjRelativeTexScale[1][1].x, _dynamicShadowProjRelativeTexScale[1][2].x, _dynamicShadowProjRelativeTexScale[1][3].x).x) * _149))) + (float4(_dynamicShadowProjRelativeTexScale[1][0].w, _dynamicShadowProjRelativeTexScale[1][1].w, _dynamicShadowProjRelativeTexScale[1][2].w, _dynamicShadowProjRelativeTexScale[1][3].w).x);
@@ -848,9 +855,9 @@ void main(
       float _2041 = _1966 * _2040;
       float _2042 = _2041 * _1965;
       float _2043 = _2037 * _1965;
-      float _2052 = mad(_2028, _1965, mad(_2035, _2042, ((((_2043 * _1965) * _2040) + 1.0f) * _2034)));
-      float _2056 = mad(_2028, _1966, mad(_2035, (_2037 + (_2041 * _1966)), ((_2034 * _2037) * _2042)));
-      float _2060 = mad(_2028, _1967, mad(_2035, (-0.0f - _1966), (-0.0f - (_2043 * _2034))));
+      _2052 = mad(_2028, _1965, mad(_2035, _2042, ((((_2043 * _1965) * _2040) + 1.0f) * _2034)));
+      _2056 = mad(_2028, _1966, mad(_2035, (_2037 + (_2041 * _1966)), ((_2034 * _2037) * _2042)));
+      _2060 = mad(_2028, _1967, mad(_2035, (-0.0f - _1966), (-0.0f - (_2043 * _2034))));
       float _2063 = min(0.5f, ((_112 * 0.0024999999441206455f) + 0.25f));
       float _2069 = ((abs(_1966) * (select(_1948, 12.0f, 2.0f) - _1949)) + _1949) * select(_169, 0.009999999776482582f, 0.10000000149011612f);
       if (!_169) {
@@ -887,10 +894,10 @@ void main(
         _2255 = (float((uint)((uint)(((int)(_2249 * 48271)) & 16777215))) * 5.960464477539063e-08f);
       }
       if ((_1947) | (((int)(((int)(_77 != 15)) & ((int)((uint)(_77 + -12) < (uint)7)))))) {
-        _2268 = (_2255 * 10.0f);
+        _2268 = (_2255 * select(CONTACT_SHADOW_QUALITY > 0.5f, 3.0f, 10.0f));
       } else {
         if (_77 == 15) {
-          _2268 = ((10.0f - (saturate(_112 * 0.0010000000474974513f) * 9.0f)) * _2255);
+          _2268 = ((select(CONTACT_SHADOW_QUALITY > 0.5f, 3.0f, 10.0f) - (saturate(_112 * 0.0010000000474974513f) * (select(CONTACT_SHADOW_QUALITY > 0.5f, 3.0f, 10.0f) - 1.0f))) * _2255);
         } else {
           _2268 = _2255;
         }
@@ -921,7 +928,7 @@ void main(
       float _2306 = mad((float4(_viewRelative[0].z, _viewRelative[1].z, _viewRelative[2].z, _viewRelative[3].z).z), _2293, mad((float4(_viewRelative[0].y, _viewRelative[1].y, _viewRelative[2].y, _viewRelative[3].y).z), _2292, ((float4(_viewRelative[0].x, _viewRelative[1].x, _viewRelative[2].x, _viewRelative[3].x).z) * _2291))) + (float4(_viewRelative[0].w, _viewRelative[1].w, _viewRelative[2].w, _viewRelative[3].w).z);
       float _2309 = mad((float4(_viewRelative[0].z, _viewRelative[1].z, _viewRelative[2].z, _viewRelative[3].z).z), _2060, mad((float4(_viewRelative[0].y, _viewRelative[1].y, _viewRelative[2].y, _viewRelative[3].y).z), _2056, ((float4(_viewRelative[0].x, _viewRelative[1].x, _viewRelative[2].x, _viewRelative[3].x).z) * _2052)));
       bool _2314 = (((_2309 * _2077) + _2306) < _nearFarProj.x);
-      if (_112 < 8.0f) {
+      if (_112 < select(CONTACT_SHADOW_QUALITY > 0.5f, 64.0f, 8.0f)) {
         float _2318 = select(_2314, ((_nearFarProj.x - _2306) / _2309), _2077);
         float _2350 = mad((float4(_viewProjRelative[0].z, _viewProjRelative[1].z, _viewProjRelative[2].z, _viewProjRelative[3].z).z), _2293, mad((float4(_viewProjRelative[0].y, _viewProjRelative[1].y, _viewProjRelative[2].y, _viewProjRelative[3].y).z), _2292, ((float4(_viewProjRelative[0].x, _viewProjRelative[1].x, _viewProjRelative[2].x, _viewProjRelative[3].x).z) * _2291))) + (float4(_viewProjRelative[0].w, _viewProjRelative[1].w, _viewProjRelative[2].w, _viewProjRelative[3].w).z);
         float _2354 = mad((float4(_viewProjRelative[0].z, _viewProjRelative[1].z, _viewProjRelative[2].z, _viewProjRelative[3].z).w), _2293, mad((float4(_viewProjRelative[0].y, _viewProjRelative[1].y, _viewProjRelative[2].y, _viewProjRelative[3].y).w), _2292, ((float4(_viewProjRelative[0].x, _viewProjRelative[1].x, _viewProjRelative[2].x, _viewProjRelative[3].x).w) * _2291))) + (float4(_viewProjRelative[0].w, _viewProjRelative[1].w, _viewProjRelative[2].w, _viewProjRelative[3].w).w);
@@ -940,8 +947,6 @@ void main(
         float _2416 = (_2383 * 0.0625f) * _2396;
         float _2418 = (_2384 * -0.0625f) * _2396;
         float _2419 = _2397 * 0.125f;
-        // RenoDX: scale step sizes so 60 steps cover same distance as vanilla 8
-        if (CONTACT_SHADOW_QUALITY > 0.5f) { _2416 *= (8.0f / 60.0f); _2418 *= (8.0f / 60.0f); _2419 *= (8.0f / 60.0f); }
         float _2426 = max(_2268, (1.0f / max((abs(_2416) * _bufferSizeAndInvSize.x), (abs(_2418) * _bufferSizeAndInvSize.y))));
         float _2433 = 0.5f / _bufferSizeAndInvSize.x;
         _2435 = 0;
@@ -991,13 +996,19 @@ void main(
                       _2536 = 0.10000000149011612f;
                     }
                   } else {
-                    _2536 = 0.4000000059604645f;
+                    _2536 = select(CONTACT_SHADOW_QUALITY > 0.5f, 0.18f, 0.4000000059604645f);
                   }
                 } else {
                   _2536 = 0.10000000149011612f;
                 }
               } else {
-                _2536 = 0.30000001192092896f;
+                // RenoDX: Weather adaptive grass occluder thickness
+                if (_2458 == 17) {
+                  float _grassWeather = saturate(abs(_sunDirection.y) * FOLIAGE_SHADOW_SENSITIVITY);
+                  _2536 = select(CONTACT_SHADOW_QUALITY > 0.5f, lerp(0.018f, 0.05f, _grassWeather), 0.09f);
+                } else {
+                  _2536 = select(CONTACT_SHADOW_QUALITY > 0.5f, 0.12f, 0.30000001192092896f);
+                }
               }
             } else {
               if (!(_2458 == 11)) {
@@ -1010,6 +1021,11 @@ void main(
             float _2541 = (1.0f - _2538) + (_2538 * _2536);
             _2551 = _2458;
             _2552 = saturate((saturate(1.0f - ((_2541 * _2541) * _2536)) * (1.0f - _2443)) + _2443);
+            // RenoDX: Weather adaptive grass shadow contribution
+            if (CONTACT_SHADOW_QUALITY > 0.5f && _2458 == 17) {
+              float _grassContrib = lerp(0.3f, 0.65f, saturate(abs(_sunDirection.y) * FOLIAGE_SHADOW_SENSITIVITY));
+              _2552 = lerp(_2443, _2552, _grassContrib);
+            }
           } else {
             _2551 = _2435;
             _2552 = _2443;
@@ -1028,7 +1044,7 @@ void main(
             _2870 = ((_2582 * _2419) + _2438);
             _2871 = _2457;
           } else {
-            if ((uint)_2441 < ((CONTACT_SHADOW_QUALITY > 0.5f) ? (uint)59 : (uint)7)) {
+            if ((uint)_2441 < ((uint)7)) {
               _2574 = ((_2460 * _2416) + _2436);
               _2575 = ((_2460 * _2418) + _2437);
               _2576 = ((_2460 * _2419) + _2438);
@@ -1042,7 +1058,7 @@ void main(
               _2578 = _2442;
             }
             int _2579 = _2441 + 1;
-            if ((uint)_2579 < ((CONTACT_SHADOW_QUALITY > 0.5f) ? (uint)60 : (uint)8)) {
+            if ((uint)_2579 < ((uint)8)) {
               _2435 = _2551;
               _2436 = _2574;
               _2437 = _2575;
@@ -1083,8 +1099,6 @@ void main(
         float _2690 = (_2657 * 0.0625f) * _2670;
         float _2692 = (_2658 * -0.0625f) * _2670;
         float _2693 = _2671 * 0.125f;
-        // RenoDX: scale step sizes so 60 steps cover same distance as vanilla 8
-        if (CONTACT_SHADOW_QUALITY > 0.5f) { _2690 *= (8.0f / 60.0f); _2692 *= (8.0f / 60.0f); _2693 *= (8.0f / 60.0f); }
         float _2700 = max(_2268, (1.0f / max((abs(_2690) * _bufferSizeAndInvSize.x), (abs(_2692) * _bufferSizeAndInvSize.y))));
         float _2707 = 0.5f / _bufferSizeAndInvSize.x;
         _2709 = 0;
@@ -1134,13 +1148,19 @@ void main(
                       _2810 = 0.10000000149011612f;
                     }
                   } else {
-                    _2810 = 0.4000000059604645f;
+                    _2810 = select(CONTACT_SHADOW_QUALITY > 0.5f, 0.18f, 0.4000000059604645f);
                   }
                 } else {
                   _2810 = 0.10000000149011612f;
                 }
               } else {
-                _2810 = 0.30000001192092896f;
+                // RenoDX: Weather adaptive grass occluder thickness
+                if (_2732 == 17) {
+                  float _grassWeather2 = saturate(abs(_sunDirection.y) * FOLIAGE_SHADOW_SENSITIVITY);
+                  _2810 = select(CONTACT_SHADOW_QUALITY > 0.5f, lerp(0.018f, 0.05f, _grassWeather2), 0.09f);
+                } else {
+                  _2810 = select(CONTACT_SHADOW_QUALITY > 0.5f, 0.12f, 0.30000001192092896f);
+                }
               }
             } else {
               if (!(_2732 == 11)) {
@@ -1153,6 +1173,11 @@ void main(
             float _2815 = (1.0f - _2812) + (_2812 * _2810);
             _2825 = _2732;
             _2826 = saturate((saturate(1.0f - ((_2815 * _2815) * _2810)) * (1.0f - _2717)) + _2717);
+            // RenoDX: Weather adaptive grass shadow contribution
+            if (CONTACT_SHADOW_QUALITY > 0.5f && _2732 == 17) {
+              float _grassContrib2 = lerp(0.3f, 0.65f, saturate(abs(_sunDirection.y) * FOLIAGE_SHADOW_SENSITIVITY));
+              _2826 = lerp(_2717, _2826, _grassContrib2);
+            }
           } else {
             _2825 = _2715;
             _2826 = _2717;
@@ -1171,7 +1196,7 @@ void main(
             _2870 = ((_2856 * _2693) + _2714);
             _2871 = _2731;
           } else {
-            if ((uint)_2709 < ((CONTACT_SHADOW_QUALITY > 0.5f) ? (uint)59 : (uint)7)) {
+            if ((uint)_2709 < ((uint)7)) {
               _2848 = (_2711 + _2734);
               _2849 = (_2712 + (_2734 * _2690));
               _2850 = (_2713 + (_2734 * _2692));
@@ -1185,7 +1210,7 @@ void main(
               _2852 = _2716;
             }
             int _2853 = _2709 + 1;
-            if ((uint)_2853 < ((CONTACT_SHADOW_QUALITY > 0.5f) ? (uint)60 : (uint)8)) {
+            if ((uint)_2853 < ((uint)8)) {
               _2709 = _2853;
               _2710 = _2734;
               _2711 = _2848;
@@ -1362,6 +1387,43 @@ void main(
     } else {
       _3060 = 1.0f;
     }
+
+    // ── Micro Detail Depth-Bias Shadows ───────────────────────────────
+    #define MICRO_PIXEL_X_FLOAT   _57
+    #define MICRO_PIXEL_Y_FLOAT   _58
+    #define MICRO_LINEAR_DEPTH    _112
+    #define MICRO_CONTACT_SHADOW  _3060
+    #define MICRO_LIGHT_DIR_X     _2052
+    #define MICRO_LIGHT_DIR_Y     _2056
+    #define MICRO_LIGHT_DIR_Z     _2060
+    #define MICRO_WORLD_POS_X     _2291
+    #define MICRO_WORLD_POS_Y     _2292
+    #define MICRO_WORLD_POS_Z     _2293
+    #include "micro_detail_shadows.hlsli"
+    #undef MICRO_PIXEL_X_FLOAT
+    #undef MICRO_PIXEL_Y_FLOAT
+    #undef MICRO_LINEAR_DEPTH
+    #undef MICRO_CONTACT_SHADOW
+    #undef MICRO_LIGHT_DIR_X
+    #undef MICRO_LIGHT_DIR_Y
+    #undef MICRO_LIGHT_DIR_Z
+    #undef MICRO_WORLD_POS_X
+    #undef MICRO_WORLD_POS_Y
+    #undef MICRO_WORLD_POS_Z
+    // ──────────────────────────────────────────────────────────────────
+
+    // ────────────────── Screen edge contact shadow fade ───────────────
+    //
+    // We fade contact shadows near screen edges to hide the abrupt cutoff
+    // that causes screenspace artefacts
+    if (CONTACT_SHADOW_QUALITY > 0.5f && _3060 < 1.0f) {
+      float2 _screenUV = float2((_57 + 0.5f) * _bufferSizeAndInvSize.z,
+                                 (_58 + 0.5f) * _bufferSizeAndInvSize.w);
+      float2 _edgeDist = min(_screenUV, 1.0f - _screenUV);
+      float _edgeFade = saturate(min(_edgeDist.x, _edgeDist.y) * 10.0f);
+      _3060 = lerp(lerp(1.0f, _3060, 0.5f), _3060, _edgeFade);
+    }
+
     float _3061 = min(_1935, _3060);
     _3075 = float(half(_3061 * float(_1595)));
     _3076 = float(half(_3061 * float(_1596)));

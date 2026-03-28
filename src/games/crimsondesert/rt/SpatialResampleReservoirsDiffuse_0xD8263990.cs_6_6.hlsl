@@ -121,7 +121,7 @@ uint _rndx_pcg(uint v) {
   return (word >> 22u) ^ word;
 }
 float2 _rndx_sample_noise(uint2 pixelCoord, float frameIndex, uint streamIndex = 0u) {
-  // streamIndex decorrelates different sampling uses across pipeline stages
+  // Stream Index decorrelates different sampling uses across pipeline stages
   uint h = _rndx_pcg(pixelCoord.x + pixelCoord.y * 8192u + streamIndex * 65537u);
   float off1 = float(h) * (1.0f / 4294967296.0f);
   float off2 = float(_rndx_pcg(h)) * (1.0f / 4294967296.0f);
@@ -227,7 +227,8 @@ void main(
   // Stochastic Pairwise MIS for large kernel unbiased spatial reuse.
   // 24 R2 blue-noise disk-sampled neighbors, pairwise MIS weights,
   // adaptive radius, Jacobian corrected domain transfer.
-  // vanilla RIS path below is completely untouched for base game.
+  //
+  // Griefs the game because of only 1spp, causes a lot of boiling 
   // ============================================================
   if (RT_QUALITY >= 0.5f) {
     static const int   SPMIS_N     = 24;
