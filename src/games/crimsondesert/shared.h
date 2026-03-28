@@ -48,7 +48,6 @@
 #define MOON_DISK_SIZE                         shader_injection.moon_disk_size
 #define SKY_SCATTERING                         shader_injection.sky_scattering
 #define FOLIAGE_TRANSMISSION                   (CONTACT_SHADOW_QUALITY > 0.5f ? 1.0f : 0.0f)
-#define DISABLE_SSDM                           shader_injection.disable_ssdm
 
 // Auto exposure tuning
 #define AE_DARK_POWER_OUTDOOR                  shader_injection.ae_dark_power_outdoor
@@ -124,7 +123,6 @@ struct ShaderInjectData {
   float sky_scattering;
   float lens_flare_strength;
   float bloom_strength;
-  float disable_ssdm;
 
   float alt_bloom;
   float glare_normal;
