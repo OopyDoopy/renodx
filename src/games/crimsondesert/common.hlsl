@@ -306,3 +306,14 @@ float3 ProcessGameOutput(float3 color, bool is_sdr) {
   }
   return color;
 }
+
+float3 NakaRushton(float3 x, float3 peak = 1.0f, float3 anchor_in = 0.18f, float3 anchor_out = 0.18f, float cone_response_exponent = 1.f) {
+  float3 peak_minus_anchor_out = peak - anchor_out;
+  float3 n = cone_response_exponent * peak / peak_minus_anchor_out;
+  float3 a_n = pow(anchor_in, n);
+  float3 x_n = pow(x, n);
+  float3 x_n_anchor_out = x_n * anchor_out;
+  float3 num = peak * x_n_anchor_out;
+  float3 den = mad(a_n, peak_minus_anchor_out, x_n_anchor_out);
+  return num / den;
+}
