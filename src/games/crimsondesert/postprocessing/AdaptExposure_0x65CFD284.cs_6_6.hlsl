@@ -1,4 +1,5 @@
 #include "../shared.h"
+#include "../common.hlsl"
 
 Texture3D<float> __3__36__0__1__g_skyVisibilityVoxelsTexturesLikeUav : register(t140, space36);
 
@@ -665,7 +666,10 @@ void main(
                 _427 = _param3.y;
               }
 
-              if (IMPROVED_AUTO_EXPOSURE == 1) _427 = min(_427, lerp(1.f, 11.f, AE_DARK_POWER_OUTDOOR));
+              // if (IMPROVED_AUTO_EXPOSURE == 1) _427 = min(_427, lerp(1.f, 11.f, AE_DARK_POWER_OUTDOOR));
+              //if (IMPROVED_AUTO_EXPOSURE == 1) _427 = min(_427, 7.f);
+              //if (IMPROVED_AUTO_EXPOSURE == 1) _427 = renodx::color::grade::Contrast(_427, 1.f * AE_DARK_POWER_OUTDOOR, 0.18f);
+              if (IMPROVED_AUTO_EXPOSURE == 1) _427 = NakaRushton(_427, lerp(1.f, 18.f, AE_DARK_POWER_OUTDOOR), 0.05f, 0.05f, AE_DYNAMISM).x;
 
               __3__39__0__1__g_exposureUAV[0] = _427;
               float _428 = select(_414, _param3.y, _381);

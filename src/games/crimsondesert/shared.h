@@ -50,15 +50,16 @@
 
 // Auto exposure tuning
 #define AE_DARK_POWER_OUTDOOR                  shader_injection.ae_dark_power_outdoor
+#define AE_DYNAMISM                           shader_injection.ae_dynamism
 
-#define AE_DARK_POWER_INDOOR                   shader_injection.ae_dark_power_indoor
-#define AE_BRIGHT_POWER_OUTDOOR                shader_injection.ae_bright_power_outdoor
-#define AE_BRIGHT_POWER_INDOOR                 shader_injection.ae_bright_power_indoor
-#define AE_ADAPT_SPEED_BOOST                   shader_injection.ae_adapt_speed_boost
-#define AE_EV_BIAS                             shader_injection.ae_ev_bias
+#define AE_DARK_POWER_INDOOR                   0.55f
+#define AE_BRIGHT_POWER_OUTDOOR                1.00f
+#define AE_BRIGHT_POWER_INDOOR                 1.00f
+#define AE_ADAPT_SPEED_BOOST                   3.00f
+#define AE_EV_BIAS                             -1.00f
 // Luminance clamp overrides — locks out per-region/weather dynamic adjustments
-#define AE_MIN_LUM                             shader_injection.ae_min_lum
-#define AE_MAX_LUM                             shader_injection.ae_max_lum
+#define AE_MIN_LUM                             0.001f
+#define AE_MAX_LUM                             10.00f
 
 // Tonemap highlight dimming (hardcoded defaults)
 #define AE_TRANSITION_THRESHOLD                0.0f
@@ -114,14 +115,15 @@ struct ShaderInjectData {
   float bloom_strength;
 
   float ae_dark_power_outdoor;
+  float ae_dynamism;
 
-  float ae_dark_power_indoor;
-  float ae_bright_power_outdoor;
-  float ae_bright_power_indoor;
-  float ae_adapt_speed_boost;
-  float ae_ev_bias;
-  float ae_min_lum;
-  float ae_max_lum;
+  // float ae_dark_power_indoor;
+  // float ae_bright_power_outdoor;
+  // float ae_bright_power_indoor;
+  // float ae_adapt_speed_boost;
+  // float ae_ev_bias;
+  // float ae_min_lum;
+  // float ae_max_lum;
 
 };
 
