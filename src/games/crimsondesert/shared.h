@@ -116,7 +116,6 @@ struct ShaderInjectData {
   float sky_scattering;
   float lens_flare_strength;
   float bloom_strength;
-  float disable_ssdm;
   float alt_bloom;
   float glare_normal;
 };

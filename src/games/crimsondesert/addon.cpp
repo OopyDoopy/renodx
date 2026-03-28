@@ -116,7 +116,6 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
     {"SunMoonAdjustments", 0.f},
     {"MoonDiskSize", 1.f},
     {"MaterialImprovements", 0.f},
-    {"DisableSSDM", 0.f}
 };
 // const std::unordered_map<std::string, float> RECOMMENDED_SAFE_VALUES = {
 //     {"LocalLightHueCorrection", 25.f},
@@ -165,7 +164,6 @@ const std::unordered_map<std::string, float> RECOMMENDED_VALUES = {
     {"MoonDiskSize", 4.f},
     {"MaterialImprovements", 1.f},
     {"ContactShadowQuality", 1.f},
-    {"DisableSSDM", 0.f}
 };
 
 
@@ -735,11 +733,11 @@ renodx::utils::settings::Settings settings = {
         .label = "Bloom: Scene Bloominess Amount",
         .section = "Auto Exposure",
         .tooltip = "Bloom intensity for scene bloom, increase for dreamy look.\n",
+        .tint = auto_exposure,
         .min = 0.f,
         .max = 100.f,
-        .tint = auto_exposure,
-        .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.improved_auto_exposure > 0.5f && shader_injection.alt_bloom > 0.5f; },
         .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.improved_auto_exposure > 0.5f && shader_injection.alt_bloom > 0.5f; },
     },
     //     new renodx::utils::settings::Setting{
     //     .key = "GlareSun",
@@ -922,21 +920,7 @@ renodx::utils::settings::Settings settings = {
         //.tint = rendering,
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
-        new renodx::utils::settings::Setting{
-        .key = "DisableSSDM",
-        .binding = &shader_injection.disable_ssdm,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
-        .can_reset = true,
-        .label = "Disable SSDM",
-        .section = "Rendering",
-        .tooltip = "Disables Screenspace Displacement Mapping.\n"
-                   "SSDM adds depth displacement to surfaces but introduces\n"
-                   "stairstepping, shimmering, and noise artifacts.\n",
-        .labels = {"Off", "On"},
-        .tint = rendering,
-        .is_visible = []() { return current_settings_mode >= 1.f; },
-    },
+
         new renodx::utils::settings::Setting{
         .key = "SkyScattering",
         .binding = &shader_injection.sky_scattering,
@@ -1184,7 +1168,6 @@ void OnPresetOff() {
       {"ContactShadowQuality", 0.f},
       {"RaytracingQuality", 0.f},
       {"MaterialImprovements", 0.f},
-      {"DisableSSDM", 0.f},
       {"DisableAWB", 0.f},
       {"DisableHeroLights", 0.f},
 
