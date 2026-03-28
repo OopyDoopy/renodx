@@ -53,6 +53,7 @@
 // Auto exposure tuning
 #define AE_DARK_POWER_OUTDOOR                  shader_injection.ae_dark_power_outdoor
 #define AE_DYNAMISM                            shader_injection.ae_dynamism
+#define AE_SPEED                               shader_injection.ae_speed
 #define FOLIAGE_SHADOW_SENSITIVITY             0
 #define ALT_BLOOM                              shader_injection.alt_bloom
 #define GLARE_SUN                              1.0f
@@ -62,7 +63,6 @@
 #define GLARE_PARTICLE27                       2.0f
 #define GLARE_NORMAL                           shader_injection.glare_normal
 #define GLARE_CLAMP                            20.0f
-
 #define AE_DARK_POWER_INDOOR                   0.55f
 #define AE_BRIGHT_POWER_OUTDOOR                1.00f
 #define AE_BRIGHT_POWER_INDOOR                 1.00f
@@ -115,6 +115,9 @@ struct ShaderInjectData {
   float disable_hero_lights;
 
   float improved_auto_exposure;
+  float ae_dark_power_outdoor;
+  float ae_dynamism;
+  float ae_speed;
 
   float sun_moon_adjustments;
   float moon_disk_size;
@@ -123,8 +126,6 @@ struct ShaderInjectData {
   float bloom_strength;
   float disable_ssdm;
 
-  float ae_dark_power_outdoor;
-  float ae_dynamism;
   float alt_bloom;
   float glare_normal;
 };

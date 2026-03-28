@@ -577,12 +577,16 @@ void main(
                 _381 = exp2(logNew);
               } else {
                 // --- Vanilla asymmetric temporal adaptation ---
+
+                float time_scale = _timeNoScale.z;
+                if (IMPROVED_AUTO_EXPOSURE == 1.f) time_scale = lerp(time_scale, time_scale * 3.f, AE_SPEED);
+
                 bool _358 = (_350 > _357);
                 if (_358) {
                   float _362 = _349 * 1.2000000476837158f;
                   float _363 = 1.0f / _357;
                   float _364 = _362 - _363;
-                  float _365 = _param2.x * _timeNoScale.z;
+                  float _365 = _param2.x * time_scale;
                   float _366 = -0.0f - _365;
                   float _367 = exp2(_366);
                   float _368 = 1.0f - _367;
@@ -592,7 +596,7 @@ void main(
                   _381 = _371;
                 } else {
                   float _373 = _350 - _357;
-                  float _374 = _param2.y * _timeNoScale.z;
+                  float _374 = _param2.y * time_scale;
                   float _375 = -0.0f - _374;
                   float _376 = exp2(_375);
                   float _377 = 1.0f - _376;
