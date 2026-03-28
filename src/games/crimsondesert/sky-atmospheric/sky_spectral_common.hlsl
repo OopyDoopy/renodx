@@ -5,7 +5,7 @@
 
 // ============================================================================
 // Spectral atmospheric scattering support
-// Based on Garcia Linan, "Real-time spectral rendering of the atmospheric medium"
+// Based on Garcia Linan, "Real time spectral rendering of the atmospheric medium"
 // Adapted to 3-wavelength (630nm, 560nm, 490nm) pipeline.
 // ============================================================================
 
@@ -41,18 +41,18 @@ static const float3x3 SKY_VANILLA_BT709_TO_BT2020 = float3x3(
 #define SKY_OZONE_3 (SKY_SCATTERING ? SKY_OZONE_CH3 : 2.1360001767334325e-07f)
 
 // --- Transmittance matrix: always vanilla BT.709→BT.2020 ---------------------
-// Transmittance is multiplicative (applied to display-space scene color), so the
+// Transmittance is multiplicative (applied to display-space scene colour), so the
 // matrix must preserve row sums ≈ 1.0. The spectral matrix has row[0] sum = 1.62
 // which would create T > 1 (physically impossible for extinction).
 #define _sky_mtx SKY_VANILLA_BT709_TO_BT2020
 
-// --- In-scatter helper macros (Garcia Linan split-path) ----------------------
+// --- In-scatter helper macros (Garcia Linan split path) ----------------------
 // Rayleigh in-scatter is TRUE spectral data → use spectral→BT.2020 matrix.
-// Mie in-scatter is display-space BT.709 color → use vanilla matrix.
+// Mie in-scatter is display-space BT.709 colour → use vanilla matrix.
 //
 // Garcia Linan formulation for in-scatter:
 //   L_display[row] = Σᵢ M_spectral[row][i] × T(λᵢ) × β(λᵢ) × phase
-//                  + (Σᵢ M_vanilla[row][i] × T(λᵢ)) × S_mie[row_color]
+//                  + (Σᵢ M_vanilla[row][i] × T(λᵢ)) × S_mie[row_colour]
 
 // Spectral Rayleigh: per-wavelength T×β then matrix-convert to display
 #define SKY_RAY_INSCATTER(row, T0,T1,T2, b0,b1,b2, phase) \

@@ -31,14 +31,16 @@ float hdr_settings_toggle = 0.f;
 
 bool debug = false;
 
-// VRS disable toggle (CPU-side only, not in cbuffer)
-float disable_vrs = 0.f;
+// VRS is always disabled — forces full resolution 1x1 shading rate
+// Decomp breaks shaders that use VRS so we hardcode to avoid issues 
+// with missing or transparent shaders like foliage
 
-// --- VRS override via pre-draw injection ---
-// The game uses Tier 2 VRS (per-primitive via SV_ShadingRate in vertex shaders),
-// not per-draw RSSetShadingRate calls. To disable VRS we must inject
-// RSSetShadingRate(1X1, {OVERRIDE, OVERRIDE}) before each draw, which tells
-// the hardware to ignore the per-primitive and per-tile shading rates.
+float disable_vrs = 1.f;
+
+// --- VRS override via pre draw injection ---
+// The game uses Tier 2 VRS (per primitive via SV_ShadingRate in vertex shaders),
+// not per draw RSSetShadingRate calls
+
 using PFN_RSSetShadingRate = void(STDMETHODCALLTYPE*)(
     ID3D12GraphicsCommandList5*, D3D12_SHADING_RATE, const D3D12_SHADING_RATE_COMBINER*);
 
@@ -64,7 +66,7 @@ static void ResolveVRSNativePtr(reshade::api::command_list* cmd_list) {
   cmd_list5->Release();
 }
 
-// Pre-draw hook: inject RSSetShadingRate(1X1, {OVERRIDE, OVERRIDE}) to disable per-primitive VRS
+// Pre draw hook: inject RSSetShadingRate(1X1, {OVERRIDE, OVERRIDE}) to disable per primitive VRS
 static void OnVRSPreDraw(reshade::api::command_list* cmd_list) {
   if (disable_vrs == 0.f) return;
   if (!vrs_native_ptr_resolved) ResolveVRSNativePtr(cmd_list);
@@ -72,8 +74,8 @@ static void OnVRSPreDraw(reshade::api::command_list* cmd_list) {
 
   auto* native = reinterpret_cast<ID3D12GraphicsCommandList5*>(cmd_list->get_native());
   D3D12_SHADING_RATE_COMBINER combiners[2] = {
-    D3D12_SHADING_RATE_COMBINER_OVERRIDE,  // overrides per-primitive (VS SV_ShadingRate)
-    D3D12_SHADING_RATE_COMBINER_OVERRIDE   // overrides per-tile (shading rate image)
+    D3D12_SHADING_RATE_COMBINER_OVERRIDE,  // overrides per primitive (VS SV_ShadingRate)
+    D3D12_SHADING_RATE_COMBINER_OVERRIDE   // overrides per tile (shading rate image)
   };
   native_RSSetShadingRate(native, D3D12_SHADING_RATE_1X1, combiners);
 }
@@ -100,17 +102,19 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
     {"AE_DarkPowerOutdoor", 50.f},
     {"AE_Dynamism", 50.f},
     {"DisableAWB", 0.f},
+    {"DisableHeroLights", 0.f},
+    {"AltBloom", 0.f},
 
     {"FilmGrainType", 0.f},
     {"FxChromaticAberration", 100.f},
     {"FxSharpeningType", 0.f},
     {"FxSharpening", 100.f},
 
-    {"DiffuseBRDF", 0.f},
-    {"SmoothTerminator", 0.f},
-    {"SpecularAA",0.f},
-    {"Diffraction", 0.f},
-    {"DisableVRS", 0.f}
+    {"SkyScattering", 0.f},
+    {"SunMoonAdjustments", 0.f},
+    {"MoonDiskSize", 1.f},
+    {"MaterialImprovements", 0.f},
+    {"DisableSSDM", 0.f}
 };
 // const std::unordered_map<std::string, float> RECOMMENDED_SAFE_VALUES = {
 //     {"LocalLightHueCorrection", 25.f},
@@ -130,10 +134,7 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
 //     {"SkyScattering", 1.f},
 //     {"SunMoonAdjustments", 1.f},
 //     {"MoonDiskSize", 4.f},
-//     {"DiffuseBRDF", 0.f},
-//     {"SmoothTerminator", 0.f},
-//     {"SpecularAA", 0.f},
-//     {"Diffraction", 0.f},
+//     {"MaterialImprovements", 0.f},
 //     {"DisableVRS", 1.f}
 // };
 const std::unordered_map<std::string, float> RECOMMENDED_VALUES = {
@@ -143,6 +144,8 @@ const std::unordered_map<std::string, float> RECOMMENDED_VALUES = {
     {"ImprovedAutoExposure", 1.f},
     {"AE_DarkPowerOutdoor", 50.f},
     {"AE_Dynamism", 40.f},
+    {"AltBloom", 1.f},
+    {"GlareNormal", 10.f},
 
     {"DisableAWB", 1.f},
 
@@ -154,11 +157,12 @@ const std::unordered_map<std::string, float> RECOMMENDED_VALUES = {
     {"FxLensFlareStrength", 100.f},
     {"BloomStrength", 100.f},
 
-    {"DiffuseBRDF", 2.f},
-    {"SmoothTerminator", 1.f},
-    {"SpecularAA", 1.f},
-    {"Diffraction", 1.f},
-    {"DisableVRS", 1.f}
+    {"SkyScattering", 1.f},
+    {"SunMoonAdjustments", 1.f},
+    {"MoonDiskSize", 4.f},
+    {"MaterialImprovements", 1.f},
+    {"ContactShadowQuality", 1.f},
+    {"DisableSSDM", 0.f}
 };
 
 
@@ -519,7 +523,7 @@ renodx::utils::settings::Settings settings = {
         .binding = &shader_injection.ae_dark_power_outdoor,
         .default_value = 50.f,
         .can_reset = true,
-        .label = "Low-Light Exposure Limit",
+        .label = "Low Light Exposure Limit",
         .section = "Auto Exposure",
         .tooltip = "Adjusts the max exposure value that can be applied, controlling how dark the game is allowed to get.",
         .tint = auto_exposure,
@@ -683,6 +687,133 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
         new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "Alt Bloom is recommended to be enabled if using Custom Auto Exposure above, Engine ties emissive properties of various meshes to bloom. Flickering in the vanilla game occurs on bloom due to temporal jitter usage\n",
+        .section = "Auto Exposure",
+        //.tint = auto_exposure,
+        .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.improved_auto_exposure > 0.5f; },
+    },
+            new renodx::utils::settings::Setting{
+        .key = "AltBloom",
+        .binding = &shader_injection.alt_bloom,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .can_reset = true,
+        .label = "Alternative Bloom",
+        .section = "Auto Exposure",
+        .tooltip = "Replaces the game's bloom pipeline with a stabilised version.\n"
+                   "Off = vanilla bloom (may shimmer/flicker) especially with Alt Auto Exposure above.\n"
+                   "On = exposure decoupled bloom with per material controls.",
+        .labels = {"Off", "On"},
+        .tint = auto_exposure,
+        .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.improved_auto_exposure > 0.5f; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "GlareNormal",
+        .binding = &shader_injection.glare_normal,
+        .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+        .default_value = 10.f,
+        .can_reset = true,
+        .label = "Bloom: Scene Bloominess Amount",
+        .section = "Auto Exposure",
+        .tooltip = "Bloom intensity for scene bloom, increase for dreamy look.\n",
+        .min = 0.f,
+        .max = 100.f,
+        .tint = auto_exposure,
+        .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.improved_auto_exposure > 0.5f && shader_injection.alt_bloom > 0.5f; },
+        .parse = [](float value) { return value * 0.01f; },
+    },
+    //     new renodx::utils::settings::Setting{
+    //     .key = "GlareSun",
+    //     .binding = &shader_injection.glare_sun,
+    //     .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+    //     .default_value = 100.f,
+    //     .can_reset = true,
+    //     .label = "Bloom: Sun",
+    //     .section = "Auto Exposure",
+    //     .tooltip = "Bloom intensity for the sun disk.",
+    //     .min = 0.f,
+    //     .max = 200.f,
+    //     .tint = auto_exposure,
+    //     .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
+    //     .parse = [](float value) { return value * 0.01f; },
+    // },
+    //     new renodx::utils::settings::Setting{
+    //     .key = "GlareEmissive",
+    //     .binding = &shader_injection.glare_emissive,
+    //     .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+    //     .default_value = 100.f,
+    //     .can_reset = true,
+    //     .label = "Bloom: Emissive (Stencil 28)",
+    //     .section = "Auto Exposure",
+    //     .tooltip = "Bloom intensity for emissive meshes.",
+    //     .min = 0.f,
+    //     .max = 200.f,
+    //     .tint = auto_exposure,
+    //     .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
+    //     .parse = [](float value) { return value * 0.01f; },
+    // },
+    //     new renodx::utils::settings::Setting{
+    //     .key = "GlareFog",
+    //     .binding = &shader_injection.glare_fog,
+    //     .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+    //     .default_value = 100.f,
+    //     .can_reset = true,
+    //     .label = "Bloom: Fog/Smoke (Stencil 56)",
+    //     .section = "Auto Exposure",
+    //     .tooltip = "Bloom intensity for volumetric fog and smoke.",
+    //     .min = 0.f,
+    //     .max = 200.f,
+    //     .tint = auto_exposure,
+    //     .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
+    //     .parse = [](float value) { return value * 0.01f; },
+    // },
+    //     new renodx::utils::settings::Setting{
+    //     .key = "GlareParticle26",
+    //     .binding = &shader_injection.glare_particle26,
+    //     .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+    //     .default_value = 30.f,
+    //     .can_reset = true,
+    //     .label = "Bloom: Smoke/Particles",
+    //     .section = "Auto Exposure",
+    //     .tooltip = "Bloom intensity for chimney smoke (stencil 26).",
+    //     .min = 0.f,
+    //     .max = 200.f,
+    //     .tint = auto_exposure,
+    //     .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
+    //     .parse = [](float value) { return value * 0.01f; },
+    // },
+    //     new renodx::utils::settings::Setting{
+    //     .key = "GlareParticle27",
+    //     .binding = &shader_injection.glare_particle27,
+    //     .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+    //     .default_value = 100.f,
+    //     .can_reset = true,
+    //     .label = "Bloom: Local Lights",
+    //     .section = "Auto Exposure",
+    //     .tooltip = "Bloom intensity for local light sources (stencil 27).",
+    //     .min = 0.f,
+    //     .max = 200.f,
+    //     .tint = auto_exposure,
+    //     .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
+    //     .parse = [](float value) { return value * 0.01f; },
+    // },
+    //     new renodx::utils::settings::Setting{
+    //     .key = "GlareClamp",
+    //     .binding = &shader_injection.glare_clamp,
+    //     .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+    //     .default_value = 20.f,
+    //     .can_reset = true,
+    //     .label = "Bloom: Output Clamp",
+    //     .section = "Auto Exposure",
+    //     .tooltip = "Soft ceiling for bloom source luminance.",
+    //     .min = 1.f,
+    //     .max = 200.f,
+    //     .tint = auto_exposure,
+    //     .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
+    //     .parse = [](float value) { return value * 0.1f; },
+    // },
+        new renodx::utils::settings::Setting{
         .key = "FxFilmGrainType",
         .binding = &shader_injection.custom_film_grain_type,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -768,9 +899,24 @@ renodx::utils::settings::Settings settings = {
     },
         new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "This section includes graphical changes to various parts of the game, was built with RR + max graphics settings in mind\n",
+        .label = "This section includes graphical changes to various parts of the game\n",
         .section = "Rendering",
         //.tint = rendering,
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "DisableSSDM",
+        .binding = &shader_injection.disable_ssdm,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .can_reset = true,
+        .label = "Disable SSDM",
+        .section = "Rendering",
+        .tooltip = "Disables Screenspace Displacement Mapping.\n"
+                   "SSDM adds depth displacement to surfaces but introduces\n"
+                   "stairstepping, shimmering, and noise artifacts.\n",
+        .labels = {"Off", "On"},
+        .tint = rendering,
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
         new renodx::utils::settings::Setting{
@@ -817,36 +963,35 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
         new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "The sliders below are currently designed around Ray Reconstruction + max settings. Anything else may result in visual artefacts and mismatched square tiles caused by unpatched shaders\n",
+        .section = "Rendering",
+        //.tint = rendering,
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+        new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "AO for grass/foliage had to be baked into the shader, cbuffer toggles caused crashing. off will not be pure vanilla\n",
+        .section = "Rendering",
+        //.tint = rendering,
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+        new renodx::utils::settings::Setting{
         .key = "ContactShadowQuality",
         .binding = &shader_injection.contact_shadow_quality,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 0.f,
         .can_reset = true,
-        .label = "Screen-Space Shadow Improvements",
+        .label = "Grass/Foliage Improvements (WIP)",
         .section = "Rendering",
-        .tooltip = "Toggles RenoDX contact shadow improvements.\n"
-                   "Off = vanilla 8-step contact shadows.\n"
-                   "On = 60-step ray march with bilinear depth, adaptive thickness, improved stencil filtering, fade-out, and contrast boost.",
+        .tooltip = "Toggles contact shadow changes + transmission + AO.\n"
+                   "Off = vanilla foliage.\n"
+                   "On = improved foliage/grass shadow detail with tighter depth bias and higher opacity to stop abyss occluder shadows for foliage.\n"
+                   "Transmission has been added to simulate diffuse scattering through vegetation / base game was completely uniform.\n"
+                   "Added shader side simple AO for foliage since the base game lacks it entirely, causing uniform foliage",
         .labels = {"Off", "On"},
         .tint = rendering,
-        //.is_visible = []() { return current_settings_mode >= 1.f; },
-        .is_visible = []() { return debug; },
-    },
-        new renodx::utils::settings::Setting{
-        .key = "ShadowQuality",
-        .binding = &shader_injection.shadow_quality,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
-        .can_reset = true,
-        .label = "Shadow Improvements",
-        .section = "Rendering",
-        .tooltip = "Toggles RenoDX shadow quality improvements.\n"
-                   "Off = vanilla shadow sampling (per-frame PCF rotation causes shimmer).\n"
-                   "On = temporally stable PCF sampling (removes frame-dependent rotation from all shadow layers).",
-        .labels = {"Off", "On"},
-        .tint = rendering,
-        //.is_visible = []() { return current_settings_mode >= 1.f; },
-        .is_visible = []() { return debug; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
     },
         new renodx::utils::settings::Setting{
         .key = "RaytracingQuality",
@@ -866,77 +1011,18 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return debug; },
     },
         new renodx::utils::settings::Setting{
-        .key = "DiffuseBRDF",
-        .binding = &shader_injection.diffuse_brdf_mode,
+        .key = "MaterialImprovements",
+        .binding = &shader_injection.material_improvements,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 0.f,
         .can_reset = true,
-        .label = "Diffuse BRDF",
+        .label = "Material Improvements",
         .section = "Rendering",
-        .tooltip = "Selects the diffuse BRDF model used in deferred lighting.\n"
-                   "Vanilla (Burley / Lambert mix) = game's default Disney/Burley diffuse with extended retro-reflection.\n"
-                   "Hammon 2017 = Earl Hammon's energy-conserving diffuse with multi-scatter compensation.\n"
-                   "EON 2025 = Portsmouth/Kutz/Hill energy-preserving Oren-Nayar with exact directional albedo.",
-        .labels = {"Vanilla (Burley / Lambert mix)", "Hammon 2017", "EON 2025"},
-        .tint = rendering,
-        .is_visible = []() { return current_settings_mode >= 1.f; },
-    },
-        new renodx::utils::settings::Setting{
-        .key = "SmoothTerminator",
-        .binding = &shader_injection.smooth_terminator,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
-        .can_reset = true,
-        .label = "Smooth Terminator",
-        .section = "Rendering",
-        .tooltip = "Callisto Smooth Terminator (Striking Distance Studios, SIGGRAPH 2023).\n"
-                   "Softens the hard shadow/light boundary on low-poly geometry where interpolated\n"
-                   "normals create visible faceted terminator lines.",
-        .labels = {"Off", "On"},
-        .tint = rendering,
-        .is_visible = []() { return current_settings_mode >= 1.f; },
-    },
-        new renodx::utils::settings::Setting{
-        .key = "SpecularAA",
-        .binding = &shader_injection.specular_aa,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
-        .can_reset = true,
-        .label = "Specular Anti-Aliasing",
-        .section = "Rendering",
-        .tooltip = "Geometric Specular Anti-Aliasing (Tokuyoshi & Kaplanyan 2021).\n"
-                   "Widens roughness based on screen-space normal derivatives to eliminate\n"
-                   "specular shimmer/fireflies on distant surfaces.",
-        .labels = {"Off", "On"},
-        .tint = rendering,
-        .is_visible = []() { return current_settings_mode >= 1.f; },
-    },
-        new renodx::utils::settings::Setting{
-        .key = "Diffraction",
-        .binding = &shader_injection.diffraction,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
-        .can_reset = true,
-        .label = "Diffraction",
-        .section = "Rendering",
-        .tooltip = "Diffraction on Rough Surfaces (Werner et al. 2024, JCGT).\n"
-                   "Adds wavelength-dependent spectral colour fringing to metallic\n"
-                   "specular highlights. Only affects metals.",
-        .labels = {"Off", "On"},
-        .tint = rendering,
-        .is_visible = []() { return current_settings_mode >= 1.f; },
-    },
-        new renodx::utils::settings::Setting{
-        .key = "DisableVRS",
-        .binding = &disable_vrs,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
-        .can_reset = true,
-        .label = "Disable VRS",
-        .section = "Rendering",
-        .tooltip = "Disables Variable Rate Shading (VRS).\n"
-                   "Off = vanilla VRS (game controls shading rate per-tile).\n"
-                   "On = forces full-resolution 1x1 shading rate everywhere.",
+        .tooltip = "Enables all material/lighting improvements:\n"
+                   "• EON 2025 energy-preserving diffuse BRDF\n"
+                   "• Callisto smooth terminator (SIGGRAPH 2023)\n"
+                   "• Geometric specular anti-aliasing (Tokuyoshi 2021)\n"
+                   "• Spectral diffraction on metals (Werner et al. 2024)",
         .labels = {"Off", "On"},
         .tint = rendering,
         .is_visible = []() { return current_settings_mode >= 1.f; },
@@ -1071,23 +1157,22 @@ void OnPresetOff() {
       {"BloomQuality", 0.f},
       {"BloomStrength", 100.f},
 
-    renodx::utils::settings::UpdateSetting("LocalLightHueCorrection", 0.f);
-    renodx::utils::settings::UpdateSetting("LocalLightSaturation", 50.f);
-    
-    renodx::utils::settings::UpdateSetting("SkyScattering", 0.f);
-    renodx::utils::settings::UpdateSetting("SunMoonAdjustments", 0.f);
-    renodx::utils::settings::UpdateSetting("MoonDiskSize", 1.f);
-    renodx::utils::settings::UpdateSetting("ContactShadowQuality", 0.f);
-    renodx::utils::settings::UpdateSetting("ShadowQuality", 0.f);
-    renodx::utils::settings::UpdateSetting("RaytracingQuality", 0.f);
-    renodx::utils::settings::UpdateSetting("DiffuseBRDF", 0.f);
-    renodx::utils::settings::UpdateSetting("SmoothTerminator", 0.f);
-    renodx::utils::settings::UpdateSetting("SpecularAA", 0.f);
-    renodx::utils::settings::UpdateSetting("Diffraction", 0.f);
-    renodx::utils::settings::UpdateSetting("DisableVRS", 0.f);
-    renodx::utils::settings::UpdateSetting("DisableAWB", 0.f);
-    renodx::utils::settings::UpdateSetting("DisableHeroLights", 0.f);
-    renodx::utils::settings::UpdateSetting("ImprovedAutoExposure", 0.f);
+      {"LocalLightHueCorrection", 0.f},
+      {"LocalLightSaturation", 50.f},
+
+      {"SkyScattering", 0.f},
+      {"SunMoonAdjustments", 0.f},
+      {"MoonDiskSize", 1.f},
+      {"ContactShadowQuality", 0.f},
+      {"RaytracingQuality", 0.f},
+      {"MaterialImprovements", 0.f},
+      {"DisableSSDM", 0.f},
+      {"DisableAWB", 0.f},
+      {"DisableHeroLights", 0.f},
+      {"ImprovedAutoExposure", 0.f},
+      {"AltBloom", 0.f},
+      {"GlareNormal", 0.f},
+  });
 }
 
 bool fired_on_init_swapchain = false;
@@ -1119,7 +1204,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
 
       // Register VRS override hooks BEFORE mods::shader registers its draw hooks,
-      // so our pre-draw injection fires first
+      // so our pre draw injection fires first
       reshade::register_event<reshade::addon_event::draw>(OnVRSDraw);
       reshade::register_event<reshade::addon_event::draw_indexed>(OnVRSDrawIndexed);
       reshade::register_event<reshade::addon_event::draw_or_dispatch_indirect>(OnVRSDrawOrDispatchIndirect);

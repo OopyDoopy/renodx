@@ -5,8 +5,8 @@
 #define RENODX_PEAK_WHITE_NITS                 shader_injection.peak_white_nits
 #define RENODX_DIFFUSE_WHITE_NITS              shader_injection.diffuse_white_nits
 #define RENODX_GRAPHICS_WHITE_NITS             shader_injection.graphics_white_nits
-#define RENODX_GAMMA_CORRECTION               0 // shader_injection.gamma_correction
-#define CUSTOM_SDR_BLACK_CRUSH_FIX            shader_injection.sdr_black_crush_fix
+#define RENODX_GAMMA_CORRECTION                0 // shader_injection.gamma_correction
+#define CUSTOM_SDR_BLACK_CRUSH_FIX             shader_injection.sdr_black_crush_fix
 
 #define RENODX_TONE_MAP_HUE_RESTORE            shader_injection.tone_map_hue_restore
 #define RENODX_TONE_MAP_BLOWOUT                shader_injection.tone_map_blowout
@@ -31,12 +31,12 @@
 #define SHADOW_DEBUG_MODE                      0 // shader_injection.shadow_debug_mode
 #define SHADOW_DISABLE_LAYER                   0 // shader_injection.shadow_disable_layer
 #define CONTACT_SHADOW_QUALITY                 shader_injection.contact_shadow_quality
-#define SHADOW_QUALITY                         shader_injection.shadow_quality
 #define RT_QUALITY                             shader_injection.rt_quality
-#define DIFFUSE_BRDF_MODE                      shader_injection.diffuse_brdf_mode
-#define SMOOTH_TERMINATOR                      shader_injection.smooth_terminator
-#define SPECULAR_AA                            shader_injection.specular_aa
-#define DIFFRACTION                            shader_injection.diffraction
+#define MATERIAL_IMPROVEMENTS                  shader_injection.material_improvements
+#define DIFFUSE_BRDF_MODE                      (MATERIAL_IMPROVEMENTS > 0.5f ? 2.0f : 0.0f)
+#define SMOOTH_TERMINATOR                      (MATERIAL_IMPROVEMENTS > 0.5f ? 1.0f : 0.0f)
+#define SPECULAR_AA                            (MATERIAL_IMPROVEMENTS > 0.5f ? 1.0f : 0.0f)
+#define DIFFRACTION                            (MATERIAL_IMPROVEMENTS > 0.5f ? 1.0f : 0.0f)
 #define LOCAL_LIGHT_HUE_CORRECTION             shader_injection.local_light_hue_correction
 #define LOCAL_LIGHT_SATURATION                 shader_injection.local_light_saturation
 #define DISABLE_AWB                            shader_injection.disable_awb
@@ -47,10 +47,21 @@
 #define SUN_MOON_ADJUSTMENTS                   shader_injection.sun_moon_adjustments
 #define MOON_DISK_SIZE                         shader_injection.moon_disk_size
 #define SKY_SCATTERING                         shader_injection.sky_scattering
+#define FOLIAGE_TRANSMISSION                   (CONTACT_SHADOW_QUALITY > 0.5f ? 1.0f : 0.0f)
+#define DISABLE_SSDM                           shader_injection.disable_ssdm
 
 // Auto exposure tuning
 #define AE_DARK_POWER_OUTDOOR                  shader_injection.ae_dark_power_outdoor
-#define AE_DYNAMISM                           shader_injection.ae_dynamism
+#define AE_DYNAMISM                            shader_injection.ae_dynamism
+#define FOLIAGE_SHADOW_SENSITIVITY             0
+#define ALT_BLOOM                              shader_injection.alt_bloom
+#define GLARE_SUN                              1.0f
+#define GLARE_EMISSIVE                         0.5f
+#define GLARE_FOG                              0.03f
+#define GLARE_PARTICLE26                       0.02f
+#define GLARE_PARTICLE27                       2.0f
+#define GLARE_NORMAL                           shader_injection.glare_normal
+#define GLARE_CLAMP                            20.0f
 
 #define AE_DARK_POWER_INDOOR                   0.55f
 #define AE_BRIGHT_POWER_OUTDOOR                1.00f
@@ -69,6 +80,7 @@
 
 // Must be 32bit aligned
 // Should be 4x32
+//// GAME BLOWS UP ONCE THERE'S MORE THAN 45 CBUFFERS ////
 struct ShaderInjectData {
   float peak_white_nits;
   float diffuse_white_nits;
@@ -95,12 +107,8 @@ struct ShaderInjectData {
   //float shadow_debug_mode;
   //float shadow_disable_layer;
   float contact_shadow_quality;
-  float shadow_quality;
   float rt_quality;
-  float diffuse_brdf_mode;
-  float smooth_terminator;
-  float specular_aa;
-  float diffraction;
+  float material_improvements;
   float local_light_hue_correction;
   float local_light_saturation;
   float disable_awb;
@@ -113,18 +121,12 @@ struct ShaderInjectData {
   float sky_scattering;
   float lens_flare_strength;
   float bloom_strength;
+  float disable_ssdm;
 
   float ae_dark_power_outdoor;
   float ae_dynamism;
-
-  // float ae_dark_power_indoor;
-  // float ae_bright_power_outdoor;
-  // float ae_bright_power_indoor;
-  // float ae_adapt_speed_boost;
-  // float ae_ev_bias;
-  // float ae_min_lum;
-  // float ae_max_lum;
-
+  float alt_bloom;
+  float glare_normal;
 };
 
 #ifndef __cplusplus

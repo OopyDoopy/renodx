@@ -1,5 +1,37 @@
 #include "../shared.h"
 
+// RenoDX: Bloom stability helpers
+//
+// 1. Soft luminance clamp - prevents high luminance values from causing
+//    jitter bloom instability. Uses Reinhard compression
+//    so bright values are softened rather than hard clipped
+//
+// 2. Karis average - weights 2x2 samples by 1/(1+luma) during the first
+//    downsample to prevent firefly pixels from dominating the average
+//
+// Might not need all of this since reworking Histogram-AWB instead (will need to double checck)
+//
+float3 SoftClampBloom(float3 c, float maxLuma) {
+  float luma = dot(c, float3(0.2126, 0.7152, 0.0722));
+  if (luma <= maxLuma) return c;
+  // Compression
+  float compressed = maxLuma * (1.0 + luma / maxLuma) / (1.0 + luma / maxLuma + maxLuma / max(luma, 1e-6));
+  return c * (compressed / max(luma, 1e-6));
+}
+
+float KarisWeight(float3 c) {
+  return 1.0 / (1.0 + dot(c, float3(0.2126, 0.7152, 0.0722)));
+}
+
+float3 KarisAverage4(float3 a, float3 b, float3 c, float3 d) {
+  float wa = KarisWeight(a);
+  float wb = KarisWeight(b);
+  float wc = KarisWeight(c);
+  float wd = KarisWeight(d);
+  float wSum = wa + wb + wc + wd;
+  return (a * wa + b * wb + c * wc + d * wd) / max(wSum, 1e-6);
+}
+
 Texture2D<float3> __3__36__0__0__g_glareSource : register(t28, space36);
 
 Texture2D<float3> __3__36__0__0__g_colorAdatationSource : register(t76, space36);
@@ -47,6 +79,7 @@ void main(
   float _27 = ((float((uint)SV_DispatchThreadID.y) * 2.0f) + 1.0f) * _textureSizeAndInvSize.w;
   float3 _30 = __3__36__0__0__g_glareSource.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(_26, _27), 0.0f);
   float3 _35 = __3__36__0__0__g_colorAdatationSource.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(_26, _27), 0.0f);
+  _30 = SoftClampBloom(_30, 500.0);
   _global_0[((int)(0u + ((int)(SV_GroupIndex) * 3)))] = _30.x;
   _global_0[((int)(1u + ((int)(SV_GroupIndex) * 3)))] = _30.y;
   _global_0[((int)(2u + ((int)(SV_GroupIndex) * 3)))] = _30.z;
@@ -79,26 +112,30 @@ void main(
   float _503;
   float _504;
   float _505;
+
+  // ── Mip 1 (bloom2): 2x2 downsample with Karis averaging ──────────────
   if ((_16 & 1) == 0) {
     uint _61 = SV_GroupIndex + 1u;
     uint _77 = SV_GroupIndex + 32u;
     uint _93 = SV_GroupIndex + 33u;
-    float _109 = ((((_global_0[((int)(0u + (_61 * 3)))]) + _30.x) + (_global_0[((int)(0u + (_77 * 3)))])) + (_global_0[((int)(0u + (_93 * 3)))])) * 0.25f;
-    float _110 = ((((_global_0[((int)(1u + (_61 * 3)))]) + _30.y) + (_global_0[((int)(1u + (_77 * 3)))])) + (_global_0[((int)(1u + (_93 * 3)))])) * 0.25f;
-    float _111 = ((((_global_0[((int)(2u + (_61 * 3)))]) + _30.z) + (_global_0[((int)(2u + (_77 * 3)))])) + (_global_0[((int)(2u + (_93 * 3)))])) * 0.25f;
-    _global_0[((int)(0u + ((int)(SV_GroupIndex) * 3)))] = _109;
-    _global_0[((int)(1u + ((int)(SV_GroupIndex) * 3)))] = _110;
-    _global_0[((int)(2u + ((int)(SV_GroupIndex) * 3)))] = _111;
-    __3__38__0__1__g_bloom2UAV[int2(((uint)(SV_DispatchThreadID.x) >> 1), ((uint)(SV_DispatchThreadID.y) >> 1))] = float3(_109, _110, _111);
+    float3 _s0 = float3(_30.x, _30.y, _30.z);
+    float3 _s1 = float3(_global_0[0u + (_61 * 3)], _global_0[1u + (_61 * 3)], _global_0[2u + (_61 * 3)]);
+    float3 _s2 = float3(_global_0[0u + (_77 * 3)], _global_0[1u + (_77 * 3)], _global_0[2u + (_77 * 3)]);
+    float3 _s3 = float3(_global_0[0u + (_93 * 3)], _global_0[1u + (_93 * 3)], _global_0[2u + (_93 * 3)]);
+    float3 _karis = KarisAverage4(_s0, _s1, _s2, _s3);
+    _global_0[((int)(0u + ((int)(SV_GroupIndex) * 3)))] = _karis.x;
+    _global_0[((int)(1u + ((int)(SV_GroupIndex) * 3)))] = _karis.y;
+    _global_0[((int)(2u + ((int)(SV_GroupIndex) * 3)))] = _karis.z;
+    __3__38__0__1__g_bloom2UAV[int2(((uint)(SV_DispatchThreadID.x) >> 1), ((uint)(SV_DispatchThreadID.y) >> 1))] = _karis;
     float _160 = ((((_global_1[((int)(0u + (_61 * 3)))]) + _35.x) + (_global_1[((int)(0u + (_77 * 3)))])) + (_global_1[((int)(0u + (_93 * 3)))])) * 0.25f;
     float _161 = ((((_global_1[((int)(1u + (_61 * 3)))]) + _35.y) + (_global_1[((int)(1u + (_77 * 3)))])) + (_global_1[((int)(1u + (_93 * 3)))])) * 0.25f;
     float _162 = ((((_global_1[((int)(2u + (_61 * 3)))]) + _35.z) + (_global_1[((int)(2u + (_77 * 3)))])) + (_global_1[((int)(2u + (_93 * 3)))])) * 0.25f;
     _global_1[((int)(0u + ((int)(SV_GroupIndex) * 3)))] = _160;
     _global_1[((int)(1u + ((int)(SV_GroupIndex) * 3)))] = _161;
     _global_1[((int)(2u + ((int)(SV_GroupIndex) * 3)))] = _162;
-    _164 = _109;
-    _165 = _110;
-    _166 = _111;
+    _164 = _karis.x;
+    _165 = _karis.y;
+    _166 = _karis.z;
     _167 = _160;
     _168 = _161;
     _169 = _162;
@@ -111,6 +148,7 @@ void main(
     _169 = _35.z;
   }
   GroupMemoryBarrierWithGroupSync();
+  // ── Mip 2 (bloom3): regular box average from here on ─────────────────
   if ((_16 & 3) == 0) {
     uint _173 = SV_GroupIndex + 2u;
     uint _189 = SV_GroupIndex + 64u;
@@ -143,13 +181,14 @@ void main(
     _281 = _169;
   }
   GroupMemoryBarrierWithGroupSync();
+  // ── Mip 3 (bloom4) ─────────────────────────────────────────────────
   if ((_16 & 7) == 0) {
     uint _285 = SV_GroupIndex + 4u;
     uint _301 = SV_GroupIndex + 128u;
     uint _317 = SV_GroupIndex + 132u;
     float _333 = ((((_global_0[((int)(0u + (_285 * 3)))]) + _276) + (_global_0[((int)(0u + (_301 * 3)))])) + (_global_0[((int)(0u + (_317 * 3)))])) * 0.25f;
     float _334 = ((((_global_0[((int)(1u + (_285 * 3)))]) + _277) + (_global_0[((int)(1u + (_301 * 3)))])) + (_global_0[((int)(1u + (_317 * 3)))])) * 0.25f;
-    float _335 = ((((_global_0[((int)(2u + (_285 * 3)))]) + _278) + (_global_0[((int)(2u + (_301 * 3)))])) + (_global_0[((int)(2u + (_317 * 3)))])) * 0.25f;
+    float _335 = ((((_global_0[((int)(2u + (_285 * 3)))]) + _278) + (_global_0[((int)(2u + (_317 * 3)))])) + (_global_0[((int)(2u + (_301 * 3)))])) * 0.25f;
     _global_0[((int)(0u + ((int)(SV_GroupIndex) * 3)))] = _333;
     _global_0[((int)(1u + ((int)(SV_GroupIndex) * 3)))] = _334;
     _global_0[((int)(2u + ((int)(SV_GroupIndex) * 3)))] = _335;
@@ -175,13 +214,14 @@ void main(
     _393 = _281;
   }
   GroupMemoryBarrierWithGroupSync();
+  // ── Mip 4 (bloom5) ─────────────────────────────────────────────────
   if ((_16 & 15) == 0) {
     uint _397 = SV_GroupIndex + 8u;
     uint _413 = SV_GroupIndex + 256u;
     uint _429 = SV_GroupIndex + 264u;
     float _445 = ((((_global_0[((int)(0u + (_397 * 3)))]) + _388) + (_global_0[((int)(0u + (_413 * 3)))])) + (_global_0[((int)(0u + (_429 * 3)))])) * 0.25f;
     float _446 = ((((_global_0[((int)(1u + (_397 * 3)))]) + _389) + (_global_0[((int)(1u + (_413 * 3)))])) + (_global_0[((int)(1u + (_429 * 3)))])) * 0.25f;
-    float _447 = ((((_global_0[((int)(2u + (_397 * 3)))]) + _390) + (_global_0[((int)(2u + (_413 * 3)))])) + (_global_0[((int)(2u + (_429 * 3)))])) * 0.25f;
+    float _447 = ((((_global_0[((int)(2u + (_397 * 3)))]) + _390) + (_global_0[((int)(2u + (_429 * 3)))])) + (_global_0[((int)(2u + (_413 * 3)))])) * 0.25f;
     _global_0[((int)(0u + ((int)(SV_GroupIndex) * 3)))] = _445;
     _global_0[((int)(1u + ((int)(SV_GroupIndex) * 3)))] = _446;
     _global_0[((int)(2u + ((int)(SV_GroupIndex) * 3)))] = _447;
@@ -207,6 +247,7 @@ void main(
     _505 = _393;
   }
   GroupMemoryBarrierWithGroupSync();
+  // ── Mip 5 (bloom6) + colour adaptation ───────────────────────────────
   if ((_16 & 31) == 0) {
     uint _509 = SV_GroupIndex + 16u;
     uint _525 = SV_GroupIndex + 512u;

@@ -210,7 +210,7 @@ void main(
       float _282 = float((uint)((int)(((uint)((int)(_rayleighScatteringColor)) >> 16) & 255))) * 1.960784317134312e-07f;
       float _283 = float((uint)((int)(((uint)((int)(_rayleighScatteringColor)) >> 8) & 255))) * 1.960784317134312e-07f;
       float _284 = float((uint)((int)(_rayleighScatteringColor & 255))) * 1.960784317134312e-07f;
-      // SKY_SCATTERING: override Rayleigh β with Stockman-Sharp LMS ratios
+      // SKY_SCATTERING: override Rayleigh β with Stockman Sharp LMS ratios
       if (SKY_SCATTERING) {
         float _skyBetaRef = _284;  // B channel (S cone, 440nm) as reference
         _282 = _skyBetaRef * SKY_RAYLEIGH_CH1;  // L cone (565nm)
