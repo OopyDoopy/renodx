@@ -99,6 +99,8 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
     {"ImprovedAutoExposure", 0.f},
     {"AE_DarkPowerOutdoor", 50.f},
     {"AE_Dynamism", 50.f},
+    {"AE_Speed", 0.f},
+
     {"DisableAWB", 0.f},
     {"DisableHeroLights", 0.f},
 
@@ -150,6 +152,7 @@ const std::unordered_map<std::string, float> RECOMMENDED_VALUES = {
     {"ImprovedAutoExposure", 1.f},
     {"AE_DarkPowerOutdoor", 50.f},
     {"AE_Dynamism", 40.f},
+    {"AE_Speed", 0.f},
 
     {"DisableAWB", 1.f},
     {"DisableHeroLights", 1.f},
@@ -520,11 +523,26 @@ renodx::utils::settings::Settings settings = {
         .can_reset = true,
         .label = "Dynamism",
         .section = "Auto Exposure",
-        .tooltip = "Alters the range of exposure the game applies. Lower values will darken dark scenes and brighten bright scenes.",
+        .tooltip = "Alters the range of exposure the game applies. Lower values will darken dark scenes and brighten bright scenes. 50 = Neutral",
         .tint = auto_exposure,
         .max = 100.f,
         .is_enabled = []() { return IMPROVED_AUTO_EXPOSURE > 0; },
         .parse = [](float value) { return value * 0.02f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+        //.is_visible = []() { return debug; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "AE_Speed",
+        .binding = &shader_injection.ae_speed,
+        .default_value = 0.f,
+        .can_reset = true,
+        .label = "Adaptation Speed",
+        .section = "Auto Exposure",
+        .tooltip = "Controls the speed of auto exposure adaptation. 0 = Vanilla speed",
+        .tint = auto_exposure,
+        .max = 100.f,
+        .is_enabled = []() { return IMPROVED_AUTO_EXPOSURE > 0; },
+        .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
         //.is_visible = []() { return debug; },
     },
@@ -1075,7 +1093,10 @@ void OnPresetOff() {
       {"DisableVRS", 0.f},
       {"DisableAWB", 0.f},
       {"DisableHeroLights", 0.f},
+
       {"ImprovedAutoExposure", 0.f},
+        {"AE_Dynamism", 40.f},
+        {"AE_Speed", 0.f},
   });
 }
 

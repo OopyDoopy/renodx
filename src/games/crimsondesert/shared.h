@@ -42,16 +42,17 @@
 #define DISABLE_AWB                            shader_injection.disable_awb
 #define DISABLE_HERO_LIGHTS                    shader_injection.disable_hero_lights
 
+// Auto exposure tuning
 #define IMPROVED_AUTO_EXPOSURE                 shader_injection.improved_auto_exposure
+#define AE_DARK_POWER_OUTDOOR                  shader_injection.ae_dark_power_outdoor
+#define AE_DYNAMISM                           shader_injection.ae_dynamism
+#define AE_SPEED                               shader_injection.ae_speed
 
 #define SUN_MOON_ADJUSTMENTS                   shader_injection.sun_moon_adjustments
 #define MOON_DISK_SIZE                         shader_injection.moon_disk_size
 #define SKY_SCATTERING                         shader_injection.sky_scattering
 
-// Auto exposure tuning
-#define AE_DARK_POWER_OUTDOOR                  shader_injection.ae_dark_power_outdoor
-#define AE_DYNAMISM                           shader_injection.ae_dynamism
-
+// AE Rewrite parameters
 #define AE_DARK_POWER_INDOOR                   0.55f
 #define AE_BRIGHT_POWER_OUTDOOR                1.00f
 #define AE_BRIGHT_POWER_INDOOR                 1.00f
@@ -107,15 +108,15 @@ struct ShaderInjectData {
   float disable_hero_lights;
 
   float improved_auto_exposure;
+  float ae_dark_power_outdoor;
+  float ae_dynamism;
+  float ae_speed;
 
   float sun_moon_adjustments;
   float moon_disk_size;
   float sky_scattering;
   float lens_flare_strength;
   float bloom_strength;
-
-  float ae_dark_power_outdoor;
-  float ae_dynamism;
 
   // float ae_dark_power_indoor;
   // float ae_bright_power_outdoor;
