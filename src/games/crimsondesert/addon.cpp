@@ -10,6 +10,8 @@
 
 #include <embed/shaders.h>
 
+#include <atomic>
+#include <mutex>
 #include <d3d12.h>
 #include <deps/imgui/imgui.h>
 #include <include/reshade.hpp>
@@ -37,47 +39,81 @@ bool debug = false;
 
 float disable_vrs = 1.f;
 
-// --- VRS override via pre draw injection ---
+// --- VRS override via pre-draw injection ---
 // The game uses Tier 2 VRS (per primitive via SV_ShadingRate in vertex shaders),
-// not per draw RSSetShadingRate calls
+// not per-draw RSSetShadingRate calls. To disable VRS we must inject
+// RSSetShadingRate(1X1, {OVERRIDE, OVERRIDE}) before each draw, which tells
+// the hardware to ignore the per primitive and per tile shading rates.
 
 using PFN_RSSetShadingRate = void(STDMETHODCALLTYPE*)(
     ID3D12GraphicsCommandList5*, D3D12_SHADING_RATE, const D3D12_SHADING_RATE_COMBINER*);
 
-static bool vrs_native_ptr_resolved = false;
-static PFN_RSSetShadingRate native_RSSetShadingRate = nullptr;
+// 0 = not yet checked, 1 = resolved (may still be null if unsupported), -1 = unsupported
+static std::atomic<int> vrs_resolve_state{0};
+static std::atomic<PFN_RSSetShadingRate> native_rs_set_shading_rate{nullptr};
+static std::mutex vrs_resolve_mutex;
 
-// Resolve the native RSSetShadingRate function pointer once from a command list
-static void ResolveVRSNativePtr(reshade::api::command_list* cmd_list) {
-  if (vrs_native_ptr_resolved) return;
+// Pre draw hook: inject RSSetShadingRate(1X1, {OVERRIDE, OVERRIDE}) to disable per primitive VRS
+static void OnVRSPreDraw(reshade::api::command_list* cmd_list) {
+  if (cmd_list->get_device()->get_api() != reshade::api::device_api::d3d12) return;
+  if (disable_vrs == 0.f) return;
 
-  auto* native_cmd_list = reinterpret_cast<ID3D12GraphicsCommandList*>(cmd_list->get_native());
+  // Fast path: already determined VRS is unsupported on this GPU
+  int state = vrs_resolve_state.load(std::memory_order_relaxed);
+  if (state == -1) return;
+
+  auto* native_cmd_list = reinterpret_cast<IUnknown*>(cmd_list->get_native());
   if (native_cmd_list == nullptr) return;
 
   ID3D12GraphicsCommandList5* cmd_list5 = nullptr;
   HRESULT hr = native_cmd_list->QueryInterface(__uuidof(ID3D12GraphicsCommandList5), reinterpret_cast<void**>(&cmd_list5));
   if (FAILED(hr) || cmd_list5 == nullptr) return;
 
-  void** vtable = *reinterpret_cast<void***>(cmd_list5);
-  native_RSSetShadingRate = reinterpret_cast<PFN_RSSetShadingRate>(vtable[77]);
-  vrs_native_ptr_resolved = true;
+  // Resolve the vtable function pointer once (double-checked lock)
+  auto resolved = native_rs_set_shading_rate.load(std::memory_order_relaxed);
+  if (resolved == nullptr && state == 0) {
+    const std::lock_guard lock(vrs_resolve_mutex);
+    resolved = native_rs_set_shading_rate.load(std::memory_order_relaxed);
+    if (resolved == nullptr && vrs_resolve_state.load(std::memory_order_relaxed) == 0) {
+      // Check VRS Tier 2 support before resolving — AMD exposes the interface
+      // but calling RSSetShadingRate without Tier 2 causes DXGI_ERROR_DEVICE_HUNG
+      ID3D12Device* device = nullptr;
+      hr = cmd_list5->GetDevice(__uuidof(ID3D12Device), reinterpret_cast<void**>(&device));
+      if (SUCCEEDED(hr) && device != nullptr) {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS6 options6 = {};
+        hr = device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS6, &options6, sizeof(options6));
+        device->Release();
 
-  reshade::log::message(reshade::log::level::info, "VRS: Resolved native RSSetShadingRate function pointer for pre-draw injection");
-  cmd_list5->Release();
-}
+        if (SUCCEEDED(hr) && options6.VariableShadingRateTier >= D3D12_VARIABLE_SHADING_RATE_TIER_2) {
+          void** vtable = *reinterpret_cast<void***>(cmd_list5);
+          resolved = reinterpret_cast<PFN_RSSetShadingRate>(vtable[77]);
+          if (resolved != nullptr) {
+            native_rs_set_shading_rate.store(resolved, std::memory_order_relaxed);
+            vrs_resolve_state.store(1, std::memory_order_relaxed);
+            reshade::log::message(reshade::log::level::info, "VRS: Resolved native RSSetShadingRate function pointer for pre-draw injection");
+          }
+        } else {
+          reshade::log::message(reshade::log::level::warning, "VRS: GPU does not support VRS Tier 2 — VRS override disabled");
+          vrs_resolve_state.store(-1, std::memory_order_relaxed);
+        }
+      } else {
+        reshade::log::message(reshade::log::level::warning, "VRS: Could not get ID3D12Device — VRS override disabled");
+        vrs_resolve_state.store(-1, std::memory_order_relaxed);
+      }
+    }
+  }
 
-// Pre draw hook: inject RSSetShadingRate(1X1, {OVERRIDE, OVERRIDE}) to disable per primitive VRS
-static void OnVRSPreDraw(reshade::api::command_list* cmd_list) {
-  if (disable_vrs == 0.f) return;
-  if (!vrs_native_ptr_resolved) ResolveVRSNativePtr(cmd_list);
-  if (native_RSSetShadingRate == nullptr) return;
+  if (resolved == nullptr) {
+    cmd_list5->Release();
+    return;
+  }
 
-  auto* native = reinterpret_cast<ID3D12GraphicsCommandList5*>(cmd_list->get_native());
   D3D12_SHADING_RATE_COMBINER combiners[2] = {
-    D3D12_SHADING_RATE_COMBINER_OVERRIDE,  // overrides per primitive (VS SV_ShadingRate)
-    D3D12_SHADING_RATE_COMBINER_OVERRIDE   // overrides per tile (shading rate image)
+    D3D12_SHADING_RATE_COMBINER_OVERRIDE,  // overrides per-primitive (VS SV_ShadingRate)
+    D3D12_SHADING_RATE_COMBINER_OVERRIDE   // overrides per-tile (shading rate image)
   };
-  native_RSSetShadingRate(native, D3D12_SHADING_RATE_1X1, combiners);
+  resolved(cmd_list5, D3D12_SHADING_RATE_1X1, combiners);
+  cmd_list5->Release();
 }
 
 static bool OnVRSDraw(reshade::api::command_list* cmd_list, uint32_t, uint32_t, uint32_t, uint32_t) {
@@ -739,96 +775,96 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.improved_auto_exposure > 0.5f && shader_injection.alt_bloom > 0.5f; },
     },
-    //     new renodx::utils::settings::Setting{
-    //     .key = "GlareSun",
-    //     .binding = &shader_injection.glare_sun,
-    //     .value_type = renodx::utils::settings::SettingValueType::FLOAT,
-    //     .default_value = 100.f,
-    //     .can_reset = true,
-    //     .label = "Bloom: Sun",
-    //     .section = "Auto Exposure",
-    //     .tooltip = "Bloom intensity for the sun disk.",
-    //     .min = 0.f,
-    //     .max = 200.f,
-    //     .tint = auto_exposure,
-    //     .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
-    //     .parse = [](float value) { return value * 0.01f; },
-    // },
-    //     new renodx::utils::settings::Setting{
-    //     .key = "GlareEmissive",
-    //     .binding = &shader_injection.glare_emissive,
-    //     .value_type = renodx::utils::settings::SettingValueType::FLOAT,
-    //     .default_value = 100.f,
-    //     .can_reset = true,
-    //     .label = "Bloom: Emissive (Stencil 28)",
-    //     .section = "Auto Exposure",
-    //     .tooltip = "Bloom intensity for emissive meshes.",
-    //     .min = 0.f,
-    //     .max = 200.f,
-    //     .tint = auto_exposure,
-    //     .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
-    //     .parse = [](float value) { return value * 0.01f; },
-    // },
-    //     new renodx::utils::settings::Setting{
-    //     .key = "GlareFog",
-    //     .binding = &shader_injection.glare_fog,
-    //     .value_type = renodx::utils::settings::SettingValueType::FLOAT,
-    //     .default_value = 100.f,
-    //     .can_reset = true,
-    //     .label = "Bloom: Fog/Smoke (Stencil 56)",
-    //     .section = "Auto Exposure",
-    //     .tooltip = "Bloom intensity for volumetric fog and smoke.",
-    //     .min = 0.f,
-    //     .max = 200.f,
-    //     .tint = auto_exposure,
-    //     .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
-    //     .parse = [](float value) { return value * 0.01f; },
-    // },
-    //     new renodx::utils::settings::Setting{
-    //     .key = "GlareParticle26",
-    //     .binding = &shader_injection.glare_particle26,
-    //     .value_type = renodx::utils::settings::SettingValueType::FLOAT,
-    //     .default_value = 30.f,
-    //     .can_reset = true,
-    //     .label = "Bloom: Smoke/Particles",
-    //     .section = "Auto Exposure",
-    //     .tooltip = "Bloom intensity for chimney smoke (stencil 26).",
-    //     .min = 0.f,
-    //     .max = 200.f,
-    //     .tint = auto_exposure,
-    //     .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
-    //     .parse = [](float value) { return value * 0.01f; },
-    // },
-    //     new renodx::utils::settings::Setting{
-    //     .key = "GlareParticle27",
-    //     .binding = &shader_injection.glare_particle27,
-    //     .value_type = renodx::utils::settings::SettingValueType::FLOAT,
-    //     .default_value = 100.f,
-    //     .can_reset = true,
-    //     .label = "Bloom: Local Lights",
-    //     .section = "Auto Exposure",
-    //     .tooltip = "Bloom intensity for local light sources (stencil 27).",
-    //     .min = 0.f,
-    //     .max = 200.f,
-    //     .tint = auto_exposure,
-    //     .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
-    //     .parse = [](float value) { return value * 0.01f; },
-    // },
-    //     new renodx::utils::settings::Setting{
-    //     .key = "GlareClamp",
-    //     .binding = &shader_injection.glare_clamp,
-    //     .value_type = renodx::utils::settings::SettingValueType::FLOAT,
-    //     .default_value = 20.f,
-    //     .can_reset = true,
-    //     .label = "Bloom: Output Clamp",
-    //     .section = "Auto Exposure",
-    //     .tooltip = "Soft ceiling for bloom source luminance.",
-    //     .min = 1.f,
-    //     .max = 200.f,
-    //     .tint = auto_exposure,
-    //     .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
-    //     .parse = [](float value) { return value * 0.1f; },
-    // },
+        new renodx::utils::settings::Setting{
+        .key = "GlareSun",
+        .binding = &shader_injection.glare_sun,
+        .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+        .default_value = 100.f,
+        .can_reset = true,
+        .label = "Bloom: Sun",
+        .section = "Auto Exposure",
+        .tooltip = "Bloom intensity for the sun disk.",
+        .tint = auto_exposure,
+        .min = 0.f,
+        .max = 200.f,
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "GlareEmissive",
+        .binding = &shader_injection.glare_emissive,
+        .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+        .default_value = 100.f,
+        .can_reset = true,
+        .label = "Bloom: Emissive (Stencil 28)",
+        .section = "Auto Exposure",
+        .tooltip = "Bloom intensity for emissive meshes.",
+        .tint = auto_exposure,
+        .min = 0.f,
+        .max = 200.f,
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "GlareFog",
+        .binding = &shader_injection.glare_fog,
+        .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+        .default_value = 100.f,
+        .can_reset = true,
+        .label = "Bloom: Fog/Smoke (Stencil 56)",
+        .section = "Auto Exposure",
+        .tooltip = "Bloom intensity for volumetric fog and smoke.",
+        .tint = auto_exposure,
+        .min = 0.f,
+        .max = 200.f,
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "GlareParticle26",
+        .binding = &shader_injection.glare_particle26,
+        .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+        .default_value = 30.f,
+        .can_reset = true,
+        .label = "Bloom: Smoke/Particles",
+        .section = "Auto Exposure",
+        .tooltip = "Bloom intensity for chimney smoke (stencil 26).",
+        .tint = auto_exposure,
+        .min = 0.f,
+        .max = 200.f,
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "GlareParticle27",
+        .binding = &shader_injection.glare_particle27,
+        .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+        .default_value = 100.f,
+        .can_reset = true,
+        .label = "Bloom: Local Lights",
+        .section = "Auto Exposure",
+        .tooltip = "Bloom intensity for local light sources (stencil 27).",
+        .tint = auto_exposure,
+        .min = 0.f,
+        .max = 200.f,
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "GlareClamp",
+        .binding = &shader_injection.glare_clamp,
+        .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+        .default_value = 20.f,
+        .can_reset = true,
+        .label = "Bloom: Output Clamp",
+        .section = "Auto Exposure",
+        .tooltip = "Soft ceiling for bloom source luminance.",
+        .tint = auto_exposure,
+        .min = 1.f,
+        .max = 200.f,
+        .parse = [](float value) { return value * 0.1f; },
+        .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.alt_bloom > 0.5f; },
+    },
         new renodx::utils::settings::Setting{
         .key = "FxFilmGrainType",
         .binding = &shader_injection.custom_film_grain_type,
@@ -1229,14 +1265,16 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       reshade::unregister_event<reshade::addon_event::draw>(OnVRSDraw);
       reshade::unregister_event<reshade::addon_event::draw_indexed>(OnVRSDrawIndexed);
       reshade::unregister_event<reshade::addon_event::draw_or_dispatch_indirect>(OnVRSDrawOrDispatchIndirect);
-
-      reshade::unregister_addon(h_module);
       break;
   }
 
   renodx::utils::settings::Use(fdw_reason, &settings, &OnPresetOff);
   renodx::mods::shader::Use(fdw_reason, custom_shaders, &shader_injection);
   renodx::utils::random::Use(fdw_reason);
+
+  if (fdw_reason == DLL_PROCESS_DETACH) {
+    reshade::unregister_addon(h_module);
+  }
 
   return TRUE;
 }
