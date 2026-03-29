@@ -54,14 +54,14 @@
 #define AE_DYNAMISM                            shader_injection.ae_dynamism
 #define AE_SPEED                               shader_injection.ae_speed
 #define FOLIAGE_SHADOW_SENSITIVITY             0
-#define ALT_BLOOM                              shader_injection.alt_bloom
-#define GLARE_SUN                              1.0f
-#define GLARE_EMISSIVE                         0.5f
-#define GLARE_FOG                              0.03f
-#define GLARE_PARTICLE26                       0.02f
-#define GLARE_PARTICLE27                       2.0f
+#define ALT_BLOOM                              shader_injection.alt_bloom    
+#define GLARE_SUN                              shader_injection.glare_sun        //1.0f
+#define GLARE_EMISSIVE                         shader_injection.glare_emissive   //0.5f
+#define GLARE_FOG                              shader_injection.glare_fog        //0.03f
+#define GLARE_PARTICLE26                       shader_injection.glare_particle26 //0.02f
+#define GLARE_PARTICLE27                       shader_injection.glare_particle27 //2.0f
 #define GLARE_NORMAL                           shader_injection.glare_normal
-#define GLARE_CLAMP                            20.0f
+#define GLARE_CLAMP                            shader_injection.glare_clamp      //20.0f
 #define AE_DARK_POWER_INDOOR                   0.55f
 #define AE_BRIGHT_POWER_OUTDOOR                1.00f
 #define AE_BRIGHT_POWER_INDOOR                 1.00f
@@ -125,7 +125,13 @@ struct ShaderInjectData {
   float bloom_strength;
 
   float alt_bloom;
+  float glare_sun;
+  float glare_emissive;
+  float glare_fog;
+  float glare_particle26;
+  float glare_particle27;
   float glare_normal;
+  float glare_clamp;
 };
 
 #ifndef __cplusplus
