@@ -161,7 +161,7 @@ float4 main(
     _83 = _37;
   }
 
-  if (CUSTOM_FILM_GRAIN_TYPE == 1) {
+  if (CUSTOM_FILM_GRAIN_TYPE != 0 || CUSTOM_SHARPENING_TYPE != 0) {
     float3 color_bt709 = float3(_81, _82, _83);
     color_bt709 = renodx::color::srgb::Decode(color_bt709);
     color_bt709 = CustomPostProcessing(color_bt709, TEXCOORD, __3__36__0__0__g_sceneColor, __0__4__0__0__g_staticBilinearClamp, 1);
@@ -191,7 +191,7 @@ float4 main(
   float _168 = 2.200000047683716f / ((min(max(_userImageAdjust.w, -1.0f), 1.0f) * 0.800000011920929f) + 2.200000047683716f);
   float _183 = abs((TEXCOORD.x * 2.0f) + -1.0f);
   float _184 = abs((TEXCOORD.y * 2.0f) + -1.0f);
-  float _188 = saturate(1.0f - (dot(float2(_183, _184), float2(_183, _184)) * _postProcessParams.x));
+  float _188 = saturate(1.0f - (dot(float2(_183, _184), float2(_183, _184)) * (_postProcessParams.x * CUSTOM_VIGNETTE)));
   if (!(SV_Position.y < _viewDir.w)) {
     if (!(SV_Position.y >= (_screenSizeAndInvSize.y - _viewDir.w))) {
       _202 = (_188 * exp2(log2(saturate((_152 * (_143 + -0.5f)) + _156)) * _168));

@@ -162,7 +162,7 @@ float4 main(
     _83 = _37;
   }
 
-  if (CUSTOM_FILM_GRAIN_TYPE == 1) {
+  if (CUSTOM_FILM_GRAIN_TYPE != 0 || CUSTOM_SHARPENING_TYPE != 0) {
     float3 color_pq = float3(_81, _82, _83);
 
     float scaling = RENODX_TONE_MAP_TYPE == 0 ? 100.0f : RENODX_DIFFUSE_WHITE_NITS;
@@ -203,7 +203,7 @@ float4 main(
   float _151 = (pow(_142, 0.012683313339948654f));
   float _181 = abs((TEXCOORD.x * 2.0f) + -1.0f);
   float _182 = abs((TEXCOORD.y * 2.0f) + -1.0f);
-  float _186 = saturate(1.0f - (dot(float2(_181, _182), float2(_181, _182)) * _postProcessParams.x));
+  float _186 = saturate(1.0f - (dot(float2(_181, _182), float2(_181, _182)) * (_postProcessParams.x * CUSTOM_VIGNETTE)));
   float _196 = exp2(log2(_186 * exp2(log2(max(0.0f, (_149 + -0.8359375f)) / (18.8515625f - (_149 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
   float _197 = exp2(log2(_186 * exp2(log2(max(0.0f, (_150 + -0.8359375f)) / (18.8515625f - (_150 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
   float _198 = exp2(log2(_186 * exp2(log2(max(0.0f, (_151 + -0.8359375f)) / (18.8515625f - (_151 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
@@ -226,5 +226,6 @@ float4 main(
   SV_Target.y = _237;
   SV_Target.z = _238;
   SV_Target.w = _13.w;
+  
   return SV_Target;
 }

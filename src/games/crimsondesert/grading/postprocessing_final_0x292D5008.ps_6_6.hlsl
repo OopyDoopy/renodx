@@ -241,7 +241,7 @@ float4 main(
   // Radial mask from center. _postProcessParams.x controls edge falloff strength.
   float _284 = abs((TEXCOORD.x * 2.0f) + -1.0f);
   float _285 = abs((TEXCOORD.y * 2.0f) + -1.0f);
-  float _289 = saturate(1.0f - (dot(float2(_284, _285), float2(_284, _285)) * _postProcessParams.x));
+  float _289 = saturate(1.0f - (dot(float2(_284, _285), float2(_284, _285)) * (_postProcessParams.x * CUSTOM_VIGNETTE)));
 #if 0 // Experimenting with changing encodeing
   // Apply radial mask directly in linear domain (input is already linear BT.709).
   float _299 = _289 * _243;
