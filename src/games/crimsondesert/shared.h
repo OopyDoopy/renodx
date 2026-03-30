@@ -25,6 +25,7 @@
 #define CUSTOM_CHROMATIC_ABERRATION            shader_injection.custom_chromatic_aberration
 #define CUSTOM_SHARPENING_TYPE                 shader_injection.custom_sharpening_type
 #define CUSTOM_SHARPENING                      shader_injection.custom_sharpening
+#define CUSTOM_VIGNETTE                       shader_injection.custom_vignette
 #define LENS_FLARE_STRENGTH                    shader_injection.lens_flare_strength
 #define BLOOM_STRENGTH                         shader_injection.bloom_strength
 
@@ -107,6 +108,7 @@ struct ShaderInjectData {
   float custom_chromatic_aberration;
   float custom_sharpening_type;
   float custom_sharpening;
+  float custom_vignette;
   //float shadow_debug_mode;
   //float shadow_disable_layer;
   float contact_shadow_quality;

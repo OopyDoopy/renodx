@@ -259,7 +259,7 @@ renodx::utils::settings::Settings settings = {
         .labels = {"Vanilla (ACESv2)","PsychoV-11"},
         .tint = tone_mapping,
         .parse = [](float value) { return value; },
-        .is_visible = []() { return hdr_settings_toggle == 1; },
+        //.is_visible = []() { return hdr_settings_toggle == 1; },
     },
     tone_map_peak_nits_setting = new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",
@@ -903,6 +903,18 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.01f; },
         //.is_visible = []() { return current_settings_mode >= 1.f; },
     },
+        new renodx::utils::settings::Setting{
+        .key = "FxVignette",
+        .binding = &shader_injection.custom_vignette,
+        .default_value = 100.f,
+        .label = "Vignette",
+        .section = "Effects",
+        .tooltip = "Adjusts vignette strength. 100 = Vanilla",
+        .tint = effects,
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.01f; },
+        //.is_visible = []() { return current_settings_mode >= 1.f; },
+    },
     new renodx::utils::settings::Setting{
         .key = "FxSharpeningType",
         .binding = &shader_injection.custom_sharpening_type,
@@ -1222,6 +1234,9 @@ void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
 
   hdr_settings_toggle = last_is_hdr ? 1.f : 0.f;
   renodx::utils::settings::UpdateSetting("SDRHDRToggle", hdr_settings_toggle);
+
+  if (fired_on_init_swapchain) return;
+  fired_on_init_swapchain = true;
 
   auto peak = renodx::utils::swapchain::GetPeakNits(swapchain);
   if (peak.has_value()) {
