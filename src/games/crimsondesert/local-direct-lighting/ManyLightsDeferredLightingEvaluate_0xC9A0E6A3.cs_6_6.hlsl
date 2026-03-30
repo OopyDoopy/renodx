@@ -1602,7 +1602,13 @@ void main(
         }
         // RenoDX: Diffraction on Rough Surfaces
         if (DIFFRACTION > 0.0f && float(_532) > 0.0f) {
-          float3 _rndx_dShift = DiffractionShiftOnly(_793, _606);
+          float3 _rndx_dShift = DiffractionShiftAndSpeckleCS(
+            _793, _791, _606,
+            float2(_94, _95), _86,
+            float3(_785, _786, _787),
+            float3(_603, _604, _605),
+            float3(_569, _570, _571)
+          );
           float3 _rndx_dMod = lerp(float3(1.0f, 1.0f, 1.0f), _rndx_dShift, DIFFRACTION * float(_532));
           _1248 *= _rndx_dMod.x;
           _1249 *= _rndx_dMod.y;

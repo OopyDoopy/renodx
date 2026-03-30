@@ -173,7 +173,7 @@ void main(
   int _56 = (uint)((uint)(_54.x)) >> 24;
   float _59 = float((uint)((uint)(_54.x & 16777215))) * 5.960465188081798e-08f;
 
-  // RenoDX Debug: visualise stream-indexed R2 noise when rt_quality == 2 (Debug Noise)
+  // RenoDX Debug: visualise stream indexed R2 noise when rt_quality == 2 (Debug Noise)
   // R = stream 0 (ray gen), G = stream 1 (bilateral octahedron), B = stream 3 (spatial neighbor)
   if (RT_QUALITY > 1.5f) {
     float2 s0 = _rndx_sample_noise(uint2(_47, _49), _frameNumber.x, 0u);

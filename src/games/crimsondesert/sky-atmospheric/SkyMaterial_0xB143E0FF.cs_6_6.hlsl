@@ -530,7 +530,7 @@ void main(
       float _mu = sqrt(1.0f - _r * _r);
       float _limbDark = pow(max(0.001f, _mu), 0.6f);
 
-      // Sun disk colour: warm center (5778K-ish) cools very slightly to the limb.
+      // Sun disk colour: warm center (5778K-ish) very slightly to the limb.
       float _sunMaskR = _sunEdgeR * _limbDark;
       float _sunMaskG = _sunEdgeG * _limbDark;
       float _sunMaskB = _sunEdgeB * (_limbDark * 0.92f + 0.08f);
@@ -538,16 +538,19 @@ void main(
       // Added 10x brightness reduction so that postprocess bloom doesnt blow out the sun
       float _sunLum = min(100000.0f, _precomputedAmbient7.x) * 0.1f;
 
-      // --- K-corona: falloff past the disk rim ---------------
-      // Mimics electron-scattering corona; independent of bloom pipeline.
+      // --- K corona: falloff past the disk rim ---------------
+      // Mimics electron scattering corona; independent of bloom 
       float _coronaR = max(0.0f, _341 - _sunRadiusR) / max(_sunRadius, 1e-6f);
       float _corona  = _sunLum * 0.006f / (1.0f + _coronaR * _coronaR * 10.0f);
-      // Corona is slightly warm (reddish); tint channels accordingly.
+      // Corona is slightly warm and tints channels accordingly.
       float _coronaContribR = _corona * 1.10f;
       float _coronaContribG = _corona * 0.95f;
       float _coronaContribB = _corona * 0.75f;
 
-      // ---- Mie near-sun halo: Henyey Greenstein phase using scene aerosol data ----
+      // ---- Mie near sun halo: Henyey Greenstein phase using scene aerosol data ----
+      //
+      // (This might have some bugs we still need to solve)
+      //
       // _337 = cosθ (already computed), _miePhaseConst = g (eccentricity)
       // Also gate by sun elevation, since otherwise the sun at the horizon nukes
       // the HG forward scatter lobe, messing up lighting in the night time sky.
@@ -555,8 +558,13 @@ void main(
       float _g    = _miePhaseConst;
       float _g2   = _g * _g;
       float _HG   = (1.0f - _g2) / pow(max(1e-6f, 1.0f + _g2 - 2.0f * _g * _337), 1.5f);
-      // Scale by aerosol densit for near sun halo visible in hazy air only.
-      float _mieHalo = _sunElevation * _mieAerosolDensity * _sunLum * 0.0003f * _HG;
+
+      // Suppress the forward lobe near the sun disk — the corona already handles
+      // near sun glow. If we dont, the HG peak at cosθ≈1 produces extreme
+      // values that cause artefacts, especially at high altitude.
+      float _angularDist = _341 / max(_sunRadius, 1e-6f);  // 0 at center, 1 at rim
+      float _hgSuppress = smoothstep(0.0f, 3.0f, _angularDist);  // fade in beyond 3× sun radius
+      float _mieHalo = _sunElevation * _mieAerosolDensity * _sunLum * 0.0003f * min(_HG, 8.0f) * _hgSuppress;
 
       _353 = _sunMaskR * (_sunLum - _330) + _330 + _coronaContribR + _mieHalo;
       _354 = _sunMaskG * (_sunLum - _331) + _331 + _coronaContribG + _mieHalo;

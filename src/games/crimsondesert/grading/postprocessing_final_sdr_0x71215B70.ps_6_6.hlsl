@@ -164,7 +164,7 @@ float4 main(
     _84 = _38;
   }
 
-  if (CUSTOM_FILM_GRAIN_TYPE == 1) {
+  if (CUSTOM_FILM_GRAIN_TYPE != 0 || CUSTOM_SHARPENING_TYPE != 0) {
     float3 color_bt709 = float3(_82, _83, _84);
     color_bt709 = renodx::color::srgb::Decode(color_bt709);
     color_bt709 = CustomPostProcessing(color_bt709, TEXCOORD, __3__36__0__0__g_sceneColor, __0__4__0__0__g_staticBilinearClamp, 1);
@@ -230,7 +230,7 @@ float4 main(
   float _254 = 2.200000047683716f / ((min(max(_userImageAdjust.w, -1.0f), 1.0f) * 0.800000011920929f) + 2.200000047683716f);
   float _269 = abs((TEXCOORD.x * 2.0f) + -1.0f);
   float _270 = abs((TEXCOORD.y * 2.0f) + -1.0f);
-  float _274 = saturate(1.0f - (dot(float2(_269, _270), float2(_269, _270)) * _postProcessParams.x));
+  float _274 = saturate(1.0f - (dot(float2(_269, _270), float2(_269, _270)) * (_postProcessParams.x * CUSTOM_VIGNETTE)));
   bool _283 = (((bool)(!(SV_Position.y < _viewDir.w)))) & (((bool)(!(SV_Position.y >= (_screenSizeAndInvSize.y - _viewDir.w)))));
   SV_Target.x = select(_283, (_274 * exp2(log2(saturate((_238 * (_229 + -0.5f)) + _242)) * _254)), 0.0f);
   SV_Target.y = select(_283, (_274 * exp2(log2(saturate((_238 * (_230 + -0.5f)) + _242)) * _254)), 0.0f);

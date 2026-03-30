@@ -145,7 +145,7 @@ uint _rndx_pcg(uint v) {
   return (word >> 22u) ^ word;
 }
 float2 _rndx_sample_noise(uint2 pixelCoord, float frameIndex, uint streamIndex = 0u) {
-  // streamIndex decorrelates different sampling uses across pipeline stages
+  // Stream Index decorrelates different sampling uses across pipeline stages
   uint h = _rndx_pcg(pixelCoord.x + pixelCoord.y * 8192u + streamIndex * 65537u);
   float off1 = float(h) * (1.0f / 4294967296.0f);
   float off2 = float(_rndx_pcg(h)) * (1.0f / 4294967296.0f);
@@ -636,7 +636,7 @@ void main(
       float _903 = _883 - _261;
       float _904 = _884 - _262;
       float _905 = _885 - _263;
-      // Squared distances: prev-to-hit and current-to-hit
+      // Squared distances: prev to hit and current to hit
       float _907 = dot(float3((_883 - _889), (_884 - _890), (_885 - _891)), float3((_883 - _889), (_884 - _890), (_885 - _891)));
       float _909 = dot(float3(_903, _904, _905), float3(_903, _904, _905));
       // Inverse distances
