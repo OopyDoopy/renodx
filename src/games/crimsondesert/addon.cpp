@@ -148,6 +148,8 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
     {"FxSharpening", 100.f},
     {"FxLensFlareStrength", 100.f},
     {"BloomStrength", 100.f},
+    {"FxVignette", 100.f},
+
 
     {"SkyScattering", 0.f},
     {"SunMoonAdjustments", 0.f},
@@ -181,7 +183,7 @@ const std::unordered_map<std::string, float> RECOMMENDED_VALUES = {
 
     {"ImprovedAutoExposure", 1.f},
     {"AE_DarkPowerOutdoor", 50.f},
-    {"AE_Dynamism", 40.f},
+    {"AE_Dynamism", 45.f},
     {"AE_Speed", 0.f},
 
     {"DisableAWB", 2.f},
@@ -193,6 +195,7 @@ const std::unordered_map<std::string, float> RECOMMENDED_VALUES = {
     {"FxSharpening", 0.f},
     {"FxLensFlareStrength", 100.f},
     {"BloomStrength", 100.f},
+    {"FxVignette", 0.f},
 
     {"SkyScattering", 1.f},
     {"SunMoonAdjustments", 1.f},
@@ -252,9 +255,10 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapType",
-        .binding = &shader_injection.tone_map_type,
+      .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 1.f,
+      .packed_values = {0u, CUSTOM_FLAGS__TONE_MAP_TYPE},
         .can_reset = true,
         .label = "Tone Mapper",
         .section = "Tone Mapping",
@@ -301,9 +305,10 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .key = "SDRBlackCrushFix",
-        .binding = &shader_injection.sdr_black_crush_fix,
+      .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 1.f,
+      .packed_values = {0u, CUSTOM_FLAGS__SDR_BLACK_CRUSH_FIX},
         .label = "Black Crush Fix",
         .section = "Tone Mapping",
         .tooltip = "Intended for gamma 2.2 displays, this fixes the gamma mismatch causing black levels to crush.",
@@ -516,9 +521,10 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .key = "ImprovedAutoExposure",
-        .binding = &shader_injection.improved_auto_exposure,
+      .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 0.f,
+      .packed_values = {0u, CUSTOM_FLAGS__IMPROVED_AUTO_EXPOSURE},
         .can_reset = true,
         .label = "Auto Exposure",
         .section = "Auto Exposure",
@@ -545,7 +551,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "AE_Dynamism",
         .binding = &shader_injection.ae_dynamism,
-        .default_value = 40.f,
+        .default_value = 45.f,
         .can_reset = true,
         .label = "Dynamism",
         .section = "Auto Exposure",
@@ -681,9 +687,10 @@ renodx::utils::settings::Settings settings = {
     // },
     new renodx::utils::settings::Setting{
         .key = "DisableAWB",
-        .binding = &shader_injection.disable_awb_mode,
+      .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 0.f,
+      .packed_values = {0u, CUSTOM_FLAGS__DISABLE_AWB, CUSTOM_FLAGS__DISABLE_AWB | CUSTOM_FLAGS__DISABLE_HERO_LIGHTS},
         .can_reset = true,
         .label = "Auto White Balance",
         .section = "Auto Exposure",
@@ -700,13 +707,14 @@ renodx::utils::settings::Settings settings = {
         .label = "Alt Bloom is recommended to be enabled if using Custom Auto Exposure above, Engine ties emissive properties of various meshes to bloom. Flickering in the vanilla game occurs on bloom due to temporal jitter usage\n",
         .section = "Auto Exposure",
         //.tint = auto_exposure,
-        .is_visible = []() { return current_settings_mode >= 1.f && shader_injection.improved_auto_exposure > 0.5f; },
+          .is_visible = []() { return current_settings_mode >= 1.f && IMPROVED_AUTO_EXPOSURE > 0.5f; },
     },
         new renodx::utils::settings::Setting{
         .key = "FxFilmGrainType",
-        .binding = &shader_injection.custom_film_grain_type,
+          .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 1.f,
+          .packed_values = {0u, CUSTOM_FLAGS__FILM_GRAIN_TYPE},
         .label = "Film Grain Type",
         .section = "Effects",
         .tooltip = "Selects between original or RenoDX film grain",
@@ -754,9 +762,10 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .key = "FxSharpeningType",
-        .binding = &shader_injection.custom_sharpening_type,
+      .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 1.f,
+      .packed_values = {0u, CUSTOM_FLAGS__SHARPENING_TYPE},
         .label = "Sharpening Type",
         .section = "Effects",
         .tooltip = "Selects between original or Lilium's RCAS sharpening",
@@ -810,9 +819,10 @@ renodx::utils::settings::Settings settings = {
 
         new renodx::utils::settings::Setting{
         .key = "SkyScattering",
-        .binding = &shader_injection.sky_scattering,
+          .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 0.f,
+          .packed_values = {0u, CUSTOM_FLAGS__SKY_SCATTERING},
         .can_reset = true,
         .label = "Spectral Sky Scattering",
         .section = "Rendering",
@@ -825,9 +835,10 @@ renodx::utils::settings::Settings settings = {
     },
         new renodx::utils::settings::Setting{
         .key = "SunMoonAdjustments",
-        .binding = &shader_injection.sun_moon_adjustments,
+          .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 0.f,
+          .packed_values = {0u, CUSTOM_FLAGS__SUN_MOON_ADJUSTMENTS},
         .can_reset = true,
         .label = "Sun Improvements + Moon Adjustments",
         .section = "Rendering",
@@ -841,7 +852,7 @@ renodx::utils::settings::Settings settings = {
         new renodx::utils::settings::Setting{
         .key = "MoonDiskSize",
         .binding = &shader_injection.moon_disk_size,
-        .default_value = 0.f,
+        .default_value = 1.f,
         .can_reset = true,
         .label = "Moon Disk Size",
         .section = "Rendering",
@@ -869,9 +880,10 @@ renodx::utils::settings::Settings settings = {
     },
         new renodx::utils::settings::Setting{
         .key = "ContactShadowQuality",
-        .binding = &shader_injection.contact_shadow_quality,
+          .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 0.f,
+          .packed_values = {0u, CUSTOM_FLAGS__CONTACT_SHADOW_QUALITY},
         .can_reset = true,
         .label = "Grass/Foliage Improvements (WIP)",
         .section = "Rendering",
@@ -886,9 +898,10 @@ renodx::utils::settings::Settings settings = {
     },
         new renodx::utils::settings::Setting{
         .key = "RaytracingQuality",
-        .binding = &shader_injection.rt_quality,
+          .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 0.f,
+          .packed_values = {0u, CUSTOM_FLAGS__RT_QUALITY_BIT0, CUSTOM_FLAGS__RT_QUALITY_BIT1},
         .can_reset = true,
         .label = "Raytracing Improvements",
         .section = "Rendering",
@@ -903,9 +916,10 @@ renodx::utils::settings::Settings settings = {
     },
         new renodx::utils::settings::Setting{
         .key = "MaterialImprovements",
-        .binding = &shader_injection.material_improvements,
+          .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 0.f,
+          .packed_values = {0u, CUSTOM_FLAGS__MATERIAL_IMPROVEMENTS},
         .can_reset = true,
         .label = "Material Improvements",
         .section = "Rendering",
@@ -1044,6 +1058,7 @@ void OnPresetOff() {
       {"FxLensFlareStrength", 100.f},
       {"FxSharpeningType", 0.f},
       {"FxSharpening", 100.f},
+      {"FxVignette", 100.f},
 
       {"BloomQuality", 0.f},
       {"BloomStrength", 100.f},
