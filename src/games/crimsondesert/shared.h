@@ -61,6 +61,8 @@
 #define CONTACT_SHADOW_QUALITY                 ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__CONTACT_SHADOW_QUALITY) != 0u ? 1.f : 0.f)
 #define FOLIAGE_TRANSMISSION                   (CONTACT_SHADOW_QUALITY > 0.5f ? 1.0f : 0.0f)
 #define RT_QUALITY                             ((float)((CUSTOM_FLAGS_AS_UINT >> 10u) & 0x3u))
+#define RT_GI_KNEE                             2.0f
+#define RT_GI_STRENGTH                         0.07f
 #define MATERIAL_IMPROVEMENTS                  ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__MATERIAL_IMPROVEMENTS) != 0u ? 1.f : 0.f)
 #define DIFFUSE_BRDF_MODE                      (MATERIAL_IMPROVEMENTS > 0.5f ? 2.0f : 0.0f)
 #define SMOOTH_TERMINATOR                      (MATERIAL_IMPROVEMENTS > 0.5f ? 1.0f : 0.0f)
