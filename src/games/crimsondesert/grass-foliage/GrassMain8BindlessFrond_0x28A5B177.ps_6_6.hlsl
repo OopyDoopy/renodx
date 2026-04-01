@@ -151,7 +151,7 @@ OutputSignature main(
   bool _7 = (SV_IsFrontFace != 0);
   uint _43 = uint(SV_Position.w * 65536.0f);
   float _46 = float((uint)((uint)(((int)(((uint)((((int)(_frameNumber.x * 73)) & 255) * 73)) + _43)) & 255)));
-  int _59 = WaveReadLaneFirst(TEXCOORD_2.x & 16777215);
+  uint _59 = (TEXCOORD_2.x & 16777215u);
   float _63 = SV_Position.x * 2.0f;
   float _65 = SV_Position.y * 2.0f;
   float _67 = (_bufferSizeAndInvSize.z * _63) + -1.0f;
@@ -180,14 +180,14 @@ OutputSignature main(
     }
   }
   int _134 = __3__37__0__0__g_indirectDrawParametersBuffer[_59]._bindlessMaterialParametersViewIndex;
+  float _154 = ddx_coarse(TEXCOORD.x);
+  float _155 = ddx_coarse(TEXCOORD.y);
+  float _158 = ddy_coarse(TEXCOORD.x);
+  float _159 = ddy_coarse(TEXCOORD.y);
   float _150 = max(((__0__7__0__0__g_bindlessTextures[((int)((uint)(select(((uint)(BindlessParameters_MaterialOverrideParametersTree[((int)((uint)(select(((uint)_134 < (uint)170000), _134, 0)) + 0u))]._baseColorTexture) < (uint)65000), (BindlessParameters_MaterialOverrideParametersTree[((int)((uint)(select(((uint)_134 < (uint)170000), _134, 0)) + 0u))]._baseColorTexture), 0)) + 0u))].CalculateLevelOfDetail(__0__95__0__0__g_samplerAnisotropicWrap, float2(TEXCOORD.x, TEXCOORD.y))) + -1.0f), 0.0f);
   float _152 = 1.0f - (float((uint)((uint)((uint)((uint)(TEXCOORD_2.x)) >> 24))) * 0.003921568859368563f);
   [branch]
   if (SV_ShadingRate == 5) {
-    float _154 = ddx_coarse(TEXCOORD.x);
-    float _155 = ddx_coarse(TEXCOORD.y);
-    float _158 = ddy_coarse(TEXCOORD.x);
-    float _159 = ddy_coarse(TEXCOORD.y);
     float4 _179 = __0__7__0__0__g_bindlessTextures[((int)((uint)(select(((uint)(BindlessParameters_MaterialOverrideParametersTree[((int)((uint)(select(((uint)_134 < (uint)170000), _134, 0)) + 0u))]._baseColorTexture) < (uint)65000), (BindlessParameters_MaterialOverrideParametersTree[((int)((uint)(select(((uint)_134 < (uint)170000), _134, 0)) + 0u))]._baseColorTexture), 0)) + 0u))].SampleLevel(__3__40__0__0__g_samplerWrap, float2(((TEXCOORD.x - (_154 * 0.25f)) - (_158 * 0.25f)), ((TEXCOORD.y - (_155 * 0.25f)) - (_159 * 0.25f))), _150);
     float4 _186 = __0__7__0__0__g_bindlessTextures[((int)((uint)(select(((uint)(BindlessParameters_MaterialOverrideParametersTree[((int)((uint)(select(((uint)_134 < (uint)170000), _134, 0)) + 0u))]._baseColorTexture) < (uint)65000), (BindlessParameters_MaterialOverrideParametersTree[((int)((uint)(select(((uint)_134 < (uint)170000), _134, 0)) + 0u))]._baseColorTexture), 0)) + 0u))].SampleLevel(__3__40__0__0__g_samplerWrap, float2((lerp(_158, _154, 0.25f)), (lerp(_159, _155, 0.25f))), _150);
     float4 _193 = __0__7__0__0__g_bindlessTextures[((int)((uint)(select(((uint)(BindlessParameters_MaterialOverrideParametersTree[((int)((uint)(select(((uint)_134 < (uint)170000), _134, 0)) + 0u))]._baseColorTexture) < (uint)65000), (BindlessParameters_MaterialOverrideParametersTree[((int)((uint)(select(((uint)_134 < (uint)170000), _134, 0)) + 0u))]._baseColorTexture), 0)) + 0u))].SampleLevel(__3__40__0__0__g_samplerWrap, float2((lerp(_154, _158, 0.25f)), (lerp(_155, _159, 0.25f))), _150);
