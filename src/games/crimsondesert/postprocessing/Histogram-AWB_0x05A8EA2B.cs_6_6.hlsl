@@ -374,43 +374,27 @@ void main(
   float _230 = -0.0f - _227;
   float _248;
   bool _249;
-  if (ALT_BLOOM > 0.5) {
-    // RenoDX Alt Bloom: exposure independent fixed scaling
-    if (_127) {
-      _247 = _glareParam.w * 1.0;
-    } else {
-      _247 = _126 ? 1.0 : 1.0f;
-    }
-    _248 = _125 ? 300.0f : _247;
-    _249 = (_142 > 0.0f);
-    if (_249) {
-      _260 = _126 ? 0.04 : (_142 * 0.008);
-    } else {
-      _260 = 0.002;
-    }
+  // Vanilla: exposure dependent scaling
+  if (_127) {
+    float _236 = min(_exposure2.x, 2.0f);
+    float _237 = max(_236, 0.5f);
+    _247 = _237 * _glareParam.w;
   } else {
-    // Vanilla: exposure dependent scaling
-    if (_127) {
-      float _236 = min(_exposure2.x, 2.0f);
-      float _237 = max(_236, 0.5f);
-      _247 = _237 * _glareParam.w;
+    if (_126) {
+      float _243 = min(_exposure0.y, 0.4000000059604645f);
+      float _244 = max(0.20000000298023224f, _243);
+      _247 = 120.0f / _244;
     } else {
-      if (_126) {
-        float _243 = min(_exposure0.y, 0.4000000059604645f);
-        float _244 = max(0.20000000298023224f, _243);
-        _247 = 120.0f / _244;
-      } else {
-        _247 = 1.0f;
-      }
+      _247 = 1.0f;
     }
-    _248 = _125 ? 300.0f : _247;
-    _249 = (_142 > 0.0f);
-    if (_249) {
-      float _253 = _142 * 0.004000000189989805f;
-      _260 = _253 * min(_exposure0.y, 20.0f);
-    } else {
-      _260 = min(_exposure0.y, 25.0f) * 0.0010000000474974513f;
-    }
+  }
+  _248 = _125 ? 300.0f : _247;
+  _249 = (_142 > 0.0f);
+  if (_249) {
+    float _253 = _142 * 0.004000000189989805f;
+    _260 = _253 * min(_exposure0.y, 20.0f);
+  } else {
+    _260 = min(_exposure0.y, 25.0f) * 0.0010000000474974513f;
   }
   float _261 = _260 * _248;
   float _262 = _261 * _228;
@@ -445,53 +429,6 @@ void main(
   float _291 = _288 + _282;
   float _292 = _289 + _283;
 
-  // RenoDX: Soft clamp all glare output for additional temporal stability.
-  // With exposure decoupled, values are already more stable, but the
-  // soft clamp catches any remaining spikes from scene colour variance.
-  {
-    float _glareLuma = dot(float3(_290, _291, _292), float3(0.2126, 0.7152, 0.0722));
-    float _glareMax = GLARE_CLAMP;
-    if (_glareLuma > _glareMax) {
-      float _compress = _glareMax * (1.0 + _glareLuma / (_glareMax * 4.0))
-                       / (1.0 + _glareLuma / _glareMax);
-      float _scale = _compress / max(_glareLuma, 1e-6);
-      _290 *= _scale;
-      _291 *= _scale;
-      _292 *= _scale;
-    }
-  }
-  // RenoDX: Per stencil glare control — each category has its own slider.
-  // Only active when Alternative Bloom is enabled.
-  if (ALT_BLOOM > 0.5) {
-    float _categoryScale = GLARE_NORMAL;
-    if (_127) {
-      _categoryScale = GLARE_SUN;
-    } else if (_125) {
-      _categoryScale = GLARE_FOG;
-    } else if (_126) {
-      _categoryScale = GLARE_EMISSIVE;
-    } else if (_118) {
-      _categoryScale = GLARE_PARTICLE26;
-    } else if (_123) {
-      _categoryScale = GLARE_PARTICLE27;
-    } else if (_249) {
-      _categoryScale = GLARE_PARTICLE27;
-    }
-    _290 *= _categoryScale;
-    _291 *= _categoryScale;
-    _292 *= _categoryScale;
-
-    float _glareLuma = dot(float3(_290, _291, _292), float3(0.2126, 0.7152, 0.0722));
-    float _glareMax = GLARE_CLAMP;
-    if (_glareLuma > _glareMax) {
-      float _compress = _glareMax * (1.0 + _glareLuma / (_glareMax * 4.0))
-                       / (1.0 + _glareLuma / _glareMax);
-      float _scale = _compress / max(_glareLuma, 1e-6);
-      _290 *= _scale;
-      _291 *= _scale;
-      _292 *= _scale;
-    }
-  }
   __3__38__0__1__g_glareSourceUAV[int2((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y))] = float3(_290, _291, _292);
   bool _296 = (_whiteBalance.w > 0.0010000000474974513f);
   int _297 = _57 + -105;
