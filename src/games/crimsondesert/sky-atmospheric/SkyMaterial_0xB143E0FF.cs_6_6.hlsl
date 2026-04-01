@@ -564,6 +564,11 @@ void main(
       #if SUN_ENABLE_CORONA
       float _coronaR = max(0.0f, _341 - _sunRadiusR) / max(_sunRadius, 1e-6f);
       float _corona  = _sunLum * 0.006f / (1.0f + _coronaR * _coronaR * 10.0f);
+      // Gate corona by sun elevation so it vanishes below the horizon,
+      // matching the Mie halo behaviour. Without this a bright ass
+      // gradient is present in the night sky where the sun set.
+      float _coronaElev = saturate(_sunDirection.y * 5.0f);
+      _corona *= _coronaElev;
       // Corona is slightly warm and tints channels accordingly.
       float _coronaContribR = _corona * 1.10f;
       float _coronaContribG = _corona * 0.95f;

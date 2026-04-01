@@ -2320,6 +2320,23 @@ void main(
       _4127 = _4115;
       _4128 = _4116;
     }
+    // RenoDX: Exterior GI energy compensation
+    // The improved ReSTIR convergence over accumulates diffuse bounces.
+    // Exteriors become way to bright so as a solution we do the following
+    //
+    // Apply a luminance based soft compression on the raw hit radiance before it
+    // enters the reservoir
+    if (RT_QUALITY >= 0.5f && RT_GI_STRENGTH > 0.0f) {
+      float _rndx_gi_lum = dot(float3(_4126, _4127, _4128), float3(0.2127f, 0.7152f, 0.0722f));
+      if (_rndx_gi_lum > RT_GI_KNEE) {
+        float _rndx_gi_excess = _rndx_gi_lum - RT_GI_KNEE;
+        float _rndx_gi_compressed = RT_GI_KNEE + _rndx_gi_excess / (1.0f + _rndx_gi_excess * RT_GI_STRENGTH);
+        float _rndx_gi_scale = _rndx_gi_compressed / max(1e-7f, _rndx_gi_lum);
+        _4126 *= _rndx_gi_scale;
+        _4127 *= _rndx_gi_scale;
+        _4128 *= _rndx_gi_scale;
+      }
+    }
     __3__38__0__1__g_diffuseResultUAV[int2(((int)((((uint)(((int)((uint)(_72) << 5)) & 2097120)) + SV_GroupThreadID.x) + ((uint)((_53 - (_54 << 1)) << 4)))), ((int)((((uint)(_54 << 4)) + SV_GroupThreadID.y) + ((uint)(((uint)((uint)(_72)) >> 16) << 5)))))] = half4((-0.0h - half(min(0.0f, (-0.0f - min(15000.0f, (_exposure4.x * _4126)))))), (-0.0h - half(min(0.0f, (-0.0f - min(15000.0f, (_exposure4.x * _4127)))))), (-0.0h - half(min(0.0f, (-0.0f - min(15000.0f, (_exposure4.x * _4128)))))), half(1.0f - _4080));
     break;
   }

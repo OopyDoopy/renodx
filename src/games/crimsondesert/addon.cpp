@@ -205,7 +205,6 @@ const std::unordered_map<std::string, float> RECOMMENDED_VALUES = {
     {"RaytracingQuality", 0.f},
 };
 
-
 renodx::mods::shader::CustomShaders custom_shaders = {__ALL_CUSTOM_SHADERS};
 //renodx::mods::shader::CustomShaders custom_shaders;
 
