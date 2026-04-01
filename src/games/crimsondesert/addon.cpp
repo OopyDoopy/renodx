@@ -154,9 +154,10 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
     {"SkyScattering", 0.f},
     {"SunMoonAdjustments", 0.f},
     {"MoonDiskSize", 1.f},
+    {"ContactShadowQuality", 0.f},
     {"MaterialImprovements", 0.f},
-};
-// const std::unordered_map<std::string, float> RECOMMENDED_SAFE_VALUES = {
+    {"RaytracingQuality", 0.f},
+};// const std::unordered_map<std::string, float> RECOMMENDED_SAFE_VALUES = {
 //     {"LocalLightHueCorrection", 25.f},
 //     {"LocalLightSaturation", 43.f},
 
@@ -200,8 +201,9 @@ const std::unordered_map<std::string, float> RECOMMENDED_VALUES = {
     {"SkyScattering", 1.f},
     {"SunMoonAdjustments", 1.f},
     {"MoonDiskSize", 4.f},
-    {"MaterialImprovements", 1.f},
     {"ContactShadowQuality", 1.f},
+    {"MaterialImprovements", 1.f},
+    {"RaytracingQuality", 0.f},
 };
 
 
@@ -224,6 +226,7 @@ int local_lighting = crimson;
 int auto_exposure = gold;
 int effects = crimson;
 int rendering = gold;
+int wiprendering = crimson;
 
 renodx::utils::settings::Setting* tone_map_peak_nits_setting = nullptr;
 
@@ -703,13 +706,6 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
         new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "Alt Bloom is recommended to be enabled if using Custom Auto Exposure above, Engine ties emissive properties of various meshes to bloom. Flickering in the vanilla game occurs on bloom due to temporal jitter usage\n",
-        .section = "Auto Exposure",
-        //.tint = auto_exposure,
-          .is_visible = []() { return current_settings_mode >= 1.f && IMPROVED_AUTO_EXPOSURE > 0.5f; },
-    },
-        new renodx::utils::settings::Setting{
         .key = "FxFilmGrainType",
           .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -872,13 +868,6 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
         new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "AO for grass/foliage had to be baked into the shader, cbuffer toggles caused crashing. off will not be pure vanilla\n",
-        .section = "Rendering",
-        //.tint = rendering,
-        .is_visible = []() { return current_settings_mode >= 1.f; },
-    },
-        new renodx::utils::settings::Setting{
         .key = "ContactShadowQuality",
           .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -897,24 +886,6 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
         new renodx::utils::settings::Setting{
-        .key = "RaytracingQuality",
-          .binding = &shader_injection.custom_flags,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
-          .packed_values = {0u, CUSTOM_FLAGS__RT_QUALITY_BIT0, CUSTOM_FLAGS__RT_QUALITY_BIT1},
-        .can_reset = true,
-        .label = "Raytracing Improvements",
-        .section = "Rendering",
-        .tooltip = "Toggles RenoDX raytracing noise improvements.\n"
-                   "Off = vanilla white noise (TEA+MCG) for all RT sampling.\n"
-                   "SPMIS = R2 blue noise + Stochastic Pairwise MIS spatial resampling.\n"
-                   "Debug Noise = visualizes the raw noise texture sample as colour output.",
-        .labels = {"Off", "SPMIS", "Debug Noise"},
-        .tint = rendering,
-        //.is_visible = []() { return current_settings_mode >= 1.f; },
-        .is_visible = []() { return debug; },
-    },
-        new renodx::utils::settings::Setting{
         .key = "MaterialImprovements",
           .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -931,6 +902,31 @@ renodx::utils::settings::Settings settings = {
         .labels = {"Off", "On"},
         .tint = rendering,
         .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+        new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "THIS SECTION IS EXTREMELY WIP, ATM IT IS JUST SOME RT TWEAKS WE HAVE BEEN EXPERIMENTING WITH. THERE IS A LOT OF NOISE SO ONLY USABLE FOR SCREENSHOTS\n",
+        .section = "WIP Rendering",
+        //.tint = rendering,
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "RaytracingQuality",
+          .binding = &shader_injection.custom_flags,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+          .packed_values = {0u, CUSTOM_FLAGS__RT_QUALITY_BIT0, CUSTOM_FLAGS__RT_QUALITY_BIT1},
+        .can_reset = true,
+        .label = "Raytracing Improvements",
+        .section = "WIP Rendering",
+        .tooltip = "Toggles RenoDX raytracing noise improvements.\n"
+                   "Off = vanilla white noise (TEA+MCG) for all RT sampling.\n"
+                   "SPMIS = R2 blue noise + Stochastic Pairwise MIS spatial resampling.\n"
+                   "Debug Noise = visualizes the raw noise texture sample as colour output.",
+        .labels = {"Off", "SPMIS", "Debug Noise"},
+        .tint = wiprendering,
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+        //.is_visible = []() { return debug; },
     },
         new renodx::utils::settings::Setting{
         .key = "ShadowDebugMode",
