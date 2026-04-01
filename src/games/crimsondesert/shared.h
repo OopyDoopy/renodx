@@ -66,6 +66,7 @@
 #define SMOOTH_TERMINATOR                      (MATERIAL_IMPROVEMENTS > 0.5f ? 1.0f : 0.0f)
 #define SPECULAR_AA                            (MATERIAL_IMPROVEMENTS > 0.5f ? 1.0f : 0.0f)
 #define DIFFRACTION                            (MATERIAL_IMPROVEMENTS > 0.5f ? 1.0f : 0.0f)
+#define FOLIAGE_GREEN_DESAT                    (CONTACT_SHADOW_QUALITY > 0.5f ? 0.5f : 0.0f)
 #define LOCAL_LIGHT_HUE_CORRECTION             shader_injection.local_light_hue_correction
 #define LOCAL_LIGHT_SATURATION                 shader_injection.local_light_saturation
 #define DISABLE_AWB                            ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__DISABLE_AWB) != 0u ? 1.f : 0.f)
