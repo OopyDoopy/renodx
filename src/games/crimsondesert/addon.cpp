@@ -205,6 +205,17 @@ const std::unordered_map<std::string, float> RECOMMENDED_VALUES = {
     {"RaytracingQuality", 0.f},
 };
 
+// const std::unordered_map<std::string, float> MATCH_SDR_VALUES = {
+//     {"ToneMapType", 1.f},
+//     {"ColorGradeShadows", 12.f},
+//     {"ColorGradeSaturation", 70.f},
+// };
+
+const std::unordered_map<std::string, float> NEUTRAL_VALUES = {
+    {"ColorGradeShadows", 50.f},
+    {"ColorGradeSaturation", 50.f},
+};
+
 renodx::mods::shader::CustomShaders custom_shaders = {__ALL_CUSTOM_SHADERS};
 //renodx::mods::shader::CustomShaders custom_shaders;
 
@@ -249,6 +260,50 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Sets the UI mode. This is automatically set based on the detected color space, but this control is provided in case of errors.",
         .labels = {"SDR","HDR"},
         .is_global = true,
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Match SDR",
+        .section = "Grading Presets",
+        .group = "button-line-1",
+        .tooltip = "Emulates the look of the vanilla tonemapper's saturation and contrast.",
+        .on_change = []() {
+          for (auto setting : settings) {
+            if (setting->key.empty()) continue;
+            if (!setting->can_reset) continue;
+            if (!setting->section.starts_with("Tone Mapping") && 
+            !setting->section.starts_with("Color Grading") && 
+            !setting->section.starts_with("Advanced Tone Mapping Properties")) continue;
+            // if (MATCH_SDR_VALUES.contains(setting->key)) {
+            //   renodx::utils::settings::UpdateSetting(setting->key, MATCH_SDR_VALUES.at(setting->key));
+            //   continue;
+            // }
+            renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+          }
+        },
+        //.is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+        new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Neutral",
+        .section = "Grading Presets",
+        .group = "button-line-1",
+        .tooltip = "Neutral color and contrast.",
+        .on_change = []() {
+          for (auto setting : settings) {
+            if (setting->key.empty()) continue;
+            if (!setting->can_reset) continue;
+            if (!setting->section.starts_with("Tone Mapping") && 
+            !setting->section.starts_with("Color Grading") && 
+            !setting->section.starts_with("Advanced Tone Mapping Properties")) continue;
+            if (NEUTRAL_VALUES.contains(setting->key)) {
+              renodx::utils::settings::UpdateSetting(setting->key, NEUTRAL_VALUES.at(setting->key));
+              continue;
+            }
+            renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+          }
+        },
+        //.is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapType",
@@ -326,7 +381,7 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.01f; },
-        .is_visible = []() { return current_settings_mode >= 1 && hdr_settings_toggle == 1; },
+        .is_visible = []() { return current_settings_mode >= 1; },
     },
         new renodx::utils::settings::Setting{
         .key = "ToneMapBlowout",
@@ -339,7 +394,7 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.01f; },
-        .is_visible = []() { return current_settings_mode >= 1 && hdr_settings_toggle == 1; },
+        .is_visible = []() { return current_settings_mode >= 1; },
     },
     //     new renodx::utils::settings::Setting{
     //     .key = "ColorGradeStrength",
@@ -362,7 +417,7 @@ renodx::utils::settings::Settings settings = {
         .tint = color_grading,
         .max = 2.f,
         .format = "%.2f",
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0 || hdr_settings_toggle == 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
@@ -373,19 +428,19 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .tint = color_grading,
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0 || hdr_settings_toggle == 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.02f; },
         .is_visible = []() { return current_settings_mode >= 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeShadows",
         .binding = &shader_injection.tone_map_shadows,
-        .default_value = 50.f,
+        .default_value = 12.f,
         .label = "Shadows",
         .section = "Color Grading",
         .tint = color_grading,
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0 || hdr_settings_toggle == 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.02f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
@@ -397,19 +452,19 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .tint = color_grading,
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0 || hdr_settings_toggle == 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.02f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeSaturation",
         .binding = &shader_injection.tone_map_saturation,
-        .default_value = 50.f,
+        .default_value = 70.f,
         .label = "Saturation",
         .section = "Color Grading",
         .tint = color_grading,
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0 || hdr_settings_toggle == 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.02f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
@@ -423,7 +478,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Adds contrast primarily to shadowed regions",
         .tint = color_grading,
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0 || hdr_settings_toggle == 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.02f; },
         .is_visible = []() { return current_settings_mode >= 1; },
     },
