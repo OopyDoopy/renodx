@@ -352,7 +352,8 @@ float3 psychotm_test11(
     float hue_restore = 1.f,
     float adaptation_contrast = 1.f,
     int white_curve_mode = 0,
-    float cone_response_exponent = 1.f) {
+    float cone_response_exponent = 1.f,
+    float exposure2 = 1.f) { // exposure2 represents the post-curve linear multiplier, simulating SDR behavior for Crimson Desert
   const float kEps = 1e-6f;
   const float kHalfBleachTrolands = 20000.f;
   const int kWhiteCurveNeutwo = 0;
@@ -412,6 +413,10 @@ float3 psychotm_test11(
           kEps);
     }
   }
+
+  float3 bt2020_scene_unit = psycho11_BT2020FromLMS(lms_scene_unit);
+  bt2020_scene_unit *= exposure2; // Apply the post-curve linear multiplier in BT.2020 space for more accurate SDR simulation
+  lms_scene_unit = psycho11_LMSFromBT2020(bt2020_scene_unit);
 
   float3 lms_unit = lms_scene_unit;
   if (bleaching_intensity != 0.f) {
