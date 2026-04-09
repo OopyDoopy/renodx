@@ -600,17 +600,16 @@ float3 psychotm_test17(
 
   float3 lms_cones = lms_graded;
 
-  if (bleaching_intensity != 0.f) {
-    float3 stimulus_trolands = max(current_adaptive_state_lms, 0.f) * 203.f * 4.f;
-    float3 availability = 1.f.xxx / (1.f.xxx + stimulus_trolands / 20000.f);
-    availability = lerp(1.f.xxx, availability, bleaching_intensity);
+  // if (bleaching_intensity != 0.f) {
+  //   float3 availability = 1.f.xxx / (1.f.xxx + (peak_value / current_adaptive_state_lms));
+  //   availability = lerp(1.f.xxx, availability, bleaching_intensity);
 
-    float y = lms_cones.x + lms_cones.y;
-    float white_y = current_adaptive_state_lms.x + current_adaptive_state_lms.y;
-    float3 white_at_y = current_adaptive_state_lms * (y / white_y);
-    float3 delta = (lms_cones - white_at_y) * availability;
-    lms_cones = white_at_y + delta;
-  }
+  //   float input_energy = lms_cones.x + lms_cones.y + lms_cones.z;
+  //   float white_y = current_adaptive_state_lms.x + current_adaptive_state_lms.y + current_adaptive_state_lms.z;
+  //   float3 white_at_y = current_adaptive_state_lms * (input_energy / white_y);
+  //   float3 delta = (lms_cones - white_at_y) * availability;
+  //   lms_cones = max(0, white_at_y + delta);
+  // }
 
   // Naka-Rushton is scale-equivariant if input, peak, and anchors are all
   // normalized by the same adaptive LMS state, so keep the absolute-LMS form.

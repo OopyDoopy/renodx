@@ -97,6 +97,20 @@ float Highlights(float x, float highlights, float mid_gray) {
   }
 }
 
+float ContrastSafeShadowBias(float x, float contrast, float mid_gray = 0.18f, float shadow_bias = 0.35f) {
+  if (contrast == 1.f) return x;
+
+  shadow_bias = saturate(shadow_bias);
+
+  // Start from the standard contrast curve, then shape its strength like an
+  // asymmetric S-curve so the toe gets more adjustment than the shoulder.
+  float contrasted = renodx::color::grade::ContrastSafe(x, contrast, mid_gray);
+  float shoulder = smoothstep(0.25f, 2.0f, renodx::math::DivideSafe(max(x, 0.f), mid_gray, 0.f));
+  float effect = lerp(1.f + shadow_bias, 1.f - shadow_bias, shoulder);
+
+  return max(0.f, x + (contrasted - x) * effect);
+}
+
 float3 ApplyExposureContrastFlareHighlightsShadowsByLuminance(float3 untonemapped, float y, renodx::color::grade::Config config, float mid_gray = 0.18f) {
   if (config.exposure == 1.f && config.shadows == 1.f && config.highlights == 1.f && config.contrast == 1.f && config.flare == 0.f) {
     return untonemapped;
@@ -249,10 +263,11 @@ float3 CustomPsychoV17Peak(
   float yf_target = yf_input;
 
   if (RENODX_TONE_MAP_HIGHLIGHTS != 1.f) {
-    yf_target = renodx::color::grade::Highlights(yf_target, RENODX_TONE_MAP_HIGHLIGHTS, yf_midgray);
+    // yf_target = renodx::color::grade::Highlights(yf_target, RENODX_TONE_MAP_HIGHLIGHTS, yf_midgray);
+    yf_target = Highlights(yf_target, RENODX_TONE_MAP_HIGHLIGHTS, yf_midgray);
   }
   if (RENODX_TONE_MAP_SHADOWS != 1.f) {
-    yf_target = renodx::color::grade::Shadows(yf_target, RENODX_TONE_MAP_SHADOWS, yf_midgray);
+    yf_target = renodx::color::grade::Shadows(yf_target, RENODX_TONE_MAP_SHADOWS, yf_midgray, 1.f);
   }
   if (RENODX_TONE_MAP_CONTRAST != 1.f) {
     yf_target = renodx::color::grade::ContrastSafe(yf_target, RENODX_TONE_MAP_CONTRAST, yf_midgray);
@@ -304,13 +319,29 @@ float3 ProcessTonemap(float3 untonemapped_bt709, float calculated_peak, float mi
 
   mid_gray_scale = lerp(1.f, mid_gray_scale, CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
 
-  return CustomPsychoV17AutoExposure(
+  float3 output_color = CustomPsychoV17AutoExposure(
       untonemapped_bt709,
       calculated_peak,
       mid_gray_scale,
       current_average,
       target_average,
       is_sdr);
+
+  if (RENODX_TONE_MAP_BLOWOUT != 0.f) {
+    float3 availability = 1.f.xxx / (1.f.xxx + (calculated_peak));
+    availability = lerp(1.f.xxx, availability, RENODX_TONE_MAP_BLOWOUT);
+
+    float3 lms_cones = renodx::color::lms::from::BT709(output_color);
+    float3 current_adaptive_state_lms = renodx::color::lms::from::BT709(target_average);
+
+    float input_energy = lms_cones.x + lms_cones.y + lms_cones.z;
+    float white_y = current_adaptive_state_lms.x + current_adaptive_state_lms.y + current_adaptive_state_lms.z;
+    float3 white_at_y = current_adaptive_state_lms * (input_energy / white_y);
+    float3 delta = (lms_cones - white_at_y) * availability;
+    lms_cones = max(0, white_at_y + delta);
+    output_color = renodx::color::bt709::from::LMS(lms_cones);
+  }
+  return output_color;
 }
 
 float3 CustomTonemap(float3 untonemapped_bt709, float mid_gray_scale = 1.f, float current_average = 0.18f, float target_average = 0.18f) {
