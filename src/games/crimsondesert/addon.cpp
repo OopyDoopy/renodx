@@ -198,6 +198,9 @@ const std::unordered_map<std::string, float> NEUTRAL_VALUES = {
     {"ColorGradeConeResponse", 50.f},
     {"ColorGradeContrast", 50.f},
     {"ColorGradeSaturation", 50.f},
+    {"ColorGradeHighlights", 50.f},
+    {"CustomToneMapMidgrayAdjust", 100.f},
+    {"LocalLightHueCorrection", 25.f}
 };
 
 renodx::mods::shader::CustomShaders custom_shaders = {__ALL_CUSTOM_SHADERS};
@@ -398,7 +401,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ColorGradeHighlights",
         .binding = &shader_injection.tone_map_highlights,
-        .default_value = 50.f,
+        .default_value = 46.f,
         .label = "Highlights",
         .section = "Color Grading",
         .tint = color_grading,
@@ -410,7 +413,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ColorGradeShadows",
         .binding = &shader_injection.tone_map_shadows,
-        .default_value = 40.f,
+        .default_value = 50.f,
         .label = "Shadows",
         .section = "Color Grading",
         .tint = color_grading,
@@ -422,19 +425,19 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ColorGradeContrast",
         .binding = &shader_injection.tone_map_contrast,
-        .default_value = 40.f,
+        .default_value = 55.f,
         .label = "Contrast",
         .section = "Color Grading",
         .tint = color_grading,
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f; },
         .parse = [](float value) { return value * 0.02f; },
-        .is_visible = []() { return current_settings_mode >= 1.f && RENODX_TONE_MAP_TYPE != 0.f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeSaturation",
         .binding = &shader_injection.tone_map_saturation,
-        .default_value = 50.f,
+        .default_value = 65.f,
         .label = "Saturation",
         .section = "Color Grading",
         .tint = color_grading,
@@ -447,7 +450,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ColorGradeConeResponse",
         .binding = &shader_injection.tone_map_cone_response,
-        .default_value = 65.f,
+        .default_value = 50.f,
         .label = "Cone Response",
         .section = "Color Grading",
         .tooltip = "Controls the PsychoV cone response shaping.",
@@ -473,7 +476,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ToneMapBlowout",
         .binding = &shader_injection.tone_map_blowout,
-        .default_value = 0.f,
+        .default_value = 20.f,
         .label = "Blowout",
         .section = "Color Grading",
         .tooltip = "Desaturates the brightest portions of the image, also relative to peak brightness.",
@@ -486,7 +489,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "CustomToneMapMidgrayAdjust",
         .binding = &shader_injection.custom_tone_map_midgray_adjust,
-        .default_value = 100.f,
+        .default_value = 75.f,
         .label = "SDR Midgray",
         .section = "Color Grading",
         .tooltip = "Controls matching mid-gray of the SDR tone mapper. Applies to Vanilla/Custom AE only. 100 = Vanilla, 0 = Neutral.",
@@ -563,7 +566,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "LocalLightHueCorrection",
         .binding = &shader_injection.local_light_hue_correction,
-        .default_value = 25.f,
+        .default_value = 15.f,
         .can_reset = true,
         .label = "Flame Hue Correction",
         .section = "Local Lighting",
