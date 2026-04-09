@@ -2,7 +2,6 @@
 #include "./macleod_boynton.hlsli"
 #include "./psycho_test17_custom.hlsl"
 #include "./shared.h"
-#include "./lighting/purkinje_common.hlsli"
 
 float NR(float x, float sigma, float n) {
   float ax = abs(x);
@@ -233,6 +232,7 @@ float3 CustomPsychoV17Peak(
     float current_average,
     float target_average,
     float peak_value,
+    float mid_gray_scale = 1.f,
     int gamut_compression_mode = 1) {
   if (!(target_average > 0.0f)) {
     return 0.0f;
@@ -272,6 +272,7 @@ float3 CustomPsychoV17Peak(
   if (RENODX_TONE_MAP_CONTRAST != 1.f) {
     yf_target = renodx::color::grade::ContrastSafe(yf_target, RENODX_TONE_MAP_CONTRAST, yf_midgray);
   }
+  yf_target *= mid_gray_scale;
 
   float yf_scale = renodx::math::DivideSafe(yf_target, yf_input, 1.f);
   bt709_scene *= yf_scale;
@@ -301,52 +302,56 @@ float3 CustomPsychoV17Peak(
       gamut_compression_mode);
 }
 
-float3 CustomPsychoV17AutoExposure(float3 untonemapped_bt709, float peak, float current_average, float target_average, bool is_sdr = false) {
+float3 CustomPsychoV17AutoExposure(float3 untonemapped_bt709, float peak, float mid_gray_scale, float current_average, float target_average, bool is_sdr = false) {
   return CustomPsychoV17Peak(
       untonemapped_bt709,
       current_average,
       target_average,
       peak,
+      mid_gray_scale,
       (int)(!is_sdr));
 }
 
-float3 ProcessTonemap(float3 untonemapped_bt709, float calculated_peak, float current_average, float target_average, bool is_sdr = false) {
+float3 ProcessTonemap(float3 untonemapped_bt709, float calculated_peak, float mid_gray_scale, float current_average, float target_average, bool is_sdr = false) {
   if (RENODX_TONE_MAP_TYPE == 0.f) {
     return untonemapped_bt709;
   }
 
+  mid_gray_scale = lerp(1.f, mid_gray_scale, CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
+
   float3 output_color = CustomPsychoV17AutoExposure(
       untonemapped_bt709,
       calculated_peak,
+      mid_gray_scale,
       current_average,
       target_average,
       is_sdr);
 
-  // if (RENODX_TONE_MAP_BLOWOUT != 0.f) {
-  //   float3 availability = 1.f.xxx / (1.f.xxx + (calculated_peak));
-  //   availability = lerp(1.f.xxx, availability, RENODX_TONE_MAP_BLOWOUT);
+  if (RENODX_TONE_MAP_BLOWOUT != 0.f) {
+    float3 availability = 1.f.xxx / (1.f.xxx + (calculated_peak));
+    availability = lerp(1.f.xxx, availability, RENODX_TONE_MAP_BLOWOUT);
 
-  //   float3 lms_cones = renodx::color::lms::from::BT709(output_color);
-  //   float3 current_adaptive_state_lms = renodx::color::lms::from::BT709(target_average);
+    float3 lms_cones = renodx::color::lms::from::BT709(output_color);
+    float3 current_adaptive_state_lms = renodx::color::lms::from::BT709(target_average);
 
-  //   float input_energy = lms_cones.x + lms_cones.y + lms_cones.z;
-  //   float white_y = current_adaptive_state_lms.x + current_adaptive_state_lms.y + current_adaptive_state_lms.z;
-  //   float3 white_at_y = current_adaptive_state_lms * (input_energy / white_y);
-  //   float3 delta = (lms_cones - white_at_y) * availability;
-  //   lms_cones = max(0, white_at_y + delta);
-  //   output_color = renodx::color::bt709::from::LMS(lms_cones);
-  // }
+    float input_energy = lms_cones.x + lms_cones.y + lms_cones.z;
+    float white_y = current_adaptive_state_lms.x + current_adaptive_state_lms.y + current_adaptive_state_lms.z;
+    float3 white_at_y = current_adaptive_state_lms * (input_energy / white_y);
+    float3 delta = (lms_cones - white_at_y) * availability;
+    lms_cones = max(0, white_at_y + delta);
+    output_color = renodx::color::bt709::from::LMS(lms_cones);
+  }
   return output_color;
 }
 
-float3 CustomTonemap(float3 untonemapped_bt709, float current_average = 0.18f, float target_average = 0.18f) {
+float3 CustomTonemap(float3 untonemapped_bt709, float mid_gray_scale = 1.f, float current_average = 0.18f, float target_average = 0.18f) {
   float calculated_peak = RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS;
 
   if (RENODX_GAMMA_CORRECTION > 0.f) {
     calculated_peak = RENODX_GAMMA_CORRECTION == 1.f ? renodx::color::correct::GammaSafe(calculated_peak, true) : GammaCorrectionByLuminosity(calculated_peak, true).x;
   }
 
-  float3 output_color = ProcessTonemap(untonemapped_bt709, calculated_peak, current_average, target_average, false);
+  float3 output_color = ProcessTonemap(untonemapped_bt709, calculated_peak, mid_gray_scale, current_average, target_average, false);
 
   if (RENODX_GAMMA_CORRECTION > 0.f) {
     output_color = RENODX_GAMMA_CORRECTION == 1.f ? renodx::color::correct::GammaSafe(output_color) : GammaCorrectionByLuminosity(output_color);
@@ -355,11 +360,11 @@ float3 CustomTonemap(float3 untonemapped_bt709, float current_average = 0.18f, f
   return output_color;
 }
 
-float3 CustomTonemapSDR(float3 untonemapped_bt709, float current_average = 0.18f, float target_average = 0.18f) {
+float3 CustomTonemapSDR(float3 untonemapped_bt709, float mid_gray_scale, float current_average = 0.18f, float target_average = 0.18f) {
   float calculated_peak = 1.f;
   calculated_peak = CUSTOM_SDR_BLACK_CRUSH_FIX == 1 ? renodx::color::correct::GammaSafe(calculated_peak) : calculated_peak;
 
-  float3 output_color = ProcessTonemap(untonemapped_bt709, calculated_peak, current_average, target_average, true);
+  float3 output_color = ProcessTonemap(untonemapped_bt709, calculated_peak, mid_gray_scale, current_average, target_average, true);
 
   return output_color;
 }
@@ -424,65 +429,4 @@ float3 NakaRushton(float3 x, float3 peak = 1.0f, float3 anchor_in = 0.18f, float
   float3 num = peak * x_n_anchor_out;
   float3 den = mad(a_n, peak_minus_anchor_out, x_n_anchor_out);
   return num / den;
-}
-
-float2 DaylightChromaticityFromKelvin(float kelvin) {
-  float temperature = clamp(kelvin, 4000.f, 25000.f);
-  float inverse_temperature = 1.f / temperature;
-  float inverse_temperature_squared = inverse_temperature * inverse_temperature;
-  float inverse_temperature_cubed = inverse_temperature_squared * inverse_temperature;
-
-  float x = temperature <= 7000.f
-                ? 0.244063f + 99.11f * inverse_temperature + 2967800.f * inverse_temperature_squared - 4607000000.f * inverse_temperature_cubed
-                : 0.237040f + 247.48f * inverse_temperature + 1901800.f * inverse_temperature_squared - 2006400000.f * inverse_temperature_cubed;
-  float y = -3.f * x * x + 2.87f * x - 0.275f;
-
-  return float2(x, y);
-}
-
-float3 ColorTempAdjustment(float3 color) {
-  float kelvin = COLOR_TEMP_KELVIN * 100.f;
-  float target_kelvin = clamp(kelvin > 0.f ? kelvin : 6500.f, 4000.f, 9300.f);
-  if (abs(target_kelvin - 6500.f) < 0.5f) {
-    return color;
-  }
-
-  static const float3x3 BRADFORD_LMS_TO_XYZ_MAT = renodx::math::Invert3x3(renodx::color::XYZ_D65_TO_BRADFORD_LMS_MAT);
-
-  float3 source_white_xyz = renodx::color::xyz::from::xyY(float3(renodx::color::WHITE_POINT_D65, 1.f));
-  float3 target_white_xyz = renodx::color::xyz::from::xyY(float3(DaylightChromaticityFromKelvin(target_kelvin), 1.f));
-
-  float3 source_white_lms = mul(renodx::color::XYZ_D65_TO_BRADFORD_LMS_MAT, source_white_xyz);
-  float3 target_white_lms = mul(renodx::color::XYZ_D65_TO_BRADFORD_LMS_MAT, target_white_xyz);
-
-  float3 color_xyz = renodx::color::xyz::from::BT709(color);
-  float3 color_lms = mul(renodx::color::XYZ_D65_TO_BRADFORD_LMS_MAT, color_xyz);
-  float3 adapted_lms = color_lms * renodx::math::DivideSafe(target_white_lms, max(source_white_lms, float3(1e-6f, 1e-6f, 1e-6f)), float3(1.f, 1.f, 1.f));
-  float3 adapted_xyz = mul(BRADFORD_LMS_TO_XYZ_MAT, adapted_lms);
-
-  return renodx::color::bt709::from::XYZ(adapted_xyz);
-}
-
-float3 FinalizeSDR(float3 srgb_color, float sunElevation = 1.f, float moonElevation = -1.f) {
-  float3 linear_color = renodx::color::srgb::Decode(srgb_color);
-  linear_color = ColorTempAdjustment(linear_color);
-  linear_color = ApplyPurkinjePostProcess(linear_color, sunElevation, moonElevation, 1.f);
-  srgb_color = renodx::color::srgb::Encode(linear_color);
-  srgb_color = CUSTOM_SDR_BLACK_CRUSH_FIX == 1 ? renodx::color::correct::Gamma(srgb_color, true) : srgb_color;
-  return srgb_color;
-}
-
-float3 FinalizeHDR(float3 pq_color, float sunElevation = 1.f, float moonElevation = -1.f) {
-  float scaling = RENODX_TONE_MAP_TYPE == 0 ? 100.0f : RENODX_DIFFUSE_WHITE_NITS;
-  float3 linear_color_bt2020 = renodx::color::pq::DecodeSafe(pq_color, scaling);
-  float3 linear_color_bt709 = renodx::color::bt709::from::BT2020(linear_color_bt2020);
-
-  linear_color_bt709 = ColorTempAdjustment(linear_color_bt709);
-  linear_color_bt709 = ApplyPurkinjePostProcess(linear_color_bt709, sunElevation, moonElevation, 
-    RENODX_TONE_MAP_TYPE == 0 ? 1.f : RENODX_DIFFUSE_WHITE_NITS / 100.f);
-
-  linear_color_bt2020 = renodx::color::bt2020::from::BT709(linear_color_bt709);
-  pq_color = renodx::color::pq::EncodeSafe(linear_color_bt2020, scaling);
-  
-  return pq_color;
 }
