@@ -440,7 +440,7 @@ float4 main(
               tonemap_input_color = tonemap_graph_config.color;
             }
 #endif
-            float3 output_color = CustomTonemapSDR(tonemap_input_color, 1.f, histogram_mean, histogram_target_mean);
+            float3 output_color = CustomTonemapSDR(tonemap_input_color, histogram_mean, histogram_target_mean);
 #if CUSTOM_TONEMAP_DEBUG
             if (tonemap_debug_enabled) {
               output_color = DrawTonemapGraph(output_color, tonemap_graph_config);
@@ -460,26 +460,25 @@ float4 main(
 
             if (RENODX_TONE_MAP_TYPE != 0) {
               float3 untonemapped_bt709 = float3(_333, _334, _335);
-              float histogram_mean = 0.18f;
-              float histogram_target_mean = 0.18f;
-              const float mid_gray = 0.18f;
-              float mid_gray_adjusted = SDRToneMap(mid_gray).x;
-              float mid_gray_scale = mid_gray_adjusted / mid_gray;
-              mid_gray_scale = lerp(1.f, mid_gray_scale, CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
-              float3 tonemap_input_color = untonemapped_bt709;
+
+                const float mid_gray = 0.18f;
+                float mid_gray_adjusted = SDRToneMap(mid_gray).x;
+                mid_gray_adjusted = lerp(0.18f, mid_gray_adjusted, CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
+
+                float3 tonemap_input_color = untonemapped_bt709;
 #if CUSTOM_TONEMAP_DEBUG
-              renodx::debug::graph::Config tonemap_graph_config = {false, 0, 0.0f, untonemapped_bt709, RENODX_PEAK_WHITE_NITS, 100.0f};
-              if (tonemap_debug_enabled) {
-                tonemap_graph_config = renodx::debug::graph::DrawStart(
-                    float2(SV_Position.xy) + 0.5f,
-                    untonemapped_bt709,
-                    __3__36__0__0__g_sceneColor,
-                    RENODX_PEAK_WHITE_NITS,
-                    100.0f);
-                tonemap_input_color = tonemap_graph_config.color;
-              }
+                renodx::debug::graph::Config tonemap_graph_config = { false, 0, 0.0f, untonemapped_bt709, RENODX_PEAK_WHITE_NITS, 100.0f };
+                if (tonemap_debug_enabled) {
+                  tonemap_graph_config = renodx::debug::graph::DrawStart(
+                      float2(SV_Position.xy) + 0.5f,
+                      untonemapped_bt709,
+                      __3__36__0__0__g_sceneColor,
+                      RENODX_PEAK_WHITE_NITS,
+                      100.0f);
+                  tonemap_input_color = tonemap_graph_config.color;
+                }
 #endif
-              float3 output_color = CustomTonemapSDR(tonemap_input_color, mid_gray_scale, histogram_mean, histogram_target_mean);
+                float3 output_color = CustomTonemapSDR(tonemap_input_color, mid_gray, mid_gray_adjusted);
 #if CUSTOM_TONEMAP_DEBUG
               if (tonemap_debug_enabled) {
                 output_color = DrawTonemapGraph(output_color, tonemap_graph_config);
