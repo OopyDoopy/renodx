@@ -398,7 +398,8 @@ static void SaveGlobalSettings() {
     }
   }
 
-  reshade::set_config_value(nullptr, global_name.c_str(), PROFILE_KEY, preset_index);
+  int saved_preset_index = (preset_index == 0 ? 1 : preset_index);
+  reshade::set_config_value(nullptr, global_name.c_str(), PROFILE_KEY, saved_preset_index);
 }
 
 static std::string ReadGlobalString(const std::string& key) {
