@@ -274,7 +274,7 @@ OutputSignature main(
   float _455 = select(_451, 0.0f, (((((_363 * _357) / _368) - _295) * _375) + _295));
   float _459 = _nearFarProj.x / max(1.0000000116860974e-07f, SV_Position.z);
 
-  if (CONTACT_SHADOW_QUALITY > 0.5f) {
+  if (RR_ENABLED == 1.f && CONTACT_SHADOW_QUALITY > 0.5f) {
     // --- Grass/foliage AO ---
     // TEXCOORD.y is inverted
     float _grassBladeHeight = 1.0f - saturate(TEXCOORD.y);

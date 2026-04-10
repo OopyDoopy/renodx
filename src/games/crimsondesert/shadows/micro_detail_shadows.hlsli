@@ -11,7 +11,7 @@
 //
 // -----------------------------------------------------------------------------
 
-if (CONTACT_SHADOW_QUALITY == 1.f) {
+if (RR_ENABLED == 1.f && CONTACT_SHADOW_QUALITY == 1.f) {
   // --- Tuning constants ---
   static const int MICRO_STEPS = 16;
 
