@@ -3153,7 +3153,7 @@ void main(
     //
     // Apply a luminance based soft compression on the raw hit radiance before it
     // enters the reservoir
-    if (RT_QUALITY >= 1.f && RT_GI_STRENGTH > 0.0f) {
+    if (RR_ENABLED == 1.f && RT_QUALITY >= 1.f && RT_GI_STRENGTH > 0.0f) {
       float _rndx_gi_lum = renodx::color::y::from::BT709(float3(_5732, _5733, _5734));
       if (_rndx_gi_lum > RT_GI_KNEE) {
         float _rndx_gi_excess = _rndx_gi_lum - RT_GI_KNEE;
