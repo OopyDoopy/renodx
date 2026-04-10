@@ -156,7 +156,7 @@ void main(
         psycho_input_color = tonemap_graph_config.color;
       }
 #endif
-      output_color = CustomTonemap(psycho_input_color, 1.f, histogram_mean, histogram_target);
+      output_color = CustomTonemap(psycho_input_color, histogram_mean, histogram_target);
 #if CUSTOM_TONEMAP_DEBUG
       if (tonemap_debug_enabled) {
         output_color = DrawTonemapGraph(output_color, tonemap_graph_config, RENODX_DIFFUSE_WHITE_NITS / 100.0f);
@@ -179,15 +179,16 @@ void main(
     } else {
       const float mid_gray = 0.18f;
       float mid_gray_adjusted = SDRToneMap(mid_gray).x;
-      mid_gray_scale = mid_gray_adjusted / mid_gray;
-      mid_gray_scale = lerp(1.f, mid_gray_scale, CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
+      mid_gray_adjusted = lerp(0.18f, mid_gray_adjusted, CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
+      // mid_gray_scale = mid_gray_adjusted / mid_gray;
+      // mid_gray_scale = lerp(1.f, mid_gray_scale, CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
       float3 tonemap_input_color = input_color;
 #if CUSTOM_TONEMAP_DEBUG
       if (tonemap_debug_enabled) {
         tonemap_input_color = tonemap_graph_config.color;
       }
 #endif
-      output_color = CustomTonemap(tonemap_input_color, mid_gray_scale);
+      output_color = CustomTonemap(tonemap_input_color, mid_gray, mid_gray_adjusted);
 #if CUSTOM_TONEMAP_DEBUG
       if (tonemap_debug_enabled) {
         output_color = DrawTonemapGraph(output_color, tonemap_graph_config, RENODX_DIFFUSE_WHITE_NITS / 100.0f);
