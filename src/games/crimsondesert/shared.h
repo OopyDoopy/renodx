@@ -25,13 +25,6 @@
 #define CUSTOM_FLAGS__TONEMAP_DEBUG_BIT0                0b0010000000000000000u
 #define CUSTOM_FLAGS__TONEMAP_DEBUG_BIT1                0b0100000000000000000u
 #define CUSTOM_FLAGS__RR_ENABLED                        0b1000000000000000000u
-#define CUSTOM_FLAGS__AURORA_BOREALIS                   0b10000000000000000000u
-#define CUSTOM_FLAGS__NIGHT_SKY_ATTENUATION             0b100000000000000000000u
-//#define CUSTOM_FLAGS__D93_WHITE_POINT                 0b1000000000000000000000u
-#define CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS              0b10000000000000000000000u
-#define CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS_BIT1         0b1000000000000000000000u
-#define CUSTOM_FLAGS__PURKINJE_EFFECT                   0b100000000000000000000000u
-#define CUSTOM_FLAGS__CUSTOM_WEATHER_EDITING            0b1000000000000000000000000u
 
 #define CUSTOM_FLAGS                               shader_injection.custom_flags
 
@@ -51,7 +44,6 @@
 #define RENODX_TONE_MAP_HUE_RESTORE            shader_injection.tone_map_hue_restore
 #define RENODX_TONE_MAP_BLOWOUT                shader_injection.tone_map_blowout
 #define CUSTOM_TONE_MAP_MIDGRAY_ADJUST         shader_injection.custom_tone_map_midgray_adjust
-#define COLOR_TEMP_KELVIN                      shader_injection.color_temp_kelvin
 #define RENODX_COLOR_GRADE_STRENGTH            1.f
 
 #define RENODX_TONE_MAP_EXPOSURE               shader_injection.tone_map_exposure
@@ -71,12 +63,12 @@
 #define LENS_FLARE_STRENGTH                    shader_injection.lens_flare_strength
 #define BLOOM_STRENGTH                         shader_injection.bloom_strength
 
+#define SHADOW_DEBUG_MODE                      0 // shader_injection.shadow_debug_mode
+#define SHADOW_DISABLE_LAYER                   0 // shader_injection.shadow_disable_layer
 #define CONTACT_SHADOW_QUALITY                 ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__CONTACT_SHADOW_QUALITY) != 0u) ? 1.f : 0.f)
-#define FOLIAGE_IMPROVEMENTS                   (RR_ENABLED == 1.f ? ((float)((((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS) != 0u) ? 1u : 0u) | (((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS_BIT1) != 0u) ? 2u : 0u))) : 0.f)
-#define FOLIAGE_TRANSMISSION                   (FOLIAGE_IMPROVEMENTS >= 2.f ? 1.0f : 0.0f)
+#define FOLIAGE_TRANSMISSION                   (CONTACT_SHADOW_QUALITY == 1.f ? 1.0f : 0.0f)
 #define RT_QUALITY                             (RR_ENABLED == 1.f ? (float)((CUSTOM_FLAGS_AS_UINT >> 10u) & 0x3u) : 0.f)
 #define RR_ENABLED                             ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__RR_ENABLED) != 0u ? 1.f : 0.f)
-#define AURORA_BOREALIS_ENABLED                ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__AURORA_BOREALIS) != 0u) ? 1.f : 0.f)
 #define RT_GI_KNEE                             2.0f
 #define RT_GI_STRENGTH                         0.07f
 #define MATERIAL_IMPROVEMENTS                  ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__MATERIAL_IMPROVEMENTS) != 0u) ? 1.f : 0.f)
@@ -84,48 +76,20 @@
 #define SMOOTH_TERMINATOR                      (MATERIAL_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
 #define SPECULAR_AA                            (MATERIAL_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
 #define DIFFRACTION                            (MATERIAL_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
-#define FOLIAGE_COLOR_CORRECT                  (FOLIAGE_IMPROVEMENTS >= 2.f ? 1.0f : 0.0f)
-#define FOLIAGE_DESAT_STRENGTH                 0.55f
-#define FOLIAGE_HUE_SHIFT                      0.0f
-#define FOLIAGE_CORRECTION_STRENGTH            0.60f
-#define FOLIAGE_CHROMA_EXTRA_DESAT             10.0f
-#define FOLIAGE_L_REDUCTION                    2.0f
-#define FOLIAGE_AO_STRENGTH                    (FOLIAGE_IMPROVEMENTS >= 1.f ? 1.0f : 0.0f)
-#define FOLIAGE_TRANSMISSION_STRENGTH          1.0f
-#define FOLIAGE_TRANSMISSION_THICKNESS         1.0f
-#define FOLIAGE_SC_YELLOW                      1.0f
-#define FOLIAGE_SC_YG_BLACK                    1.0f
-#define FOLIAGE_SC_GREEN_BLACK                 1.0f
+#define FOLIAGE_GREEN_DESAT                    (CONTACT_SHADOW_QUALITY == 1.f ? 0.5f : 0.0f)
 #define LOCAL_LIGHT_HUE_CORRECTION             shader_injection.local_light_hue_correction
 #define LOCAL_LIGHT_SATURATION                 shader_injection.local_light_saturation
 #define DISABLE_AWB                            ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__DISABLE_AWB) != 0u ? 1.f : 0.f)
 #define DISABLE_HERO_LIGHTS                    ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__DISABLE_HERO_LIGHTS) != 0u ? 1.f : 0.f)
-//#define D93_WHITE_POINT                      ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__D93_WHITE_POINT) != 0u ? 1.f : 0.f)
 
 #define IMPROVED_AUTO_EXPOSURE                 ((float)((((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__IMPROVED_AUTO_EXPOSURE) != 0u) ? 1u : 0u) | (((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__IMPROVED_AUTO_EXPOSURE_PERCEPTUAL) != 0u) ? 2u : 0u)))
 
 #define SUN_MOON_ADJUSTMENTS                   ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__SUN_MOON_ADJUSTMENTS) != 0u ? 1.f : 0.f)
 #define MOON_DISK_SIZE                         shader_injection.moon_disk_size
-#define MOON_BRIGHTNESS                        3.50f
-#define MOON_GLOW_STRENGTH                     1.00f
-#define MOON_LIMB_DARKENING                    1.00f
 #define SKY_SCATTERING                         ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__SKY_SCATTERING) != 0u ? 1.f : 0.f)
 #define DAWN_DUSK_IMPROVEMENTS                 ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__DAWN_DUSK_IMPROVEMENTS) != 0u ? 1.f : 0.f)
 #define SNOW_FOG_FIX                           ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__SNOW_FOG_FIX) != 0u ? 1.f : 0.f)
 #define DAWN_DUSK_GI_ENERGY                    0.7f
-#define DAWN_DUSK_WEATHER_SEED                 shader_injection.dawn_dusk_weather_seed
-#define DAWN_DUSK_LMS_L                        1.0f
-#define DAWN_DUSK_LMS_M                        1.0f
-#define DAWN_DUSK_LMS_S                        1.0f
-#define CLOUD_REDDENING_STRENGTH               1.0f
-#define DAWN_DUSK_WEATHER_BLEND                shader_injection.dawn_dusk_weather_blend
-#define AURORA_GI_ENERGY                       1.0f
-#define AURORA_BRIGHTNESS                      shader_injection.aurora_brightness
-#define AURORA_CHANCE                          shader_injection.aurora_chance
-#define AURORA_NIGHT_SEED                      shader_injection.aurora_night_seed
-#define NIGHT_SKY_ATTENUATION                  ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__NIGHT_SKY_ATTENUATION) != 0u ? 1.f : 0.f)
-#define PURKINJE_EFFECT                        ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__PURKINJE_EFFECT) != 0u) ? 1.f : 0.f)
-#define CUSTOM_WEATHER_EDITING                 ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__CUSTOM_WEATHER_EDITING) != 0u) ? 1.f : 0.f)
 
 // Auto exposure tuning
 //#define AE_DARK_POWER_OUTDOOR                shader_injection.ae_dark_power_outdoor
@@ -152,12 +116,18 @@
 #define AE_MIN_LUM                             0.001f
 #define AE_MAX_LUM                             10.00f
 
+// Tonemap highlight dimming (hardcoded defaults)
+#define AE_TRANSITION_THRESHOLD                0.0f
+#define AE_KNEE_ADAPTED                        0.0f
+#define AE_KNEE_TRANSITION                     0.0f
+#define AE_COMPRESS_MAX                        0.0f
+
 // Must be 32bit aligned
 // Should be 4x32
 //
-//// GAME BLOWS UP ONCE THERE'S MORE THAN 45 FLOATS ////
+//// GAME BLOWS UP ONCE THERE'S MORE THAN 45 CBUFFERS ////
 // 
-//// AMD BLOWS UP AT 43-44 FLOATS BECASUE OF FSR    ////
+//// AMD BLOWS UP AT 43-44 CBUFFERS BECASUE OF FSR    ////
 //
 struct ShaderInjectData {
   float peak_white_nits;
@@ -168,7 +138,6 @@ struct ShaderInjectData {
   float tone_map_hue_restore;
   float tone_map_blowout;
   float custom_tone_map_midgray_adjust;
-  float color_temp_kelvin;
 
   float tone_map_exposure;
   float tone_map_highlights;
@@ -182,6 +151,8 @@ struct ShaderInjectData {
   float custom_chromatic_aberration;
   float custom_sharpening;
   float custom_vignette;
+  //float shadow_debug_mode;
+  //float shadow_disable_layer;
   float local_light_hue_correction;
   float local_light_saturation;
 
@@ -199,11 +170,6 @@ struct ShaderInjectData {
   float moon_disk_size;
   float lens_flare_strength;
   float bloom_strength;
-  float aurora_brightness;
-  float aurora_chance;
-  float aurora_night_seed;
-  float dawn_dusk_weather_seed;
-  float dawn_dusk_weather_blend;
 };
 
 #ifndef __cplusplus
