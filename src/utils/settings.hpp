@@ -49,6 +49,9 @@ constexpr SettingStyle operator&(SettingStyle lhs, SettingStyle rhs) {
       static_cast<uint8_t>(lhs) & static_cast<uint8_t>(rhs));
 }
 
+static constexpr const char* PROFILE_KEY = "SelectedProfile";
+static constexpr const char* LEGACY_PRESET_KEY = "SelectedPreset";
+
 static bool use_presets = true;
 static SettingStyle preset_style = SettingStyle::DEFAULT;
 static bool open_sections_by_default = true;
@@ -58,9 +61,9 @@ static std::string global_name = "renodx";
 static int preset_index = 1;
 static std::vector<std::string> preset_strings = {
     "Off",
-    "Preset #1",
-    "Preset #2",
-    "Preset #3",
+    "Profile #1",
+    "Profile #2",
+    "Profile #3",
 };
 static const std::vector<std::string> BOOLEAN_STRINGS = {
     "Off",
@@ -437,7 +440,60 @@ static void LoadGlobalSettings() {
   }
 }
 
+static void ClampPresetIndex() {
+  const int min_index = use_presets ? 0 : 1;
+  const int max_index = static_cast<int>(preset_strings.size()) - 1;
+
+  if (preset_index < min_index) {
+    preset_index = min_index;
+  } else if (preset_index > max_index) {
+    preset_index = max_index;
+  }
+}
+
+static void LoadCurrentPreset(bool trigger_callbacks = true) {
+  ClampPresetIndex();
+
+  switch (preset_index) {
+    case 0:
+      for (auto& callback : on_preset_off_callbacks) {
+        callback();
+      }
+      break;
+    case 1:
+      LoadSettings(global_name + "-preset1");
+      break;
+    case 2:
+      LoadSettings(global_name + "-preset2");
+      break;
+    case 3:
+      LoadSettings(global_name + "-preset3");
+      break;
+  }
+
+  if (trigger_callbacks) {
+    for (auto& callback : on_preset_changed_callbacks) {
+      callback();
+    }
+  }
+}
+
+static void LoadSelectedPreset() {
+  if (!use_presets) {
+    preset_index = 1;
+    return;
+  }
+
+  if (!reshade::get_config_value(nullptr, global_name.c_str(), PROFILE_KEY, preset_index)) {
+    reshade::get_config_value(nullptr, global_name.c_str(), LEGACY_PRESET_KEY, preset_index);
+  }
+
+  ClampPresetIndex();
+}
+
 static std::string GetCurrentPresetName() {
+  ClampPresetIndex();
+
   switch (preset_index) {
     case 1:
       return global_name + "-preset1";
@@ -466,6 +522,8 @@ static void SaveGlobalSettings() {
     if (!setting->is_global) continue;
     setting->WriteToConfig(global_name);
   }
+
+  reshade::set_config_value(nullptr, global_name.c_str(), PROFILE_KEY, preset_index);
 }
 
 static std::string ReadGlobalString(const std::string& key) {
@@ -498,17 +556,18 @@ static void OnRegisterOverlay(reshade::api::effect_runtime* runtime) {
 
   auto draw_presets = [&]() {
     if (use_presets) {
+      ClampPresetIndex();
       if ((preset_style & SettingStyle::SEGMENTED)
           == SettingStyle::SEGMENTED) {
         changed_preset = SegmentedButtons(
-            "Preset",
+            "Profile",
             &preset_index,
             preset_strings,
             (preset_style & SettingStyle::MULTILINE)
                 == SettingStyle::MULTILINE);
       } else {
         changed_preset = ImGui::SliderInt(
-            "Preset",
+          "Profile",
             &preset_index,
             0,
             preset_strings.size() - 1,
@@ -518,25 +577,8 @@ static void OnRegisterOverlay(reshade::api::effect_runtime* runtime) {
     }
 
     if (changed_preset) {
-      switch (preset_index) {
-        case 0:
-          for (auto& callback : on_preset_off_callbacks) {
-            callback();
-          }
-          break;
-        case 1:
-          LoadSettings(global_name + "-preset1");
-          break;
-        case 2:
-          LoadSettings(global_name + "-preset2");
-          break;
-        case 3:
-          LoadSettings(global_name + "-preset3");
-          break;
-      }
-      for (auto& callback : on_preset_changed_callbacks) {
-        callback();
-      }
+      LoadCurrentPreset();
+      SaveGlobalSettings();
     }
     has_drawn_presets = true;
   };
@@ -879,7 +921,8 @@ static void Use(
         on_preset_changed_callbacks.emplace_back(new_on_preset_changed);
       }
       LoadGlobalSettings();
-      LoadSettings(global_name + "-preset1");
+      LoadSelectedPreset();
+      LoadCurrentPreset();
       reshade::register_overlay(overlay_title.c_str(), OnRegisterOverlay);
 
       break;
