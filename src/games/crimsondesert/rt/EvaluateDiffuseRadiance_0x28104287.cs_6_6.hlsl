@@ -868,7 +868,7 @@ void main(
                   float _665 = ((select(_654, (((_508 * 0.9163600206375122f) + (_507 * 0.07020000368356705f)) + (_509 * 0.013450000435113907f)), _216.y) * _535) * _650) + _453;
                   float _666 = ((select(_654, (((_508 * 0.10958000272512436f) + (_507 * 0.02061999961733818f)) + (_509 * 0.8697999715805054f)), _216.z) * _536) * _650) + _454;
                   float _667 = _650 + _458;
-                  if ((uint)(_459 + 1) < (uint)renodx::math::Select(RT_QUALITY >= 1.f, 8.f, 4.f)) {
+                  if ((uint)(_459 + 1) < (uint)renodx::math::Select(RR_ENABLED == 1.f && RT_QUALITY >= 1.f, 8.f, 4.f)) {
                     _452 = _664;
                     _453 = _665;
                     _454 = _666;
@@ -1561,7 +1561,7 @@ void main(
                               float _1954 = (((((_1808 * 0.9163600206375122f) + (_1807 * 0.07020000368356705f)) + (_1809 * 0.013450000435113907f)) * _1835) * _1946) + _1756;
                               float _1955 = (((((_1808 * 0.10958000272512436f) + (_1807 * 0.02061999961733818f)) + (_1809 * 0.8697999715805054f)) * _1836) * _1946) + _1757;
                               float _1956 = _1946 + _1758;
-                              if ((uint)(_1759 + 1) < (uint)renodx::math::Select(RT_QUALITY >= 1.f, 8.f, 4.f)) {
+                              if ((uint)(_1759 + 1) < (uint)renodx::math::Select(RR_ENABLED == 1.f && RT_QUALITY >= 1.f, 8.f, 4.f)) {
                                 _1755 = _1953;
                                 _1756 = _1954;
                                 _1757 = _1955;
@@ -2760,7 +2760,7 @@ void main(
                                   float _4838 = (((((_4698 * 0.9163600206375122f) + (_4697 * 0.07020000368356705f)) + (_4699 * 0.013450000435113907f)) * _4725) * _4830) + _4646;
                                   float _4839 = (((((_4698 * 0.10958000272512436f) + (_4697 * 0.02061999961733818f)) + (_4699 * 0.8697999715805054f)) * _4726) * _4830) + _4647;
                                   float _4840 = _4830 + _4648;
-                                  if ((uint)(_4649 + 1) < (uint)renodx::math::Select(RT_QUALITY >= 1.f, 8.f, 4.f)) {
+                                  if ((uint)(_4649 + 1) < (uint)renodx::math::Select(RR_ENABLED == 1.f && RT_QUALITY >= 1.f, 8.f, 4.f)) {
                                     _4645 = _4837;
                                     _4646 = _4838;
                                     _4647 = _4839;
@@ -3145,7 +3145,7 @@ void main(
     //
     // Apply a luminance based soft compression on the raw hit radiance before it
     // enters the reservoir
-    if (RT_QUALITY >= 1.f && RT_GI_STRENGTH > 0.0f) {
+    if (RR_ENABLED == 1.f && RT_QUALITY >= 1.f && RT_GI_STRENGTH > 0.0f) {
       float _rndx_gi_lum = renodx::color::y::from::BT709(float3(_5729, _5730, _5731));
       if (_rndx_gi_lum > RT_GI_KNEE) {
         float _rndx_gi_excess = _rndx_gi_lum - RT_GI_KNEE;
