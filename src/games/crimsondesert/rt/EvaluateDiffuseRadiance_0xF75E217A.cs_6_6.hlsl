@@ -746,7 +746,7 @@ void main(
                   float _661 = ((select(_650, (((_504 * 0.9163600206375122f) + (_503 * 0.07020000368356705f)) + (_505 * 0.013450000435113907f)), _212.y) * _531) * _646) + _449;
                   float _662 = ((select(_650, (((_504 * 0.10958000272512436f) + (_503 * 0.02061999961733818f)) + (_505 * 0.8697999715805054f)), _212.z) * _532) * _646) + _450;
                   float _663 = _646 + _454;
-                  if ((uint)(_455 + 1) < (uint)renodx::math::Select(RT_QUALITY >= 1.f, 8.f, 4.f)) {
+                  if ((uint)(_455 + 1) < (uint)renodx::math::Select(RR_ENABLED == 1.f && RT_QUALITY >= 1.f, 8.f, 4.f)) {
                     _448 = _660;
                     _449 = _661;
                     _450 = _662;
@@ -1439,7 +1439,7 @@ void main(
                               float _1950 = (((((_1804 * 0.9163600206375122f) + (_1803 * 0.07020000368356705f)) + (_1805 * 0.013450000435113907f)) * _1831) * _1942) + _1752;
                               float _1951 = (((((_1804 * 0.10958000272512436f) + (_1803 * 0.02061999961733818f)) + (_1805 * 0.8697999715805054f)) * _1832) * _1942) + _1753;
                               float _1952 = _1942 + _1754;
-                              if ((uint)(_1755 + 1) < (uint)renodx::math::Select(RT_QUALITY >= 1.f, 8.f, 4.f)) {
+                              if ((uint)(_1755 + 1) < (uint)renodx::math::Select(RR_ENABLED == 1.f && RT_QUALITY >= 1.f, 8.f, 4.f)) {
                                 _1751 = _1949;
                                 _1752 = _1950;
                                 _1753 = _1951;
@@ -2354,7 +2354,7 @@ void main(
     //
     // Apply a luminance based soft compression on the raw hit radiance before it
     // enters the reservoir
-    if (RT_QUALITY >= 1.f && RT_GI_STRENGTH > 0.0f) {
+    if (RR_ENABLED == 1.f && RT_QUALITY >= 1.f && RT_GI_STRENGTH > 0.0f) {
       float _rndx_gi_lum = renodx::color::y::from::BT709(float3(_4123, _4124, _4125));
       if (_rndx_gi_lum > RT_GI_KNEE) {
         float _rndx_gi_excess = _rndx_gi_lum - RT_GI_KNEE;
