@@ -335,6 +335,13 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .is_visible = []() { return hdr_settings_toggle == 1 && (current_settings_mode == basic_group || current_settings_mode == tone_mapping_group); },
     },
+    // new renodx::utils::settings::Setting{
+    //     .value_type = renodx::utils::settings::SettingValueType::TEXT,
+    //     .label = "Adjust brightness with the perceptual auto exposure controls.\n",
+    //     .section = "Tone Mapping",
+    //     //.tint = tone_mapping,
+    //     .is_visible = []() { return hdr_settings_toggle == 1 && ((current_settings_mode == basic_group || current_settings_mode == tone_mapping_group) && IMPROVED_AUTO_EXPOSURE == 2); },
+    // },
     tone_map_diffuse_white_setting = new renodx::utils::settings::Setting{
         .key = "ToneMapGameNits",
         .binding = &shader_injection.diffuse_white_nits,
@@ -1223,6 +1230,12 @@ renodx::utils::settings::Settings settings = {
     //     },
     // },
     new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "Out of the box, the mod uses our recommended settings. These have been carefully selected to offer a good balance for everybody. A ton of controls are provided for tuning to preference by adjusting the settings mode, if desired.",
+        .section = "Tips",
+        .is_visible = []() { return current_settings_mode == basic_group; },
+    },
+    new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::CUSTOM,
         .label = "Links",
         .section = "Links",
@@ -1241,21 +1254,25 @@ renodx::utils::settings::Settings settings = {
           ImGui::TextLinkOpenURL("ShortFuse's Ko-Fi", "https://ko-fi.com/shortfuse");
           return false;
         },
+        .is_visible = []() { return current_settings_mode == basic_group; },
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
         .label = "Game mod by Forge, Jon (OopyDoopy/Kickfister), and Shortfuse, RenoDX Framework by Shortfuse",
         .section = "About",
+        .is_visible = []() { return current_settings_mode == basic_group; },
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
         .label = "Credit to Lilium for the RCAS implementation!",
         .section = "About",
+        .is_visible = []() { return current_settings_mode == basic_group; },
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
         .label = "This build was compiled on " + build_date + " at " + build_time + ".",
         .section = "About",
+        .is_visible = []() { return current_settings_mode == basic_group; },
     },
 };
 
