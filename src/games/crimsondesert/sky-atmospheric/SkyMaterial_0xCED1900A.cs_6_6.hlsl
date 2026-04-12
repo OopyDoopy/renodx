@@ -1,3 +1,6 @@
+#include "../shared.h"
+#include "aurora_common.hlsli"
+
 struct PostProcessSkyStruct {
   uint _moonTexture;
   uint _milkyWayTexture;
@@ -234,6 +237,24 @@ void main(
     float _172 = _171 * _159.x;
     float _173 = _171 * _159.y;
     float _174 = _171 * _159.z;
+
+    // --- Aurora borealis ---
+    // Same approach as the full SkyMaterial shader, attenuated by transmittance
+    // since this variant lacks the precomputed extinction LUT
+    [branch]
+    if (AURORA_BOREALIS_ENABLED) {
+      float nightGate = ComputeNightGate(_sunDirection.y);
+      float3 aurora = ComputeAurora(
+        float3(_111, _112, _113), _time.w, _frameNumber.x,
+        uint2(SV_DispatchThreadID.x, SV_DispatchThreadID.y)
+      );
+      float transmittance = ChapmanTransmittance(0.f, _113, _rayleighScaledHeight, _earthRadius);
+      aurora = clamp(aurora, 0.f, 10.f) * nightGate * transmittance;
+      _172 += aurora.r;
+      _173 += aurora.g;
+      _174 += aurora.b;
+    }
+
     __3__38__0__1__g_postProcessUAV[int2((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y))] = float4((((_172 * 0.6131200194358826f) + (_173 * 0.3395099937915802f)) + (_174 * 0.047370001673698425f)), (((_172 * 0.07020000368356705f) + (_173 * 0.9163600206375122f)) + (_174 * 0.013450000435113907f)), (((_172 * 0.02061999961733818f) + (_173 * 0.10958000272512436f)) + (_174 * 0.8697999715805054f)), _postProcessParams.x);
   }
 }
