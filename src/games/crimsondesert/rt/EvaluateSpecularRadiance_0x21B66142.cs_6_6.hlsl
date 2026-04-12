@@ -2053,12 +2053,6 @@ void main(
                   float _3266 = _3262.x * _3259;
                   float _3267 = _3262.y * _3259;
                   float _3268 = _3262.z * _3259;
-                  // [AURORA_GI] Attenuate cubemap specular contribution when aurora is active
-                  if (AURORA_BOREALIS_ENABLED) {
-                    float _auroraNightGate = 1.f - smoothstep(-0.15f, 0.f, _sunDirection.y);
-                    float _auroraScale = lerp(1.f, AURORA_GI_ENERGY, _auroraNightGate);
-                    _3266 *= _auroraScale; _3267 *= _auroraScale; _3268 *= _auroraScale;
-                  }
                   float _3271 = _1025 * _1025;
                   float _3272 = abs(saturate(dot(float3(_1380, _1381, _1382), float3(_1005, _1006, _1007))));
                   float _3273 = _3272 * _3272;
@@ -3436,12 +3430,6 @@ void main(
       float _6300 = _6296.x * _6287;
       float _6301 = _6296.y * _6287;
       float _6302 = _6296.z * _6287;
-      // [AURORA_GI] Attenuate cubemap contribution to GI when aurora is active
-      if (AURORA_BOREALIS_ENABLED) {
-        float _auroraNightGate = 1.f - smoothstep(-0.15f, 0.f, _sunDirection.y);
-        float _auroraScale = lerp(1.f, AURORA_GI_ENERGY, _auroraNightGate);
-        _6300 *= _auroraScale; _6301 *= _auroraScale; _6302 *= _auroraScale;
-      }
       float _6303 = dot(float3(_6300, _6301, _6302), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f));
       float _6304 = min(_856, _6303);
       float _6308 = max(9.999999717180685e-10f, _6303);

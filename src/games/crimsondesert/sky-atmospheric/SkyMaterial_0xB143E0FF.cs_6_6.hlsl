@@ -1245,6 +1245,8 @@ void main(
         uint2(_52, _54)
       );
       aurora *= nightGate * _801;
+      aurora *= AuroraBrightnessDampening(AE_DYNAMISM_HIGH);
+
       // game's custom 3x3 color space transform
       _956 += mad(aurora.r, 0.6131200194358826f, mad(aurora.g, 0.3395099937915802f, aurora.b * 0.047370001673698425f));
       _957 += mad(aurora.r, 0.07020000368356705f, mad(aurora.g, 0.9163600206375122f, aurora.b * 0.013450000435113907f));
