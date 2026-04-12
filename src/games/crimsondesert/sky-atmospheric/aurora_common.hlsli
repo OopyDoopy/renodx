@@ -156,4 +156,16 @@ float3 ComputeAurora(float3 viewDir, float gameTime, uint frameNumber,
   return col.rgb * horizonFade * 2.f;
 }
 
+// --- AE compensated aurora dampening ---
+// Inverse of the moon compensation in moon_common.hlsli.
+// Aurora was tuned at ae_dynamism_high = 0.5 (slider 25). Users running the
+// default 0.8 (slider 40) or higher get blown out by the brighter AE letting
+// more aurora energy through. So we modulate
+
+float AuroraBrightnessDampening(float aeDynamismHigh) {
+  const float tuningBaseline = 0.5f;
+  float ratio = min(tuningBaseline / max(aeDynamismHigh, 0.2f), 1.f);
+  return ratio * ratio;
+}
+
 #endif  // AURORA_COMMON_HLSLI
