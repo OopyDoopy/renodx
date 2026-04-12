@@ -238,9 +238,11 @@ void main(
     float _173 = _171 * _159.y;
     float _174 = _171 * _159.z;
 
-    // --- Aurora borealis ---
-    // Same approach as the full SkyMaterial shader, attenuated by transmittance
-    // since this variant lacks the precomputed extinction LUT
+    // --- Aurora borealis (sky probe variant) ---
+    // This shader feeds the environment probe at night for specular/GI. We add aurora here
+    // so the scene at night gets some aurora tinting but heavily modulate so metals/specular 
+    // get a subtle tint. The visible aurora comes from SkyMaterial_0xB143E0FF at
+    // full strength.
     [branch]
     if (AURORA_BOREALIS_ENABLED) {
       float nightGate = ComputeNightGate(_sunDirection.y);
@@ -250,6 +252,10 @@ void main(
       );
       float transmittance = ChapmanTransmittance(0.f, _113, _rayleighScaledHeight, _earthRadius);
       aurora = clamp(aurora, 0.f, 10.f) * nightGate * transmittance;
+      aurora *= AuroraBrightnessDampening(AE_DYNAMISM_HIGH);
+
+      // Modulation for sky probe
+      aurora *= AURORA_GI_ENERGY;
       _172 += aurora.r;
       _173 += aurora.g;
       _174 += aurora.b;
