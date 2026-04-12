@@ -1138,7 +1138,7 @@ renodx::utils::settings::Settings settings = {
         .key = "AuroraBorealis",
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
+        .default_value = 0.f,
         .packed_values = {0u, CUSTOM_FLAGS__AURORA_BOREALIS},
         .can_reset = true,
         .label = "Aurora Borealis",
@@ -1294,7 +1294,7 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "Credits and ty to both Gerardo LCDF for Gadot & KnighTec for Blitz-FX source which helped with aurora borealis implementation",
+        .label = "Credits and ty to both Gerardo LCDF for Godot & KnighTec for Blitz-FX source which helped with aurora borealis implementation",
         .section = "About",
         .is_visible = []() { return current_settings_mode == basic_group; },
     },
