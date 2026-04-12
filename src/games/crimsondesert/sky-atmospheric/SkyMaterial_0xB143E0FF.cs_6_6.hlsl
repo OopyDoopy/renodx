@@ -1,4 +1,7 @@
 #include "../shared.h"
+#include "../lighting/diffuse_brdf.hlsli"
+#include "aurora_common.hlsli"
+#include "moon_common.hlsli"
 
 struct PostProcessSkyStruct {
   uint _moonTexture;
@@ -677,10 +680,12 @@ void main(
     float _409 = acos(_408);
     bool _410 = (_409 < _362);
     if (_410) {
-      float _412 = dot(float3(_400, _401, _402), float3(_sunDirection.x, _sunDirection.y, _sunDirection.z));
+      float3 _sphereN = float3(_400, _401, _402);
+
+      float _412 = dot(_sphereN, float3(_sunDirection.x, _sunDirection.y, _sunDirection.z));
       float _413 = saturate(_412);
-      float _418 = dot(float3(_400, _401, _402), float3(_moonRight.x, _moonRight.y, _moonRight.z));
-      float _423 = dot(float3(_400, _401, _402), float3(_moonUp.x, _moonUp.y, _moonUp.z));
+      float _418 = dot(_sphereN, float3(_moonRight.x, _moonRight.y, _moonRight.z));
+      float _423 = dot(_sphereN, float3(_moonUp.x, _moonUp.y, _moonUp.z));
       float _424 = _418 * 0.5f;
       float _425 = _423 * 0.5f;
       float _426 = _424 + 0.5f;
@@ -694,7 +699,34 @@ void main(
         (SUN_MOON_ADJUSTMENTS == 1.f), 
         (_moonRaw * 0.01f),              // 100x reduction
         (_moonRaw));                     // vanilla
-      float _429 = _413 * _moonLum;
+
+      float _moonShading;
+      if (SUN_MOON_ADJUSTMENTS == 1.f) {
+        // ---- EON diffuse BRDF ----
+        static const float MOON_ROUGHNESS = 0.9f;
+        float3 _sunDir  = float3(_sunDirection.x, _sunDirection.y, _sunDirection.z);
+        float3 _viewDir = float3(_133, _134, _135);
+        float _NdotL = _413;
+        float _NdotV = saturate(dot(_sphereN, -_viewDir));
+        float _LdotV = dot(_sunDir, -_viewDir);
+        float _eonScalar = EON_DiffuseScalar(_NdotL, _NdotV, _LdotV, MOON_ROUGHNESS);
+
+        static const float EON_ENERGY_COMPENSATION = 1.30f;
+        float _eonShading = _NdotL * _eonScalar * EON_ENERGY_COMPENSATION;
+
+        float3 _moonFwd = float3(_405, _406, _407);
+        float _NdotV_moon = saturate(dot(_sphereN, _moonFwd));
+        float _limbDark = MoonLimbDarkening(_NdotV_moon, MOON_LIMB_DARKENING);
+        float _innerGlow = MoonInnerGlow(_NdotV_moon, MOON_GLOW_STRENGTH);
+        float _brightMul = MoonBrightnessMultiplier(AE_DYNAMISM_HIGH, MOON_BRIGHTNESS);
+
+        _moonShading = (_eonShading * _limbDark + _innerGlow) * _brightMul;
+      } else {
+        // Vanilla
+        _moonShading = _413;
+      }
+
+      float _429 = _moonShading * _moonLum;
       _431 = _429;
       _432 = 1.0f;
       _433 = _426;
@@ -726,6 +758,7 @@ void main(
     float _463 = _460 + _353;
     float _464 = _461 + _354;
     float _465 = _462 + _355;
+
     float _468 = floor(_time.x);
     float _469 = _468 * 0.36841699481010437f;
     float _470 = abs(_469);
@@ -872,6 +905,7 @@ void main(
       _588 = _464;
       _589 = _465;
     }
+
     float _590 = _587 * 0.6131200194358826f;
     float _591 = _587 * 0.07020000368356705f;
     float _592 = _587 * 0.02061999961733818f;
@@ -1198,6 +1232,25 @@ void main(
     float _956 = _946 + _951;
     float _957 = _947 + _953;
     float _958 = _948 + _955;
+
+    // --- Aurora borealis ---
+    // Additive after final compositing but before UAV write.
+    // Do NOT gate on _135 > 0 (viewDir.z). Y is up and Z is horizontal,
+    // had an issue where gating on Z cuts the sky in half
+    [branch]
+    if (AURORA_BOREALIS_ENABLED) {
+      float nightGate = ComputeNightGate(_sunDirection.y);
+      float3 aurora = ComputeAurora(
+        float3(_133, _134, _135), _time.w, _frameNumber.x,
+        uint2(_52, _54)
+      );
+      aurora *= nightGate * _801;
+      // game's custom 3x3 color space transform
+      _956 += mad(aurora.r, 0.6131200194358826f, mad(aurora.g, 0.3395099937915802f, aurora.b * 0.047370001673698425f));
+      _957 += mad(aurora.r, 0.07020000368356705f, mad(aurora.g, 0.9163600206375122f, aurora.b * 0.013450000435113907f));
+      _958 += mad(aurora.r, 0.02061999961733818f, mad(aurora.g, 0.10958000272512436f, aurora.b * 0.8697999715805054f));
+    }
+
     __3__38__0__1__g_postProcessUAV[int2(_52, _54)] = float4(_956, _957, _958, _937);
   }
 }

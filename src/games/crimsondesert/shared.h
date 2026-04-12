@@ -25,6 +25,7 @@
 #define CUSTOM_FLAGS__TONEMAP_DEBUG_BIT0                0b0010000000000000000u
 #define CUSTOM_FLAGS__TONEMAP_DEBUG_BIT1                0b0100000000000000000u
 #define CUSTOM_FLAGS__RR_ENABLED                        0b1000000000000000000u
+#define CUSTOM_FLAGS__AURORA_BOREALIS                   0b10000000000000000000u
 
 #define CUSTOM_FLAGS                               shader_injection.custom_flags
 
@@ -69,6 +70,7 @@
 #define FOLIAGE_TRANSMISSION                   (CONTACT_SHADOW_QUALITY == 1.f ? 1.0f : 0.0f)
 #define RT_QUALITY                             (RR_ENABLED == 1.f ? (float)((CUSTOM_FLAGS_AS_UINT >> 10u) & 0x3u) : 0.f)
 #define RR_ENABLED                             ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__RR_ENABLED) != 0u ? 1.f : 0.f)
+#define AURORA_BOREALIS_ENABLED                ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__AURORA_BOREALIS) != 0u ? 1.f : 0.f)
 #define RT_GI_KNEE                             2.0f
 #define RT_GI_STRENGTH                         0.07f
 #define MATERIAL_IMPROVEMENTS                  ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__MATERIAL_IMPROVEMENTS) != 0u) ? 1.f : 0.f)
@@ -76,7 +78,12 @@
 #define SMOOTH_TERMINATOR                      (MATERIAL_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
 #define SPECULAR_AA                            (MATERIAL_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
 #define DIFFRACTION                            (MATERIAL_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
-#define FOLIAGE_GREEN_DESAT                    (CONTACT_SHADOW_QUALITY == 1.f ? 0.5f : 0.0f)
+#define FOLIAGE_COLOR_CORRECT                  (CONTACT_SHADOW_QUALITY == 1.f ? 1.0f : 0.0f)
+#define FOLIAGE_DESAT_STRENGTH                 0.50f
+#define FOLIAGE_HUE_SHIFT                      0.0f
+#define FOLIAGE_CORRECTION_STRENGTH            0.50f
+#define FOLIAGE_TRANSMISSION_STRENGTH          1.0f
+#define FOLIAGE_TRANSMISSION_THICKNESS         1.0f
 #define LOCAL_LIGHT_HUE_CORRECTION             shader_injection.local_light_hue_correction
 #define LOCAL_LIGHT_SATURATION                 shader_injection.local_light_saturation
 #define DISABLE_AWB                            ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__DISABLE_AWB) != 0u ? 1.f : 0.f)
@@ -86,10 +93,14 @@
 
 #define SUN_MOON_ADJUSTMENTS                   ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__SUN_MOON_ADJUSTMENTS) != 0u ? 1.f : 0.f)
 #define MOON_DISK_SIZE                         shader_injection.moon_disk_size
+#define MOON_BRIGHTNESS                        3.50f
+#define MOON_GLOW_STRENGTH                     1.00f
+#define MOON_LIMB_DARKENING                    1.00f
 #define SKY_SCATTERING                         ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__SKY_SCATTERING) != 0u ? 1.f : 0.f)
 #define DAWN_DUSK_IMPROVEMENTS                 ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__DAWN_DUSK_IMPROVEMENTS) != 0u ? 1.f : 0.f)
 #define SNOW_FOG_FIX                           ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__SNOW_FOG_FIX) != 0u ? 1.f : 0.f)
 #define DAWN_DUSK_GI_ENERGY                    0.7f
+#define AURORA_GI_ENERGY                       0.1f
 
 // Auto exposure tuning
 //#define AE_DARK_POWER_OUTDOOR                shader_injection.ae_dark_power_outdoor
