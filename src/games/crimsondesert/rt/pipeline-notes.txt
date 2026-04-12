@@ -16,7 +16,7 @@ PIPELINE EXECUTION ORDER
 
   Running in parallel to the above:
     PrepareDlssRR               [8x8]    Pack G-buffer guides for DLSS-RR
-    [DLSS Ray Reconstruction]            Denoises the RT path ONLY
+    [DLSS Ray Reconstruction]            Denoises both the RT path and bilateral GI
 
 
 ================================================================================
@@ -147,6 +147,14 @@ Major subsystems:
         * Falls back to g_environmentColor cubemap (MIP 4)
         * Modulated by sky visibility voxels (levels 0-3)
         * Scaled by _renderParams.w
+        * [Game Update] Luminance-clamped before directional multiplier:
+          raw = cubemap.rgb * skyVisibility
+          lum = dot(raw, BT.709)
+          clampedLum = min(exposureBudget, lum)
+          result = (raw * clampedLum / lum) * directionalMult
+          where exposureBudget = exposure3.w * (4096 - roughness * 3584 * terrainNormalParams.z)
+          This caps the cubemap probe energy to prevent blowout at dawn/dusk
+          when the sky probe is inflated. Rough surfaces get a tighter budget.
 
   3i) Final output (~lines 4070-4130):
       invPDF = g_raytracingDiffuseRayInversePDF * 2.0
@@ -222,6 +230,8 @@ per-pixel resolution. This is the PARALLEL NON-RT PATH that all pixels get.
       * 0.2 for stencil 98/96
       * 0.9 for everything else
   - Output: g_textureResultUAV += bilateralGI * aoFactor (additive)
+  - Now uses the RR flag (.w = 0.0), routing its output through DLSS Ray
+    Reconstruction for temporal denoising alongside the RT diffuse path.
 
 
 PARALLEL — PrepareDlssRR (219 lines)
@@ -254,13 +264,12 @@ CRITICAL
    samples more uniformly at the same sample count, significantly reducing
    perceived noise especially at 1spp.
 
-2. VOXELGI BILATERAL RECONSTRUCTION IS NOT DENOISED BY DLSS-RR
+2. [RESOLVED] VOXELGI BILATERAL RECONSTRUCTION NOW DENOISED BY DLSS-RR
 
-   DLSS-RR only sees the RT path's diffuse result. The VoxelGI bilateral
-   output is written additively to g_textureResultUAV with no temporal
-   denoiser. The +/-16 pixel jitter and 4-sample bilateral filter produce
-   visible noise that compounds with camera motion every frame. This is the
-   primary source of indoor/window shimmer and motion noise.
+   The bilateral reconstruction output now uses the RR flag (.w = 0.0),
+   routing it through DLSS Ray Reconstruction for temporal denoising.
+   This resolves the previous indoor/window shimmer and motion noise
+   that resulted from the undenoised bilateral GI path.
 
 3. +/-16 PIXEL JITTER RANGE IN BILATERAL RECONSTRUCTION IS EXCESSIVE
 
