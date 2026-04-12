@@ -2272,7 +2272,7 @@ void main(
   _5084 *= _inscatterBias.x;
   _5085 *= _inscatterBias.y;
   _5086 *= _inscatterBias.z;
-
+  
   __3__38__0__1__g_texSkyInscatterUAV[int2((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y))] = float4(_5084, _5085, _5086, _61.x);
   __3__38__0__1__g_texSkyExtinctionUAV[int2((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y))] = float4(_5081, _5082, _5083, 0.0f);
 }
