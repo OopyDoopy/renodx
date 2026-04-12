@@ -1059,7 +1059,7 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "WARNING: Sliders disabled until Ray Reconstruction/Ray Regeneration is detected\n",
+        .label = "WARNING: Sliders disabled (doesn't matter what the slider says) until Ray Reconstruction/Ray Regeneration is detected\n",
         .section = "Rendering",
         //.tint = 0xaa0000,
         .is_visible = []() { return current_settings_mode == rendering_group && !RR_ENABLED; },
