@@ -70,7 +70,7 @@
 #define FOLIAGE_TRANSMISSION                   (CONTACT_SHADOW_QUALITY == 1.f ? 1.0f : 0.0f)
 #define RT_QUALITY                             (RR_ENABLED == 1.f ? (float)((CUSTOM_FLAGS_AS_UINT >> 10u) & 0x3u) : 0.f)
 #define RR_ENABLED                             ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__RR_ENABLED) != 0u ? 1.f : 0.f)
-#define AURORA_BOREALIS_ENABLED                ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__AURORA_BOREALIS) != 0u ? 1.f : 0.f)
+#define AURORA_BOREALIS_ENABLED                ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__AURORA_BOREALIS) != 0u) ? 1.f : 0.f)
 #define RT_GI_KNEE                             2.0f
 #define RT_GI_STRENGTH                         0.07f
 #define MATERIAL_IMPROVEMENTS                  ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__MATERIAL_IMPROVEMENTS) != 0u) ? 1.f : 0.f)
