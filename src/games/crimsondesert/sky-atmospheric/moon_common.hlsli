@@ -1,5 +1,5 @@
-#ifndef SRC_CRIMSONDESERT_SKY_ATMOSPHERIC_MOON_COMMON_HLSLI_
-#define SRC_CRIMSONDESERT_SKY_ATMOSPHERIC_MOON_COMMON_HLSLI_
+#ifndef MOON_COMMON_HLSLI
+#define MOON_COMMON_HLSLI
 
 // --- Limb darkening ---
 // Darkens the moon disc toward the edges
@@ -33,4 +33,4 @@ float MoonBrightnessMultiplier(float aeDynamismHigh, float moonBrightness) {
   return moonBrightness * aeCompensation;
 }
 
-#endif  // SRC_CRIMSONDESERT_SKY_ATMOSPHERIC_MOON_COMMON_HLSLI_
+#endif  // MOON_COMMON_HLSLI
