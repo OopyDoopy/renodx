@@ -162,6 +162,7 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
     {"DawnDuskImprovements", 0.f},
     {"SnowFogFix", 0.f},
     {"RaytracingQuality", 0.f},
+    {"AuroraBorealis", 0.f},
 };
 
 const std::unordered_map<std::string, float> NEUTRAL_VALUES = {
@@ -180,7 +181,7 @@ bool rr_draw = false;
 int rr_draw_counter = 0;
 
 renodx::mods::shader::CustomShaders custom_shaders = {
-    CustomShaderEntryCallback(0xFBE87D08, [](reshade::api::command_list* /*cmd_list*/) {
+    CustomShaderEntryCallback(0x21B66142, [](reshade::api::command_list* /*cmd_list*/) {
       rr_draw = true;
       return true;
     }),
@@ -1127,6 +1128,29 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "WARNING: Added Aurora for nights with various colour palettes, looks cool but currently lacks region specific gating or randomised chance to not appear.\n",
+        .section = "Rendering",
+        //.tint = rendering,
+        .is_visible = []() { return current_settings_mode == rendering_group; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "AuroraBorealis",
+        .binding = &shader_injection.custom_flags,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .packed_values = {0u, CUSTOM_FLAGS__AURORA_BOREALIS},
+        .can_reset = true,
+        .label = "Aurora Borealis",
+        .section = "Rendering",
+        .tooltip = "Adds a aurora borealis effect to the night sky.\n"
+                   "Off = no aurora. On = aurora enabled.",
+        .labels = {"Off", "On"},
+        .tint = wiprendering,
+        .is_enabled = []() { return RR_ENABLED; },
+        .is_visible = []() { return current_settings_mode == rendering_group; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "ShadowDebugMode",
         .binding = SHADOW_DEBUG_MODE,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -1270,6 +1294,12 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "Credits and ty to both Gerardo LCDF for Gadot & KnighTec for Blitz-FX source which helped with aurora borealis implementation",
+        .section = "About",
+        .is_visible = []() { return current_settings_mode == basic_group; },
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
         .label = "This build was compiled on " + build_date + " at " + build_time + ".",
         .section = "About",
         .is_visible = []() { return current_settings_mode == basic_group; },
@@ -1316,6 +1346,7 @@ void OnPresetOff() {
       {"DawnDuskImprovements", 0.f},
       {"SnowFogFix", 0.f},
       {"DisableAWB", 0.f},
+      {"AuroraBorealis", 0.f},
 
       {"ImprovedAutoExposure", 0.f},
       {"AE_PerceptualMinBrightness", 0.f},

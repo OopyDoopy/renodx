@@ -184,14 +184,12 @@ float NDFFilterRoughnessCS(
     float  roughness,
     float  strength)
 {
-  // Approximate screen space derivatives via wave quad intrinsics
   float3 dndu = QuadReadAcrossX(normalWS) - normalWS;
   float3 dndv = QuadReadAcrossY(normalWS) - normalWS;
 
   static const float SIGMA2 = 0.15915494f;
   float kernelRoughness2 = 2.0f * SIGMA2 * (dot(dndu, dndu) + dot(dndv, dndv));
 
-  // Roughness aware kappa
   float kappa = lerp(0.18f, 0.04f, saturate(roughness * 2.5f));
   float clampedKernel = min(kernelRoughness2, kappa);
   float smoothFade = saturate((roughness - 0.05f) * 10.0f);
@@ -282,7 +280,6 @@ float3 DiffractionShiftAndSpeckleCS(
     float3 normal,
     float3 F0)
 {
-  // -- Roughness interpolated params (paper Table 1) --
   float t = saturate((0.3922f - roughness) / (0.3922f - 0.14033f));
   float w = lerp(2.3394f, 6.4455f, t);
   float h = lerp(0.001025f, 0.00077f, t);
@@ -295,7 +292,7 @@ float3 DiffractionShiftAndSpeckleCS(
   float3 rawShift = mad(shiftScatter, cosWT * h, shiftIntensity);
   float3 shiftDev = rawShift - 1.0f;
 
-  // -- F0-aware hue modulation --
+  // -- F0 aware hue modulation --
   float  F0avg  = max(dot(F0, float3(0.333f, 0.333f, 0.333f)), 0.01f);
   float3 F0norm = renodx::math::DivideSafe(F0, F0avg, 1.f);
   float  chromaSpread = max(max(F0norm.x, F0norm.y), F0norm.z)
@@ -305,11 +302,10 @@ float3 DiffractionShiftAndSpeckleCS(
   float3 finalDev     = lerp(shiftDev, coloredDev, coloredness);
   float3 shift        = mad(finalDev, 2.8f, 1.0f);
 
-  // -- Speckle noise (paper Listing 2, compute-shader path) --
+  // -- Speckle noise (paper Listing 2, compute shader path) --
   float uvScale = lerp(500.0f, 800.0f, t);
   float2 scaledUV = screenUV * uvScale;
 
-  // Screen space derivatives via quad intrinsics
   float2 duvdx = QuadReadAcrossX(scaledUV) - scaledUV;
   float2 duvdy = QuadReadAcrossY(scaledUV) - scaledUV;
   float  delta_uv = max(length(duvdx), length(duvdy));
@@ -324,14 +320,13 @@ float3 DiffractionShiftAndSpeckleCS(
   float  h_p = (asin(clamp(halfVec.z / max(hr, 1e-7f), -1.0f, 1.0f))
               - asin(clamp(normal.z / max(length(normal), 1e-7f), -1.0f, 1.0f))) * 7.0f;
 
-  // Sample noise — 3 decorrelated channels
   float3 noise = 0.0f;
   if (sqrtSPP <= 1.0f) {
     noise.r = _dfr_snoise3(float3(scaledUV, h_a));
     noise.g = _dfr_snoise3(float3(scaledUV + 17.3f, h_a + 7.1f));
     noise.b = _dfr_snoise3(float3(scaledUV + 31.7f, h_p));
   } else if (sqrtSPP <= 2.0f) {
-    // Transition: 4-tap multisample
+    // Transition: 4 tap multisample
     static const float2 msOff[4] = {
       float2(-0.25f, -0.25f), float2(0.25f, -0.25f),
       float2(-0.25f,  0.25f), float2(0.25f,  0.25f)
@@ -350,7 +345,6 @@ float3 DiffractionShiftAndSpeckleCS(
   float covScale = sqrt(max(mad(-covCos, covCos, 1.0f), 0.15f)) * lerp(0.5f, 0.3f, t);
   noise *= covScale * ampMod;
 
-  // F0 tinted speckle
   float3 speckleTint = lerp(1.0f, F0norm, coloredness * 0.5f);
   float3 speckle = noise * 0.5f * speckleTint;
 

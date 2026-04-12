@@ -2290,6 +2290,12 @@ void main(
         _4067 = ((_4044 * select(_4045, 0.03125f, _750)) * _4053.x);
         _4068 = ((_4044 * select(_4045, 0.03125f, _751)) * _4053.y);
         _4069 = ((_4044 * select(_4045, 0.03125f, _752)) * _4053.z);
+        // [AURORA_GI] Attenuate cubemap contribution to GI when aurora is active
+        if (AURORA_BOREALIS_ENABLED) {
+          float _auroraNightGate = 1.f - smoothstep(-0.15f, 0.f, _sunDirection.y);
+          float _auroraScale = lerp(1.f, AURORA_GI_ENERGY, _auroraNightGate);
+          _4067 *= _auroraScale; _4068 *= _auroraScale; _4069 *= _auroraScale;
+        }
         // [DAWN_DUSK_GI] Cubemap directional boost + energy floor
         if (DAWN_DUSK_IMPROVEMENTS == 1.f) {
           float _ddFactor = DawnDuskFactor(_sunDirection.y);
@@ -2317,6 +2323,12 @@ void main(
     float _4091 = _4090 * _4084.x;
     float _4092 = _4090 * _4084.y;
     float _4093 = _4090 * _4084.z;
+    // [AURORA_GI] Attenuate cubemap contribution to GI when aurora is active
+    if (AURORA_BOREALIS_ENABLED) {
+      float _auroraNightGate = 1.f - smoothstep(-0.15f, 0.f, _sunDirection.y);
+      float _auroraScale = lerp(1.f, AURORA_GI_ENERGY, _auroraNightGate);
+      _4091 *= _auroraScale; _4092 *= _auroraScale; _4093 *= _auroraScale;
+    }
     // [DAWN_DUSK_GI] Probe directional boost + energy floor
     if (DAWN_DUSK_IMPROVEMENTS == 1.f) {
       float _ddFactor = DawnDuskFactor(_sunDirection.y);
