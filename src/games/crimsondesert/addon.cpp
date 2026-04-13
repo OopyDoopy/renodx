@@ -182,11 +182,15 @@ const std::unordered_map<std::string, float> NEUTRAL_VALUES = {
 
 bool rr_draw = false;
 int rr_draw_counter = 0;
+bool is_nvidia = true;
 
 renodx::mods::shader::CustomShaders custom_shaders = {
     CustomShaderEntryCallback(0x21B66142, [](reshade::api::command_list* /*cmd_list*/) {
       rr_draw = true;
       return true;
+    }),
+    CustomShaderEntryCallback(0x28A5B177, [](reshade::api::command_list* /*cmd_list*/) {
+      return is_nvidia;
     }),
     __ALL_CUSTOM_SHADERS};
 // renodx::mods::shader::CustomShaders custom_shaders;
@@ -1441,6 +1445,12 @@ void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
   tone_map_diffuse_white_setting->default_value = fmin(renodx::utils::swapchain::ComputeReferenceWhite(tone_map_peak_nits_setting->default_value), 203.f);
 }
 
+void OnInitDevice(reshade::api::device* device) {
+  int vendor_id;
+  auto retrieved = device->get_property(reshade::api::device_properties::vendor_id, &vendor_id);
+  is_nvidia = (retrieved && vendor_id == 0x10de);
+}
+
 }  // namespace
 
 extern "C" __declspec(dllexport) constexpr const char* NAME = "RenoDX";
@@ -1451,6 +1461,9 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
     case DLL_PROCESS_ATTACH:
       if (!reshade::register_addon(h_module)) return FALSE;
       // while (IsDebuggerPresent() == 0) Sleep(100);
+
+      reshade::register_event<reshade::addon_event::init_device>(OnInitDevice); // Vendor detection
+
       reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
       reshade::register_event<reshade::addon_event::present>(OnPresent);
 
@@ -1470,6 +1483,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
 
       break;
     case DLL_PROCESS_DETACH:
+      reshade::unregister_event<reshade::addon_event::init_device>(OnInitDevice);
       reshade::unregister_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
       reshade::unregister_event<reshade::addon_event::present>(OnPresent);
       reshade::unregister_event<reshade::addon_event::draw>(OnVRSDraw);
