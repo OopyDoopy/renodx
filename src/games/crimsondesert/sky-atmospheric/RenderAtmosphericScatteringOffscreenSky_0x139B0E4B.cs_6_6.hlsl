@@ -1705,6 +1705,15 @@ void main(
     _4275 *= _energyAtten;
   }
 
+  // [NIGHT_SKY_ATTENUATION] Reduce sky brightness when sun is below horizon
+  // Works for both early morning and late evening
+  {
+    float _nightSkyAtten = NightSkyAttenuation(_sunDirection.y);
+    _4273 *= _nightSkyAtten;
+    _4274 *= _nightSkyAtten;
+    _4275 *= _nightSkyAtten;
+  }
+
   __3__38__0__1__g_texSkyInscatterUAV[int2((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y))] = float4(_4273, _4274, _4275, 0.0f);
   __3__38__0__1__g_texSkyExtinctionUAV[int2((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y))] = float4(_4256, _4257, _4258, 1.0f);
 }
