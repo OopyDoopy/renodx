@@ -247,7 +247,7 @@ void main(
     if (AURORA_BOREALIS_ENABLED) {
       float nightGate = ComputeNightGate(_sunDirection.y);
       float3 aurora = ComputeAurora(
-        float3(_111, _112, _113), _time.w, _frameNumber.x,
+        float3(_111, _112, _113), _time.w, _time.x, _frameNumber.x,
         uint2(SV_DispatchThreadID.x, SV_DispatchThreadID.y)
       );
       float transmittance = ChapmanTransmittance(0.f, _113, _rayleighScaledHeight, _earthRadius);
