@@ -26,6 +26,7 @@
 #define CUSTOM_FLAGS__TONEMAP_DEBUG_BIT1                0b0100000000000000000u
 #define CUSTOM_FLAGS__RR_ENABLED                        0b1000000000000000000u
 #define CUSTOM_FLAGS__AURORA_BOREALIS                   0b10000000000000000000u
+#define CUSTOM_FLAGS__NIGHT_SKY_ATTENUATION             0b100000000000000000000u
 
 #define CUSTOM_FLAGS                               shader_injection.custom_flags
 
@@ -100,7 +101,10 @@
 #define DAWN_DUSK_IMPROVEMENTS                 ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__DAWN_DUSK_IMPROVEMENTS) != 0u ? 1.f : 0.f)
 #define SNOW_FOG_FIX                           ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__SNOW_FOG_FIX) != 0u ? 1.f : 0.f)
 #define DAWN_DUSK_GI_ENERGY                    0.7f
-#define AURORA_GI_ENERGY                       0.1f
+#define AURORA_GI_ENERGY                       1.0f
+#define AURORA_BRIGHTNESS                      shader_injection.aurora_brightness
+#define AURORA_CHANCE                          shader_injection.aurora_chance
+#define NIGHT_SKY_ATTENUATION                  ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__NIGHT_SKY_ATTENUATION) != 0u ? 1.f : 0.f)
 
 // Auto exposure tuning
 //#define AE_DARK_POWER_OUTDOOR                shader_injection.ae_dark_power_outdoor
@@ -181,6 +185,8 @@ struct ShaderInjectData {
   float moon_disk_size;
   float lens_flare_strength;
   float bloom_strength;
+  float aurora_brightness;
+  float aurora_chance;
 };
 
 #ifndef __cplusplus

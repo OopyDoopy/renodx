@@ -3,8 +3,6 @@
 
 #include "../shared.h"
 
-// --- Dawn/dusk activation factor ---
-
 float DawnDuskFactor(float sunElevation) {
   if (DAWN_DUSK_IMPROVEMENTS == 0.f) return 0.f;
 
@@ -13,7 +11,38 @@ float DawnDuskFactor(float sunElevation) {
   return rise * fall;
 }
 
-// --- Mie phase boost ---
+// --- Night sky attenuation ---
+// The game's vanilla scattering produces bright skies too early (3am-4:30am)
+// and stays too bright after sunset. This attenuates inscatter energy when
+// the sun is below a threshold to keep the sky darker at night.
+//
+// Gated behind NIGHT_SKY_ATTENUATION flag.
+//
+// Sun elevation zones (radians):
+//   < 0.0 rad (< 0°)     = night, 10% brightness
+//   0.0 to 0.17 rad      = twilight transition, 10% to 100%
+//   > 0.17 rad (> +10°)  = daytime, no attenuation
+//
+// Returns a multiplier for inscatter energy
+
+float NightSkyAttenuation(float sunElevation) {
+  if (NIGHT_SKY_ATTENUATION == 0.f) return 1.f;
+  
+  // Night zone: sun below 0° (horizon) — hardcoded to 10% brightness
+  float nightMin = 0.10f;
+  
+  // Twilight zone: sun between 0° and +10° — hardcoded to 10% brightness
+  float twilightMin = 0.10f;
+  
+  // Blend from night to twilight as sun rises from 0° to +0.087 (~5°)
+  float nightToTwilight = smoothstep(0.0f, 0.087f, sunElevation);
+  float currentMin = lerp(nightMin, twilightMin, nightToTwilight);
+  
+  // Blend from twilight to full brightness as sun rises from +0.087 to +0.17 (~10°)
+  float twilightToDay = smoothstep(0.087f, 0.17f, sunElevation);
+  
+  return lerp(currentMin, 1.f, twilightToDay);
+}
 
 float MiePhaseBoostedG(float baseG, float dawnDuskFactor) {
   if (dawnDuskFactor == 0.f) return baseG;
@@ -24,13 +53,9 @@ float MiePhaseBoostedG(float baseG, float dawnDuskFactor) {
   return min(boostedG, maxG);
 }
 
-// --- Inscatter colour bias ---
-// Base game's scattering on the east and west looks very similar
-// This adds some hue differences at the horizon for better
-// distinction between the two
-//
-// Hues are picked from the spectral Rayleigh we added
-
+// Base game's scattering on the east and west looks very similar.
+// This adds hue differences at the horizon for better distinction.
+// Hues are picked from the spectral Rayleigh we added.
 float3 InscatterColorBias(float viewSunDot, float dawnDuskFactor,
                           float3 extinctionRGB) {
   if (dawnDuskFactor == 0.f) return 1.f;
@@ -43,13 +68,8 @@ float3 InscatterColorBias(float viewSunDot, float dawnDuskFactor,
   return lerp(1.f, tint, dawnDuskFactor * strength);
 }
 
-
-// --- SH L1 directional bias ---
-// Taken from CP2077
-//
 // Adds directional bias into the L1 SH band along the sun direction,
-// scaled by L0 so it tracks overall sky brightness
-
+// scaled by L0 so it tracks overall sky brightness. Taken from CP2077.
 void SHDirectionalBias(float3 sunDir, float dawnDuskFactor, float3 L0,
                        out float3 biasR, out float3 biasG, out float3 biasB) {
   if (dawnDuskFactor == 0.f) {
@@ -74,12 +94,9 @@ void SHDirectionalBias(float3 sunDir, float dawnDuskFactor, float3 L0,
   biasB = sunDir * magB;
 }
 
-// --- Dawn/dusk GI ambient boost ---
-// Restored directional contrast downstream to ambient since the sky probe 
-// suffers from an issue of being both low res and the inscatter gets heavily 
-// averaged at mip 4. Not that big of a deal with direct lighting from the sun
-// or moon but during dawn/dusk its rip creating flat GI
-
+// Restores directional contrast to ambient since the sky probe is low res
+// and inscatter gets heavily averaged at mip 4. Not a big deal with direct
+// sun/moon lighting but during dawn/dusk it creates flat GI.
 float3 DawnDuskAmbientBoost(float3 ambientRGB, float3 surfaceNormal,
                             float3 sunDir, float dawnDuskFactor,
                             float3 shL0) {
@@ -98,12 +115,8 @@ float3 DawnDuskAmbientBoost(float3 ambientRGB, float3 surfaceNormal,
   float3 directionalAmbient = ambientRGB * directionalMul * tint;
   float3 boosted = lerp(ambientRGB, directionalAmbient, dawnDuskFactor * boostStrength);
 
-  // --- Energy floor ---
   // Use luminance of L0 as a neutral reference so the floor doesnt inherit
-  // the sky colour bias
-  //
-  // Had an issue where tent interiors became way to red otherwise
-
+  // the sky colour bias (tent interiors were becoming way too red otherwise)
   float shL0Lum = renodx::color::y::from::BT709(shL0);
   float floorFraction = 0.15f;
   float3 floorRGB = shL0Lum * floorFraction * dawnDuskFactor;
