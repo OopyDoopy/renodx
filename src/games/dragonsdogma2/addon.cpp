@@ -19,6 +19,7 @@
 #include "../../utils/settings.hpp"
 #include "../../utils/swapchain.hpp"
 #include "../../utils/random.hpp"
+#include "../../utils/vtable.hpp"
 #include "./shared.h"
 
 namespace {
@@ -496,6 +497,175 @@ renodx::utils::settings::Settings settings = {
     }
 };
 
+float hide_freesync_hdr = 1.f;
+
+constexpr int AMD_AGS_SUCCESS = 0;
+constexpr int AMD_AGS_FAILURE = 1;
+
+struct AmdAgsRect {
+  int offset_x;
+  int offset_y;
+  int width;
+  int height;
+};
+
+struct AmdAgsDisplayInfo {
+  char name[256];
+  char display_device_name[32];
+  unsigned int is_primary_display : 1;
+  unsigned int hdr10 : 1;
+  unsigned int dolby_vision : 1;
+  unsigned int freesync : 1;
+  unsigned int freesync_hdr : 1;
+  unsigned int eyefinity_in_group : 1;
+  unsigned int eyefinity_preferred_display : 1;
+  unsigned int eyefinity_in_portrait_mode : 1;
+  unsigned int reserved_padding : 24;
+  int max_resolution_x;
+  int max_resolution_y;
+  float max_refresh_rate;
+  AmdAgsRect current_resolution;
+  AmdAgsRect visible_resolution;
+  float current_refresh_rate;
+  int eyefinity_grid_coord_x;
+  int eyefinity_grid_coord_y;
+  double chromaticity_red_x;
+  double chromaticity_red_y;
+  double chromaticity_green_x;
+  double chromaticity_green_y;
+  double chromaticity_blue_x;
+  double chromaticity_blue_y;
+  double chromaticity_white_point_x;
+  double chromaticity_white_point_y;
+  double screen_diffuse_reflectance;
+  double screen_specular_reflectance;
+  double min_luminance;
+  double max_luminance;
+  double avg_luminance;
+  int logical_display_index;
+  int adl_adapter_index;
+  int reserved;
+};
+
+struct AmdAgsDeviceInfo {
+  const char* adapter_string;
+  int asic_family;
+  unsigned int is_apu : 1;
+  unsigned int is_primary_device : 1;
+  unsigned int is_external : 1;
+  unsigned int reserved_padding : 29;
+  int vendor_id;
+  int device_id;
+  int revision_id;
+  int num_cus;
+  int num_wgps;
+  int num_rops;
+  int core_clock;
+  int memory_clock;
+  int memory_bandwidth;
+  float tera_flops;
+  unsigned long long local_memory_in_bytes;
+  unsigned long long shared_memory_in_bytes;
+  int num_displays;
+  AmdAgsDisplayInfo* displays;
+  int eyefinity_enabled;
+  int eyefinity_grid_width;
+  int eyefinity_grid_height;
+  int eyefinity_resolution_x;
+  int eyefinity_resolution_y;
+  int eyefinity_bezel_compensated;
+  int adl_adapter_index;
+  int reserved;
+};
+
+struct AmdAgsGpuInfo {
+  const char* driver_version;
+  const char* radeon_software_version;
+  int num_devices;
+  AmdAgsDeviceInfo* devices;
+};
+
+static void MaskAmdAgsGpuInfo(AmdAgsGpuInfo* gpu_info) {
+  if (gpu_info == nullptr || gpu_info->devices == nullptr || hide_freesync_hdr == 0.f) return;
+  if (gpu_info->num_devices < 0 || gpu_info->num_devices > 16) return;
+
+  bool masked = false;
+
+  for (int device_index = 0; device_index < gpu_info->num_devices; ++device_index) {
+    auto& device_info = gpu_info->devices[device_index];
+    if (device_info.displays == nullptr) continue;
+    if (device_info.num_displays < 0 || device_info.num_displays > 32) continue;
+
+    for (int display_index = 0; display_index < device_info.num_displays; ++display_index) {
+      auto& display_info = device_info.displays[display_index];
+      if (display_info.freesync_hdr != 0u) {
+        display_info.freesync_hdr = 0u;
+        masked = true;
+      }
+    }
+  }
+
+  if (masked) {
+    static bool logged = false;
+    if (!logged) {
+      logged = true;
+      reshade::log::message(
+          reshade::log::level::info,
+          "Hiding AMD FreeSync Premium HDR support via AGS while preserving normal HDR10 support.");
+    }
+  }
+}
+
+using PfnAgsInitialize = int (*)(int ags_version, const void* config, void** context, AmdAgsGpuInfo* gpu_info);
+using PfnAgsGetGpuInfo = int (*)(void* context, AmdAgsGpuInfo* gpu_info);
+
+PfnAgsInitialize real_ags_initialize = nullptr;
+int HookAgsInitialize(int ags_version, const void* config, void** context, AmdAgsGpuInfo* gpu_info) {
+  if (real_ags_initialize == nullptr) return AMD_AGS_FAILURE;
+
+  const auto result = real_ags_initialize(ags_version, config, context, gpu_info);
+  if (result == AMD_AGS_SUCCESS) {
+    MaskAmdAgsGpuInfo(gpu_info);
+  }
+  return result;
+}
+
+PfnAgsGetGpuInfo real_ags_get_gpu_info = nullptr;
+int HookAgsGetGpuInfo(void* context, AmdAgsGpuInfo* gpu_info) {
+  if (real_ags_get_gpu_info == nullptr) return AMD_AGS_FAILURE;
+
+  const auto result = real_ags_get_gpu_info(context, gpu_info);
+  if (result == AMD_AGS_SUCCESS) {
+    MaskAmdAgsGpuInfo(gpu_info);
+  }
+  return result;
+}
+
+void SetupPrototypeHooks() {
+  static bool setup_complete = false;
+  static renodx::utils::vtable::HookItem g_ags_hook_items[] = {
+      {"agsInitialize", reinterpret_cast<void**>(&real_ags_initialize), reinterpret_cast<void*>(&HookAgsInitialize)},
+      {"agsGetGPUInfo", reinterpret_cast<void**>(&real_ags_get_gpu_info), reinterpret_cast<void*>(&HookAgsGetGpuInfo)},
+  };
+
+  if (setup_complete) return;
+
+  HMODULE h_ags = GetModuleHandleW(L"amd_ags_x64.dll");
+  if (h_ags == nullptr) {
+    h_ags = GetModuleHandleW(L"amd_ags.dll");
+  }
+  if (h_ags == nullptr) {
+    return;
+  }
+
+  if (!renodx::utils::vtable::Hook(h_ags, g_ags_hook_items)) {
+    reshade::log::message(reshade::log::level::error, "Failed to hook AMD AGS FreeSync HDR capability queries");
+    return;
+  }
+
+  setup_complete = true;
+}
+
 void OnPresetOff() {
 //   renodx::utils::settings::UpdateSetting("ToneMapType", 0.f);
 //   renodx::utils::settings::UpdateSetting("ToneMapPeakNits", 1000.f);
@@ -520,6 +690,7 @@ void OnPresetOff() {
 bool fired_on_init_swapchain = false;
 
 void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
+  SetupPrototypeHooks();
 
   auto peak = renodx::utils::swapchain::GetPeakNits(swapchain);
   if (peak.has_value()) {
@@ -540,7 +711,8 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   switch (fdw_reason) {
     case DLL_PROCESS_ATTACH:
       if (!reshade::register_addon(h_module)) return FALSE;
-            reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
+      SetupPrototypeHooks();
+      reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
       // while (IsDebuggerPresent() == 0) Sleep(100);
 
       renodx::mods::shader::expected_constant_buffer_space = 50;
@@ -570,8 +742,6 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       //     .old_format = reshade::api::format::r8g8b8a8_typeless,
       //     .new_format = reshade::api::format::r16g16b16a16_float,
       // });
-
-      reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
 
       break;
     case DLL_PROCESS_DETACH:
