@@ -20,9 +20,9 @@ if (RR_ENABLED == 1.f && CONTACT_SHADOW_QUALITY == 1.f) {
   [branch]
   if (_microDistFade > 0.01f) {
     float _microRange = lerp(0.12f, 0.30f, saturate(_microLinDepth / 30.0f));
-    float _microStep  = renodx::math::DivideSafe(_microRange, (float)MICRO_STEPS);
+    float _microStep  = _microRange / (float)MICRO_STEPS;
     float _microThick = _microStep *
-      renodx::math::DivideSafe(_nearFarProj.x, max(1.0f, _microLinDepth * _microLinDepth));
+      _nearFarProj.x / max(1.0f, _microLinDepth * _microLinDepth);
     _microThick = clamp(_microThick, 0.00005f, 0.005f);
 
     // Temporal jitter
@@ -83,7 +83,7 @@ if (RR_ENABLED == 1.f && CONTACT_SHADOW_QUALITY == 1.f) {
 
       float _mdelta = _msd - _mRayDepth;
       if (_mdelta >= 0.0f && _mdelta <= _microThick) {
-        float _mocc = saturate(renodx::math::DivideSafe(_mdelta, _microThick, 0.f) * 2.5f);
+        float _mocc = saturate(_mdelta / _microThick * 2.5f);
         _microShadow = min(_microShadow, 1.0f - _mocc);
       }
     }
