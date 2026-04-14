@@ -192,6 +192,9 @@ renodx::mods::shader::CustomShaders custom_shaders = {
     CustomShaderEntryCallback(0x28A5B177, [](reshade::api::command_list* /*cmd_list*/) {
       return is_nvidia;
     }),
+    CustomShaderEntryCallback(0x877A6337, [](reshade::api::command_list* /*cmd_list*/) {
+      return is_nvidia;
+    }),
     __ALL_CUSTOM_SHADERS};
 // renodx::mods::shader::CustomShaders custom_shaders;
 
