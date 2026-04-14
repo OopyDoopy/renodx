@@ -196,6 +196,10 @@ void main(
 #endif
     }
 
+    if (D93_WHITE_POINT == 1.f) {
+      output_color = lerp(output_color, renodx::color::bt709::from::BT709D93(output_color), 0.5f);
+    }
+
     output_color = renodx::color::bt2020::from::BT709(output_color);
     output_color = renodx::color::pq::EncodeSafe(output_color, RENODX_DIFFUSE_WHITE_NITS);
     // output_color = renodx::color::srgb::EncodeSafe(output_color);

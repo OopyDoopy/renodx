@@ -1,4 +1,4 @@
-// A combo of "Volumetric Aurora Borealis with Polar Reflection" by gerardo-lcdf 
+// A combo of "Volumetric Aurora Borealis with Polar Reflection" by gerardo-lcdf
 // from Godot & KnighTec's work on W3 Blitz-FX. TY to both
 //
 // Though I will be real, whatever I have going on here atm is pure slop
@@ -13,11 +13,12 @@
 // Double to 70 min (4200 sec) to ensure consistency across full day/night cycle
 // ============================================================================
 
-static const float AURORA_SESSION_DURATION = 4200.f; 
+static const float AURORA_SESSION_DURATION = 4200.f;
 static const float AURORA_TRANSITION_TIME = 60.f;
 static const float AURORA_TRANSITION_FRAC = AURORA_TRANSITION_TIME / AURORA_SESSION_DURATION;
 static const float AURORA_TRANSITION_START = 1.f - AURORA_TRANSITION_FRAC;
-static const float AURORA_TIME_SCALE = 0.0035f; // For motion
+static const float AURORA_TIME_SCALE = 0.0035f; // For global motion amount
+static const int   AURORA_STEP_COUNT = 50;
 
 float ComputeNightGate(float sunDirY) {
   return 1.f - smoothstep(-0.15f, 0.f, sunDirY);
@@ -72,7 +73,7 @@ float AuroraBrightnessDampening(float aeDynamismHigh) {
 }
 
 // ============================================================================
-// Gradient noise (Perlin-style) — Inigo Quilez
+// Gradient noise (Perlin style) — Inigo Quilez
 // ============================================================================
 
 float2 AuroraGradientHash(float2 p) {
@@ -218,8 +219,10 @@ float AuroraPerlin1D(float p) {
   float pi = floor(p);
   float pf = p - pi;
   float w = pf * pf * pf * (pf * (6.f * pf - 15.f) + 10.f);
-  float g0 = ((uint)(AuroraHash1D(pi) * 10000.f) & 1) == 0 ? pf : -pf;
-  float g1 = ((uint)(AuroraHash1D(pi + 1.f) * 10000.f) & 1) == 0 ? (pf - 1.f) : -(pf - 1.f);
+  float sign0 = renodx::math::Select(((uint)(AuroraHash1D(pi) * 10000.f) & 1) == 0, 1.f, -1.f);
+  float sign1 = renodx::math::Select(((uint)(AuroraHash1D(pi + 1.f) * 10000.f) & 1) == 0, 1.f, -1.f);
+  float g0 = sign0 * pf;
+  float g1 = sign1 * (pf - 1.f);
   return lerp(g0, g1, w) * 2.f;
 }
 
@@ -251,15 +254,19 @@ float AuroraGlowDensity(float3 position, float gameTime, float animSpeed, float 
   float speed = gameTime * animSpeed;
   a.y += 0.015f * AuroraPerlin1D(mad(position.z, 0.042f, speed));
   a.y += 0.015f * AuroraPerlin1D(mad(position.z, 0.042f, -2.f * speed));
-  return max(0.f, AuroraGlow(length(a), 0.7f, 10.f) * saturate(cos(0.13f * footprint.x)));
+  return AuroraGlow(length(a), 0.7f, 10.f) * saturate(cos(0.13f * footprint.x));
 }
 
 // ============================================================================
 // Aurora volumetric raymarch
 // ============================================================================
 
-float3 ComputeAurora(float3 viewDir, float gameTime, float realTime, uint frameNumber,
+float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frameNumber,
                      uint2 pixelCoord) {
+                      
+  // So the code doesnt run during day time
+  if (nightGate <= 0.f) return 0.f;
+
   float3 rd = viewDir;
 
   float horizonFade = smoothstep(-0.05f, 0.15f, rd.y);
@@ -272,19 +279,22 @@ float3 ComputeAurora(float3 viewDir, float gameTime, float realTime, uint frameN
   float transitionBlend = AuroraSessionBlend(realTime, sessionIndex);
   float animTime = realTime * AURORA_TIME_SCALE;
 
-  // --- Palette selection with pity system ---
   uint paletteIndexCurrent, paletteIndexNext;
   {
     uint raw = min((uint)(AuroraHashInt(sessionIndex + 12345u) * 12.f), 11u);
-    uint prev1 = min((uint)(AuroraHashInt(sessionIndex - 1u + 12345u) * 12.f), 11u);
-    uint prev2 = min((uint)(AuroraHashInt(sessionIndex - 2u + 12345u) * 12.f), 11u);
-    paletteIndexCurrent = (raw == prev1 && raw == prev2) ? (raw + 1u) % 12u : raw;
+    uint prev1 = min((uint)(AuroraHashInt((sessionIndex > 0u ? sessionIndex - 1u : 0u) + 12345u) * 12.f), 11u);
+    uint prev2 = min((uint)(AuroraHashInt((sessionIndex > 1u ? sessionIndex - 2u : 0u) + 12345u) * 12.f), 11u);
+    paletteIndexCurrent = renodx::math::Select(
+      raw == prev1 && raw == prev2 && sessionIndex > 1u,
+      (raw + 1u) % 12u, raw);
   }
   {
     uint raw = min((uint)(AuroraHashInt(sessionIndex + 1u + 12345u) * 12.f), 11u);
     uint prev1 = min((uint)(AuroraHashInt(sessionIndex + 12345u) * 12.f), 11u);
-    uint prev2 = min((uint)(AuroraHashInt(sessionIndex - 1u + 12345u) * 12.f), 11u);
-    paletteIndexNext = (raw == prev1 && raw == prev2) ? (raw + 1u) % 12u : raw;
+    uint prev2 = min((uint)(AuroraHashInt((sessionIndex > 0u ? sessionIndex - 1u : 0u) + 12345u) * 12.f), 11u);
+    paletteIndexNext = renodx::math::Select(
+      raw == prev1 && raw == prev2 && sessionIndex > 0u,
+      (raw + 1u) % 12u, raw);
   }
   
   float brightnessVar = lerp(
@@ -296,15 +306,19 @@ float3 ComputeAurora(float3 viewDir, float gameTime, float realTime, uint frameN
   uint presetIndexCurrent, presetIndexNext;
   {
     uint raw = min((uint)(AuroraHashInt(sessionIndex + 34567u) * 10.f), 9u);
-    uint prev1 = min((uint)(AuroraHashInt(sessionIndex - 1u + 34567u) * 10.f), 9u);
-    uint prev2 = min((uint)(AuroraHashInt(sessionIndex - 2u + 34567u) * 10.f), 9u);
-    presetIndexCurrent = (raw == prev1 && raw == prev2) ? (raw + 1u) % 10u : raw;
+    uint prev1 = min((uint)(AuroraHashInt((sessionIndex > 0u ? sessionIndex - 1u : 0u) + 34567u) * 10.f), 9u);
+    uint prev2 = min((uint)(AuroraHashInt((sessionIndex > 1u ? sessionIndex - 2u : 0u) + 34567u) * 10.f), 9u);
+    presetIndexCurrent = renodx::math::Select(
+      raw == prev1 && raw == prev2 && sessionIndex > 1u,
+      (raw + 1u) % 10u, raw);
   }
   {
     uint raw = min((uint)(AuroraHashInt(sessionIndex + 1u + 34567u) * 10.f), 9u);
     uint prev1 = min((uint)(AuroraHashInt(sessionIndex + 34567u) * 10.f), 9u);
-    uint prev2 = min((uint)(AuroraHashInt(sessionIndex - 1u + 34567u) * 10.f), 9u);
-    presetIndexNext = (raw == prev1 && raw == prev2) ? (raw + 1u) % 10u : raw;
+    uint prev2 = min((uint)(AuroraHashInt((sessionIndex > 0u ? sessionIndex - 1u : 0u) + 34567u) * 10.f), 9u);
+    presetIndexNext = renodx::math::Select(
+      raw == prev1 && raw == prev2 && sessionIndex > 0u,
+      (raw + 1u) % 10u, raw);
   }
   
   // --- Presets: [mode, blend, sharpness, speed, sparsityLow, sparsityHigh, verticalScale, animSpeed, driftSpeed, pulseSpeed, waveSpeed] ---
@@ -398,13 +412,13 @@ float3 ComputeAurora(float3 viewDir, float gameTime, float realTime, uint frameN
   float verticalNoise = AuroraHash21(float2(pixelCoord) * 0.1f + frameJitter * 3.f) - 0.5f;
 
   [loop]
-  for (int i = 0; i < 50; i++) {
+  for (int i = 0; i < AURORA_STEP_COUNT; i++) {
     float fi = (float)i + temporalLayerOffset;
     
     float layerJitter = (pixelHash.x - 0.5f) * 0.5f * smoothstep(0.f, 6.f, fi);
     layerJitter += verticalNoise * 0.3f * smoothstep(0.f, 15.f, fi);
 
-    float t = saturate(fi / 49.f);
+    float t = saturate(fi / (float)(AURORA_STEP_COUNT - 1));
     float stepCurve = t * t * (3.f - 2.f * t);
     float planeHeight = 0.8f + sin(mad(fi, 0.06f, animTime * waveSpeed)) * 0.012f
                       + mad(stepCurve, 0.25f * verticalScale, layerJitter * 0.02f);
@@ -423,7 +437,7 @@ float3 ComputeAurora(float3 viewDir, float gameTime, float realTime, uint frameN
     float sparkle = smoothstep(mad(pixelHash.y, 0.06f, 0.92f), 1.0f,
                                AuroraHash21(p * 50.f + float2(frameJitter * 100.f, fi))) * rzt * 2.0f;
 
-    float heightBlend = saturate(mad(sin(1.f - 2.15f + fi * 0.043f), 0.5f, 0.5f));
+    float heightBlend = saturate(mad(sin(-1.15f + fi * 0.043f), 0.5f, 0.5f));
     float3 c01 = lerp(colorBottom, colorLowerMid, saturate(heightBlend * 3.f));
     float3 c12 = lerp(colorLowerMid, colorUpperMid, saturate((heightBlend - 0.333f) * 3.f));
     float3 c23 = lerp(colorUpperMid, colorTop, saturate((heightBlend - 0.666f) * 3.f));
@@ -440,7 +454,7 @@ float3 ComputeAurora(float3 viewDir, float gameTime, float realTime, uint frameN
     col += avgCol * layerWeight;
   }
 
-  return col.rgb * horizonFade * (AURORA_BRIGHTNESS / 100.f) * brightnessVar * visibilityFade;
+  return col.rgb * horizonFade * nightGate * (AURORA_BRIGHTNESS / 100.f) * brightnessVar * visibilityFade;
 }
 
 #endif  // SRC_CRIMSONDESERT_SKY_ATMOSPHERIC_AURORA_COMMON_HLSLI_

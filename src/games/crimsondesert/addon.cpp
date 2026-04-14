@@ -189,12 +189,6 @@ renodx::mods::shader::CustomShaders custom_shaders = {
       rr_draw = true;
       return true;
     }),
-    CustomShaderEntryCallback(0x28A5B177, [](reshade::api::command_list* /*cmd_list*/) {
-      return is_nvidia;
-    }),
-    CustomShaderEntryCallback(0x877A6337, [](reshade::api::command_list* /*cmd_list*/) {
-      return is_nvidia;
-    }),
     __ALL_CUSTOM_SHADERS};
 // renodx::mods::shader::CustomShaders custom_shaders;
 
@@ -870,15 +864,16 @@ renodx::utils::settings::Settings settings = {
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 2.f,
-        .packed_values = {0u, CUSTOM_FLAGS__DISABLE_AWB, CUSTOM_FLAGS__DISABLE_AWB | CUSTOM_FLAGS__DISABLE_HERO_LIGHTS},
+        .packed_values = {0u, CUSTOM_FLAGS__DISABLE_AWB, CUSTOM_FLAGS__DISABLE_AWB | CUSTOM_FLAGS__DISABLE_HERO_LIGHTS, CUSTOM_FLAGS__DISABLE_AWB | CUSTOM_FLAGS__DISABLE_HERO_LIGHTS | CUSTOM_FLAGS__D93_WHITE_POINT},
         .can_reset = true,
         .label = "Auto White Balance",
         .section = "Auto Exposure",
         .tooltip = "Controls the game's per channel auto white balance and hero lights.\n"
                    "Vanilla = AWB enabled (can cause hue shifts in HDR).\n"
                    "Disable AWB = AWB disabled, hero/fill lights remain.\n"
-                   "Disable AWB + Hero Lights = AWB and hero/fill lights disabled.",
-        .labels = {"Vanilla", "Disable AWB", "Disable AWB + Hero Lights"},
+                   "Disable AWB + No Hero Lights = AWB and hero lights disabled.\n"
+                   "Disabled AWB + D93 + No Hero Lights = AWB disabled with D93 whitepoint correction to fix yellow tint, hero lights disabled.",
+        .labels = {"Vanilla", "Disable AWB", "Disable AWB + No Hero Lights", "Disabled AWB + D93 lerp + No Hero Lights"},
         .tint = auto_exposure,
         .is_visible = []() { return current_settings_mode == auto_exposure_group; },
     },
