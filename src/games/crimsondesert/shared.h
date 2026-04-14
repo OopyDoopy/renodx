@@ -27,6 +27,7 @@
 #define CUSTOM_FLAGS__RR_ENABLED                        0b1000000000000000000u
 #define CUSTOM_FLAGS__AURORA_BOREALIS                   0b10000000000000000000u
 #define CUSTOM_FLAGS__NIGHT_SKY_ATTENUATION             0b100000000000000000000u
+#define CUSTOM_FLAGS__D93_WHITE_POINT                   0b1000000000000000000000u
 
 #define CUSTOM_FLAGS                               shader_injection.custom_flags
 
@@ -89,6 +90,7 @@
 #define LOCAL_LIGHT_SATURATION                 shader_injection.local_light_saturation
 #define DISABLE_AWB                            ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__DISABLE_AWB) != 0u ? 1.f : 0.f)
 #define DISABLE_HERO_LIGHTS                    ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__DISABLE_HERO_LIGHTS) != 0u ? 1.f : 0.f)
+#define D93_WHITE_POINT                        ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__D93_WHITE_POINT) != 0u ? 1.f : 0.f)
 
 #define IMPROVED_AUTO_EXPOSURE                 ((float)((((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__IMPROVED_AUTO_EXPOSURE) != 0u) ? 1u : 0u) | (((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__IMPROVED_AUTO_EXPOSURE_PERCEPTUAL) != 0u) ? 2u : 0u)))
 
