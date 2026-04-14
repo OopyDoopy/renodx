@@ -236,6 +236,12 @@ float4 main(
   SV_Target.y = select(_283, (_274 * exp2(log2(saturate((_238 * (_230 + -0.5f)) + _242)) * _254)), 0.0f);
   SV_Target.z = select(_283, (_274 * exp2(log2(saturate((_238 * (_231 + -0.5f)) + _242)) * _254)), 0.0f);
 
+  if (D93_WHITE_POINT == 1.f) {
+    float3 linear_color = renodx::color::srgb::Decode(SV_Target.xyz);
+    linear_color = lerp(linear_color, renodx::color::bt709::from::BT709D93(linear_color), 0.5f);
+    SV_Target.xyz = renodx::color::srgb::Encode(linear_color);
+  }
+
   SV_Target.xyz = CUSTOM_SDR_BLACK_CRUSH_FIX == 1 ? renodx::color::correct::Gamma(SV_Target.xyz, true) : SV_Target.xyz;
 
   SV_Target.w = _14.w;

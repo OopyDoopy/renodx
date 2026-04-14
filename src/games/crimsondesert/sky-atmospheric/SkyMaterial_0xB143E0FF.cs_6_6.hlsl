@@ -1241,10 +1241,10 @@ void main(
     if (AURORA_BOREALIS_ENABLED) {
       float nightGate = ComputeNightGate(_sunDirection.y);
       float3 aurora = ComputeAurora(
-        float3(_133, _134, _135), _time.w, _time.x, _frameNumber.x,
+        float3(_133, _134, _135), _time.x, nightGate, _frameNumber.x,
         uint2(_52, _54)
       );
-      aurora *= nightGate * _801;
+      aurora *= _801;
       aurora *= AuroraBrightnessDampening(AE_DYNAMISM_HIGH);
 
       // game's custom 3x3 color space transform
