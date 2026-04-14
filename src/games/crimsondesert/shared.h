@@ -27,7 +27,7 @@
 #define CUSTOM_FLAGS__RR_ENABLED                        0b1000000000000000000u
 #define CUSTOM_FLAGS__AURORA_BOREALIS                   0b10000000000000000000u
 #define CUSTOM_FLAGS__NIGHT_SKY_ATTENUATION             0b100000000000000000000u
-#define CUSTOM_FLAGS__D93_WHITE_POINT                   0b1000000000000000000000u
+//#define CUSTOM_FLAGS__D93_WHITE_POINT                   0b1000000000000000000000u
 
 #define CUSTOM_FLAGS                               shader_injection.custom_flags
 
@@ -47,6 +47,7 @@
 #define RENODX_TONE_MAP_HUE_RESTORE            shader_injection.tone_map_hue_restore
 #define RENODX_TONE_MAP_BLOWOUT                shader_injection.tone_map_blowout
 #define CUSTOM_TONE_MAP_MIDGRAY_ADJUST         shader_injection.custom_tone_map_midgray_adjust
+#define COLOR_TEMP_KELVIN                      shader_injection.color_temp_kelvin
 #define RENODX_COLOR_GRADE_STRENGTH            1.f
 
 #define RENODX_TONE_MAP_EXPOSURE               shader_injection.tone_map_exposure
@@ -90,7 +91,7 @@
 #define LOCAL_LIGHT_SATURATION                 shader_injection.local_light_saturation
 #define DISABLE_AWB                            ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__DISABLE_AWB) != 0u ? 1.f : 0.f)
 #define DISABLE_HERO_LIGHTS                    ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__DISABLE_HERO_LIGHTS) != 0u ? 1.f : 0.f)
-#define D93_WHITE_POINT                        ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__D93_WHITE_POINT) != 0u ? 1.f : 0.f)
+//#define D93_WHITE_POINT                        ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__D93_WHITE_POINT) != 0u ? 1.f : 0.f)
 
 #define IMPROVED_AUTO_EXPOSURE                 ((float)((((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__IMPROVED_AUTO_EXPOSURE) != 0u) ? 1u : 0u) | (((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__IMPROVED_AUTO_EXPOSURE_PERCEPTUAL) != 0u) ? 2u : 0u)))
 
@@ -155,6 +156,7 @@ struct ShaderInjectData {
   float tone_map_hue_restore;
   float tone_map_blowout;
   float custom_tone_map_midgray_adjust;
+  float color_temp_kelvin;
 
   float tone_map_exposure;
   float tone_map_highlights;
@@ -189,6 +191,7 @@ struct ShaderInjectData {
   float bloom_strength;
   float aurora_brightness;
   float aurora_chance;
+  //float reserved0;
 };
 
 #ifndef __cplusplus
