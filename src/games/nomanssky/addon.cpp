@@ -15,8 +15,8 @@
 #include <deps/imgui/imgui.h>
 #include <include/reshade.hpp>
 
-#include "../../mods/shader.hpp"
 #include "../../mods/swapchain.hpp"
+#include "../../mods/shader.hpp"
 #include "../../templates/settings.hpp"
 #include "../../utils/date.hpp"
 #include "../../utils/settings.hpp"
@@ -46,6 +46,7 @@ renodx::mods::shader::CustomShaders custom_shaders = {
   FinalShaderEntry(0xF69070B0),
   FinalShaderEntry(0x3A397057),
   FinalShaderEntry(0x62A3C134),
+  FinalShaderEntry(0xC3AFEE48),
   __ALL_CUSTOM_SHADERS,
 };
 
@@ -450,7 +451,7 @@ void OnPresent(
   draw_counter++;
 
   if (draw_counter > 5) {
-    LAST_IS_HDR = final_draw;
+    LAST_IS_HDR = final_draw ? 1.f : 0.f;
     final_draw = false;
     draw_counter = 0;
   }
@@ -510,7 +511,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
         True means it'll attempt to expand current cbuffer definitions instead of adding a new push constant
         entry. You'll have to experiment with this if cbuffer injection doesn't work
       */
-      renodx::mods::shader::expand_existing_constant_buffer = true;
+      //renodx::mods::shader::expand_existing_constant_buffer = true;
 
       /*
         If expand_existing_constant_buffer is set to false renoDX will add new cbuffer range (instead of reusing the game's).

@@ -1,0 +1,1 @@
+#include "../tonemap_bloom.frag.slang"
