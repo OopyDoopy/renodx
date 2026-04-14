@@ -123,12 +123,14 @@ float4 main(
   float _81;
   float _82;
   float _83;
-  float _143;
-  float _144;
-  float _145;
-  float _202;
-  float _203;
-  float _204;
+  float _140;
+  float _141;
+  float _142;
+  float _225;
+  float _283;
+  float _284;
+  float _285;
+
   if (_postProcessParams.w > 0.0f) {
     float4 _30 = __3__36__0__0__g_sceneColor.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(((_postProcessParams.w * ((TEXCOORD.x * 0.003000000026077032f) + -0.001500000013038516f)) + TEXCOORD.x), TEXCOORD.y), 0.0f);
     float4 _33 = __3__36__0__0__g_sceneColor.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(TEXCOORD.x, ((_postProcessParams.w * ((TEXCOORD.y * 0.003000000026077032f) + -0.001500000013038516f)) + TEXCOORD.y)), 0.0f);
@@ -162,57 +164,84 @@ float4 main(
   }
 
   if (CUSTOM_FILM_GRAIN_TYPE != 0 || CUSTOM_SHARPENING_TYPE != 0) {
-    float3 color_bt709 = float3(_81, _82, _83);
-    color_bt709 = renodx::color::srgb::Decode(color_bt709);
-    color_bt709 = CustomPostProcessing(color_bt709, TEXCOORD, __3__36__0__0__g_sceneColor, __0__4__0__0__g_staticBilinearClamp, 1);
-    color_bt709 = renodx::color::srgb::Encode(color_bt709);
-    _81 = color_bt709.x;
-    _82 = color_bt709.y;
-    _83 = color_bt709.z;
+    float3 color_pq = float3(_81, _82, _83);
+
+    float scaling = RENODX_TONE_MAP_TYPE == 0 ? 100.0f : RENODX_DIFFUSE_WHITE_NITS;
+    float3 color_bt2020 = renodx::color::pq::DecodeSafe(color_pq, scaling);
+    float3 color_bt709 = renodx::color::bt709::from::BT2020(color_bt2020);
+    color_bt709 = CustomPostProcessing(color_bt709, TEXCOORD, __3__36__0__0__g_sceneColor, __0__4__0__0__g_staticBilinearClamp, 0, scaling);
+    color_bt2020 = renodx::color::bt2020::from::BT709(color_bt709);
+    color_pq = renodx::color::pq::EncodeSafe(color_bt2020, scaling);
+
+    _81 = color_pq.x;
+    _82 = color_pq.y;
+    _83 = color_pq.z;
   }
 
-  float _114 = 1.0f - abs(_etcParams.w);
-  float _118 = saturate(_etcParams.w);
-  float _119 = (_114 * saturate(select((_81 < 0.040449999272823334f), (_81 * 0.07739938050508499f), exp2(log2((_81 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f)))) + _118;
-  float _120 = (_114 * saturate(select((_82 < 0.040449999272823334f), (_82 * 0.07739938050508499f), exp2(log2((_82 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f)))) + _118;
-  float _121 = (_114 * saturate(select((_83 < 0.040449999272823334f), (_83 * 0.07739938050508499f), exp2(log2((_83 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f)))) + _118;
+  float _111 = 1.0f - abs(_etcParams.w);
+  float _115 = saturate(_etcParams.w);
+#if 0
+  float _116 = (_111 * select((_81 < 0.040449999272823334f), (_81 * 0.07739938050508499f), exp2(log2((_81 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _115;
+  float _117 = (_111 * select((_82 < 0.040449999272823334f), (_82 * 0.07739938050508499f), exp2(log2((_82 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _115;
+  float _118 = (_111 * select((_83 < 0.040449999272823334f), (_83 * 0.07739938050508499f), exp2(log2((_83 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _115;
+#else
+  float _116 = _111 * _81 + _115;
+  float _117 = _111 * _82 + _115;
+  float _118 = _111 * _83 + _115;
+#endif
+
   if (_colorGradingParams.w > 0.0f) {
-    float _126 = saturate(_colorGradingParams.w);
-    _143 = (((max(0.0f, (1.0f - _119)) - _119) * _126) + _119);
-    _144 = (((max(0.0f, (1.0f - _120)) - _120) * _126) + _120);
-    _145 = (((max(0.0f, (1.0f - _121)) - _121) * _126) + _121);
+    float _123 = saturate(_colorGradingParams.w);
+    _140 = (((max(0.0f, (1.0f - _116)) - _116) * _123) + _116);
+    _141 = (((max(0.0f, (1.0f - _117)) - _117) * _123) + _117);
+    _142 = (((max(0.0f, (1.0f - _118)) - _118) * _123) + _118);
   } else {
-    _143 = _119;
-    _144 = _120;
-    _145 = _121;
+    _140 = _116;
+    _141 = _117;
+    _142 = _118;
   }
-  float _152 = _userImageAdjust.y + 1.0f;
-  float _156 = _userImageAdjust.x + 0.5f;
-  float _168 = 2.200000047683716f / ((min(max(_userImageAdjust.w, -1.0f), 1.0f) * 0.800000011920929f) + 2.200000047683716f);
-  float _183 = abs((TEXCOORD.x * 2.0f) + -1.0f);
-  float _184 = abs((TEXCOORD.y * 2.0f) + -1.0f);
-  float _188 = saturate(1.0f - (dot(float2(_183, _184), float2(_183, _184)) * (_postProcessParams.x * CUSTOM_VIGNETTE)));
+
+  float _149 = (pow(_140, 0.012683313339948654f));
+  float _150 = (pow(_141, 0.012683313339948654f));
+  float _151 = (pow(_142, 0.012683313339948654f));
+  float _177 = (TEXCOORD.x * 2.0f) + -1.0f;
+  float _178 = TEXCOORD.y * 2.0f;
+  float _179 = 1.0f - _178;
+  float _207 = mad((_projToPrevProj[3].z), 1.0000000116860974e-07f, mad((_projToPrevProj[3].y), _179, ((_projToPrevProj[3].x) * _177))) + (_projToPrevProj[3].w);
+  float _210 = ((mad((_projToPrevProj[0].z), 1.0000000116860974e-07f, mad((_projToPrevProj[0].y), _179, ((_projToPrevProj[0].x) * _177))) + (_projToPrevProj[0].w)) / _207) - _177;
+  float _211 = ((mad((_projToPrevProj[1].z), 1.0000000116860974e-07f, mad((_projToPrevProj[1].y), _179, ((_projToPrevProj[1].x) * _177))) + (_projToPrevProj[1].w)) / _207) - _179;
+  if (_localToneMappingParams.w > 0.0f) {
+    _225 = saturate(1.0f - (sqrt((_211 * _211) + (_210 * _210)) * 2.0f));
+  } else {
+    _225 = 1.0f;
+  }
+  float _228 = abs(_177);
+  float _229 = abs(_178 + -1.0f);
+  float _233 = saturate(1.0f - ((_225 * _postProcessParams.x * CUSTOM_VIGNETTE) * dot(float2(_228, _229), float2(_228, _229))));
+  float _243 = exp2(log2(_233 * exp2(log2(max(0.0f, (_149 + -0.8359375f)) / (18.8515625f - (_149 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
+  float _244 = exp2(log2(_233 * exp2(log2(max(0.0f, (_150 + -0.8359375f)) / (18.8515625f - (_150 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
+  float _245 = exp2(log2(_233 * exp2(log2(max(0.0f, (_151 + -0.8359375f)) / (18.8515625f - (_151 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
   if (!(SV_Position.y < _viewDir.w)) {
     if (!(SV_Position.y >= (_screenSizeAndInvSize.y - _viewDir.w))) {
-      _202 = (_188 * exp2(log2(saturate((_152 * (_143 + -0.5f)) + _156)) * _168));
-      _203 = (_188 * exp2(log2(saturate((_152 * (_144 + -0.5f)) + _156)) * _168));
-      _204 = (_188 * exp2(log2(saturate((_152 * (_145 + -0.5f)) + _156)) * _168));
+      _283 = exp2(log2((1.0f / ((_243 * 18.6875f) + 1.0f)) * ((_243 * 18.8515625f) + 0.8359375f)) * 78.84375f);
+      _284 = exp2(log2((1.0f / ((_244 * 18.6875f) + 1.0f)) * ((_244 * 18.8515625f) + 0.8359375f)) * 78.84375f);
+      _285 = exp2(log2((1.0f / ((_245 * 18.6875f) + 1.0f)) * ((_245 * 18.8515625f) + 0.8359375f)) * 78.84375f);
     } else {
-      _202 = 0.0f;
-      _203 = 0.0f;
-      _204 = 0.0f;
+      _283 = 0.0f;
+      _284 = 0.0f;
+      _285 = 0.0f;
     }
   } else {
-    _202 = 0.0f;
-    _203 = 0.0f;
-    _204 = 0.0f;
+    _283 = 0.0f;
+    _284 = 0.0f;
+    _285 = 0.0f;
   }
-  SV_Target.x = _202;
-  SV_Target.y = _203;
-  SV_Target.z = _204;
-
-  SV_Target.xyz = FinalizeSDR(SV_Target.xyz);
-
+  SV_Target.x = _283;
+  SV_Target.y = _284;
+  SV_Target.z = _285;
   SV_Target.w = _13.w;
+
+  SV_Target.xyz = FinalizeHDR(SV_Target.xyz);
+
   return SV_Target;
 }

@@ -454,7 +454,6 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.02f; },
         .is_visible = []() { return current_settings_mode == color_grading_group; },
     },
-
     new renodx::utils::settings::Setting{
         .key = "ColorGradeConeResponse",
         .binding = &shader_injection.tone_map_cone_response,
@@ -506,6 +505,21 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0 && IMPROVED_AUTO_EXPOSURE != 2.f; },
         .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode == color_grading_group; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "ColorGradeWhitePointKelvin",
+        .binding = &shader_injection.color_temp_kelvin,
+        .default_value = 6500.f,
+        .can_reset = true,
+        .label = "White Point",
+        .section = "Color Grading",
+        .tooltip = "Adjusts white point.\n"
+                   "6500 K = neutral. 9300 K shifts toward a cooler D93-style white point.",
+        .tint = color_grading,
+        .min = 6500.f,
+        .max = 9300.f,
+        .format = "%.0f K",
         .is_visible = []() { return current_settings_mode == color_grading_group; },
     },
     new renodx::utils::settings::Setting{
@@ -864,16 +878,15 @@ renodx::utils::settings::Settings settings = {
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 2.f,
-        .packed_values = {0u, CUSTOM_FLAGS__DISABLE_AWB, CUSTOM_FLAGS__DISABLE_AWB | CUSTOM_FLAGS__DISABLE_HERO_LIGHTS, CUSTOM_FLAGS__DISABLE_AWB | CUSTOM_FLAGS__DISABLE_HERO_LIGHTS | CUSTOM_FLAGS__D93_WHITE_POINT},
+        .packed_values = {0u, CUSTOM_FLAGS__DISABLE_AWB, CUSTOM_FLAGS__DISABLE_AWB | CUSTOM_FLAGS__DISABLE_HERO_LIGHTS},
         .can_reset = true,
         .label = "Auto White Balance",
         .section = "Auto Exposure",
         .tooltip = "Controls the game's per channel auto white balance and hero lights.\n"
                    "Vanilla = AWB enabled (can cause hue shifts in HDR).\n"
                    "Disable AWB = AWB disabled, hero/fill lights remain.\n"
-                   "Disable AWB + No Hero Lights = AWB and hero lights disabled.\n"
-                   "Disabled AWB + D93 + No Hero Lights = AWB disabled with D93 whitepoint correction to fix yellow tint, hero lights disabled.",
-        .labels = {"Vanilla", "Disable AWB", "Disable AWB + No Hero Lights", "Disabled AWB + D93 lerp + No Hero Lights"},
+                   "Disable AWB + No Hero Lights = AWB and hero lights disabled.",
+        .labels = {"Vanilla", "Disable AWB", "Disable AWB + No Hero Lights"},
         .tint = auto_exposure,
         .is_visible = []() { return current_settings_mode == auto_exposure_group; },
     },
