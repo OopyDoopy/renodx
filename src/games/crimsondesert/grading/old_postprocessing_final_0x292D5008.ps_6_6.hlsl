@@ -273,5 +273,8 @@ float4 main(
 #endif
   // Preserve source alpha.
   SV_Target.w = _14.w;
+
+  SV_Target.xyz = FinalizeHDR(SV_Target.xyz);
+
   return SV_Target;
 }

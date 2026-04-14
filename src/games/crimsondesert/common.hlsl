@@ -424,3 +424,60 @@ float3 NakaRushton(float3 x, float3 peak = 1.0f, float3 anchor_in = 0.18f, float
   float3 den = mad(a_n, peak_minus_anchor_out, x_n_anchor_out);
   return num / den;
 }
+
+float2 DaylightChromaticityFromKelvin(float kelvin) {
+  float temperature = clamp(kelvin, 4000.f, 25000.f);
+  float inverse_temperature = 1.f / temperature;
+  float inverse_temperature_squared = inverse_temperature * inverse_temperature;
+  float inverse_temperature_cubed = inverse_temperature_squared * inverse_temperature;
+
+  float x = temperature <= 7000.f
+                ? 0.244063f + 99.11f * inverse_temperature + 2967800.f * inverse_temperature_squared - 4607000000.f * inverse_temperature_cubed
+                : 0.237040f + 247.48f * inverse_temperature + 1901800.f * inverse_temperature_squared - 2006400000.f * inverse_temperature_cubed;
+  float y = -3.f * x * x + 2.87f * x - 0.275f;
+
+  return float2(x, y);
+}
+
+float3 ColorTempAdjustment(float3 color) {
+  float target_kelvin = clamp(COLOR_TEMP_KELVIN > 0.f ? COLOR_TEMP_KELVIN : 6500.f, 6500.f, 9300.f);
+  if (abs(target_kelvin - 6500.f) < 0.5f) {
+    return color;
+  }
+
+  static const float3x3 BRADFORD_LMS_TO_XYZ_MAT = renodx::math::Invert3x3(renodx::color::XYZ_D65_TO_BRADFORD_LMS_MAT);
+
+  float3 source_white_xyz = renodx::color::xyz::from::xyY(float3(renodx::color::WHITE_POINT_D65, 1.f));
+  float3 target_white_xyz = renodx::color::xyz::from::xyY(float3(DaylightChromaticityFromKelvin(target_kelvin), 1.f));
+
+  float3 source_white_lms = mul(renodx::color::XYZ_D65_TO_BRADFORD_LMS_MAT, source_white_xyz);
+  float3 target_white_lms = mul(renodx::color::XYZ_D65_TO_BRADFORD_LMS_MAT, target_white_xyz);
+
+  float3 color_xyz = renodx::color::xyz::from::BT709(color);
+  float3 color_lms = mul(renodx::color::XYZ_D65_TO_BRADFORD_LMS_MAT, color_xyz);
+  float3 adapted_lms = color_lms * renodx::math::DivideSafe(target_white_lms, max(source_white_lms, float3(1e-6f, 1e-6f, 1e-6f)), float3(1.f, 1.f, 1.f));
+  float3 adapted_xyz = mul(BRADFORD_LMS_TO_XYZ_MAT, adapted_lms);
+
+  return renodx::color::bt709::from::XYZ(adapted_xyz);
+}
+
+float3 FinalizeSDR(float3 srgb_color) {
+  float3 linear_color = renodx::color::srgb::Decode(srgb_color);
+  linear_color = ColorTempAdjustment(linear_color);
+  srgb_color = renodx::color::srgb::Encode(linear_color);
+  srgb_color = CUSTOM_SDR_BLACK_CRUSH_FIX == 1 ? renodx::color::correct::Gamma(srgb_color, true) : srgb_color;
+  return srgb_color;
+}
+
+float3 FinalizeHDR(float3 pq_color) {
+  float scaling = RENODX_TONE_MAP_TYPE == 0 ? 100.0f : RENODX_DIFFUSE_WHITE_NITS;
+  float3 linear_color_bt2020 = renodx::color::pq::DecodeSafe(pq_color, scaling);
+  float3 linear_color_bt709 = renodx::color::bt709::from::BT2020(linear_color_bt2020);
+
+  linear_color_bt709 = ColorTempAdjustment(linear_color_bt709);
+
+  linear_color_bt2020 = renodx::color::bt2020::from::BT709(linear_color_bt709);
+  pq_color = renodx::color::pq::EncodeSafe(linear_color_bt2020, scaling);
+  
+  return pq_color;
+}

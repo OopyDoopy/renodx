@@ -226,6 +226,8 @@ float4 main(
   SV_Target.y = _237;
   SV_Target.z = _238;
   SV_Target.w = _13.w;
+
+  SV_Target.xyz = FinalizeHDR(SV_Target.xyz);
   
   return SV_Target;
 }
