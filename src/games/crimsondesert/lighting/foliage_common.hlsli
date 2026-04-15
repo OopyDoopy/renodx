@@ -14,13 +14,28 @@ static const float FC_HUE_EDGE           = 0.175f;  // 10 deg smoothstep transit
 static const float FC_CHROMA_LOW         = 0.02f;   // OkLab chroma gate low
 static const float FC_CHROMA_HIGH        = 0.06f;   // OkLab chroma gate high
 static const float FC_GREEN_EXCESS_MIN   = 0.05f;   // green excess below this = no correction
-static const float FC_L_REDUCTION        = 0.02f;   // max lightness reduction
 static const float FC_SHADOW_DESAT_SCALE = 0.3f;    // shadow desat relative to sunlit
 static const float FC_SHADOW_COOL_SHIFT  = -0.015f; // cool shift on b axis for shadowed foliage
 static const float FC_SUN_ELEV_LOW       = 0.05f;   // sun elevation where correction begins
 static const float FC_SUN_ELEV_HIGH      = 0.5f;    // sun elevation where correction is full
 static const float FC_ATMOS_WARM_THR     = 0.7f;    // G/R ratio below which correction < 30%
 static const float FC_GATE_EPSILON       = 0.01f;   // gate threshold for early-out
+static const float FC_CHROMA_KNEE        = 0.08f;   // OkLab chroma below which extra desat is zero
+static const float FC_CHROMA_FULL        = 0.16f;   // OkLab chroma at which extra desat is maximum
+static const float FC_L_KNEE             = 0.45f;   // OkLab L below which no lightness reduction
+static const float FC_L_FULL             = 0.75f;   // OkLab L at which lightness reduction is maximum
+static const float FC_AO_DIST_NEAR       = 30.f;    // depth below which no boost (close range)
+static const float FC_AO_DIST_FAR        = 200.f;   // depth at which boost reaches maximum
+static const float FC_AO_DIST_BOOST_MAX  = 0.5f;    // maximum additional AO strength at distance
+
+// ============================================================================
+// Foliage AO strength with distance compensation
+// ============================================================================
+
+float FoliageAOStrength(float linearDepth) {
+  float distBoost = smoothstep(FC_AO_DIST_NEAR, FC_AO_DIST_FAR, linearDepth) * FC_AO_DIST_BOOST_MAX;
+  return min(1.f, FOLIAGE_AO_STRENGTH + distBoost);
+}
 
 // ============================================================================
 // Transmission constants
@@ -113,9 +128,17 @@ float3 FoliageColorCorrect(float3 baseColor, float3 sunDir,
   float strength    = colorGate * sunFactor * atmosFactor * FOLIAGE_CORRECTION_STRENGTH;
   if (strength < FC_GATE_EPSILON) return baseColor;
 
+  // --- Base desaturation (shadow aware) ---
   float sunDesat    = FOLIAGE_DESAT_STRENGTH * strength;
   float shadowDesat = FC_SHADOW_DESAT_SCALE * FOLIAGE_DESAT_STRENGTH * strength;
   float desat       = lerp(shadowDesat, sunDesat, shadowVis);
+
+  // --- Chroma proportional extra desaturation ---
+  // Neon grass in direct sunlight gets an additional chroma reduction
+  float chroma = sqrt(oklab.y * oklab.y + oklab.z * oklab.z);
+  float chromaExcess = smoothstep(FC_CHROMA_KNEE, FC_CHROMA_FULL, chroma);
+  float extraDesat   = chromaExcess * FOLIAGE_CHROMA_EXTRA_DESAT * strength * shadowVis;
+  desat = saturate(desat + extraDesat);
 
   oklab.y *= (1.f - desat);
   oklab.z *= (1.f - desat);
@@ -129,29 +152,27 @@ float3 FoliageColorCorrect(float3 baseColor, float3 sunDir,
   oklab.z  = b;
 
   oklab.z += lerp(FC_SHADOW_COOL_SHIFT * strength, 0.f, shadowVis);
-  oklab.x -= FC_L_REDUCTION * strength;
+
+  // --- Lightness reduction (luminance proportional, shadow-aware) ---
+  // Bright sunlit foliage gets pulled down more than dark foliage
+  float lExcess = smoothstep(FC_L_KNEE, FC_L_FULL, oklab.x);
+  float lRedSun    = lExcess * FOLIAGE_L_REDUCTION * strength;
+  float lRedShadow = lExcess * FOLIAGE_L_REDUCTION * strength * FC_SHADOW_DESAT_SCALE;
+  float lReduction = lerp(lRedShadow, lRedSun, shadowVis);
+  oklab.x -= lReduction;
 
   float3 corrected = renodx::color::bt709::from::OkLab(oklab);
   return max(0.f, corrected);
 }
 
 // ============================================================================
-// Frostbite-style thin translucency
+// Frostbite style thin translucency
 // ----------------------------------------------------------------------------
 // View dependent transmission with normal distortion, subsurface colour
 // tint (chlorophyll transmits 550-600nm), and wrapped diffuse for
 // energy conservation.
 //
 // Based on Barre Brisebois & Bouchard, GDC 2011
-//
-//   V           — view direction (toward camera, normalised)
-//   L           — light direction (toward light, normalised)
-//   N           — surface normal (normalised)
-//   NdotL       — dot(N, L), raw unclamped
-//   baseColor   — foliage albedo
-//   shadowColor — per-pixel shadow visibility RGB
-//   lightLum    — directional light luminance
-//   thickness   — leaf thickness [0,1], 0 = paper-thin, 1 = opaque
 // ============================================================================
 
 struct FoliageTransmissionResult {
@@ -189,6 +210,78 @@ FoliageTransmissionResult FoliageTransmission(
   }
 
   return result;
+}
+
+// ============================================================================
+// Selective Colour Adjustment
+// ----------------------------------------------------------------------------
+//   Yellows:       Yellow = +1.0  (deepens yellow saturation)
+//   Yellow Greens: Black  = +1.0  (darkens yellow-greens)
+//   Greens:        Black  = +1.0  (darkens greens)
+// ============================================================================
+
+float FoliageSelectiveHue(float3 c) {
+  float mx = max(max(c.x, c.y), c.z);
+  float mn = min(min(c.x, c.y), c.z);
+  float chroma = mx - mn;
+  if (chroma < 1e-5f) return 0.f;
+
+  float hue;
+  if (c.x >= c.y && c.x >= c.z)
+    hue = (c.y - c.z) / chroma;        // between yellow & magenta
+  else if (c.y >= c.x && c.y >= c.z)
+    hue = 2.f + (c.z - c.x) / chroma;  // between cyan & yellow
+  else
+    hue = 4.f + (c.x - c.y) / chroma;  // between magenta & cyan
+
+  hue /= 6.f;
+  if (hue < 0.f) hue += 1.f;
+  return hue;
+}
+
+float FoliageSelectiveCurve(float x) {
+  return x * x * (3.f - 2.f * x);
+}
+
+float FoliageSelectiveAdjust(float scale, float colorvalue, float adjust, float bk) {
+  return clamp(
+    ((-1.f - adjust) * bk - adjust) * (1.f - colorvalue),
+    -colorvalue,
+    1.f - colorvalue
+  ) * scale;
+}
+
+float3 FoliageSelectiveColor(float3 color) {
+  color = saturate(color);
+
+  float mn  = min(min(color.x, color.y), color.z);
+  float mx  = max(max(color.x, color.y), color.z);
+  float mid = color.x + color.y + color.z - mn - mx;
+  float scalar     = mx - mn;
+  float alt_scalar = (mid - mn) * 0.5f;
+  float cmy_scalar = scalar * 0.5f;
+
+  float hue = FoliageSelectiveHue(color);
+
+  float sw_y  = FoliageSelectiveCurve(max(1.f - abs((hue - 2.f / 12.f) * 6.f), 0.f));
+  float sw_yg = FoliageSelectiveCurve(max(1.f - abs((hue - 3.f / 12.f) * 6.f), 0.f));
+  float sw_g  = FoliageSelectiveCurve(max(1.f - abs((hue - 4.f / 12.f) * 6.f), 0.f));
+
+  float w_y  = sw_y  * cmy_scalar;
+  float w_yg = sw_yg * alt_scalar;
+  float w_g  = sw_g  * scalar;
+
+  color.z += FoliageSelectiveAdjust(w_y, color.z, FOLIAGE_SC_YELLOW, 0.f);
+
+  color.x += FoliageSelectiveAdjust(w_yg, color.x, 0.f, FOLIAGE_SC_YG_BLACK);
+  color.y += FoliageSelectiveAdjust(w_yg, color.y, 0.f, FOLIAGE_SC_YG_BLACK);
+  color.z += FoliageSelectiveAdjust(w_yg, color.z, 0.f, FOLIAGE_SC_YG_BLACK);
+
+  color.x += FoliageSelectiveAdjust(w_g, color.x, 0.f, FOLIAGE_SC_GREEN_BLACK);
+  color.y += FoliageSelectiveAdjust(w_g, color.y, 0.f, FOLIAGE_SC_GREEN_BLACK);
+  color.z += FoliageSelectiveAdjust(w_g, color.z, 0.f, FOLIAGE_SC_GREEN_BLACK);
+
+  return saturate(color);
 }
 
 #endif  // FOLIAGE_COMMON_HLSLI
