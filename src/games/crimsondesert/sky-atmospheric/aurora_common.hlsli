@@ -279,6 +279,7 @@ float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frame
   float transitionBlend = AuroraSessionBlend(realTime, sessionIndex);
   float animTime = realTime * AURORA_TIME_SCALE;
 
+  // --- Palette selection with pity system ---
   uint paletteIndexCurrent, paletteIndexNext;
   {
     uint raw = min((uint)(AuroraHashInt(sessionIndex + 12345u) * 12.f), 11u);
