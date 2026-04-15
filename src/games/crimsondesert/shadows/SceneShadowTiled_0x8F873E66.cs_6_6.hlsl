@@ -1021,19 +1021,14 @@ void main(
               }
             }
             // RenoDX: Weather adaptive grass occluder thickness
-            if (_2472 == 17) {
-              float _grassWeather = saturate(abs(_sunDirection.y) * FOLIAGE_SHADOW_SENSITIVITY);
-              _2546 = renodx::math::Select(RR_ENABLED == 1.f && CONTACT_SHADOW_QUALITY == 1.f, lerp(0.018f, 0.05f, _grassWeather), 0.09f);
-            }
+            // Reverted to vanilla (0.10). Previously tried weather-adaptive thickness
+            // (lerp 0.018–0.05 by sun elevation) and contribution scaling (lerp 0.3–0.65)
+            // to reduce harsh grass darkening at low sun angles, but the effect was too
+            // aggressive — grass shadows became invisible at dawn/dusk.
             float _2548 = saturate(_2478 * 0.015625f);
             float _2551 = (1.0f - _2548) + (_2548 * _2546);
             _2561 = _2472;
             _2562 = saturate((saturate(1.0f - ((_2551 * _2551) * _2546)) * (1.0f - _2457)) + _2457);
-            // RenoDX: Weather adaptive grass shadow contribution
-            if (RR_ENABLED == 1.f && CONTACT_SHADOW_QUALITY == 1.f && _2472 == 17) {
-              float _grassContrib = lerp(0.3f, 0.65f, saturate(abs(_sunDirection.y) * FOLIAGE_SHADOW_SENSITIVITY));
-              _2562 = lerp(_2457, _2562, _grassContrib);
-            }
           } else {
             _2561 = _2449;
             _2562 = _2457;
@@ -1167,19 +1162,14 @@ void main(
               }
             }
             // RenoDX: Weather adaptive grass occluder thickness
-            if (_2742 == 17) {
-              float _grassWeather2 = saturate(abs(_sunDirection.y) * FOLIAGE_SHADOW_SENSITIVITY);
-              _2816 = renodx::math::Select(RR_ENABLED == 1.f && CONTACT_SHADOW_QUALITY == 1.f, lerp(0.018f, 0.05f, _grassWeather2), 0.09f);
-            }
+            // Reverted to vanilla (0.10). Previously tried weather-adaptive thickness
+            // (lerp 0.018–0.05 by sun elevation) and contribution scaling (lerp 0.3–0.65)
+            // to reduce harsh grass darkening at low sun angles, but the effect was too
+            // aggressive — grass shadows became invisible at dawn/dusk.
             float _2818 = saturate(_2749 * 0.015625f);
             float _2821 = (1.0f - _2818) + (_2818 * _2816);
             _2831 = _2742;
             _2832 = saturate((saturate(1.0f - ((_2821 * _2821) * _2816)) * (1.0f - _2727)) + _2727);
-            // RenoDX: Weather adaptive grass shadow contribution
-            if (RR_ENABLED == 1.f && CONTACT_SHADOW_QUALITY == 1.f && _2742 == 17) {
-              float _grassContrib2 = lerp(0.3f, 0.65f, saturate(abs(_sunDirection.y) * FOLIAGE_SHADOW_SENSITIVITY));
-              _2832 = lerp(_2727, _2832, _grassContrib2);
-            }
           } else {
             _2831 = _2725;
             _2832 = _2727;
