@@ -615,13 +615,22 @@ void main(
       _425 = _270;
       _426 = _271;
     }
-    // RenoDX: Dynamic foliage color correction (replaces static FOLIAGE_GREEN_DESAT)
+    // RenoDX: Dynamic foliage colour correction
     if (FOLIAGE_COLOR_CORRECT > 0.0f && ((uint)(_103 - 12) < 7u)) {
       float3 _fcBaseColor = float3(float(_424), float(_425), float(_426));
-      float3 _fcCorrected = FoliageColorCorrect(_fcBaseColor, _sunDirection.xyz, 1.0f, float3(1.0f, 1.0f, 1.0f));
+      half4 _fcShadow = __3__36__0__0__g_sceneShadowColor.Load(int3(((int)((((uint)(((int)((uint)(_79) << 5)) & 2097120)) + SV_GroupThreadID.x) + ((uint)((_60 - (_61 << 2)) << 3)))), ((int)((((uint)(_61 << 3)) + SV_GroupThreadID.y) + ((uint)(((uint)((uint)(_79)) >> 16) << 5)))), 0));
+      float _fcShadowVis = saturate(float(_fcShadow.x) * 0.2126f + float(_fcShadow.y) * 0.7152f + float(_fcShadow.z) * 0.0722f);
+      float3 _fcCorrected = FoliageColorCorrect(_fcBaseColor, _sunDirection.xyz, _fcShadowVis, float3(1.0f, 1.0f, 1.0f));
       _424 = half(_fcCorrected.x);
       _425 = half(_fcCorrected.y);
       _426 = half(_fcCorrected.z);
+    }
+    // RenoDX: Foliage selective colour
+    if (FOLIAGE_IMPROVEMENTS == 1.f && ((uint)(_103 - 12) < 7u)) {
+      float3 _fscColor = FoliageSelectiveColor(float3(float(_424), float(_425), float(_426)));
+      _424 = half(_fscColor.x);
+      _425 = half(_fscColor.y);
+      _426 = half(_fscColor.z);
     }
     float _427 = float(_245);
     float _428 = float(_246);
@@ -893,6 +902,12 @@ void main(
     } else {
       _1246 = 1.0h;
     }
+    // RenoDX: Foliage AO — applied after vanilla if/else.
+    {
+      half _foliageAoMask = half(select(((uint)(_103 - 12) < 7u), FOLIAGE_AO_STRENGTH, 0.0f));
+      half _aoRaw = saturate(1.0h - _329.x);
+      _1246 = lerp(_1246, _aoRaw, _foliageAoMask);
+    }
     if (!(((_103 == 98)) || ((_717 == 96)))) {
       if ((uint)(_103 + -105) < (uint)2) {
         _1258 = _165;
@@ -956,6 +971,8 @@ void main(
     float _1474 = sqrt((_1470 * _1470) + (_1469 * _1469));
     float _1479 = saturate((((_1465 * _1465) * (1.0f - (_437 * 0.8999999761581421f))) * _1474) * select(_1463, 2000.0f, 500.0f));
     float _1488 = select(((((_273) || (_394))) || ((((_717 == 24)) || ((_renderParams.y > 0.0f))))), 1.0f, float(_329.y));
+    // RenoDX: Foliage specular AO.
+    _1488 = lerp(_1488, float(_329.y), select(((uint)(_103 - 12) < 7u), FOLIAGE_AO_STRENGTH, 0.0f));
     float _1492 = float(_1265);
     float _1497 = min(max((_cavityParams.y + -1.0f), 0.0f), 2.0f);
     float _1523 = saturate(saturate(1.0f - (((_1492 * _107) / max(0.0010000000474974513f, _437)) * 0.0010000000474974513f)) * 1.25f) * saturate(((((-0.05000000074505806f - (_1497 * 0.07500000298023224f)) + max(0.019999999552965164f, _1283)) + (saturate(_107 * 0.02500000037252903f) * 0.10000000149011612f)) * min(max((_107 + 1.0f), 5.0f), 50.0f)) * (1.0f - (saturate(_1492) * 0.75f)));
@@ -1351,6 +1368,9 @@ void main(
       _2244 = _1925;
     }
     half4 _2246 = __3__36__0__0__g_sceneShadowColor.Load(int3(((int)((((uint)(((int)((uint)(_79) << 5)) & 2097120)) + SV_GroupThreadID.x) + ((uint)((_60 - (_61 << 2)) << 3)))), ((int)((((uint)(_61 << 3)) + SV_GroupThreadID.y) + ((uint)(((uint)((uint)(_79)) >> 16) << 5)))), 0));
+    // RenoDX: Foliage AO on direct light
+    half _directAoMask = half(select(((uint)(_103 - 12) < 7u), FOLIAGE_AO_STRENGTH, 0.0f));
+    _2246.xyz *= lerp(1.0h, _329.x, _directAoMask);
     [branch]
     if (_394) {
       uint _2252 = __3__36__0__0__g_sceneNormal.Load(int3(((int)((((uint)(((int)((uint)(_79) << 5)) & 2097120)) + SV_GroupThreadID.x) + ((uint)((_60 - (_61 << 2)) << 3)))), ((int)((((uint)(_61 << 3)) + SV_GroupThreadID.y) + ((uint)(((uint)((uint)(_79)) >> 16) << 5)))), 0));
@@ -1527,13 +1547,10 @@ void main(
     float _2651 = 1.0f - _2628;
     float _2652 = _2651 * _2651;
     float _2680;
-    if (DIFFUSE_BRDF_MODE >= 2.0f) {
+    if (DIFFUSE_BRDF_MODE >= 1.0f) {
       // EON Diffuse
       float _eon_LdotV = dot(float3(_2611, _2612, _2613), float3(_431, _433, _435));
       _2680 = _2636 * EON_DiffuseScalar(_2636, _2628, _eon_LdotV, _2635);
-    } else if (DIFFUSE_BRDF_MODE >= 1.0f) {
-      // Hammon Diffuse
-      _2680 = _2636 * HammonDiffuseScalar(_2636, _2628, _2630, _2633, _2635);
     } else {
       // Vanilla Burley Diffuse
       _2680 = saturate((_2636 * 0.31830987334251404f) * ((((((1.0f - ((_2646 * _2646) * (_2645 * 0.75f))) * (1.0f - ((_2652 * _2652) * (_2651 * 0.75f)))) - _2644) * saturate((_2639 * 2.200000047683716f) + -0.5f)) + _2644) + ((exp2(-0.0f - (max(((_2639 * 73.19999694824219f) + -21.200000762939453f), 8.899999618530273f) * sqrt(_2630))) * _2633) * ((((_2639 * 34.5f) + -59.0f) * _2639) + 24.5f))));
