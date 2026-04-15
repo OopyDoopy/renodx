@@ -321,20 +321,20 @@ float3 ProcessTonemap(float3 untonemapped_bt709, float calculated_peak, float cu
       target_average,
       is_sdr);
 
-  if (RENODX_TONE_MAP_BLOWOUT != 0.f) {
-    float3 availability = 1.f.xxx / (1.f.xxx + (calculated_peak));
-    availability = lerp(1.f.xxx, availability, RENODX_TONE_MAP_BLOWOUT);
+  // if (RENODX_TONE_MAP_BLOWOUT != 0.f) {
+  //   float3 availability = 1.f.xxx / (1.f.xxx + (calculated_peak));
+  //   availability = lerp(1.f.xxx, availability, RENODX_TONE_MAP_BLOWOUT);
 
-    float3 lms_cones = renodx::color::lms::from::BT709(output_color);
-    float3 current_adaptive_state_lms = renodx::color::lms::from::BT709(target_average);
+  //   float3 lms_cones = renodx::color::lms::from::BT709(output_color);
+  //   float3 current_adaptive_state_lms = renodx::color::lms::from::BT709(target_average);
 
-    float input_energy = lms_cones.x + lms_cones.y + lms_cones.z;
-    float white_y = current_adaptive_state_lms.x + current_adaptive_state_lms.y + current_adaptive_state_lms.z;
-    float3 white_at_y = current_adaptive_state_lms * (input_energy / white_y);
-    float3 delta = (lms_cones - white_at_y) * availability;
-    lms_cones = max(0, white_at_y + delta);
-    output_color = renodx::color::bt709::from::LMS(lms_cones);
-  }
+  //   float input_energy = lms_cones.x + lms_cones.y + lms_cones.z;
+  //   float white_y = current_adaptive_state_lms.x + current_adaptive_state_lms.y + current_adaptive_state_lms.z;
+  //   float3 white_at_y = current_adaptive_state_lms * (input_energy / white_y);
+  //   float3 delta = (lms_cones - white_at_y) * availability;
+  //   lms_cones = max(0, white_at_y + delta);
+  //   output_color = renodx::color::bt709::from::LMS(lms_cones);
+  // }
   return output_color;
 }
 
