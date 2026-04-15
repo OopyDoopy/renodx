@@ -440,7 +440,8 @@ float2 DaylightChromaticityFromKelvin(float kelvin) {
 }
 
 float3 ColorTempAdjustment(float3 color) {
-  float target_kelvin = clamp(COLOR_TEMP_KELVIN > 0.f ? COLOR_TEMP_KELVIN : 6500.f, 6500.f, 9300.f);
+  float kelvin = COLOR_TEMP_KELVIN * 100.f;
+  float target_kelvin = clamp(kelvin > 0.f ? kelvin : 6500.f, 4000.f, 9300.f);
   if (abs(target_kelvin - 6500.f) < 0.5f) {
     return color;
   }
