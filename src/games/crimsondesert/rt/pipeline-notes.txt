@@ -361,6 +361,71 @@ MINOR
     lines of nearly-duplicated work and a significant ALU cost for those
     material types.
 
+13. NO LARGE-SCALE TERRAIN OCCLUSION IN GI — FLAT VALLEYS BEHIND MOUNTAINS
+
+    The GI system has no mechanism for large-scale terrain occlusion.
+    When a mountain blocks the sun (e.g. ~16:00 in a valley), the shadow
+    system (SceneShadowTiled) may correctly darken the valley floor for
+    direct light via terrain heightmap shadows or cascades, but the GI
+    pipeline is completely independent and has no knowledge of this.
+
+    The problem manifests as three interacting failures:
+
+    a) EvaluateDiffuseRadiance evaluates full shadow + lighting at RT hit
+       points (section 3e). Hit points on the mountain's backface or
+       distant terrain may fall outside shadow cascade coverage, so they
+       get evaluated as if in direct sunlight — producing high radiance
+       that feeds back into the GI.
+
+    b) The cubemap fallback path (section 3h) modulates by sky visibility
+       voxels (g_skyVisibilityVoxelsTexturesLikeUav), but these encode
+       static geometry occlusion of the sky hemisphere, not dynamic
+       sun-angle-dependent terrain shadow. The cubemap at 16:00 is still
+       bright in most directions, pumping omnidirectional sky energy into
+       the valley regardless of the mountain.
+
+    c) HBAO fades to zero at ~120 units linear depth (see AO section).
+       BilateralReconstructDiffuseGITiled applies AO modulation using
+       g_sceneAO, which is also zero at distance. This creates a visible
+       disconnect: near the player, SSAO provides some darkening; at
+       mid-to-far distance, zero AO + full unoccluded GI = glowing
+       terrain. The mountain's backface (no shadow, only GI) appears
+       brighter than the valley floor near the player (has AO).
+
+    Confirmed by undraw testing:
+    - Undrawing GenerateDiffuseRays uniformed the scene by killing all
+      RT GI downstream, confirming the incorrect energy comes through
+      the RT GI path.
+    - Undrawing SceneShadowTiled had no effect on the mountain's
+      occlusion, confirming the mountain doesn't cast into shadow maps
+      (or the terrain shadow doesn't cover it at that angle).
+
+    This is a fundamental architectural gap — the shadow system and GI
+    system operate independently with no shared large-scale occlusion
+    data. Potential fix approaches that were explored:
+
+    - Shadow-aware GI attenuation in RenderDiffuseTiled: use shadow
+      visibility to attenuate GI at distance where AO has faded out.
+      Tested but rejected — the approach is too coarse. Shadow color
+      encodes direct-light occlusion which doesn't map cleanly to
+      indirect-light occlusion. Shadowed areas that should still receive
+      strong indirect bounces (e.g. a sunlit wall bouncing light into a
+      shadowed courtyard) get incorrectly darkened. The near/far
+      transition also creates visible banding in some camera angles.
+
+    - Extending AO range: would require modifying SceneAOTiled to sample
+      at greater distances, but the screen-space nature of HBAO means
+      distant samples cover less world area and become unreliable.
+
+    - Injecting terrain shadow into EvaluateDiffuseRadiance hit-point
+      evaluation: the most correct approach but requires the terrain
+      shadow projection matrix to cover hit point positions, which may
+      not be the case for distant hits.
+
+    Currently unresolved. The issue is most visible in valleys with
+    large terrain features blocking the sun at oblique angles (~15:00-
+    17:00 game time).
+
 
 ================================================================================
 RNG DETAILS
