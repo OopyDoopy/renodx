@@ -158,6 +158,7 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
     {"SunMoonAdjustments", 0.f},
     {"MoonDiskSize", 1.f},
     {"ContactShadowQuality", 0.f},
+    {"FoliageImprovements", 0.f},
     {"MaterialImprovements", 0.f},
     {"DawnDuskImprovements", 0.f},
     {"SnowFogFix", 0.f},
@@ -1104,13 +1105,29 @@ renodx::utils::settings::Settings settings = {
         .default_value = 1.f,
         .packed_values = {0u, CUSTOM_FLAGS__CONTACT_SHADOW_QUALITY},
         .can_reset = true,
-        .label = "Grass/Foliage Improvements (WIP)",
+        .label = "Contact Micro Shadows (WIP)",
         .section = "Rendering",
-        .tooltip = "Toggles contact shadow changes + transmission + AO.\n"
+        .tooltip = "Toggles contact shadow improvements.\n"
+                   "Off = vanilla contact shadows.\n"
+                   "On = Improved shadow detail with tighter depth bias + SSDM aware details,\n",
+        .labels = {"Off", "On"},
+        .tint = rendering,
+        .is_enabled = []() { return RR_ENABLED; },
+        .is_visible = []() { return current_settings_mode == rendering_group; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "FoliageImprovements",
+        .binding = &shader_injection.custom_flags,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .packed_values = {0u, CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS},
+        .can_reset = true,
+        .label = "Grass/Foliage Dynamic Desaturation + Hue + AO (WIP)",
+        .section = "Rendering",
+        .tooltip = "Toggles foliage rendering improvements.\n"
                    "Off = vanilla foliage.\n"
-                   "On = improved foliage/grass shadow detail with tighter depth bias and higher opacity to stop abyss occluder shadows for foliage.\n"
-                   "Transmission has been added to simulate diffuse scattering through vegetation / base game was completely uniform.\n"
-                   "Added shader side simple AO for foliage since the base game lacks it entirely, causing uniform foliage",
+                   "On = foliage colour correction, transmission (diffuse scattering through vegetation),\n"
+                   "and AO for foliage materials (base game lacks it entirely).",
         .labels = {"Off", "On"},
         .tint = rendering,
         .is_enabled = []() { return RR_ENABLED; },
@@ -1399,6 +1416,7 @@ void OnPresetOff() {
       {"SunMoonAdjustments", 0.f},
       {"MoonDiskSize", 1.f},
       {"ContactShadowQuality", 0.f},
+      {"FoliageImprovements", 0.f},
       {"RaytracingQuality", 0.f},
       {"MaterialImprovements", 0.f},
       {"DawnDuskImprovements", 0.f},

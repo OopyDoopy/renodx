@@ -955,6 +955,9 @@ float4 main(
       float _850 = _849 * _motionBlurParam.x;
       float _851 = _850 * _845.y;
       uint _854 = uint(_backgroundBlurParam1.w);
+      
+      // Force distortion offsets off.
+      _854 = 0u;
       int _855 = _854 & 1;
       bool _856 = (_855 == 0);
       if (!_856) {
