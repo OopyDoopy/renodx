@@ -510,16 +510,16 @@ renodx::utils::settings::Settings settings = {
         new renodx::utils::settings::Setting{
         .key = "ColorGradeWhitePointKelvin",
         .binding = &shader_injection.color_temp_kelvin,
-        .default_value = 6500.f,
+        .default_value = 65.f,
         .can_reset = true,
         .label = "White Point",
         .section = "Color Grading",
         .tooltip = "Adjusts white point.\n"
-                   "6500 K = neutral. 9300 K shifts toward a cooler D93-style white point.",
+                   "6500 K = neutral. Higher values are cooler, lower values are warmer.",
         .tint = color_grading,
-        .min = 6500.f,
-        .max = 9300.f,
-        .format = "%.0f K",
+        .min = 40.f,
+        .max = 93.f,
+        .format = "%.0f00K", // Written this way to increment by 100s
         .is_visible = []() { return current_settings_mode == color_grading_group; },
     },
     new renodx::utils::settings::Setting{
