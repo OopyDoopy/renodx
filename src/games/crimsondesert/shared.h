@@ -28,6 +28,7 @@
 #define CUSTOM_FLAGS__AURORA_BOREALIS                   0b10000000000000000000u
 #define CUSTOM_FLAGS__NIGHT_SKY_ATTENUATION             0b100000000000000000000u
 //#define CUSTOM_FLAGS__D93_WHITE_POINT                   0b1000000000000000000000u
+#define CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS              0b10000000000000000000000u
 
 #define CUSTOM_FLAGS                               shader_injection.custom_flags
 
@@ -70,7 +71,8 @@
 #define SHADOW_DEBUG_MODE                      0 // shader_injection.shadow_debug_mode
 #define SHADOW_DISABLE_LAYER                   0 // shader_injection.shadow_disable_layer
 #define CONTACT_SHADOW_QUALITY                 ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__CONTACT_SHADOW_QUALITY) != 0u) ? 1.f : 0.f)
-#define FOLIAGE_TRANSMISSION                   (CONTACT_SHADOW_QUALITY == 1.f ? 1.0f : 0.0f)
+#define FOLIAGE_IMPROVEMENTS                   ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS) != 0u) ? 1.f : 0.f)
+#define FOLIAGE_TRANSMISSION                   (FOLIAGE_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
 #define RT_QUALITY                             (RR_ENABLED == 1.f ? (float)((CUSTOM_FLAGS_AS_UINT >> 10u) & 0x3u) : 0.f)
 #define RR_ENABLED                             ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__RR_ENABLED) != 0u ? 1.f : 0.f)
 #define AURORA_BOREALIS_ENABLED                ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__AURORA_BOREALIS) != 0u) ? 1.f : 0.f)
@@ -81,17 +83,23 @@
 #define SMOOTH_TERMINATOR                      (MATERIAL_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
 #define SPECULAR_AA                            (MATERIAL_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
 #define DIFFRACTION                            (MATERIAL_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
-#define FOLIAGE_COLOR_CORRECT                  (CONTACT_SHADOW_QUALITY == 1.f ? 1.0f : 0.0f)
-#define FOLIAGE_DESAT_STRENGTH                 0.50f
+#define FOLIAGE_COLOR_CORRECT                  (FOLIAGE_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
+#define FOLIAGE_DESAT_STRENGTH                 0.55f
 #define FOLIAGE_HUE_SHIFT                      0.0f
-#define FOLIAGE_CORRECTION_STRENGTH            0.50f
+#define FOLIAGE_CORRECTION_STRENGTH            0.60f
+#define FOLIAGE_CHROMA_EXTRA_DESAT             10.0f
+#define FOLIAGE_L_REDUCTION                    2.0f
+#define FOLIAGE_AO_STRENGTH                    (FOLIAGE_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
 #define FOLIAGE_TRANSMISSION_STRENGTH          1.0f
 #define FOLIAGE_TRANSMISSION_THICKNESS         1.0f
+#define FOLIAGE_SC_YELLOW                      1.0f
+#define FOLIAGE_SC_YG_BLACK                    1.0f
+#define FOLIAGE_SC_GREEN_BLACK                 1.0f
 #define LOCAL_LIGHT_HUE_CORRECTION             shader_injection.local_light_hue_correction
 #define LOCAL_LIGHT_SATURATION                 shader_injection.local_light_saturation
 #define DISABLE_AWB                            ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__DISABLE_AWB) != 0u ? 1.f : 0.f)
 #define DISABLE_HERO_LIGHTS                    ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__DISABLE_HERO_LIGHTS) != 0u ? 1.f : 0.f)
-//#define D93_WHITE_POINT                        ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__D93_WHITE_POINT) != 0u ? 1.f : 0.f)
+//#define D93_WHITE_POINT                      ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__D93_WHITE_POINT) != 0u ? 1.f : 0.f)
 
 #define IMPROVED_AUTO_EXPOSURE                 ((float)((((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__IMPROVED_AUTO_EXPOSURE) != 0u) ? 1u : 0u) | (((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__IMPROVED_AUTO_EXPOSURE_PERCEPTUAL) != 0u) ? 2u : 0u)))
 
