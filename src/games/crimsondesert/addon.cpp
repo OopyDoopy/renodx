@@ -181,6 +181,17 @@ const std::unordered_map<std::string, float> NEUTRAL_VALUES = {
     {"LocalLightSaturation", 43.f},
 };
 
+const std::unordered_map<std::string, float> HDR_LOOK_VALUES = {
+    {"ColorGradeExposure", 0.9f},
+    {"ColorGradeShadows", 54.f},
+    {"ColorGradeConeResponse", 65.f},
+    {"ColorGradeContrast", 50.f},
+    {"ColorGradeSaturation", 56.f},
+    {"ColorGradeHighlights", 41.f},
+    {"ToneMapBlowout", 5.f},
+    {"CustomToneMapMidgrayAdjust", 100.f},
+};
+
 bool rr_draw = false;
 int rr_draw_counter = 0;
 bool is_nvidia = true;
@@ -328,6 +339,27 @@ renodx::utils::settings::Settings settings = {
           } },
         .is_visible = []() { return current_settings_mode == color_grading_group; },
     },
+        new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "HDR Look",
+        .section = "Grading Presets",
+        .group = "button-line-1",
+        .tooltip = "Preset values that align with people's expectations for how HDR should look. Does not work well in SDR.",
+        .on_change = []() {
+          for (auto* setting : settings) {
+            if (setting->key.empty()) continue;
+            if (!setting->can_reset) continue;
+            if (!setting->section.starts_with("Tone Mapping")
+                && !setting->section.starts_with("Color Grading")
+                && !setting->section.starts_with("Local Lighting")) continue;
+            if (HDR_LOOK_VALUES.contains(setting->key)) {
+              renodx::utils::settings::UpdateSetting(setting->key, HDR_LOOK_VALUES.at(setting->key));
+              continue;
+            }
+            renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+          } },
+        .is_visible = []() { return current_settings_mode == color_grading_group && hdr_settings_toggle == 1; },
+    },
     new renodx::utils::settings::Setting{
         .key = "ToneMapType",
         .binding = &shader_injection.custom_flags,
@@ -429,7 +461,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ColorGradeHighlights",
         .binding = &shader_injection.tone_map_highlights,
-        .default_value = 46.f,
+        .default_value = 41.f,
         .label = "Highlights",
         .section = "Color Grading",
         .tint = color_grading,
@@ -465,7 +497,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ColorGradeSaturation",
         .binding = &shader_injection.tone_map_saturation,
-        .default_value = 65.f,
+        .default_value = 60.f,
         .label = "Saturation",
         .section = "Color Grading",
         .tint = color_grading,
@@ -504,7 +536,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ToneMapBlowout",
         .binding = &shader_injection.tone_map_blowout,
-        .default_value = 20.f,
+        .default_value = 5.f,
         .label = "Blowout",
         .section = "Color Grading",
         .tooltip = "Desaturates the brightest portions of the image, also relative to peak brightness.",
