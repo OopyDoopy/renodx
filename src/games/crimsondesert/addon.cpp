@@ -185,11 +185,30 @@ bool rr_draw = false;
 int rr_draw_counter = 0;
 bool is_nvidia = true;
 
+// --- Aurora night detection ---
+// SceneShadowTiledNight shaders only dispatch during night. 
+// We track when they start/stop firing to detect night transitions.
+bool night_shader_active = false;     
+bool night_shader_was_active = false;  
+int night_check_counter = 0;
+uint32_t aurora_night_counter = 0;     
+
 renodx::mods::shader::CustomShaders custom_shaders = {
     CustomShaderEntryCallback(0x21B66142, [](reshade::api::command_list* /*cmd_list*/) {
       rr_draw = true;
       return true;
     }),
+
+    // SceneShadowTiledNight shaders
+    CustomShaderEntryCallback(0x7A05D3C9, [](reshade::api::command_list* /*cmd_list*/) {
+      night_shader_active = true;
+      return true;
+    }),
+    CustomShaderEntryCallback(0xD8405E1F, [](reshade::api::command_list* /*cmd_list*/) {
+      night_shader_active = true;
+      return true;
+    }),
+
     __ALL_CUSTOM_SHADERS};
 // renodx::mods::shader::CustomShaders custom_shaders;
 
@@ -1453,6 +1472,21 @@ void OnPresent(reshade::api::command_queue* /*queue*/,
     shader_injection.custom_flags = std::bit_cast<float>((CUSTOM_FLAGS_AS_UINT & ~CUSTOM_FLAGS__RR_ENABLED) | (rr_draw ? CUSTOM_FLAGS__RR_ENABLED : 0u));
     rr_draw = false;
     rr_draw_counter = 0;
+  }
+
+  // --- Aurora night seed: detect night transitions via SceneShadowTiledNight ---
+  // SceneShadowTiledNight shaders only run during night, this allows us to use 
+  // them as a proxy to re roll the aurora seed
+  night_check_counter++;
+  if (night_check_counter >= 30) {
+    if (night_shader_active && !night_shader_was_active) {
+      aurora_night_counter++;
+      uint32_t seed_bits = aurora_night_counter * 2654435761u;
+      shader_injection.aurora_night_seed = static_cast<float>(seed_bits & 0xFFFFu) / 65535.f;
+    }
+    night_shader_was_active = night_shader_active;
+    night_shader_active = false;
+    night_check_counter = 0;
   }
 }
 
