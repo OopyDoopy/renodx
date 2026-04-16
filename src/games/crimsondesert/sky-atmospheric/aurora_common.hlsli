@@ -7,16 +7,6 @@
 #ifndef SRC_CRIMSONDESERT_SKY_ATMOSPHERIC_AURORA_COMMON_HLSLI_
 #define SRC_CRIMSONDESERT_SKY_ATMOSPHERIC_AURORA_COMMON_HLSLI_
 
-// ============================================================================
-// Night is roughly 8PM-3AM = 7 in game hours = 35 real minutes
-// 1 in game minute = 5 rl seconds
-// Double to 70 min (4200 sec) to ensure consistency across full day/night cycle
-// ============================================================================
-
-static const float AURORA_SESSION_DURATION = 4200.f;
-static const float AURORA_TRANSITION_TIME = 60.f;
-static const float AURORA_TRANSITION_FRAC = AURORA_TRANSITION_TIME / AURORA_SESSION_DURATION;
-static const float AURORA_TRANSITION_START = 1.f - AURORA_TRANSITION_FRAC;
 static const float AURORA_TIME_SCALE = 0.0035f; // For global motion amount
 static const int   AURORA_STEP_COUNT = 50;
 
@@ -39,28 +29,21 @@ float AuroraHashInt(uint n) {
   return frac((float)n * 0.6180339887f);
 }
 
-float AuroraSessionBlend(float realTime, out uint sessionIndex) {
-  float sessionProgress = realTime / AURORA_SESSION_DURATION;
-  sessionIndex = (uint)sessionProgress;
-  float sessionFrac = frac(sessionProgress);
-  
-  return renodx::math::Select(
-    sessionFrac > AURORA_TRANSITION_START,
-    smoothstep(0.f, 1.f, (sessionFrac - AURORA_TRANSITION_START) / AURORA_TRANSITION_FRAC),
-    0.f);
+// ============================================================================
+// Night seed session system
+//
+// Use AURORA_NIGHT_SEED for each night and re rolls
+// The CPU detects transitions by tracking SceneShadowTiledNight
+// ============================================================================
+
+uint AuroraNightSessionIndex(float nightSeed) {
+  return (uint)(nightSeed * 65535.f);
 }
 
-float AuroraNightVisibility(float realTime, float chance) {
-  uint sessionIndex;
-  float transitionBlend = AuroraSessionBlend(realTime, sessionIndex);
-  
-  float rollCurrent = AuroraHashInt(sessionIndex);
-  float rollNext = AuroraHashInt(sessionIndex + 1u);
-  
-  float visibleCurrent = renodx::math::Select(rollCurrent < chance, 1.f, 0.f);
-  float visibleNext = renodx::math::Select(rollNext < chance, 1.f, 0.f);
-  
-  return lerp(visibleCurrent, visibleNext, transitionBlend);
+float AuroraNightVisibility(float nightSeed, float chance) {
+  uint sessionIndex = AuroraNightSessionIndex(nightSeed);
+  float roll = AuroraHashInt(sessionIndex);
+  return renodx::math::Select(roll < chance, 1.f, 0.f);
 }
 
 // --- AE compensated aurora dampening ---
@@ -272,53 +255,33 @@ float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frame
   float horizonFade = smoothstep(-0.05f, 0.15f, rd.y);
   if (horizonFade <= 0.f) return 0.f;
 
-  float visibilityFade = AuroraNightVisibility(realTime, AURORA_CHANCE / 100.f);
+  float visibilityFade = AuroraNightVisibility(AURORA_NIGHT_SEED, AURORA_CHANCE / 100.f);
   if (visibilityFade <= 0.f) return 0.f;
 
-  uint sessionIndex;
-  float transitionBlend = AuroraSessionBlend(realTime, sessionIndex);
+  uint sessionIndex = AuroraNightSessionIndex(AURORA_NIGHT_SEED);
   float animTime = realTime * AURORA_TIME_SCALE;
 
   // --- Palette selection with pity system ---
-  uint paletteIndexCurrent, paletteIndexNext;
+  uint paletteIndex;
   {
     uint raw = min((uint)(AuroraHashInt(sessionIndex + 12345u) * 12.f), 11u);
     uint prev1 = min((uint)(AuroraHashInt((sessionIndex > 0u ? sessionIndex - 1u : 0u) + 12345u) * 12.f), 11u);
     uint prev2 = min((uint)(AuroraHashInt((sessionIndex > 1u ? sessionIndex - 2u : 0u) + 12345u) * 12.f), 11u);
-    paletteIndexCurrent = renodx::math::Select(
+    paletteIndex = renodx::math::Select(
       raw == prev1 && raw == prev2 && sessionIndex > 1u,
       (raw + 1u) % 12u, raw);
   }
-  {
-    uint raw = min((uint)(AuroraHashInt(sessionIndex + 1u + 12345u) * 12.f), 11u);
-    uint prev1 = min((uint)(AuroraHashInt(sessionIndex + 12345u) * 12.f), 11u);
-    uint prev2 = min((uint)(AuroraHashInt((sessionIndex > 0u ? sessionIndex - 1u : 0u) + 12345u) * 12.f), 11u);
-    paletteIndexNext = renodx::math::Select(
-      raw == prev1 && raw == prev2 && sessionIndex > 0u,
-      (raw + 1u) % 12u, raw);
-  }
   
-  float brightnessVar = lerp(
-    mad(AuroraHashInt(sessionIndex + 23456u), 0.7f, 0.3f),
-    mad(AuroraHashInt(sessionIndex + 1u + 23456u), 0.7f, 0.3f),
-    transitionBlend);
+  float brightnessVar = mad(AuroraHashInt(sessionIndex + 23456u), 0.7f, 0.3f);
   
   // --- Preset selection with pity system ---
-  uint presetIndexCurrent, presetIndexNext;
+  uint presetIndex;
   {
     uint raw = min((uint)(AuroraHashInt(sessionIndex + 34567u) * 10.f), 9u);
     uint prev1 = min((uint)(AuroraHashInt((sessionIndex > 0u ? sessionIndex - 1u : 0u) + 34567u) * 10.f), 9u);
     uint prev2 = min((uint)(AuroraHashInt((sessionIndex > 1u ? sessionIndex - 2u : 0u) + 34567u) * 10.f), 9u);
-    presetIndexCurrent = renodx::math::Select(
+    presetIndex = renodx::math::Select(
       raw == prev1 && raw == prev2 && sessionIndex > 1u,
-      (raw + 1u) % 10u, raw);
-  }
-  {
-    uint raw = min((uint)(AuroraHashInt(sessionIndex + 1u + 34567u) * 10.f), 9u);
-    uint prev1 = min((uint)(AuroraHashInt(sessionIndex + 34567u) * 10.f), 9u);
-    uint prev2 = min((uint)(AuroraHashInt((sessionIndex > 0u ? sessionIndex - 1u : 0u) + 34567u) * 10.f), 9u);
-    presetIndexNext = renodx::math::Select(
-      raw == prev1 && raw == prev2 && sessionIndex > 0u,
       (raw + 1u) % 10u, raw);
   }
   
@@ -336,17 +299,17 @@ float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frame
     {0.f, 100.f, 5.f, 100.f, 0.f, 75.f, 150.f, 35.f, 100.f, 100.f, 100.f}
   };
   
-  float presetMode = lerp(presets[presetIndexCurrent][0], presets[presetIndexNext][0], transitionBlend);
-  float presetBlend = lerp(presets[presetIndexCurrent][1], presets[presetIndexNext][1], transitionBlend);
-  float presetSharpness = lerp(presets[presetIndexCurrent][2], presets[presetIndexNext][2], transitionBlend);
-  float presetSpeed = lerp(presets[presetIndexCurrent][3], presets[presetIndexNext][3], transitionBlend);
-  float presetSparsityLow = lerp(presets[presetIndexCurrent][4], presets[presetIndexNext][4], transitionBlend);
-  float presetSparsityHigh = lerp(presets[presetIndexCurrent][5], presets[presetIndexNext][5], transitionBlend);
-  float presetVerticalScale = lerp(presets[presetIndexCurrent][6], presets[presetIndexNext][6], transitionBlend);
-  float presetAnimSpeed = lerp(presets[presetIndexCurrent][7], presets[presetIndexNext][7], transitionBlend);
-  float presetDriftSpeed = lerp(presets[presetIndexCurrent][8], presets[presetIndexNext][8], transitionBlend);
-  float presetPulseSpeed = lerp(presets[presetIndexCurrent][9], presets[presetIndexNext][9], transitionBlend);
-  float presetWaveSpeed = lerp(presets[presetIndexCurrent][10], presets[presetIndexNext][10], transitionBlend);
+  float presetMode = presets[presetIndex][0];
+  float presetBlend = presets[presetIndex][1];
+  float presetSharpness = presets[presetIndex][2];
+  float presetSpeed = presets[presetIndex][3];
+  float presetSparsityLow = presets[presetIndex][4];
+  float presetSparsityHigh = presets[presetIndex][5];
+  float presetVerticalScale = presets[presetIndex][6];
+  float presetAnimSpeed = presets[presetIndex][7];
+  float presetDriftSpeed = presets[presetIndex][8];
+  float presetPulseSpeed = presets[presetIndex][9];
+  float presetWaveSpeed = presets[presetIndex][10];
   
   float sparsityLow = presetSparsityLow / 100.f;
   float sparsityHigh = presetSparsityHigh / 100.f;
@@ -384,10 +347,10 @@ float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frame
     float3(0.6f, 0.0f, 0.3f), float3(1.0f, 0.85f, 0.3f), float3(0.9f, 0.2f, 0.4f)
   };
   
-  float3 colorBottom = lerp(paletteBottoms[paletteIndexCurrent], paletteBottoms[paletteIndexNext], transitionBlend);
-  float3 colorLowerMid = lerp(paletteLowerMids[paletteIndexCurrent], paletteLowerMids[paletteIndexNext], transitionBlend);
-  float3 colorUpperMid = lerp(paletteUpperMids[paletteIndexCurrent], paletteUpperMids[paletteIndexNext], transitionBlend);
-  float3 colorTop = lerp(paletteTops[paletteIndexCurrent], paletteTops[paletteIndexNext], transitionBlend);
+  float3 colorBottom = paletteBottoms[paletteIndex];
+  float3 colorLowerMid = paletteLowerMids[paletteIndex];
+  float3 colorUpperMid = paletteUpperMids[paletteIndex];
+  float3 colorTop = paletteTops[paletteIndex];
 
   float shimmer = animTime * 0.003f;
   colorBottom *= 0.85f + 0.15f * float3(

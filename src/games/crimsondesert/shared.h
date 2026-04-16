@@ -115,6 +115,7 @@
 #define AURORA_GI_ENERGY                       1.0f
 #define AURORA_BRIGHTNESS                      shader_injection.aurora_brightness
 #define AURORA_CHANCE                          shader_injection.aurora_chance
+#define AURORA_NIGHT_SEED                      shader_injection.aurora_night_seed
 #define NIGHT_SKY_ATTENUATION                  ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__NIGHT_SKY_ATTENUATION) != 0u ? 1.f : 0.f)
 
 // Auto exposure tuning
@@ -199,7 +200,7 @@ struct ShaderInjectData {
   float bloom_strength;
   float aurora_brightness;
   float aurora_chance;
-  //float reserved0;
+  float aurora_night_seed;  
 };
 
 #ifndef __cplusplus
