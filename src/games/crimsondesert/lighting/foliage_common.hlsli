@@ -24,18 +24,6 @@ static const float FC_CHROMA_KNEE        = 0.08f;   // OkLab chroma below which 
 static const float FC_CHROMA_FULL        = 0.16f;   // OkLab chroma at which extra desat is maximum
 static const float FC_L_KNEE             = 0.45f;   // OkLab L below which no lightness reduction
 static const float FC_L_FULL             = 0.75f;   // OkLab L at which lightness reduction is maximum
-static const float FC_AO_DIST_NEAR       = 30.f;    // depth below which no boost (close range)
-static const float FC_AO_DIST_FAR        = 200.f;   // depth at which boost reaches maximum
-static const float FC_AO_DIST_BOOST_MAX  = 0.5f;    // maximum additional AO strength at distance
-
-// ============================================================================
-// Foliage AO strength with distance compensation
-// ============================================================================
-
-float FoliageAOStrength(float linearDepth) {
-  float distBoost = smoothstep(FC_AO_DIST_NEAR, FC_AO_DIST_FAR, linearDepth) * FC_AO_DIST_BOOST_MAX;
-  return min(1.f, FOLIAGE_AO_STRENGTH + distBoost);
-}
 
 // ============================================================================
 // Transmission constants
