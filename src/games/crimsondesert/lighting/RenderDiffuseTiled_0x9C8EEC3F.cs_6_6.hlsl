@@ -1410,7 +1410,7 @@ void main(
       _991 = half(_fcCorrected.z);
     }
     // RenoDX: Foliage selective colour
-    if (FOLIAGE_IMPROVEMENTS == 1.f && ((uint)(_112 - 12) < 7u)) {
+    if (FOLIAGE_COLOR_CORRECT > 0.0f && ((uint)(_112 - 12) < 7u)) {
       float3 _fscColor = FoliageSelectiveColor(float3(float(_989), float(_990), float(_991)));
       _989 = half(_fscColor.x);
       _990 = half(_fscColor.y);
