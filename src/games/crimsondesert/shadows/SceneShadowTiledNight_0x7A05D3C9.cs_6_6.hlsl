@@ -1,11 +1,5 @@
 #include "../shared.h"
 
-#define SHADOW_DBG_CONTACT_INV  _2601
-#define SHADOW_DBG_OUT_R        _2616
-#define SHADOW_DBG_OUT_G        _2617
-#define SHADOW_DBG_OUT_B        _2618
-#define SHADOW_DBG_OUT_A        _2619
-
 // ── Foliage Contact Shadow Material ID Reference ─────────────────────
 // ID 12 = Tree leaves + larger bushes (close/medium range)
 // ID 13 = Small-scale foliage (close/medium range)
@@ -1268,7 +1262,7 @@ void main(
     // ──────────────────────────────────────────────────────────────────
 
     // ────────────────── Screen edge contact shadow fade ───────────────
-    if (RR_ENABLED == 1.f && CONTACT_SHADOW_QUALITY == 1.f && _2601 < 1.0f) {
+    if (CONTACT_SHADOW_QUALITY == 1.f && _2601 < 1.0f) {
       float2 _screenUV = float2((_54 + 0.5f) * _bufferSizeAndInvSize.z,
                                  (_55 + 0.5f) * _bufferSizeAndInvSize.w);
       float2 _edgeDist = min(_screenUV, 1.0f - _screenUV);
@@ -1281,9 +1275,6 @@ void main(
     _2617 = float(half(_2602 * float(_1593)));
     _2618 = float(half(_2602 * float(_1594)));
     _2619 = saturate((1.0f - _550) + (exp2(log2(saturate(select(_166, (_1601 + 0.9800000190734863f), _1601))) * 0.45454543828964233f) * _550));
-    // ── RenoDX Shadow Debug ──────────────────────────────────────────────
-    #include "shadow_debug_night.hlsli"
-    // ────────────────────────────────────────────────────────────────────
   }
   __3__38__0__1__g_shadowColorResultUAV[int2(((int)(((uint)(((((int)((uint)(_40) << 2)) & 262140) | ((int)(SV_GroupID.x) & 3)) << 3)) + SV_GroupThreadID.x)), ((int)(((uint)(((((uint)((uint)(_40)) >> 16) << 2) | (((uint)(SV_GroupID.x) >> 2) & 3)) << 3)) + SV_GroupThreadID.y)))] = half4(half(_2616), half(_2617), half(_2618), half(_2619));
 }
