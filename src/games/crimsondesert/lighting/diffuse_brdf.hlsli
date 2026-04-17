@@ -188,7 +188,7 @@ float NDFFilterRoughnessCS(
   float3 dndv = QuadReadAcrossY(normalWS) - normalWS;
 
   static const float SIGMA2 = 0.15915494f;
-  float kernelRoughness2 = 2.0f * SIGMA2 * (dot(dndu, dndu) + dot(dndv, dndv));
+  float kernelRoughness2 = 2.0f * SIGMA2 * max(dot(dndu, dndu), dot(dndv, dndv));
 
   float kappa = lerp(0.18f, 0.04f, saturate(roughness * 2.5f));
   float clampedKernel = min(kernelRoughness2, kappa);
