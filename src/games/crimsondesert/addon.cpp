@@ -1143,13 +1143,6 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "WARNING: Sliders disabled (doesn't matter what the slider says) until Ray Reconstruction/Ray Regeneration is detected\n",
-        .section = "Rendering",
-        //.tint = 0xaa0000,
-        .is_visible = []() { return current_settings_mode == rendering_group && !RR_ENABLED; },
-    },
-    new renodx::utils::settings::Setting{
         .key = "ContactShadowQuality",
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -1158,12 +1151,11 @@ renodx::utils::settings::Settings settings = {
         .can_reset = true,
         .label = "Contact Micro Shadows (WIP)",
         .section = "Rendering",
-        .tooltip = "Toggles contact shadow improvements.\n"
+        .tooltip = "Toggles contact micro shadow detail.\n"
                    "Off = vanilla contact shadows.\n"
-                   "On = Improved shadow detail with tighter depth bias + SSDM aware details,\n",
+                   "On = Improved shadow details + SSDM aware details,\n",
         .labels = {"Off", "On"},
         .tint = rendering,
-        .is_enabled = []() { return RR_ENABLED; },
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
@@ -1171,18 +1163,25 @@ renodx::utils::settings::Settings settings = {
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 1.f,
-        .packed_values = {0u, CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS},
+        .packed_values = {0u, CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS, CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS | CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS_BIT1},
         .can_reset = true,
-        .label = "Grass/Foliage Dynamic Desaturation + Hue + AO (WIP)",
+        .label = "Grass/Foliage Improvements",
         .section = "Rendering",
         .tooltip = "Toggles foliage rendering improvements.\n"
                    "Off = vanilla foliage.\n"
-                   "On = foliage colour correction, transmission (diffuse scattering through vegetation),\n"
-                   "and AO for foliage materials (base game lacks it entirely).",
-        .labels = {"Off", "On"},
+                   "AO = adds ambient occlusion for foliage materials (base game lacks it entirely).\n"
+                   "AO + Desaturation/Hue = also applies dynamic colour correction, selective colour,\n"
+                   "and transmission (diffuse scattering through vegetation).",
+        .labels = {"Off", "AO", "AO + Desaturation/Hue"},
         .tint = rendering,
-        .is_enabled = []() { return RR_ENABLED; },
         .is_visible = []() { return current_settings_mode == rendering_group; },
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "WARNING: Sliders disabled (doesn't matter what the slider says) until Ray Reconstruction/Ray Regeneration is detected\n",
+        .section = "Rendering",
+        //.tint = 0xaa0000,
+        .is_visible = []() { return current_settings_mode == rendering_group && !RR_ENABLED; },
     },
     new renodx::utils::settings::Setting{
         .key = "MaterialImprovements",
@@ -1230,7 +1229,7 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "Aurora now has randomisation for various parts, however lack per region data\n",
+        .label = "Aurora now work using in game time + has randomisation, however lack per region gating\n",
         .section = "Rendering",
         //.tint = rendering,
         .is_visible = []() { return current_settings_mode == rendering_group; },
@@ -1275,66 +1274,6 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return RR_ENABLED && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__AURORA_BOREALIS) != 0u; },
         .is_visible = []() { return current_settings_mode == rendering_group; },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "ShadowDebugMode",
-        .binding = SHADOW_DEBUG_MODE,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
-        .can_reset = true,
-        .label = "Shadow Debug View",
-        .section = "Debug",
-        .tooltip = "Visualizes internal shadow layer data. Replaces the shadow buffer output with a diagnostic color.\n"
-                   "Off = normal rendering.\n"
-                   "Terrain Shadow = grey: dark=shadowed, white=lit.\n"
-                   "Dynamic Cascade = cyan=cascade0, yellow=cascade1, dark-red=not covered.\n"
-                   "Static Cascade = green=static0, blue=static1, dark-red=not covered.\n"
-                   "Active Layer Map = false-color which cascade layer is active per pixel.\n"
-                   "Pre-Contact PCF = combined shadow after cascades/near-field, before contact shadows.\n"
-                   "Contact Shadow = dark=occluded by screen-space contact shadow.\n"
-                   "Depth Delta = heatmap of depth-behind-shadowmap (bias diagnosis).\n"
-                   "Penumbra Channel = raw W-channel (gamma-stretched depth advance).\n"
-                   "Stencil ID = false-color by material stencil group.\n"
-                   "Cascade Seams = yellow highlight at dynamic cascade UV boundaries.",
-        .labels = {
-            "Off",
-            "Terrain Shadow",
-            "Dynamic Cascade",
-            "Static Cascade",
-            "Active Layer Map",
-            "Pre-Contact PCF",
-            "Contact Shadow",
-            "Depth Delta",
-            "Penumbra Channel",
-            "Stencil ID",
-            "Cascade Seams",
-        },
-        .is_visible = []() { return debug; },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "ShadowDisableLayer",
-        .binding = SHADOW_DISABLE_LAYER,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
-        .can_reset = true,
-        .label = "Shadow Layer Disable",
-        .section = "Debug",
-        .tooltip = "Disables a specific shadow layer so you can see its contribution by toggling it off.\n"
-                   "None = all layers active (normal rendering).\n"
-                   "Terrain Shadow = heightmap PCF.\n"
-                   "Dynamic Cascade = character/object cascade shadow maps.\n"
-                   "Static Cascade = baked environment cascade shadow maps.\n"
-                   "Near-Field Contact = ray-marched near-field contact shadows.\n"
-                   "Screen-Space Contact = screen-space contact shadow pass.",
-        .labels = {
-            "None",
-            "Terrain Shadow",
-            "Dynamic Cascade",
-            "Static Cascade",
-            "Near-Field Contact",
-            "Screen-Space Contact",
-        },
-        .is_visible = []() { return debug; },
     },
     new renodx::utils::settings::Setting{
         .key = "TonemapDebugMode",

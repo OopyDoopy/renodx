@@ -13,7 +13,7 @@
 
 static const int MICRO_STEPS = 16;
 
-if (RR_ENABLED == 1.f && CONTACT_SHADOW_QUALITY == 1.f) {
+if (CONTACT_SHADOW_QUALITY == 1.f) {
   float _microLinDepth = MICRO_LINEAR_DEPTH;
   float _microDistFade = saturate(mad(-0.1f, _microLinDepth, 4.0f));
 
