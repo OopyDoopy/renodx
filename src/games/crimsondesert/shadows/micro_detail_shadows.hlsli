@@ -1,4 +1,4 @@
-// -------------------------Depth-Bias Micro Detail Shadows --------------------
+// -------------------------Depth Bias Micro Detail Shadows --------------------
 //
 // Bend Studio style SSS
 //
@@ -9,21 +9,27 @@
 //
 //   - Deltas outside the window are ignored
 //
+//   - Perspective correction depth comparison is done in
+//     linearised space so thickness is consistent regardless of distance
+//
+// v2: 32 steps, extended range (120 units), perspective corrected depth
 // -----------------------------------------------------------------------------
 
-static const int MICRO_STEPS = 16;
+static const int MICRO_STEPS = 32;
 
 if (CONTACT_SHADOW_QUALITY == 1.f) {
   float _microLinDepth = MICRO_LINEAR_DEPTH;
-  float _microDistFade = saturate(mad(-0.1f, _microLinDepth, 4.0f));
+
+  float _microDistFade = saturate(mad(-0.025f, _microLinDepth, 3.0f));
 
   [branch]
   if (_microDistFade > 0.01f) {
-    float _microRange = lerp(0.12f, 0.30f, saturate(_microLinDepth / 30.0f));
+    float _microRange = lerp(0.12f, 0.80f, saturate(_microLinDepth / 100.0f));
     float _microStep  = _microRange / (float)MICRO_STEPS;
-    float _microThick = _microStep *
-      _nearFarProj.x / max(1.0f, _microLinDepth * _microLinDepth);
-    _microThick = clamp(_microThick, 0.00005f, 0.005f);
+
+    // Perspective corrected thickness
+    float _microWorldThick = _microStep * 0.5f;
+    _microWorldThick = max(_microWorldThick, lerp(0.005f, 0.04f, saturate(_microLinDepth / 80.0f)));
 
     // Temporal jitter
     float _microJitter = frac(
@@ -81,9 +87,15 @@ if (CONTACT_SHADOW_QUALITY == 1.f) {
 
       if (_msd < 1e-7f || _msd >= 1.0f) continue;
 
-      float _mdelta = _msd - _mRayDepth;
-      if (_mdelta >= 0.0f && _mdelta <= _microThick) {
-        float _mocc = saturate(_mdelta / _microThick * 2.5f);
+      // Perspective corrected depth comparison
+      float _mLinScene = _nearFarProj.x / max(1e-7f, _msd);
+      float _mLinRay   = _nearFarProj.x / max(1e-7f, _mRayDepth);
+      float _mLinDelta = _mLinRay - _mLinScene;
+
+      // Scene must be closer than ray (positive delta = scene in front of ray)
+      // and within the thickness window
+      if (_mLinDelta >= 0.0f && _mLinDelta <= _microWorldThick) {
+        float _mocc = saturate(_mLinDelta / _microWorldThick * 2.5f);
         _microShadow = min(_microShadow, 1.0f - _mocc);
       }
     }
