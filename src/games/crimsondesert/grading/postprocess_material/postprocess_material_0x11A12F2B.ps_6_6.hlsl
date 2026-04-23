@@ -127,7 +127,7 @@ cbuffer __3__35__0__0__ExposureConstantBuffer : register(b29, space35) {
   float4 _exposure3 : packoffset(c003.x);
   float4 _exposure4 : packoffset(c004.x);
 };
-
+#endif
 cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b24, space35) {
   float _sunLightIntensity : packoffset(c000.x);
   float _sunLightPreset : packoffset(c000.y);
@@ -185,6 +185,7 @@ cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b24, space35) {
   float4 _mieScatterColor : packoffset(c014.x);
 };
 
+#if 0
 cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _postProcessParams : packoffset(c000.x);
   float4 _postProcessParams1 : packoffset(c001.x);
