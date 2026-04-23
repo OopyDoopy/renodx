@@ -1,11 +1,6 @@
 #include "../tonemap.hlsli"
 
-struct PostProcessFisheye_DistortionStruct {
-  float _maxPower;
-};
-
-
-Texture2D<float4> __3__36__0__0__g_sceneColor : register(t33, space36);
+Texture2D<float4> __3__36__0__0__g_postProcessSizeColor : register(t44, space36);
 
 Texture2D<uint2> __3__36__0__0__g_stencil : register(t38, space36);
 
@@ -127,148 +122,95 @@ cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
 };
 #endif
 
-cbuffer __3__1__0__0__PostProcessSizeConstant : register(b1, space1) {
-  float4 _srcTargetSizeAndInv : packoffset(c000.x);
-  float4 _destTargetSizAndInv : packoffset(c001.x);
-};
-
-cbuffer __3__1__0__0__PostProcessMaterialIndex : register(b2, space1) {
-  int _materialIndex : packoffset(c000.x);
-  int _passIndex : packoffset(c000.y);
-};
-
-ConstantBuffer<PostProcessFisheye_DistortionStruct> BindlessParameters_PostProcessFisheye_Distortion[] : register(b0, space100);
-
-SamplerState __0__4__0__0__g_staticPointClamp : register(s10, space4);
+SamplerState __0__4__0__0__g_staticBilinearClamp : register(s3, space4);
 
 float4 main(
   noperspective float4 SV_Position : SV_Position,
   linear float2 TEXCOORD : TEXCOORD
 ) : SV_Target {
   float4 SV_Target;
-  float _18[36];
-  float _30 = (_destTargetSizAndInv.x * TEXCOORD.x) / _srcTargetSizeAndInv.x;
-  float _31 = (_destTargetSizAndInv.y * (1.0f - TEXCOORD.y)) / _srcTargetSizeAndInv.x;
-  float _32 = _srcTargetSizeAndInv.x / _srcTargetSizeAndInv.y;
-  float _33 = 0.5f / _32;
-  float _34 = _30 + -0.5f;
-  float _35 = _31 - _33;
-  float _36 = dot(float2(_34, _35), float2(_34, _35));
-  float _37 = sqrt(_36);
-  int _38 = WaveReadLaneFirst(_materialIndex);
-  float _46 = WaveReadLaneFirst(BindlessParameters_PostProcessFisheye_Distortion[((int)((uint)(select(((uint)_38 < (uint)170000), _38, 0)) + 0u))]._maxPower);
-  bool _47 = (_46 > 0.0f);
-  float _55;
-  float _93;
-  float _94;
-  float _116;
-  float _362;
-  float _363;
-  float _364;
-  float _484;
-  float _485;
-  float _486;
-  float _507;
-  float _508;
-  float _509;
-  float _542;
-  float _543;
-  float _544;
-  float _558;
-  float _559;
-  float _560;
-  if (_47) {
-    _55 = sqrt(dot(float2(0.5f, _33), float2(0.5f, _33)));
-  } else {
-    if (!(_32 < 1.0f)) {
-      _55 = _33;
-    } else {
-      _55 = 0.5f;
-    }
-  }
-  if (_47) {
-    float _57 = rsqrt(_36);
-    float _59 = tan(_46 * _37);
-    float _67 = tan(_55 * _46);
-    _93 = (((((_55 * _34) * _57) * _59) / _67) + 0.5f);
-    _94 = (((((_55 * _35) * _57) * _59) / _67) + _33);
-  } else {
-    if (_46 < 0.0f) {
-      float _75 = rsqrt(_36);
-      float _78 = atan((_46 * _37) * -10.0f);
-      float _87 = atan((_46 * -10.0f) * _55);
-      _93 = (((((_55 * _34) * _75) * _78) / _87) + 0.5f);
-      _94 = (((((_55 * _35) * _75) * _78) / _87) + _33);
-    } else {
-      _93 = _30;
-      _94 = _31;
-    }
-  }
-  float4 _99 = __3__36__0__0__g_sceneColor.Sample(__0__4__0__0__g_staticPointClamp, float2(_93, (1.0f - (_94 * _32))));
-  uint _103 = uint(SV_Position.y);
+  float _13[36];
+  float4 _16 = __3__36__0__0__g_postProcessSizeColor.Sample(__0__4__0__0__g_staticBilinearClamp, float2(TEXCOORD.x, TEXCOORD.y));
+  uint _20 = uint(SV_Position.y);
+  float _34;
+  float _280;
+  float _281;
+  float _282;
+  float _402;
+  float _403;
+  float _404;
+  float _425;
+  float _426;
+  float _427;
+  float _460;
+  float _461;
+  float _462;
+  float _476;
+  float _477;
+  float _478;
   if (_etcParams.y == 1.0f) {
-    uint2 _110 = __3__36__0__0__g_stencil.Load(int3((int)(uint(SV_Position.x)), (int)(_103), 0));
-    _116 = (float((uint)((uint)(_110.x & 127))) + 0.5f);
+    uint2 _28 = __3__36__0__0__g_stencil.Load(int3((int)(uint(SV_Position.x)), (int)(_20), 0));
+    _34 = (float((uint)((uint)(_28.x & 127))) + 0.5f);
   } else {
-    _116 = 1.0f;
+    _34 = 1.0f;
   }
   if (_localToneMappingParams.w > 0.0f) {
-    float3 output_color = TonemapReplacer(float3(_99, _99, _99));
-    _484 = output_color.x;
-    _485 = output_color.y;
-    _486 = output_color.z;
+    float3 output_color = TonemapReplacer(float3(_16.x, _16.y, _16.z));
+    _402 = output_color.x;
+    _403 = output_color.y;
+    _404 = output_color.z;
   } else {
-    _484 = _99;
-    _485 = _99;
-    _486 = _99;
+    _402 = _16.x;
+    _403 = _16.y;
+    _404 = _16.z;
   }
   if (_etcParams.y > 1.0f) {
-    float _497 = abs((TEXCOORD.x * 2.0f) + -1.0f);
-    float _498 = abs((TEXCOORD.y * 2.0f) + -1.0f);
-    float _502 = saturate(1.0f - (dot(float2(_497, _498), float2(_497, _498)) * saturate(_etcParams.y + -1.0f)));
-    _507 = (_502 * _484);
-    _508 = (_502 * _485);
-    _509 = (_502 * _486);
+    float _415 = abs((TEXCOORD.x * 2.0f) + -1.0f);
+    float _416 = abs((TEXCOORD.y * 2.0f) + -1.0f);
+    float _420 = saturate(1.0f - (dot(float2(_415, _416), float2(_415, _416)) * saturate(_etcParams.y + -1.0f)));
+    _425 = (_420 * _402);
+    _426 = (_420 * _403);
+    _427 = (_420 * _404);
   } else {
-    _507 = _484;
-    _508 = _485;
-    _509 = _486;
+    _425 = _402;
+    _426 = _403;
+    _427 = _404;
   }
   if (((_localToneMappingParams.w > 0.0f)) && ((_etcParams.z > 0.0f))) {
-    _542 = select((_507 <= 0.0031308000907301903f), (_507 * 12.920000076293945f), (((pow(_507, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f));
-    _543 = select((_508 <= 0.0031308000907301903f), (_508 * 12.920000076293945f), (((pow(_508, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f));
-    _544 = select((_509 <= 0.0031308000907301903f), (_509 * 12.920000076293945f), (((pow(_509, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f));
+    _460 = select((_425 <= 0.0031308000907301903f), (_425 * 12.920000076293945f), (((pow(_425, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f));
+    _461 = select((_426 <= 0.0031308000907301903f), (_426 * 12.920000076293945f), (((pow(_426, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f));
+    _462 = select((_427 <= 0.0031308000907301903f), (_427 * 12.920000076293945f), (((pow(_427, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f));
   } else {
-    _542 = _507;
-    _543 = _508;
-    _544 = _509;
+    _460 = _425;
+    _461 = _426;
+    _462 = _427;
   }
   if (!(!(_etcParams.y >= 1.0f))) {
-    float _549 = float((uint)_103);
-    if (!(_549 < _viewDir.w)) {
-      if (!(_549 >= (_screenSizeAndInvSize.y - _viewDir.w))) {
-        _558 = _542;
-        _559 = _543;
-        _560 = _544;
+    float _467 = float((uint)_20);
+    if (!(_467 < _viewDir.w)) {
+      if (!(_467 >= (_screenSizeAndInvSize.y - _viewDir.w))) {
+        _476 = _460;
+        _477 = _461;
+        _478 = _462;
       } else {
-        _558 = 0.0f;
-        _559 = 0.0f;
-        _560 = 0.0f;
+        _476 = 0.0f;
+        _477 = 0.0f;
+        _478 = 0.0f;
       }
     } else {
-      _558 = 0.0f;
-      _559 = 0.0f;
-      _560 = 0.0f;
+      _476 = 0.0f;
+      _477 = 0.0f;
+      _478 = 0.0f;
     }
   } else {
-    _558 = _542;
-    _559 = _543;
-    _560 = _544;
+    _476 = _460;
+    _477 = _461;
+    _478 = _462;
   }
-  SV_Target.x = _558;
-  SV_Target.y = _559;
-  SV_Target.z = _560;
-  SV_Target.w = _116;
+  SV_Target.x = _476;
+  SV_Target.y = _477;
+  SV_Target.z = _478;
+  SV_Target.w = _34;
   return SV_Target;
 }
 
