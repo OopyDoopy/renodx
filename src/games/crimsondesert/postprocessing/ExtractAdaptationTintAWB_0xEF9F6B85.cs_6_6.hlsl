@@ -1,6 +1,6 @@
-Texture2D<float3> __3__36__0__0__g_colorAdatationSource : register(t76, space36);
+Texture2D<float3> __3__36__0__0__g_colorAdatationSource : register(t52, space36);
 
-RWStructuredBuffer<float4> __3__39__0__1__g_autoWhiteBalanceColorUAV : register(u14, space39);
+RWStructuredBuffer<float4> __3__39__0__1__g_autoWhiteBalanceColorUAV : register(u15, space39);
 
 cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _textureSizeAndInvSize : packoffset(c000.x);
@@ -14,14 +14,15 @@ cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _preFrameViewPosition : packoffset(c008.x);
 };
 
+// groupshared float g_ExtractColor[4096];
 groupshared float _global_0[4096];
 
 [numthreads(32, 32, 1)]
 void main(
-  uint3 SV_DispatchThreadID : SV_DispatchThreadID,
-  uint3 SV_GroupID : SV_GroupID,
-  uint3 SV_GroupThreadID : SV_GroupThreadID,
-  uint SV_GroupIndex : SV_GroupIndex
+    uint3 SV_DispatchThreadID: SV_DispatchThreadID,
+    uint3 SV_GroupID: SV_GroupID,
+    uint3 SV_GroupThreadID: SV_GroupThreadID,
+    uint SV_GroupIndex: SV_GroupIndex
 ) {
   int __loop_jump_target = -1;
   int2 _7; __3__36__0__0__g_colorAdatationSource.GetDimensions(_7.x, _7.y);
@@ -64,7 +65,7 @@ void main(
   _global_0[_38] = _27;
   GroupMemoryBarrierWithGroupSync();
   _43 = 512;
-  while(true) {
+  while (true) {
     uint _44 = _43 + SV_GroupIndex;
     uint _45 = _44 * 4;
     uint _46 = 0u + _45;
@@ -161,3 +162,82 @@ void main(
     break;
   }
 }
+
+// [numthreads(32, 32, 1)]
+// void main(
+//   uint3 SV_DispatchThreadID : SV_DispatchThreadID,
+//   uint3 SV_GroupID : SV_GroupID,
+//   uint3 SV_GroupThreadID : SV_GroupThreadID,
+//   uint SV_GroupIndex : SV_GroupIndex
+// ) {
+//   int2 _7; __3__36__0__0__g_colorAdatationSource.GetDimensions(_7.x, _7.y);
+//   int _12 = int(float((int)(_7.x)));
+//   int _14 = _12 * int(float((int)(_7.y)));
+//   float _24;
+//   float _25;
+//   float _26;
+//   float _27;
+//   int _43;
+//   if ((uint)(int)(SV_GroupIndex) < (uint)_14) {
+//     float3 _19 = __3__36__0__0__g_colorAdatationSource.Load(int3(((int)((int)(SV_GroupIndex) % _12)), ((int)(SV_GroupIndex) / _12), 0));
+//     _24 = _19.x;
+//     _25 = _19.y;
+//     _26 = _19.z;
+//     _27 = 1.0f;
+//   } else {
+//     _24 = 0.0f;
+//     _25 = 0.0f;
+//     _26 = 0.0f;
+//     _27 = 0.0f;
+//   }
+//   g_ExtractColor[((int)(0u + ((int)(SV_GroupIndex) * 4)))] = _24;
+//   g_ExtractColor[((int)(1u + ((int)(SV_GroupIndex) * 4)))] = _25;
+//   g_ExtractColor[((int)(2u + ((int)(SV_GroupIndex) * 4)))] = _26;
+//   g_ExtractColor[((int)(3u + ((int)(SV_GroupIndex) * 4)))] = _27;
+//   GroupMemoryBarrierWithGroupSync();
+//   _43 = 512;
+//   while(true) {
+//     g_ExtractColor[((int)(0u + ((int)(SV_GroupIndex) * 4)))] = ((g_ExtractColor[((int)(0u + ((int)(SV_GroupIndex) * 4)))]) + (g_ExtractColor[((int)(0u + (((int)((uint)(_43) + SV_GroupIndex)) * 4)))]));
+//     g_ExtractColor[((int)(1u + ((int)(SV_GroupIndex) * 4)))] = ((g_ExtractColor[((int)(1u + ((int)(SV_GroupIndex) * 4)))]) + (g_ExtractColor[((int)(1u + (((int)((uint)(_43) + SV_GroupIndex)) * 4)))]));
+//     g_ExtractColor[((int)(2u + ((int)(SV_GroupIndex) * 4)))] = ((g_ExtractColor[((int)(2u + ((int)(SV_GroupIndex) * 4)))]) + (g_ExtractColor[((int)(2u + (((int)((uint)(_43) + SV_GroupIndex)) * 4)))]));
+//     g_ExtractColor[((int)(3u + ((int)(SV_GroupIndex) * 4)))] = ((g_ExtractColor[((int)(3u + ((int)(SV_GroupIndex) * 4)))]) + (g_ExtractColor[((int)(3u + (((int)((uint)(_43) + SV_GroupIndex)) * 4)))]));
+//     GroupMemoryBarrierWithGroupSync();
+//     int _72 = (uint)((uint)(_43)) >> 1;
+//     if (!(_72 == 0)) {
+//       _43 = _72;
+//       continue;
+//     }
+//     if ((int)(SV_GroupIndex) == 0) {
+//       float _79 = float((uint)max((uint)(_14), (uint)(1)));
+//       float _80 = (g_ExtractColor[0]) / _79;
+//       float _81 = (g_ExtractColor[1]) / _79;
+//       float _82 = (g_ExtractColor[2]) / _79;
+//       float _83 = dot(float3(_80, _81, _82), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f));
+//       float _84 = max(_83, 9.999999747378752e-05f);
+//       float _90 = min(_83, _renderParam.x);
+//       float _91 = _90 * (_80 / _84);
+//       float _92 = _90 * (_81 / _84);
+//       float _93 = _90 * (_82 / _84);
+//       bool _100 = (((((isnan(_91)) || (isnan(_92)))) || (isnan(_93)))) || (isnan(_90));
+//       float _101 = select(_100, 0.0f, _91);
+//       float _102 = select(_100, 0.0f, _92);
+//       float _103 = select(_100, 0.0f, _93);
+//       float _104 = select(_100, 0.0f, _90);
+//       float _107 = __3__39__0__1__g_autoWhiteBalanceColorUAV[1].x;
+//       float _108 = __3__39__0__1__g_autoWhiteBalanceColorUAV[1].y;
+//       float _109 = __3__39__0__1__g_autoWhiteBalanceColorUAV[1].z;
+//       float _110 = __3__39__0__1__g_autoWhiteBalanceColorUAV[1].w;
+//       bool _117 = (((((isnan(_107)) || (isnan(_108)))) || (isnan(_109)))) || (isnan(_110));
+//       float _118 = select(_117, _101, _107);
+//       float _119 = select(_117, _102, _108);
+//       float _120 = select(_117, _103, _109);
+//       float _121 = select(_117, _104, _110);
+//       float _130 = ((_101 - _118) * 0.10000000149011612f) + _118;
+//       float _131 = ((_102 - _119) * 0.10000000149011612f) + _119;
+//       float _132 = ((_103 - _120) * 0.10000000149011612f) + _120;
+//       float _133 = ((_104 - _121) * 0.10000000149011612f) + _121;
+//       __3__39__0__1__g_autoWhiteBalanceColorUAV[1].x = _130; __3__39__0__1__g_autoWhiteBalanceColorUAV[1].y = _131; __3__39__0__1__g_autoWhiteBalanceColorUAV[1].z = _132; __3__39__0__1__g_autoWhiteBalanceColorUAV[1].w = _133;
+//     }
+//     break;
+//   }
+// }
