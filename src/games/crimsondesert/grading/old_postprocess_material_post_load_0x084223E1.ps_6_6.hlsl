@@ -1,6 +1,4 @@
-#include "../common.hlsl"
 #include "./tonemap.hlsli"
-#include "./debug.hlsli"
 
 struct PostProcessWorldLoadingStruct {
   float _radius;
