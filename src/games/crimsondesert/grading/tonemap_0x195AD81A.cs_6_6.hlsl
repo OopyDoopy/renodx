@@ -1,15 +1,13 @@
-#include "../common.hlsl"
 #include "./tonemap.hlsli"
-#include "./debug.hlsli"
 
-Texture3D<float4> __3__36__0__0__g_displayRenderingTransformLUT : register(t135, space36);
+Texture3D<float4> __3__36__0__0__g_displayRenderingTransformLUT : register(t130, space36);
 
-Texture2D<float4> __3__36__0__0__g_sceneColor : register(t29, space36);
+Texture2D<float4> __3__36__0__0__g_sceneColor : register(t33, space36);
 
 RWTexture2D<float4> __3__38__0__1__g_textureUAV : register(u13, space38);
 
 #if 0
-cbuffer __3__35__0__0__ExposureConstantBuffer : register(b31, space35) {
+cbuffer __3__35__0__0__ExposureConstantBuffer : register(b29, space35) {
   float4 _exposure0 : packoffset(c000.x);
   float4 _exposure1 : packoffset(c001.x);
   float4 _exposure2 : packoffset(c002.x);
@@ -30,6 +28,8 @@ cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _slopeParams : packoffset(c009.x);
   float4 _offsetParams : packoffset(c010.x);
   float4 _powerParams : packoffset(c011.x);
+  int _colorBlindParam : packoffset(c012.x);
+  int3 _padding : packoffset(c012.y);
 };
 #endif
 
@@ -37,13 +37,13 @@ SamplerState __0__4__0__0__g_staticBilinearClamp : register(s3, space4);
 
 float3 ConvertAP1ToBT709(float3 scene_ap1) {
   return float3(
-    max(0.0f, (((scene_ap1.x * 1.705049991607666f) - (scene_ap1.y * 0.6217899918556213f)) - (scene_ap1.z * 0.08325999975204468f))),
-    max(0.0f, (((scene_ap1.y * 1.1407999992370605f) - (scene_ap1.x * 0.13026000559329987f)) - (scene_ap1.z * 0.01054999977350235f))),
-    max(0.0f, (((scene_ap1.x * -0.024000000208616257f) - (scene_ap1.y * 0.12896999716758728f)) + (scene_ap1.z * 1.1529699563980103f))));
+      max(0.0f, (((scene_ap1.x * 1.705049991607666f) - (scene_ap1.y * 0.6217899918556213f)) - (scene_ap1.z * 0.08325999975204468f))),
+      max(0.0f, (((scene_ap1.y * 1.1407999992370605f) - (scene_ap1.x * 0.13026000559329987f)) - (scene_ap1.z * 0.01054999977350235f))),
+      max(0.0f, (((scene_ap1.x * -0.024000000208616257f) - (scene_ap1.y * 0.12896999716758728f)) + (scene_ap1.z * 1.1529699563980103f))));
 }
 
 float3 ApplyDisplayCurvesAndSaturation(float3 bt709, bool clamp = true) {
-  float3 graded_components = ((bt709) * _slopeParams.xyz) + _offsetParams.xyz;
+  float3 graded_components = ((bt709)*_slopeParams.xyz) + _offsetParams.xyz;
   if (clamp) {
     graded_components = max(0.0f, graded_components);
   }
@@ -62,10 +62,10 @@ float3 EncodeDisplayTransformLutCoordinates(float3 lut_input) {
 
 [numthreads(8, 8, 1)]
 void main(
-  uint3 SV_DispatchThreadID : SV_DispatchThreadID,
-  uint3 SV_GroupID : SV_GroupID,
-  uint3 SV_GroupThreadID : SV_GroupThreadID,
-  uint SV_GroupIndex : SV_GroupIndex
+    uint3 SV_DispatchThreadID: SV_DispatchThreadID,
+    uint3 SV_GroupID: SV_GroupID,
+    uint3 SV_GroupThreadID: SV_GroupThreadID,
+    uint SV_GroupIndex: SV_GroupIndex
 ) {
   float4 _12 = __3__36__0__0__g_sceneColor.Load(int3((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y), 0));
   float4 _12_unexposed = _12;
@@ -95,7 +95,7 @@ void main(
     float mid_gray_scale = 1.f;
     float3 output_color;
 #if CUSTOM_TONEMAP_DEBUG
-    renodx::debug::graph::Config tonemap_graph_config = {false, 0, 0.0f, input_color, RENODX_PEAK_WHITE_NITS, 100.0f};
+    renodx::debug::graph::Config tonemap_graph_config = { false, 0, 0.0f, input_color, RENODX_PEAK_WHITE_NITS, 100.0f };
     if (tonemap_debug_enabled) {
       tonemap_graph_config = renodx::debug::graph::DrawStart(
           float2(SV_DispatchThreadID.xy) + 0.5f,
@@ -182,8 +182,8 @@ void main(
     float4 _125 = __3__36__0__0__g_displayRenderingTransformLUT.SampleLevel(__0__4__0__0__g_staticBilinearClamp, display_transform_lut_uv, 0.0f);
 
     float3 output_color = _125.xyz;
-    //float3 output_color = renodx::color::pq::DecodeSafe(_125.xyz, 1.f);
-    //output_color = renodx::color::bt709::from::BT2020(output_color);
+    // float3 output_color = renodx::color::pq::DecodeSafe(_125.xyz, 1.f);
+    // output_color = renodx::color::bt709::from::BT2020(output_color);
     __3__38__0__1__g_textureUAV[int2((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y))] = float4(output_color, _12.w);
     //__3__38__0__1__g_textureUAV[int2((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y))] = float4(select((_125.x <= 0.0031308000907301903f), (_125.x * 12.920000076293945f), (((pow(_125.x, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f)), select((_125.y <= 0.0031308000907301903f), (_125.y * 12.920000076293945f), (((pow(_125.y, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f)), select((_125.z <= 0.0031308000907301903f), (_125.z * 12.920000076293945f), (((pow(_125.z, 0.4166666567325592f)) * 1.0549999475479126f) + -0.054999999701976776f)), _12.w);
   }
