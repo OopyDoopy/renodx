@@ -139,7 +139,7 @@ float3 VanillaCurves(float3 color) {
   return float3(curveR, curveG, curveB);
 }
 
-float3 SDRToneMap(float3 color, bool use_color_blind = false) {
+float3 SDRToneMap(float3 color, bool use_color_blind = false, bool use_etc_params = true) {
   float _1675, _1676, _1677;
   float _1797, _1798, _1799;
   float _25[36];
@@ -205,7 +205,7 @@ float3 SDRToneMap(float3 color, bool use_color_blind = false) {
   float _1638 = saturate(exp2(log2(mad(_1619, -0.09902974218130112f, mad(_1618, -0.09802088141441345f, (_1617 * 1.1968790292739868f)))) * 2.200000047683716f));
   float _1639 = saturate(exp2(log2(mad(_1619, -0.09896117448806763f, mad(_1618, 1.1519031524658203f, (_1617 * -0.052896853536367416f)))) * 2.200000047683716f));
   float _1640 = saturate(exp2(log2(mad(_1619, 1.151073694229126f, mad(_1618, -0.09804344922304153f, (_1617 * -0.05297163501381874f)))) * 2.200000047683716f));
-  if (_etcParams.z == 0.0f) {
+  if (_etcParams.z == 0.0f && use_etc_params) {
     float _1646 = 1.0f - abs(_etcParams.w);
     float _1650 = saturate(_etcParams.w);
     float _1651 = (_1646 * _1638) + _1650;
@@ -241,13 +241,13 @@ float3 SDRToneMap(float3 color, bool use_color_blind = false) {
   return float3(_1797, _1798, _1799);
 }
 
-float3 TonemapReplacer(float3 color) {
+float3 TonemapReplacer(float3 color, bool use_color_blind = true, bool use_etc_params = true, bool use_pre_curve = true) {
   bool tonemap_debug_enabled = false;
 #if CUSTOM_TONEMAP_DEBUG
   tonemap_debug_enabled = TonemapDebugEnabled();
 #endif
 
-  float _2891 = _userImageAdjust.z * _exposure0.x;
+  float exposure = _userImageAdjust.z * _exposure0.x;
 
   [branch]
   if ((RENODX_TONE_MAP_TYPE != 0) && (IMPROVED_AUTO_EXPOSURE == 2)) {
@@ -260,17 +260,22 @@ float3 TonemapReplacer(float3 color) {
     } else {
       histogram_target_mean = histogram_mean;
     }
-    histogram_target_mean = min(histogram_target_mean * _2891, 1.0f);
+    histogram_target_mean = min(histogram_target_mean * exposure, 1.0f);
     histogram_target_mean = min(histogram_target_mean, 1.0f);
     float3 ungraded_bt709 = float3(
         max(0.0f, (((color.x * 1.705049991607666f) - (color.y * 0.6217899918556213f)) - (color.z * 0.08325999975204468f))),
         max(0.0f, (((color.y * 1.1407999992370605f) - (color.x * 0.13026000559329987f)) - (color.z * 0.01054999977350235f))),
         max(0.0f, (((color.x * -0.024000000208616257f) - (color.y * 0.12896999716758728f)) + (color.z * 1.1529699563980103f))));
-    float3 graded_components = max(0.0f, (ungraded_bt709 * _slopeParams.xyz) + _offsetParams.xyz);
-    float3 curved_bt709 = exp2(log2(graded_components) * _powerParams.xyz);
-    float display_transform_luminance = dot(curved_bt709, float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f));
-    float3 graded_bt709 = lerp(display_transform_luminance.xxx, curved_bt709, _powerParams.w);
-    float3 perceptual_input_color = lerp(ungraded_bt709, graded_bt709, RENODX_COLOR_GRADE_STRENGTH);
+
+    float3 perceptual_input_color = ungraded_bt709;
+    if (use_pre_curve) {
+      float3 graded_components = max(0.0f, (ungraded_bt709 * _slopeParams.xyz) + _offsetParams.xyz);
+      float3 curved_bt709 = exp2(log2(graded_components) * _powerParams.xyz);
+      float display_transform_luminance = dot(curved_bt709, float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f));
+      float3 graded_bt709 = lerp(display_transform_luminance.xxx, curved_bt709, _powerParams.w);
+      perceptual_input_color = lerp(ungraded_bt709, graded_bt709, RENODX_COLOR_GRADE_STRENGTH);
+    }
+
     float3 tonemap_input_color = perceptual_input_color;
 #if CUSTOM_TONEMAP_DEBUG
     renodx::debug::graph::Config tonemap_graph_config = { false, 0, 0.0f, perceptual_input_color, RENODX_PEAK_WHITE_NITS, 100.0f };
@@ -292,19 +297,27 @@ float3 TonemapReplacer(float3 color) {
 #endif
     return output_color;
   } else {
-    float _2940 = exp2(log2(max(0.0f, (((_2891 * max(0.0f, (((color.x * 1.705049991607666f) - (color.y * 0.6217899918556213f)) - (color.z * 0.08325999975204468f)))) * _slopeParams.x) + _offsetParams.x))) * _powerParams.x);
-    float _2941 = exp2(log2(max(0.0f, (((max(0.0f, (((color.y * 1.1407999992370605f) - (color.x * 0.13026000559329987f)) - (color.z * 0.01054999977350235f))) * _2891) * _slopeParams.y) + _offsetParams.y))) * _powerParams.y);
-    float _2942 = exp2(log2(max(0.0f, (((max(0.0f, (((color.x * -0.024000000208616257f) - (color.y * 0.12896999716758728f)) + (color.z * 1.1529699563980103f))) * _2891) * _slopeParams.z) + _offsetParams.z))) * _powerParams.z);
-    float _2944 = dot(float3(_2940, _2941, _2942), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f));
-    float _2951 = ((_2940 - _2944) * _powerParams.w) + _2944;
-    float _2952 = ((_2941 - _2944) * _powerParams.w) + _2944;
-    float _2953 = ((_2942 - _2944) * _powerParams.w) + _2944;
+    float3 ungraded_bt709 = float3(
+        max(0.0f, (((color.x * 1.705049991607666f) - (color.y * 0.6217899918556213f)) - (color.z * 0.08325999975204468f))),
+        max(0.0f, (((color.y * 1.1407999992370605f) - (color.x * 0.13026000559329987f)) - (color.z * 0.01054999977350235f))),
+        max(0.0f, (((color.x * -0.024000000208616257f) - (color.y * 0.12896999716758728f)) + (color.z * 1.1529699563980103f))));
+
+    ungraded_bt709 *= exposure;
+
+    float3 input_color = ungraded_bt709;
+    if (use_pre_curve) {
+      float3 graded_components = max(0.0f, (ungraded_bt709 * _slopeParams.xyz) + _offsetParams.xyz);
+      float3 curved_bt709 = exp2(log2(graded_components) * _powerParams.xyz);
+      float display_transform_luminance = dot(curved_bt709, float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f));
+      float3 graded_bt709 = lerp(display_transform_luminance.xxx, curved_bt709, _powerParams.w);
+      input_color = lerp(ungraded_bt709, graded_bt709, RENODX_COLOR_GRADE_STRENGTH);
+    }
 
     if (RENODX_TONE_MAP_TYPE != 0) {
-      float3 untonemapped_bt709 = float3(_2951, _2952, _2953);
+      float3 untonemapped_bt709 = input_color;
 
       const float mid_gray = 0.18f;
-      float mid_gray_adjusted = SDRToneMap(mid_gray).x;
+      float mid_gray_adjusted = SDRToneMap(mid_gray, false, false).x;
       mid_gray_adjusted = lerp(0.18f, mid_gray_adjusted, CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
 
       float3 tonemap_input_color = untonemapped_bt709;
@@ -328,14 +341,7 @@ float3 TonemapReplacer(float3 color) {
 #endif
       return output_color;
     } else {
-      float _2940 = exp2(log2(max(0.0f, (((_2891 * max(0.0f, (((color.x * 1.705049991607666f) - (color.y * 0.6217899918556213f)) - (color.z * 0.08325999975204468f)))) * _slopeParams.x) + _offsetParams.x))) * _powerParams.x);
-      float _2941 = exp2(log2(max(0.0f, (((max(0.0f, (((color.y * 1.1407999992370605f) - (color.x * 0.13026000559329987f)) - (color.z * 0.01054999977350235f))) * _2891) * _slopeParams.y) + _offsetParams.y))) * _powerParams.y);
-      float _2942 = exp2(log2(max(0.0f, (((max(0.0f, (((color.x * -0.024000000208616257f) - (color.y * 0.12896999716758728f)) + (color.z * 1.1529699563980103f))) * _2891) * _slopeParams.z) + _offsetParams.z))) * _powerParams.z);
-      float _2944 = dot(float3(_2940, _2941, _2942), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f));
-      float _2951 = ((_2940 - _2944) * _powerParams.w) + _2944;
-      float _2952 = ((_2941 - _2944) * _powerParams.w) + _2944;
-      float _2953 = ((_2942 - _2944) * _powerParams.w) + _2944;
-      return SDRToneMap(float3(_2951, _2952, _2953));
+      return SDRToneMap(input_color, use_color_blind, use_etc_params);
     }
   } 
 }
