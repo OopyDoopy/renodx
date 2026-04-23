@@ -1,6 +1,4 @@
-#include "../common.hlsl"
 #include "./tonemap.hlsli"
-#include "./debug.hlsli"
 
 Texture2D<float4> __0__7__0__0__g_bindlessTextures[] : register(t0, space7);
 
@@ -575,12 +573,12 @@ float4 main(
     _512 = _416;
   }
   
-  float3 pre_CA = float3(_414, _415, _416);
-  float3 CA = float3(_510, _511, _512);
-  float3 blend_CA = lerp(pre_CA, CA, CUSTOM_CHROMATIC_ABERRATION);
-  _510 = blend_CA.x;
-  _511 = blend_CA.y;
-  _512 = blend_CA.z;
+  // float3 pre_CA = float3(_414, _415, _416);
+  // float3 CA = float3(_510, _511, _512);
+  // float3 blend_CA = lerp(pre_CA, CA, CUSTOM_CHROMATIC_ABERRATION);
+  // _510 = blend_CA.x;
+  // _511 = blend_CA.y;
+  // _512 = blend_CA.z;
 
   // Detect mode tinting and contrast boosts.
   int _513 = WaveReadLaneFirst(_materialIndex);
