@@ -249,14 +249,14 @@ float4 main(
     _85 = _postProcessParams.x;
   }
   if (_localToneMappingParams.w > 0.0f) {
-    float3 output_color = TonemapReplacer(float3(_65, _67, _69));
+    float3 output_color = TonemapReplacer(float3(_65.x, _67.y, _69.z));
     _453 = output_color.x;
     _454 = output_color.y;
     _455 = output_color.z;
   } else {
-    _453 = _65;
-    _454 = _67;
-    _455 = _69;
+    _453 = _65.x;
+    _454 = _67.y;
+    _455 = _69.z;
   }
   if (_etcParams.y > 1.0f) {
     float _466 = abs((TEXCOORD.x * 2.0f) + -1.0f);
