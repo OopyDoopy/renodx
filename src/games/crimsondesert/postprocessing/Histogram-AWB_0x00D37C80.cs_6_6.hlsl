@@ -8,35 +8,35 @@ struct GlareInstanceData {
 };
 
 
-Texture2D<float4> __3__36__0__0__g_sceneColor : register(t29, space36);
+Texture2D<float4> __3__36__0__0__g_sceneColor : register(t33, space36);
 
-Texture2D<float4> __3__36__0__0__g_sceneColorLightingOnlyForAwb : register(t74, space36);
+Texture2D<float4> __3__36__0__0__g_sceneColorLightingOnlyForAwb : register(t68, space36);
 
-Texture2D<float> __3__36__0__0__g_depth : register(t30, space36);
+Texture2D<float> __3__36__0__0__g_depth : register(t75, space36);
 
-Texture2D<uint2> __3__36__0__0__g_stencil : register(t26, space36);
+Texture2D<uint2> __3__36__0__0__g_stencil : register(t38, space36);
 
-Texture2D<float4> __3__36__0__0__g_vertexNormal : register(t75, space36);
+Texture2D<float4> __3__36__0__0__g_vertexNormal : register(t92, space36);
 
-RWStructuredBuffer<uint> __3__39__0__1__g_histogramUAV : register(u9, space39);
+RWStructuredBuffer<uint> __3__39__0__1__g_histogramUAV : register(u10, space39);
 
-RWStructuredBuffer<uint> __3__39__0__1__g_histogram2UAV : register(u10, space39);
+RWStructuredBuffer<uint> __3__39__0__1__g_histogram2UAV : register(u11, space39);
 
-RWStructuredBuffer<uint> __3__39__0__1__g_histogramRUAV : register(u11, space39);
+RWStructuredBuffer<uint> __3__39__0__1__g_histogramRUAV : register(u12, space39);
 
-RWStructuredBuffer<uint> __3__39__0__1__g_histogramGUAV : register(u12, space39);
+RWStructuredBuffer<uint> __3__39__0__1__g_histogramGUAV : register(u13, space39);
 
-RWStructuredBuffer<uint> __3__39__0__1__g_histogramBUAV : register(u13, space39);
+RWStructuredBuffer<uint> __3__39__0__1__g_histogramBUAV : register(u14, space39);
 
 RWTexture2D<float3> __3__38__0__1__g_glareSourceUAV : register(u23, space38);
 
 RWTexture2D<float3> __3__38__0__1__g_colorAdatationSourceUAV : register(u24, space38);
 
-RWStructuredBuffer<GlareInstanceData> __3__39__0__1__g_glareInstanceUAV : register(u5, space39);
+RWStructuredBuffer<GlareInstanceData> __3__39__0__1__g_glareInstanceUAV : register(u8, space39);
 
 RWByteAddressBuffer __3__39__0__1__g_glareInstanceCounterUAV : register(u1, space39);
 
-cbuffer __3__35__0__0__SceneConstantBuffer : register(b16, space35) {
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b14, space35) {
   float4 _time;
   float4 _timeNoScale;
   uint4 _frameNumber;
@@ -124,10 +124,10 @@ cbuffer __3__35__0__0__SceneConstantBuffer : register(b16, space35) {
   int2 _viewTileIndexPrev;
   float4 _worldVolume;
   float3 _diffViewPosAccurate;
-  uint _isAllowBlood;
+  uint _isPhotosensitiveMode_isAllolwBlood;
 };
 
-cbuffer __3__35__0__0__ExposureConstantBuffer : register(b31, space35) {
+cbuffer __3__35__0__0__ExposureConstantBuffer : register(b29, space35) {
   float4 _exposure0 : packoffset(c000.x);
   float4 _exposure1 : packoffset(c001.x);
   float4 _exposure2 : packoffset(c002.x);
@@ -135,16 +135,16 @@ cbuffer __3__35__0__0__ExposureConstantBuffer : register(b31, space35) {
   float4 _exposure4 : packoffset(c004.x);
 };
 
-cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b26, space35) {
+cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b24, space35) {
   float _sunLightIntensity : packoffset(c000.x);
   float _sunLightPreset : packoffset(c000.y);
   float _sunSizeAngle : packoffset(c000.z);
-  float _sunDirX : packoffset(c000.w);
+  float _sunSizeAngleCosine : packoffset(c000.w);
   float _sunDirY : packoffset(c001.x);
   float _moonLightIntensity : packoffset(c001.y);
   float _moonLightPreset : packoffset(c001.z);
   float _moonSizeAngle : packoffset(c001.w);
-  float _moonDirX : packoffset(c002.x);
+  float _moonSizeAngleCosine : packoffset(c002.x);
   float _moonDirY : packoffset(c002.y);
   float _earthAxisTilt : packoffset(c002.z);
   float _latitude : packoffset(c002.w);
@@ -219,10 +219,10 @@ groupshared uint g_isParticleTile;
 
 [numthreads(16, 16, 1)]
 void main(
-  uint3 SV_DispatchThreadID : SV_DispatchThreadID,
-  uint3 SV_GroupID : SV_GroupID,
-  uint3 SV_GroupThreadID : SV_GroupThreadID,
-  uint SV_GroupIndex : SV_GroupIndex
+    uint3 SV_DispatchThreadID: SV_DispatchThreadID,
+    uint3 SV_GroupID: SV_GroupID,
+    uint3 SV_GroupThreadID: SV_GroupThreadID,
+    uint SV_GroupIndex: SV_GroupIndex
 ) {
   g_isSkyTile = 0;
   g_isEmissiveTile = 0;
@@ -803,3 +803,208 @@ void main(
     }
   }
 }
+
+// [numthreads(16, 16, 1)]
+// void main(
+//   uint3 SV_DispatchThreadID : SV_DispatchThreadID,
+//   uint3 SV_GroupID : SV_GroupID,
+//   uint3 SV_GroupThreadID : SV_GroupThreadID,
+//   uint SV_GroupIndex : SV_GroupIndex
+// ) {
+//   g_isSkyTile = 0;
+//   g_isEmissiveTile = 0;
+//   g_isParticleTile = 0;
+//   GroupMemoryBarrierWithGroupSync();
+//   float _27 = float((uint)SV_DispatchThreadID.x);
+//   float _28 = float((uint)SV_DispatchThreadID.y);
+//   float _34 = _textureSizeAndInvSize.z * (_27 + 0.5f);
+//   float _35 = _textureSizeAndInvSize.w * (_28 + 0.5f);
+//   float _38 = (_34 * 2.0f) + -1.0f;
+//   float _40 = -0.0f - ((_35 * 2.0f) + -1.0f);
+//   float4 _43 = __3__36__0__0__g_sceneColor.SampleLevel(__0__4__0__0__g_staticPointClamp, float2(_34, _35), 0.0f);
+//   float _50 = _bufferSizeAndInvSize.x * _34;
+//   float _51 = _bufferSizeAndInvSize.y * _35;
+//   uint2 _55 = __3__36__0__0__g_stencil.Load(int3(int(_50), int(_51), 0));
+//   int _57 = _55.x & 127;
+//   float _93 = mad((_invViewProjRelative[3].z), 1.0000000116860974e-07f, mad((_invViewProjRelative[3].y), _40, ((_invViewProjRelative[3].x) * _38))) + (_invViewProjRelative[3].w);
+//   float _94 = (mad((_invViewProjRelative[0].z), 1.0000000116860974e-07f, mad((_invViewProjRelative[0].y), _40, ((_invViewProjRelative[0].x) * _38))) + (_invViewProjRelative[0].w)) / _93;
+//   float _95 = (mad((_invViewProjRelative[1].z), 1.0000000116860974e-07f, mad((_invViewProjRelative[1].y), _40, ((_invViewProjRelative[1].x) * _38))) + (_invViewProjRelative[1].w)) / _93;
+//   float _96 = (mad((_invViewProjRelative[2].z), 1.0000000116860974e-07f, mad((_invViewProjRelative[2].y), _40, ((_invViewProjRelative[2].x) * _38))) + (_invViewProjRelative[2].w)) / _93;
+//   float _98 = rsqrt(dot(float3(_94, _95, _96), float3(_94, _95, _96)));
+//   bool _99 = (_57 == 0);
+//   bool _119;
+//   bool _120;
+//   bool _123;
+//   bool _124;
+//   bool _125;
+//   bool _126;
+//   float _245;
+//   float _258;
+//   float _375;
+//   float _376;
+//   float _377;
+//   if (_99) {
+//     _119 = (dot(float3((_98 * _94), (_98 * _95), (_98 * _96)), float3(_sunDirection.x, _sunDirection.y, _sunDirection.z)) > _sunSizeAngleCosine);
+//     _120 = false;
+//     _123 = _120;
+//     _124 = false;
+//     _125 = _119;
+//     _126 = (_57 == 27);
+//   } else {
+//     bool _114 = (_57 == 28);
+//     bool _115 = (_57 == 56);
+//     if (!(((_57 == 26)) || (_114))) {
+//       _119 = false;
+//       _120 = _115;
+//       _123 = _120;
+//       _124 = false;
+//       _125 = _119;
+//       _126 = (_57 == 27);
+//     } else {
+//       _123 = _115;
+//       _124 = _114;
+//       _125 = false;
+//       _126 = true;
+//     }
+//   }
+//   float4 _130 = __3__36__0__0__g_vertexNormal.Load(int3((int)(uint(_50)), (int)(uint(_51)), 0));
+//   bool _138 = ((int)(uint((_130.w * 3.0f) + 0.5f)) == 3);
+//   float _140 = select(_126, 0.5f, select(_138, 1.0f, 0.0f));
+//   float _150 = (saturate(_130.x * 1.0009784698486328f) * 2.0f) + -1.0f;
+//   float _151 = (saturate(_130.y * 1.0009784698486328f) * 2.0f) + -1.0f;
+//   float _152 = (saturate(_130.z * 1.0009784698486328f) * 2.0f) + -1.0f;
+//   float _154 = rsqrt(dot(float3(_150, _151, _152), float3(_150, _151, _152)));
+//   float _158 = _textureSizeAndInvSize.z * _27;
+//   float _159 = _textureSizeAndInvSize.w * _28;
+//   float4 _161 = __3__36__0__0__g_sceneColor.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(_158, _159), 0.0f);
+//   float _166 = _textureSizeAndInvSize.z * (_27 + 1.0f);
+//   float4 _167 = __3__36__0__0__g_sceneColor.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(_166, _159), 0.0f);
+//   float _172 = _textureSizeAndInvSize.w * (_28 + 1.0f);
+//   float4 _173 = __3__36__0__0__g_sceneColor.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(_158, _172), 0.0f);
+//   float4 _177 = __3__36__0__0__g_sceneColor.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(_166, _172), 0.0f);
+//   float _186 = 1.0f / (dot(float3(_161.x, _161.y, _161.z), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f)) + 1.0f);
+//   float _188 = 1.0f / (dot(float3(_167.x, _167.y, _167.z), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f)) + 1.0f);
+//   float _190 = 1.0f / (dot(float3(_173.x, _173.y, _173.z), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f)) + 1.0f);
+//   float _192 = 1.0f / (dot(float3(_177.x, _177.y, _177.z), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f)) + 1.0f);
+//   float _195 = ((_188 + _186) + _190) + _192;
+//   float _226 = -0.0f - min(0.0f, (-0.0f - (((((_188 * _167.x) + (_186 * _161.x)) + (_190 * _173.x)) + (_192 * _177.x)) / _195)));
+//   float _227 = -0.0f - min(0.0f, (-0.0f - (((((_188 * _167.y) + (_186 * _161.y)) + (_190 * _173.y)) + (_192 * _177.y)) / _195)));
+//   float _228 = -0.0f - min(0.0f, (-0.0f - (((((_188 * _167.z) + (_186 * _161.z)) + (_190 * _173.z)) + (_192 * _177.z)) / _195)));
+//   if (_125) {
+//     _245 = (max(min(_exposure2.x, 2.0f), 0.5f) * _glareParam.w);
+//   } else {
+//     if (_124) {
+//       _245 = (120.0f / max(0.20000000298023224f, min(_exposure0.y, 0.4000000059604645f)));
+//     } else {
+//       _245 = 1.0f;
+//     }
+//   }
+//   bool _247 = (_140 > 0.0f);
+//   if (_247) {
+//     _258 = ((_140 * 0.004000000189989805f) * min(_exposure0.y, 20.0f));
+//   } else {
+//     _258 = (min(_exposure0.y, 25.0f) * 0.0010000000474974513f);
+//   }
+//   float _259 = _258 * select(_123, 300.0f, _245);
+//   float _260 = _259 * _226;
+//   float _261 = _259 * _227;
+//   float _262 = _259 * _228;
+//   float _269 = _140 * 48.520301818847656f;
+//   float _270 = log2(_260 + 1.0f) * _269;
+//   float _271 = log2(_261 + 1.0f) * _269;
+//   float _272 = log2(_262 + 1.0f) * _269;
+//   float _277 = select(((_isPhotosensitiveMode_isAllolwBlood & 2) != 0), 0.019999999552965164f, 1.0f);
+//   float _280 = saturate(dot(float3(_260, _261, _262), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f)) * 50.0f);
+//   float _284 = select(_247, (_270 * _270), _260);
+//   float _285 = select(_247, (_271 * _271), _261);
+//   float _286 = select(_247, (_272 * _272), _262);
+//   __3__38__0__1__g_glareSourceUAV[int2((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y))] = float3((((_280 * (_260 - _284)) + _284) * _277), ((lerp(_285, _261, _280)) * _277), ((lerp(_286, _262, _280)) * _277));
+//   bool _302 = (_whiteBalance.w > 0.0010000000474974513f);
+//   bool _305 = (((uint)(_57 + -105) < (uint)2)) || (_126);
+//   float _307 = (_43.x + _43.y) + _43.z;
+//   float _308 = _307 * 0.3333333432674408f;
+//   float _312 = 1.5f - (saturate(_307 * 0.00033333332976326346f) * 0.5f);
+//   float _319 = (_312 * (_43.x - _308)) + _308;
+//   float _320 = (_312 * (_43.y - _308)) + _308;
+//   float _321 = (_312 * (_43.z - _308)) + _308;
+//   if ((_305) || (_138)) {
+//     float _333 = ((_308 / max((((_319 + _320) + _321) * 0.3333333432674408f), 9.999999747378752e-05f)) * 0.0020000000949949026f) * min(_exposure0.y, 20.0f);
+//     float _334 = _333 * _319;
+//     float _335 = _333 * _320;
+//     float _336 = _333 * _321;
+//     float _343 = log2(_334 + 1.0f) * 24.260150909423828f;
+//     float _344 = log2(_335 + 1.0f) * 24.260150909423828f;
+//     float _345 = log2(_336 + 1.0f) * 24.260150909423828f;
+//     float _353 = saturate(dot(float3(_334, _335, _336), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f)) * 50.0f);
+//     float _354 = _343 * _343;
+//     float _355 = _344 * _344;
+//     float _356 = _345 * _345;
+//     float _370 = select(_305, _renderParam.z, _renderParam.w) * select(((_isPhotosensitiveMode_isAllolwBlood & 2) != 0), 0.019999999552965164f, 1.0f);
+//     _375 = (_370 * ((_353 * (_334 - _354)) + _354));
+//     _376 = (_370 * ((_353 * (_335 - _355)) + _355));
+//     _377 = (_370 * ((_353 * (_336 - _356)) + _356));
+//   } else {
+//     _375 = 0.0f;
+//     _376 = 0.0f;
+//     _377 = 0.0f;
+//   }
+//   __3__38__0__1__g_colorAdatationSourceUAV[int2((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y))] = float3(_375, _376, _377);
+//   g_tempHistogram[(int)(SV_GroupIndex)] = 0;
+//   g_tempHistogram2[(int)(SV_GroupIndex)] = 0;
+//   if (_302) {
+//     g_tempHistogramR[(int)(SV_GroupIndex)] = 0;
+//     g_tempHistogramG[(int)(SV_GroupIndex)] = 0;
+//     g_tempHistogramB[(int)(SV_GroupIndex)] = 0;
+//   }
+//   uint _387; InterlockedMax(g_isSkyTile, (uint)((int)(uint)((int)(_99))), _387);
+//   uint _389; InterlockedMax(g_isEmissiveTile, (uint)((int)(uint)((int)(_138))), _389);
+//   uint _391; InterlockedMax(g_isParticleTile, (uint)((int)(uint)((int)(_305))), _391);
+//   GroupMemoryBarrierWithGroupSync();
+//   float _402 = max(0.0f, (_viewPos.w + -16.0f));
+//   float _403 = float((int)((int)(uint(_bufferSizeAndInvSize.y * _35))));
+//   bool _407 = ((!(_403 <= _402))) && ((!(_403 >= (_bufferSizeAndInvSize.y - _402))));
+//   float _408 = select(_407, _43.x, 0.0f);
+//   float _409 = select(_407, _43.y, 0.0f);
+//   float _410 = select(_407, _43.z, 0.0f);
+//   float _411 = dot(float3(_408, _409, _410), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f));
+//   float4 _414 = __3__36__0__0__g_sceneColorLightingOnlyForAwb.SampleLevel(__0__4__0__0__g_staticPointClamp, float2(_34, _35), 0.0f);
+//   bool _416 = (_414.w > 0.0f);
+//   float _418 = __3__36__0__0__g_depth.SampleLevel(__0__4__0__0__g_staticPointClamp, float2(_34, _35), 0.0f);
+//   bool _420 = (_418.x < 1.0000000116860974e-07f);
+//   int _423 = select(((_420) || ((_418.x == 1.0f))), 1, 4);
+//   int _441; InterlockedAdd(g_tempHistogram2[(int)(uint(saturate((log2(dot(float3(_226, _227, _228), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f))) * _histogramParam.x) + _histogramParam.y) * 255.0f))], _423, _441);
+//   int _443; InterlockedAdd(g_tempHistogram[(int)(uint(saturate((log2(_411) * _histogramParam.x) + _histogramParam.y) * 255.0f))], _423, _443);
+//   bool _446 = !(_418.x == 1.0f);
+//   bool _450 = ((uint)(_57 + -53) < (uint)15);
+//   if (!((_450) || ((!((_446) && (((_302) && ((!(_418.x < 1.0000000116860974e-07f)))))))))) {
+//     int _481; InterlockedAdd(g_tempHistogramR[(int)(uint(saturate((log2(select(_416, _414.x, _411)) * _histogramParam.x) + _histogramParam.y) * 255.0f))], _423, _481);
+//     int _483; InterlockedAdd(g_tempHistogramG[(int)(uint(saturate((log2(select(_416, _414.y, _411)) * _histogramParam.x) + _histogramParam.y) * 255.0f))], _423, _483);
+//     int _485; InterlockedAdd(g_tempHistogramB[(int)(uint(saturate((log2(select(_416, _414.z, _411)) * _histogramParam.x) + _histogramParam.y) * 255.0f))], _423, _485);
+//   }
+//   GroupMemoryBarrierWithGroupSync();
+//   uint _489; InterlockedAdd(__3__39__0__1__g_histogram2UAV[(int)(SV_GroupIndex)], (g_tempHistogram2[(int)(SV_GroupIndex)]), _489);
+//   uint _492; InterlockedAdd(__3__39__0__1__g_histogramUAV[(int)(SV_GroupIndex)], (g_tempHistogram[(int)(SV_GroupIndex)]), _492);
+//   if (_302) {
+//     uint _497; InterlockedAdd(__3__39__0__1__g_histogramRUAV[(int)(SV_GroupIndex)], (g_tempHistogramR[(int)(SV_GroupIndex)]), _497);
+//     uint _501; InterlockedAdd(__3__39__0__1__g_histogramGUAV[(int)(SV_GroupIndex)], (g_tempHistogramG[(int)(SV_GroupIndex)]), _501);
+//     uint _505; InterlockedAdd(__3__39__0__1__g_histogramBUAV[(int)(SV_GroupIndex)], (g_tempHistogramB[(int)(SV_GroupIndex)]), _505);
+//   }
+//   float _509 = max(1.0000000116860974e-07f, _418.x);
+//   float _510 = _nearFarProj.x / _509;
+//   float _512 = (_409 + _408) + _410;
+//   float _518 = ((saturate(_exposure2.x) * 900.0f) + 100.0f) * _exposure2.x;
+//   bool _532 = ((_57 == 11)) || (((((_55.x & 126) == 12)) || (((((_55.x & 125) == 17)) || ((_57 == 18))))));
+//   float _535 = (((saturate(_510 * 0.004999999888241291f) * 4.0f) * _518) + _518) * select(_532, 0.10000000149011612f, 1.0f);
+//   if ((_446) && ((!((_420) || ((((((g_isEmissiveTile | g_isSkyTile) | g_isParticleTile) != 0)) || ((!(_512 > _535))))))))) {
+//     uint _550; __3__39__0__1__g_glareInstanceCounterUAV.InterlockedAdd(0u, 1, _550);
+//     if ((uint)(int)(_550) < (uint)999) {
+//       float _592 = mad((_invViewProj[3].z), _509, mad((_invViewProj[3].y), _40, ((_invViewProj[3].x) * _38))) + (_invViewProj[3].w);
+//       GlareInstanceData __struct_store_0;
+//       __struct_store_0._data0 = float4(_34, _35, 0.0f, _510);
+//       __struct_store_0._data1 = float4(((mad((_invViewProj[0].z), _509, mad((_invViewProj[0].y), _40, ((_invViewProj[0].x) * _38))) + (_invViewProj[0].w)) / _592), ((mad((_invViewProj[1].z), _509, mad((_invViewProj[1].y), _40, ((_invViewProj[1].x) * _38))) + (_invViewProj[1].w)) / _592), ((mad((_invViewProj[2].z), _509, mad((_invViewProj[2].y), _40, ((_invViewProj[2].x) * _38))) + (_invViewProj[2].w)) / _592), select((((_57 == 57)) || (_450)), 1.0f, 0.0f));
+//       __struct_store_0._luminance = float4((_408 / _535), (_409 / _535), (_410 / _535), ((_512 - _535) / _535));
+//       __struct_store_0._vertexNormal = float4((_154 * _150), (_154 * _151), (_152 * _154), select(_532, 1.0f, 0.0f));
+//       __3__39__0__1__g_glareInstanceUAV[(int)(_550)] = __struct_store_0;
+//     }
+//   }
+// }

@@ -60,6 +60,51 @@ float3 EncodeDisplayTransformLutCoordinates(float3 lut_input) {
   return exp2(log2((1.0f / ((lut_input * 18.6875f) + 1.0f)) * ((lut_input * 18.8515625f) + 0.8359375f)) * 78.84375f);
 }
 
+float3 etcParams(float3 color, bool use_etc_params = true) {
+
+  float _1797;
+  float _1798;
+  float _1799;
+
+  if (_etcParams.z == 0.0f && use_etc_params) {
+
+    float _1675;
+    float _1676;
+    float _1677;
+
+    float _1646 = 1.0f - abs(_etcParams.w);
+    float _1650 = saturate(_etcParams.w);
+    float _1651 = (_1646 * color.x) + _1650;
+    float _1652 = (_1646 * color.y) + _1650;
+    float _1653 = (_1646 * color.z) + _1650;
+    if (_colorGradingParams.w > 0.0f) {
+      float _1658 = saturate(_colorGradingParams.w);
+      _1675 = (((max(0.0f, (1.0f - _1651)) - _1651) * _1658) + _1651);
+      _1676 = (((max(0.0f, (1.0f - _1652)) - _1652) * _1658) + _1652);
+      _1677 = (((max(0.0f, (1.0f - _1653)) - _1653) * _1658) + _1653);
+    } else {
+      _1675 = _1651;
+      _1676 = _1652;
+      _1677 = _1653;
+    }
+    float _1683 = _userImageAdjust.y + 1.0f;
+    float _1687 = _userImageAdjust.x + 0.5f;
+    float _1688 = ((_1675 + -0.5f) * _1683) + _1687;
+    float _1689 = ((_1676 + -0.5f) * _1683) + _1687;
+    float _1690 = ((_1677 + -0.5f) * _1683) + _1687;
+
+    _1797 = _1688;
+    _1798 = _1689;
+    _1799 = _1690;
+
+  } else {
+    _1797 = color.x;
+    _1798 = color.y;
+    _1799 = color.z;
+  }
+  return float3(_1797, _1798, _1799);
+}
+
 [numthreads(8, 8, 1)]
 void main(
     uint3 SV_DispatchThreadID: SV_DispatchThreadID,
@@ -147,7 +192,7 @@ void main(
 #endif
     } else {
       const float mid_gray = 0.18f;
-      float mid_gray_adjusted = SDRToneMap(mid_gray).x;
+      float mid_gray_adjusted = SDRToneMap(mid_gray, false, false).x;
       mid_gray_adjusted = lerp(0.18f, mid_gray_adjusted, CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
       // mid_gray_scale = mid_gray_adjusted / mid_gray;
       // mid_gray_scale = lerp(1.f, mid_gray_scale, CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
