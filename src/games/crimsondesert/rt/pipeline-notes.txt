@@ -246,6 +246,14 @@ Purpose: Pack G-buffer data into DLSS Ray Reconstruction guide buffers.
   - Writes 4 UAVs: diffuse albedo, specular albedo, normal+roughness,
     SSS guide.
 
+  [Game Update] Stencil-gated metallic zeroing for DLSS-RR:
+    Stencils {11, 12-19, 24, 29, 54, 65-67, 96, 107} now force metallic
+    to 0.0 in the specular albedo output, giving these materials a fixed
+    dielectric F0 of 0.04. This prevents non-metallic materials (foliage,
+    skin, hair, SSS, transparent, decals) from incorrectly contributing
+    metallic specular to Ray Reconstruction. Previously the G-buffer
+    metallic channel was used directly for all stencils.
+
 
 ================================================================================
 ISSUES & LIMITATIONS
