@@ -11,13 +11,13 @@ struct PostProcessSkyStruct {
 
 Texture2D<float4> __0__7__0__0__g_bindlessTextures[] : register(t0, space7);
 
-Texture2D<float> __3__36__0__0__g_depth : register(t16, space36);
+Texture2D<float> __3__36__0__0__g_depth : register(t13, space36);
 
-Texture2D<uint2> __3__36__0__0__g_stencil : register(t20, space36);
+Texture2D<uint2> __3__36__0__0__g_stencil : register(t17, space36);
 
 RWTexture2D<float4> __3__38__0__1__g_postProcessUAV : register(u0, space38);
 
-cbuffer __3__35__0__0__SceneConstantBuffer : register(b13, space35) {
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b11, space35) {
   float4 _time;
   float4 _timeNoScale;
   uint4 _frameNumber;
@@ -105,19 +105,19 @@ cbuffer __3__35__0__0__SceneConstantBuffer : register(b13, space35) {
   int2 _viewTileIndexPrev;
   float4 _worldVolume;
   float3 _diffViewPosAccurate;
-  uint _isAllowBlood;
+  uint _isPhotosensitiveMode_isAllolwBlood;
 };
 
-cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b25, space35) {
+cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b13, space35) {
   float _sunLightIntensity : packoffset(c000.x);
   float _sunLightPreset : packoffset(c000.y);
   float _sunSizeAngle : packoffset(c000.z);
-  float _sunDirX : packoffset(c000.w);
+  float _sunSizeAngleCosine : packoffset(c000.w);
   float _sunDirY : packoffset(c001.x);
   float _moonLightIntensity : packoffset(c001.y);
   float _moonLightPreset : packoffset(c001.z);
   float _moonSizeAngle : packoffset(c001.w);
-  float _moonDirX : packoffset(c002.x);
+  float _moonSizeAngleCosine : packoffset(c002.x);
   float _moonDirY : packoffset(c002.y);
   float _earthAxisTilt : packoffset(c002.z);
   float _latitude : packoffset(c002.w);
@@ -178,13 +178,13 @@ cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _slopeParams : packoffset(c009.x);
   float4 _offsetParams : packoffset(c010.x);
   float4 _powerParams : packoffset(c011.x);
+  int _colorBlindParam : packoffset(c012.x);
+  int3 _padding : packoffset(c012.y);
 };
 
 cbuffer __3__1__0__0__PostProcessMaterialIndex : register(b2, space1) {
   int _materialIndex : packoffset(c000.x);
   int _passIndex : packoffset(c000.y);
-  int __3__1__0__0__PostProcessMaterialIndex_000z : packoffset(c000.z);
-  int __3__1__0__0__PostProcessMaterialIndex_000w : packoffset(c000.w);
 };
 
 ConstantBuffer<PostProcessSkyStruct> BindlessParameters_PostProcessSky[] : register(b0, space100);
@@ -200,11 +200,23 @@ void main(
 ) {
   float _14 = __3__36__0__0__g_depth.Load(int3((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y), 0));
   uint2 _17 = __3__36__0__0__g_stencil.Load(int3((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y), 0));
-  if (!((((int)(!(_14.x < 1.0000000116860974e-07f)))) & ((int)((_17.x & 127) != 10)))) {
-    float _43 = (((float4(_moonDirX, _moonDirY, _earthAxisTilt, _latitude).z) + 90.0f) - (float4(_moonDirX, _moonDirY, _earthAxisTilt, _latitude).w)) * 0.01745329238474369f;
+  int _19 = _17.x & 127;
+  bool _20 = !(_14.x < 1.0000000116860974e-07f);
+  bool _21 = (_19 != 10);
+  bool _22 = (_20) && (_21);
+  if (!_22) {
+    float _25 = float((uint)SV_DispatchThreadID.y);
+    float _26 = _25 + 0.5f;
+    float _28 = _26 * _bufferSizeAndInvSize.w;
+    float _29 = float((uint)SV_DispatchThreadID.x);
+    float _30 = _29 + 0.5f;
+    float _41 = _earthAxisTilt + 90.0f;
+    float _42 = _41 - _latitude;
+    float _43 = _42 * 0.01745329238474369f;
     float _44 = sin(_43);
     float _45 = cos(_43);
-    float _49 = (_time.w * 0.2617993950843811f) + -3.1415927410125732f;
+    float _48 = _time.w * 0.2617993950843811f;
+    float _49 = _48 + -3.1415927410125732f;
     float _50 = sin(_49);
     float _51 = cos(_49);
     float _52 = 1.0f - _51;
@@ -212,36 +224,92 @@ void main(
     float _54 = _52 * _45;
     float _55 = _50 * _44;
     float _56 = _50 * _45;
-    float _66 = (((float((uint)SV_DispatchThreadID.x) + 0.5f) * 2.0f) * _bufferSizeAndInvSize.z) + -1.0f;
-    float _69 = ((1.0f - ((float((uint)SV_DispatchThreadID.y) + 0.5f) * _bufferSizeAndInvSize.w)) * 2.0f) + -1.0f;
-    float _105 = ((float4(_invViewProjRelative[0].w, _invViewProjRelative[1].w, _invViewProjRelative[2].w, _invViewProjRelative[3].w).w) + (float4(_invViewProjRelative[0].z, _invViewProjRelative[1].z, _invViewProjRelative[2].z, _invViewProjRelative[3].z).w)) + mad((float4(_invViewProjRelative[0].y, _invViewProjRelative[1].y, _invViewProjRelative[2].y, _invViewProjRelative[3].y).w), _69, ((float4(_invViewProjRelative[0].x, _invViewProjRelative[1].x, _invViewProjRelative[2].x, _invViewProjRelative[3].x).w) * _66));
-    float _106 = ((mad((float4(_invViewProjRelative[0].y, _invViewProjRelative[1].y, _invViewProjRelative[2].y, _invViewProjRelative[3].y).x), _69, ((float4(_invViewProjRelative[0].x, _invViewProjRelative[1].x, _invViewProjRelative[2].x, _invViewProjRelative[3].x).x) * _66)) + (float4(_invViewProjRelative[0].z, _invViewProjRelative[1].z, _invViewProjRelative[2].z, _invViewProjRelative[3].z).x)) + (float4(_invViewProjRelative[0].w, _invViewProjRelative[1].w, _invViewProjRelative[2].w, _invViewProjRelative[3].w).x)) / _105;
-    float _107 = (((float4(_invViewProjRelative[0].w, _invViewProjRelative[1].w, _invViewProjRelative[2].w, _invViewProjRelative[3].w).y) + (float4(_invViewProjRelative[0].z, _invViewProjRelative[1].z, _invViewProjRelative[2].z, _invViewProjRelative[3].z).y)) + mad((float4(_invViewProjRelative[0].y, _invViewProjRelative[1].y, _invViewProjRelative[2].y, _invViewProjRelative[3].y).y), _69, ((float4(_invViewProjRelative[0].x, _invViewProjRelative[1].x, _invViewProjRelative[2].x, _invViewProjRelative[3].x).y) * _66))) / _105;
-    float _108 = (((float4(_invViewProjRelative[0].w, _invViewProjRelative[1].w, _invViewProjRelative[2].w, _invViewProjRelative[3].w).z) + (float4(_invViewProjRelative[0].z, _invViewProjRelative[1].z, _invViewProjRelative[2].z, _invViewProjRelative[3].z).z)) + mad((float4(_invViewProjRelative[0].y, _invViewProjRelative[1].y, _invViewProjRelative[2].y, _invViewProjRelative[3].y).z), _69, ((float4(_invViewProjRelative[0].x, _invViewProjRelative[1].x, _invViewProjRelative[2].x, _invViewProjRelative[3].x).z) * _66))) / _105;
-    float _110 = rsqrt(dot(float3(_106, _107, _108), float3(_106, _107, _108)));
+    float _57 = -0.0f - _55;
+    float _58 = _53 * _44;
+    float _59 = _58 + _51;
+    float _60 = _54 * _44;
+    float _61 = _53 * _45;
+    float _62 = _54 * _45;
+    float _63 = _62 + _51;
+    float _64 = _30 * 2.0f;
+    float _65 = _64 * _bufferSizeAndInvSize.z;
+    float _66 = _65 + -1.0f;
+    float _67 = 1.0f - _28;
+    float _68 = _67 * 2.0f;
+    float _69 = _68 + -1.0f;
+    float _90 = (_invViewProjRelative[0].x) * _66;
+    float _91 = mad((_invViewProjRelative[0].y), _69, _90);
+    float _92 = _91 + (_invViewProjRelative[0].z);
+    float _93 = _92 + (_invViewProjRelative[0].w);
+    float _94 = (_invViewProjRelative[1].x) * _66;
+    float _95 = mad((_invViewProjRelative[1].y), _69, _94);
+    float _96 = (_invViewProjRelative[1].w) + (_invViewProjRelative[1].z);
+    float _97 = _96 + _95;
+    float _98 = (_invViewProjRelative[2].x) * _66;
+    float _99 = mad((_invViewProjRelative[2].y), _69, _98);
+    float _100 = (_invViewProjRelative[2].w) + (_invViewProjRelative[2].z);
+    float _101 = _100 + _99;
+    float _102 = (_invViewProjRelative[3].x) * _66;
+    float _103 = mad((_invViewProjRelative[3].y), _69, _102);
+    float _104 = (_invViewProjRelative[3].w) + (_invViewProjRelative[3].z);
+    float _105 = _104 + _103;
+    float _106 = _93 / _105;
+    float _107 = _97 / _105;
+    float _108 = _101 / _105;
+    float _109 = dot(float3(_106, _107, _108), float3(_106, _107, _108));
+    float _110 = rsqrt(_109);
     float _111 = _110 * _106;
     float _112 = _110 * _107;
     float _113 = _110 * _108;
-    float _116 = mad((-0.0f - _55), _113, mad(_56, _112, (_111 * _51)));
-    float _123 = mad(((_54 * _45) + _51), _113, mad((_53 * _45), _112, (_111 * _55)));
-    float _125 = atan(_123 / _116);
+    float _114 = _111 * _51;
+    float _115 = mad(_56, _112, _114);
+    float _116 = mad(_57, _113, _115);
+    float _117 = _56 * _111;
+    float _118 = -0.0f - _117;
+    float _119 = mad(_59, _112, _118);
+    float _120 = mad(_60, _113, _119);
+    float _121 = _111 * _55;
+    float _122 = mad(_61, _112, _121);
+    float _123 = mad(_63, _113, _122);
+    float _124 = _123 / _116;
+    float _125 = atan(_124);
+    float _126 = _125 + 3.1415927410125732f;
+    float _127 = _125 + -3.1415927410125732f;
     bool _128 = (_116 < 0.0f);
     bool _129 = (_116 == 0.0f);
     bool _130 = (_123 >= 0.0f);
     bool _131 = (_123 < 0.0f);
-    int _144 = WaveReadLaneFirst(int4(_materialIndex, _passIndex, __3__1__0__0__PostProcessMaterialIndex_000z, __3__1__0__0__PostProcessMaterialIndex_000w).x);
-    int _152 = WaveReadLaneFirst(int4(BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_144 < (uint)170000), _144, 0)) + 0u))]._moonTexture, BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_144 < (uint)170000), _144, 0)) + 0u))]._milkyWayTexture, BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_144 < (uint)170000), _144, 0)) + 0u))]._milkyWayRatio, BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_144 < (uint)170000), _144, 0)) + 0u))]._starRatio).y);
-    float4 _159 = __0__7__0__0__g_bindlessTextures[((int)((uint)(select(((uint)_152 < (uint)65000), _152, 0)) + 0u))].SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(select(((_129) & (_130)), 0.75f, select(((_129) & (_131)), 0.25f, ((select(((_128) & (_131)), (_125 + -3.1415927410125732f), select(((_128) & (_130)), (_125 + 3.1415927410125732f), _125)) * 0.15915493667125702f) + 0.5f))), (acos(mad((_54 * _44), _113, mad(((_53 * _44) + _51), _112, (-0.0f - (_56 * _111))))) * 0.31830987334251404f)), 0.0f);
-    int _163 = WaveReadLaneFirst(int4(_materialIndex, _passIndex, __3__1__0__0__PostProcessMaterialIndex_000z, __3__1__0__0__PostProcessMaterialIndex_000w).x);
-    float _171 = WaveReadLaneFirst(float4(BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_163 < (uint)170000), _163, 0)) + 0u))]._moonTexture, BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_163 < (uint)170000), _163, 0)) + 0u))]._milkyWayTexture, BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_163 < (uint)170000), _163, 0)) + 0u))]._milkyWayRatio, BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_163 < (uint)170000), _163, 0)) + 0u))]._starRatio).z);
+    bool _132 = (_128) && (_130);
+    float _133 = select(_132, _126, _125);
+    bool _134 = (_128) && (_131);
+    float _135 = select(_134, _127, _133);
+    bool _136 = (_129) && (_131);
+    bool _137 = (_129) && (_130);
+    float _138 = _135 * 0.15915493667125702f;
+    float _139 = _138 + 0.5f;
+    float _140 = select(_136, 0.25f, _139);
+    float _141 = select(_137, 0.75f, _140);
+    float _142 = acos(_120);
+    float _143 = _142 * 0.31830987334251404f;
+    int _144 = WaveReadLaneFirst(_materialIndex);
+    bool _145 = ((uint)_144 < (uint)170000);
+    int _146 = select(_145, _144, 0);
+    int _152 = WaveReadLaneFirst(BindlessParameters_PostProcessSky[((int)((uint)(_146) + 0u))]._milkyWayTexture);
+    bool _153 = ((uint)_152 < (uint)65000);
+    int _154 = select(_153, _152, 0);
+    float4 _159 = __0__7__0__0__g_bindlessTextures[((int)((uint)(_154) + 0u))].SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(_141, _143), 0.0f);
+    int _163 = WaveReadLaneFirst(_materialIndex);
+    bool _164 = ((uint)_163 < (uint)170000);
+    int _165 = select(_164, _163, 0);
+    float _171 = WaveReadLaneFirst(BindlessParameters_PostProcessSky[((int)((uint)(_165) + 0u))]._milkyWayRatio);
     float _172 = _171 * _159.x;
     float _173 = _171 * _159.y;
     float _174 = _171 * _159.z;
 
     // --- Aurora borealis (sky probe variant) ---
     // This shader feeds the environment probe at night for specular/GI. We add aurora here
-    // so the scene at night gets some aurora tinting but heavily modulate so metals/specular 
-    // get a subtle tint. The visible aurora comes from SkyMaterial_0xB143E0FF at
+    // so the scene at night gets some aurora tinting but heavily modulate so metals/specular
+    // get a subtle tint. The visible aurora comes from SkyMaterial_0xF8D46E3A at
     // full strength.
     [branch]
     if (AURORA_BOREALIS_ENABLED) {
@@ -261,6 +329,21 @@ void main(
       _174 += aurora.b;
     }
 
-    __3__38__0__1__g_postProcessUAV[int2((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y))] = float4((((_172 * 0.6131200194358826f) + (_173 * 0.3395099937915802f)) + (_174 * 0.047370001673698425f)), (((_172 * 0.07020000368356705f) + (_173 * 0.9163600206375122f)) + (_174 * 0.013450000435113907f)), (((_172 * 0.02061999961733818f) + (_173 * 0.10958000272512436f)) + (_174 * 0.8697999715805054f)), _postProcessParams.x);
+    float _175 = _172 * 0.6131200194358826f;
+    float _176 = _172 * 0.07020000368356705f;
+    float _177 = _172 * 0.02061999961733818f;
+    float _178 = _173 * 0.3395099937915802f;
+    float _179 = _173 * 0.9163600206375122f;
+    float _180 = _173 * 0.10958000272512436f;
+    float _181 = _175 + _178;
+    float _182 = _176 + _179;
+    float _183 = _177 + _180;
+    float _184 = _174 * 0.047370001673698425f;
+    float _185 = _174 * 0.013450000435113907f;
+    float _186 = _174 * 0.8697999715805054f;
+    float _187 = _181 + _184;
+    float _188 = _182 + _185;
+    float _189 = _183 + _186;
+    __3__38__0__1__g_postProcessUAV[int2((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y))] = float4(_187, _188, _189, _postProcessParams.x);
   }
 }
