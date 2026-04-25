@@ -205,17 +205,17 @@ int night_check_counter = 0;
 uint32_t aurora_night_counter = 0;     
 
 renodx::mods::shader::CustomShaders custom_shaders = {
-    CustomShaderEntryCallback(0x21B66142, [](reshade::api::command_list* /*cmd_list*/) {
+    CustomShaderEntryCallback(0x70DA2ED5, [](reshade::api::command_list* /*cmd_list*/) {
       rr_draw = true;
       return true;
     }),
 
     // SceneShadowTiledNight shaders
-    CustomShaderEntryCallback(0x7A05D3C9, [](reshade::api::command_list* /*cmd_list*/) {
+    CustomShaderEntryCallback(0x7A588434, [](reshade::api::command_list* /*cmd_list*/) {
       night_shader_active = true;
       return true;
     }),
-    CustomShaderEntryCallback(0xD8405E1F, [](reshade::api::command_list* /*cmd_list*/) {
+    CustomShaderEntryCallback(0x9B43B7ED, [](reshade::api::command_list* /*cmd_list*/) {
       night_shader_active = true;
       return true;
     }),
