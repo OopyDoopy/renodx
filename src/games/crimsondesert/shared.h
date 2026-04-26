@@ -69,8 +69,8 @@
 #define LENS_FLARE_STRENGTH                    shader_injection.lens_flare_strength
 #define BLOOM_STRENGTH                         shader_injection.bloom_strength
 
-#define CONTACT_SHADOW_QUALITY                 ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__CONTACT_SHADOW_QUALITY) != 0u ? 1.f : 0.f)
-#define FOLIAGE_IMPROVEMENTS                   ((float)((((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS) != 0u) ? 1u : 0u) | (((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS_BIT1) != 0u) ? 2u : 0u)))
+#define CONTACT_SHADOW_QUALITY                 ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__CONTACT_SHADOW_QUALITY) != 0u) ? 1.f : 0.f)
+#define FOLIAGE_IMPROVEMENTS                   (RR_ENABLED == 1.f ? ((float)((((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS) != 0u) ? 1u : 0u) | (((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS_BIT1) != 0u) ? 2u : 0u))) : 0.f)
 #define FOLIAGE_TRANSMISSION                   (FOLIAGE_IMPROVEMENTS >= 2.f ? 1.0f : 0.0f)
 #define RT_QUALITY                             (RR_ENABLED == 1.f ? (float)((CUSTOM_FLAGS_AS_UINT >> 10u) & 0x3u) : 0.f)
 #define RR_ENABLED                             ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__RR_ENABLED) != 0u ? 1.f : 0.f)

@@ -318,12 +318,12 @@ void main(
     float _190 = _188 * _182;
     float _191 = _188 * _183;
 
-    // RenoDX: Disable hero lights at source — zero color for exposure-compensated lights
-    // _130 == 0 means hero light (wider exposure compensation, exposure-invariant)
-    // _130 == 1 means normal light (tighter exposure clamp, exposure-responsive)
-    // _171 is 1.0 for normal lights (_130 >= 1), 0.0 for hero lights (_130 == 0)
-    // When DISABLE_HERO_LIGHTS is active and this is a hero light (_171 == 0), zero the color
-    if (DISABLE_HERO_LIGHTS > 0.5f && _171 < 0.5f) {
+    // RenoDX: Disable hero lights at source — zero colour for negative raw colour lights
+    // Hero/rim lights are encoded with negative raw RGB that only become positive after
+    // the AWB color matrix is applied. _106 is true when any raw color channel is negative,
+    // which is the actual distinguishing characteristic of hero lights — not the exposure
+    // compensation mode (_130 == 0), which other normal lights can also use.
+    if (DISABLE_HERO_LIGHTS > 0.5f && _106) {
       _189 = 0.0f;
       _190 = 0.0f;
       _191 = 0.0f;
