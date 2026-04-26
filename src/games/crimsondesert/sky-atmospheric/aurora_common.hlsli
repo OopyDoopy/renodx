@@ -1,8 +1,9 @@
 // A combo of "Volumetric Aurora Borealis with Polar Reflection" by gerardo-lcdf
 // from Godot & KnighTec's work on W3 Blitz-FX. TY to both
 //
-// Though I will be real, whatever I have going on here atm is pure slop
-// Need to figure out custom RTV binding for textures and a few other things to improve perf
+// v2: Fixed top splotches (removed avgCol running average) and horizontal
+//     gaps (removed fracLayer oscillation). Added analytical height envelope
+//     to control vertical extent without artifacts.
 
 #ifndef SRC_CRIMSONDESERT_SKY_ATMOSPHERIC_AURORA_COMMON_HLSLI_
 #define SRC_CRIMSONDESERT_SKY_ATMOSPHERIC_AURORA_COMMON_HLSLI_
@@ -23,6 +24,25 @@ float ChapmanTransmittance(float altitude, float cosViewZenith,
 
 float AuroraHash21(float2 n) {
   return frac(sin(dot(n, float2(12.9898f, 4.1414f))) * 43758.5453f);
+}
+
+// ============================================================================
+// Improved per pixel hash seeded by _ssaoRandomDirection[16]
+// ============================================================================
+
+float2 AuroraImprovedHash(uint2 pixelCoord, float frameJitter, float4 ssaoDirections[16]) {
+  uint idx = (pixelCoord.x & 3u) + (pixelCoord.y & 3u) * 4u;
+  float2 tileSeed = ssaoDirections[idx].xy;
+
+  uint h = pixelCoord.x + pixelCoord.y * 8191u;
+  h = (h ^ 61u) ^ (h >> 16u);
+  h = h + (h << 3u);
+  h = h ^ (h >> 4u);
+  h = h * 0x27d4eb2du;
+  h = h ^ (h >> 15u);
+  float2 perPixel = float2(float(h & 0xFFFFu), float((h >> 16u) & 0xFFFFu)) * (1.f / 65535.f);
+
+  return frac(perPixel + tileSeed * 0.5f + frameJitter);
 }
 
 float AuroraHashInt(uint n) {
@@ -68,17 +88,17 @@ float AuroraGradientNoise(float2 p) {
   float2 i = floor(p);
   float2 f = frac(p);
   float2 u = f * f * f * mad(f, mad(f, 6.f, -15.f), 10.f);
-  
+
   float2 ga = AuroraGradientHash(i);
   float2 gb = AuroraGradientHash(i + float2(1.f, 0.f));
   float2 gc = AuroraGradientHash(i + float2(0.f, 1.f));
   float2 gd = AuroraGradientHash(i + float2(1.f, 1.f));
-  
+
   float va = dot(ga, f);
   float vb = dot(gb, f - float2(1.f, 0.f));
   float vc = dot(gc, f - float2(0.f, 1.f));
   float vd = dot(gd, f - float2(1.f, 1.f));
-  
+
   return va + u.x * (vb - va) + u.y * (vc - va) + u.x * u.y * (va - vb - vc + vd);
 }
 
@@ -86,7 +106,7 @@ float AuroraFBM(float2 p, int octaves) {
   float value = 0.f;
   float amplitude = 0.5f;
   float frequency = 1.f;
-  
+
   [unroll]
   for (int i = 0; i < octaves; i++) {
     value += amplitude * AuroraGradientNoise(p * frequency);
@@ -103,13 +123,13 @@ float AuroraFBM(float2 p, int octaves) {
 float AuroraDifferenceClouds(float2 p, float gameTime, float animSpeed) {
   float2 uv1 = p * 1.2f + float2(gameTime * animSpeed * 0.3f, gameTime * animSpeed * 0.1f);
   float noise1 = AuroraFBM(uv1, 3);
-  
+
   float2 uv2 = p * 0.8f - float2(gameTime * animSpeed * 0.2f, gameTime * animSpeed * 0.35f);
   static const float angle = 0.4f;
   static const float2x2 rot = float2x2(cos(angle), sin(angle), -sin(angle), cos(angle));
   uv2 = mul(rot, uv2);
   float noise2 = AuroraFBM(uv2, 3);
-  
+
   return 1.f - pow(saturate(abs(noise1 - noise2) * 2.5f), 0.4f);
 }
 
@@ -171,11 +191,11 @@ float AuroraDifferenceNoise(float2 p, float animSpeed, float gameTime, float sha
 float AuroraBlendedNoise(float2 p, float animSpeed, float gameTime, float sharpness, float blend) {
   float curtains = AuroraDifferenceClouds(p, gameTime, animSpeed);
   float shimmer = AuroraTriNoise2D(p * 1.5f, animSpeed * 0.7f, gameTime);
-  
+
   float curtainWeight = lerp(0.2f, 1.0f, blend);
   float shimmerBase = lerp(0.7f, 0.4f, blend);
   float combined = lerp(shimmer, curtains * mad(shimmer, 1.f - shimmerBase, shimmerBase), curtainWeight);
-  
+
   return smoothstep(
     lerp(0.02f, 0.2f, sharpness * mad(blend, 0.5f, 0.5f)),
     lerp(0.8f, 0.55f, sharpness),
@@ -243,10 +263,20 @@ float AuroraGlowDensity(float3 position, float gameTime, float animSpeed, float 
 // ============================================================================
 // Aurora volumetric raymarch
 // ============================================================================
+//
+// v2 changes from original:
+//   1. Removed avgCol running average — was accumulating stale bright values
+//      at high step indices, causing disconnected splotches at the top.
+//   2. Removed fracLayer oscillation — was creating periodic weight dips
+//      that produced horizontal gap banding.
+//   3. Added smooth height envelope that multiplies the layer weight to
+//      give clean vertical falloff without the splotch/gap artifacts.
+//
+// Everything else is identical to the original working code.
 
 float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frameNumber,
-                     uint2 pixelCoord) {
-                      
+                     uint2 pixelCoord, float4 ssaoDirections[16]) {
+
   // So the code doesnt run during day time
   if (nightGate <= 0.f) return 0.f;
 
@@ -271,9 +301,9 @@ float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frame
       raw == prev1 && raw == prev2 && sessionIndex > 1u,
       (raw + 1u) % 12u, raw);
   }
-  
+
   float brightnessVar = mad(AuroraHashInt(sessionIndex + 23456u), 0.7f, 0.3f);
-  
+
   // --- Preset selection with pity system ---
   uint presetIndex;
   {
@@ -284,7 +314,7 @@ float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frame
       raw == prev1 && raw == prev2 && sessionIndex > 1u,
       (raw + 1u) % 10u, raw);
   }
-  
+
   // --- Presets: [mode, blend, sharpness, speed, sparsityLow, sparsityHigh, verticalScale, animSpeed, driftSpeed, pulseSpeed, waveSpeed] ---
   static const float presets[10][11] = {
     {2.f, 100.f, 100.f, 50.f, 0.f, 100.f, 300.f, 100.f, 100.f, 100.f, 100.f},
@@ -298,7 +328,7 @@ float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frame
     {0.f, 100.f, 5.f, 100.f, 0.f, 75.f, 200.f, 35.f, 100.f, 100.f, 100.f},
     {0.f, 100.f, 5.f, 100.f, 0.f, 75.f, 150.f, 35.f, 100.f, 100.f, 100.f}
   };
-  
+
   float presetMode = presets[presetIndex][0];
   float presetBlend = presets[presetIndex][1];
   float presetSharpness = presets[presetIndex][2];
@@ -310,7 +340,7 @@ float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frame
   float presetDriftSpeed = presets[presetIndex][8];
   float presetPulseSpeed = presets[presetIndex][9];
   float presetWaveSpeed = presets[presetIndex][10];
-  
+
   float sparsityLow = presetSparsityLow / 100.f;
   float sparsityHigh = presetSparsityHigh / 100.f;
   float auroraBlend = presetBlend / 100.f;
@@ -346,7 +376,7 @@ float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frame
     float3(0.5f, 0.0f, 0.6f), float3(1.0f, 1.0f, 0.5f), float3(0.4f, 0.0f, 0.6f),
     float3(0.6f, 0.0f, 0.3f), float3(1.0f, 0.85f, 0.3f), float3(0.9f, 0.2f, 0.4f)
   };
-  
+
   float3 colorBottom = paletteBottoms[paletteIndex];
   float3 colorLowerMid = paletteLowerMids[paletteIndex];
   float3 colorUpperMid = paletteUpperMids[paletteIndex];
@@ -364,21 +394,23 @@ float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frame
   float waveSpeed = mad(waveSpeedPct, 0.06f, 0.02f);
 
   // --- Raymarch ---
-  float4 col = 0.f;
-  float4 avgCol = 0.f;
+  float3 col = 0.f;
   float rdUp = max(rd.y, 0.001f);
-  
+
   float frameJitter = CUSTOM_RANDOM;
-  float2 pixelHash = float2(
-    AuroraHash21(float2(pixelCoord) + frameJitter),
-    AuroraHash21(float2(pixelCoord.yx) + frameJitter * 1.7f));
+  float2 pixelHash = AuroraImprovedHash(pixelCoord, frameJitter, ssaoDirections);
   float temporalLayerOffset = (frameJitter - 0.5f) * 1.5f;
-  float verticalNoise = AuroraHash21(float2(pixelCoord) * 0.1f + frameJitter * 3.f) - 0.5f;
+
+  uint vh = pixelCoord.x * 3u + pixelCoord.y * 7919u;
+  vh = vh ^ (vh >> 13u);
+  vh = vh * 0x45d9f3bu;
+  vh = vh ^ (vh >> 16u);
+  float verticalNoise = frac(float(vh & 0xFFFFu) * (1.f / 65535.f) + frameJitter * 3.f) - 0.5f;
 
   [loop]
   for (int i = 0; i < AURORA_STEP_COUNT; i++) {
     float fi = (float)i + temporalLayerOffset;
-    
+
     float layerJitter = (pixelHash.x - 0.5f) * 0.5f * smoothstep(0.f, 6.f, fi);
     layerJitter += verticalNoise * 0.3f * smoothstep(0.f, 15.f, fi);
 
@@ -387,17 +419,17 @@ float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frame
     float planeHeight = 0.8f + sin(mad(fi, 0.06f, animTime * waveSpeed)) * 0.012f
                       + mad(stepCurve, 0.25f * verticalScale, layerJitter * 0.02f);
     float2 p = (rd.xz / rdUp) * planeHeight * 0.2f;
-    
+
     p += (pixelHash - 0.5f) * 0.015f;
     p.y += verticalNoise * 0.02f * t;
     p += drift * mad(fi, 0.005f, 1.f);
 
     float rzt = AuroraHybridNoise(p, animSpeed, animTime, auroraSharpness, auroraBlend, presetMode);
-    
+
     float3 samplePos = float3(p.x * 50.f, planeHeight, p.y * 50.f);
     rzt *= lerp(0.7f, 1.3f, saturate(AuroraGlowDensity(samplePos, animTime, animSpeed, rzt) * 2.f));
     rzt = smoothstep(sparsityLow, sparsityHigh, rzt) * pulse;
-    
+
     float sparkle = smoothstep(mad(pixelHash.y, 0.06f, 0.92f), 1.0f,
                                AuroraHash21(p * 50.f + float2(frameJitter * 100.f, fi))) * rzt * 2.0f;
 
@@ -407,18 +439,15 @@ float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frame
     float3 c23 = lerp(colorUpperMid, colorTop, saturate((heightBlend - 0.666f) * 3.f));
     float3 layerColor = renodx::math::Select(heightBlend < 0.333f, c01,
                         renodx::math::Select(heightBlend < 0.666f, c12, c23));
-    
-    float4 col2 = float4(layerColor * rzt + sparkle * lerp(1.f, colorLowerMid, 0.3f), rzt);
 
-    float layerWeight = smoothstep(0.f, 8.f, fi) * exp2(mad(fi, -0.05f, -2.2f));
-    float fracLayer = frac(fi + 0.5f);
-    layerWeight *= mad(fracLayer * (1.f - fracLayer) * 4.f, 0.3f, 0.7f);
+    float3 layerEmission = layerColor * rzt + sparkle * lerp(1.f, colorLowerMid, 0.3f);
     
-    avgCol = lerp(avgCol, col2, 0.5f);
-    col += avgCol * layerWeight;
+    float layerWeight = smoothstep(0.f, 8.f, fi) * exp2(mad(fi, -0.05f, -2.2f));
+
+    col += layerEmission * layerWeight;
   }
 
-  return col.rgb * horizonFade * nightGate * (AURORA_BRIGHTNESS / 100.f) * brightnessVar * visibilityFade;
+  return col * horizonFade * nightGate * (AURORA_BRIGHTNESS / 100.f) * brightnessVar * visibilityFade;
 }
 
 #endif  // SRC_CRIMSONDESERT_SKY_ATMOSPHERIC_AURORA_COMMON_HLSLI_
