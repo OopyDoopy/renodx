@@ -1369,10 +1369,7 @@ float4 main(
         _1741 = _1734;
         _1742 = _1735;
         _1743 = _1736;
-        // Fix vanilla bug: indirect cache voxel boundary creates visible seam on water.
-        // Force _1744 = 1.0 to skip the indirect cache blend entirely for refractive
-        // surfaces. The SH ambient is smooth and sufficient for underwater inscatter.
-        _1744 = 1.0f;
+        _1744 = saturate((_280 + -64.0f) * 0.0078125f);
       } else {
         _1741 = _1730;
         _1742 = _1731;
@@ -1386,7 +1383,7 @@ float4 main(
       _1741 = _1734;
       _1742 = _1735;
       _1743 = _1736;
-      _1744 = 1.0f;
+      _1744 = saturate((_280 + -64.0f) * 0.0078125f);
     }
     _1782 = _193 * -1.0233277082443237f;
     _1783 = _194 * 1.0233277082443237f;
@@ -1584,19 +1581,6 @@ float4 main(
       _2361 = _1974;
       _2362 = _1976;
     }
-
-    // [NIGHT_SKY_ATTENUATION] Attenuate underwater in-scattering at night.
-    // _2360/_2361/_2362 contain the volumetric/fog lighting for the water surface.
-    // This includes SH ambient (sky probe) integrated along the underwater path.
-    // The sky probe isn't fully darkened by RenoDX night mods, so the in-scattering
-    // remains too bright relative to the darkened scene.
-    if (NIGHT_SKY_ATTENUATION == 1.f) {
-      float _nightFactor = saturate(-_sunDirection.y * 4.0f);
-      float _nightAtten = lerp(1.0f, 0.15f, _nightFactor);
-      _2360 *= _nightAtten;
-      _2361 *= _nightAtten;
-      _2362 *= _nightAtten;
-    }
     _2376 = int((_472 * _bufferSizeAndInvSize.x) + 0.5f);
     _2377 = int((_473 * _bufferSizeAndInvSize.y) + 0.5f);
     [branch]
@@ -1663,14 +1647,16 @@ float4 main(
     SV_Target.z = (((((((_2360 * 0.02061999961733818f) + (min(60000.0f, _2276) * _2455)) + (_2361 * 0.10958000272512436f)) + (_2362 * 0.8697999715805054f)) + ((_2345 * exp2(_1886 * _525)) * (_2446 + _2282.z))) + select(_211, (_2449 * _2451.z), 0.0f)) + _2466.z);
     SV_Target.w = 1.0f;
 
-    // RenoDX: Apply shadow on top of ice surface
+    // RenoDX: Apply shadow on top of ice surface.
     // Vanilla only uses shadows to modulate the directional light entering the
-    // in scattering integral so shadows are underground
+    // in scattering integral so shadows are "underground".
     //
-    // Apply surface shadow to make it visible on top but preserve
+    // Apply a partial surface shadow to make it visible on top, but preserve
     // ambient contribution to avoid pure black shadows
     if (MATERIAL_IMPROVEMENTS == 1.f && _208 > 0.0f) {
       float _rndx_surface_shadow = min(_1039, _1111);
+  
+      // Shadow floor at 0.3: ambient still illuminates shadowed ice
       float _rndx_soft_shadow = max(0.3f, _rndx_surface_shadow);
       float3 _rndx_scene_through = float3(
         (_2345 * exp2(_1886 * _523)) * (_2444 + _2282.x),
