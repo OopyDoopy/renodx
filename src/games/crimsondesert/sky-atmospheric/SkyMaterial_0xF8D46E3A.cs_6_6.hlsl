@@ -1223,12 +1223,23 @@ void main(
       float nightGate = ComputeNightGate(_sunDirection.y);
       float3 aurora = ComputeAurora(
         float3(_133, _134, _135), _time.x, nightGate, _frameNumber.x,
-        uint2(_pixelX, _pixelY)
+        uint2(_pixelX, _pixelY), _ssaoRandomDirection
       );
-      aurora *= _800;  // extinction green channel (.y) — _789.y, not _789.z (_801 shifted by 1 in new decompilation)
+
+      // Full RGB atmospheric extinction — wavelength dependent absorption
+      // Previously only used green
+      aurora *= float3(_799, _800, _801);
+
+      // Volumetric fog occlusion — dim aurora behind fog/mist
+      aurora *= _941;
+
+      // Moon luminance washout — bright moonlight washes out faint aurora
+      float moonLum = _precomputedAmbient7.z;
+      float moonWashout = 1.f - saturate(moonLum * 0.0005f);
+      aurora *= lerp(1.f, moonWashout, 0.3f);
+
       aurora *= AuroraBrightnessDampening(AE_DYNAMISM_HIGH);
 
-      // game's custom 3x3 color space transform
       _955 += mad(aurora.r, 0.6131200194358826f, mad(aurora.g, 0.3395099937915802f, aurora.b * 0.047370001673698425f));
       _956 += mad(aurora.r, 0.07020000368356705f, mad(aurora.g, 0.9163600206375122f, aurora.b * 0.013450000435113907f));
       _957 += mad(aurora.r, 0.02061999961733818f, mad(aurora.g, 0.10958000272512436f, aurora.b * 0.8697999715805054f));
