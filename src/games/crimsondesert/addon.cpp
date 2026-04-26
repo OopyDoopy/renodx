@@ -1143,6 +1143,13 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "WARNING: Sliders disabled (doesn't matter what the slider says) until Ray Reconstruction/Ray Regeneration is detected\n",
+        .section = "Rendering",
+        //.tint = 0xaa0000,
+        .is_visible = []() { return current_settings_mode == rendering_group && !RR_ENABLED; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "ContactShadowQuality",
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -1156,13 +1163,14 @@ renodx::utils::settings::Settings settings = {
                    "On = Improved shadow details + SSDM aware details,\n",
         .labels = {"Off", "On"},
         .tint = rendering,
+        .is_enabled = []() { return RR_ENABLED; },
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
         .key = "FoliageImprovements",
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
+        .default_value = 2.f,
         .packed_values = {0u, CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS, CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS | CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS_BIT1},
         .can_reset = true,
         .label = "Grass/Foliage Improvements",
@@ -1174,14 +1182,8 @@ renodx::utils::settings::Settings settings = {
                    "and transmission (diffuse scattering through vegetation).",
         .labels = {"Off", "AO", "AO + Desaturation/Hue"},
         .tint = rendering,
+        .is_enabled = []() { return RR_ENABLED; },
         .is_visible = []() { return current_settings_mode == rendering_group; },
-    },
-    new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "WARNING: Sliders disabled (doesn't matter what the slider says) until Ray Reconstruction/Ray Regeneration is detected\n",
-        .section = "Rendering",
-        //.tint = 0xaa0000,
-        .is_visible = []() { return current_settings_mode == rendering_group && !RR_ENABLED; },
     },
     new renodx::utils::settings::Setting{
         .key = "MaterialImprovements",
@@ -1193,7 +1195,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Material Improvements",
         .section = "Rendering",
         .tooltip = "Enables all material/lighting improvements:\n"
-                   "- EON 2025 energy-preserving diffuse BRDF\n"
+                   "- EON 2025 energy preserving diffuse BRDF\n"
                    "- Callisto smooth terminator\n"
                    "- Geometric specular anti aliasing\n"
                    "- Spectral diffraction on metals",
