@@ -316,7 +316,7 @@ void main(
       float nightGate = ComputeNightGate(_sunDirection.y);
       float3 aurora = ComputeAurora(
         float3(_111, _112, _113), _time.x, nightGate, _frameNumber.x,
-        uint2(SV_DispatchThreadID.x, SV_DispatchThreadID.y)
+        uint2(SV_DispatchThreadID.x, SV_DispatchThreadID.y), _ssaoRandomDirection
       );
       float transmittance = ChapmanTransmittance(0.f, _113, _rayleighScaledHeight, _earthRadius);
       aurora = clamp(aurora, 0.f, 10.f) * transmittance;
