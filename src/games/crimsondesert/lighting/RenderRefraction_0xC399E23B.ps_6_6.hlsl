@@ -1647,16 +1647,14 @@ float4 main(
     SV_Target.z = (((((((_2360 * 0.02061999961733818f) + (min(60000.0f, _2276) * _2455)) + (_2361 * 0.10958000272512436f)) + (_2362 * 0.8697999715805054f)) + ((_2345 * exp2(_1886 * _525)) * (_2446 + _2282.z))) + select(_211, (_2449 * _2451.z), 0.0f)) + _2466.z);
     SV_Target.w = 1.0f;
 
-    // RenoDX: Apply shadow on top of ice surface.
+    // RenoDX: Apply shadow on top of ice surface
     // Vanilla only uses shadows to modulate the directional light entering the
-    // in scattering integral so shadows are "underground".
+    // in scattering integral so shadows are underground
     //
-    // Apply a partial surface shadow to make it visible on top, but preserve
+    // Apply surface shadow to make it visible on top but preserve
     // ambient contribution to avoid pure black shadows
     if (MATERIAL_IMPROVEMENTS == 1.f && _208 > 0.0f) {
       float _rndx_surface_shadow = min(_1039, _1111);
-  
-      // Shadow floor at 0.3: ambient still illuminates shadowed ice
       float _rndx_soft_shadow = max(0.3f, _rndx_surface_shadow);
       float3 _rndx_scene_through = float3(
         (_2345 * exp2(_1886 * _523)) * (_2444 + _2282.x),
