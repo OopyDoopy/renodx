@@ -1,6 +1,18 @@
 #include "../shared.h"
 #include "../sky-atmospheric/sky_dawn_dusk_common.hlsli"
 
+// Surfel voxel jitter: surfel voxel clipmap produces abysmal minecraft square tiling
+// We add randomised noise + blur at cell boundary so that RR can denoise it
+static const float SURFEL_JITTER_AMOUNT = 1.0f;
+
+float3 SurfelVoxelJitter(float3 voxelCoord, float rand0, float rand1, uint frameNumber) {
+  float framePhase = frac(float(frameNumber) * 0.6180339887f); 
+  float r0 = frac(rand0 + framePhase) * 2.0f - 1.0f;
+  float r1 = frac(rand1 + framePhase * 1.3247179572f) * 2.0f - 1.0f; 
+  float r2 = frac(rand0 * 7.461f + rand1 * 3.517f + framePhase * 0.7548776662f) * 2.0f - 1.0f;
+  return voxelCoord + float3(r0, r1, r2) * SURFEL_JITTER_AMOUNT;
+}
+
 struct SurfelData {
   uint _baseColor;
   uint _normal;
@@ -869,9 +881,10 @@ void main(
       float _292 = _284 + ((_clipmapRelativeIndexOffsets[_258]).x);
       float _293 = _285 + ((_clipmapRelativeIndexOffsets[_258]).y);
       float _294 = _286 + ((_clipmapRelativeIndexOffsets[_258]).z);
-      float _295 = floor(_292);
-      float _296 = floor(_293);
-      float _297 = floor(_294);
+      float3 _jit_292 = SurfelVoxelJitter(float3(_292, _293, _294), _182, _196, _frameNumber.x);
+      float _295 = floor(_jit_292.x);
+      float _296 = floor(_jit_292.y);
+      float _297 = floor(_jit_292.z);
       int _298 = int(_295);
       int _299 = int(_296);
       int _300 = int(_297);
@@ -934,9 +947,10 @@ void main(
         float _371 = _363 + ((_clipmapRelativeIndexOffsets[_337]).x);
         float _372 = _364 + ((_clipmapRelativeIndexOffsets[_337]).y);
         float _373 = _365 + ((_clipmapRelativeIndexOffsets[_337]).z);
-        float _374 = floor(_371);
-        float _375 = floor(_372);
-        float _376 = floor(_373);
+        float3 _jit_371 = SurfelVoxelJitter(float3(_371, _372, _373), _182, _196, _frameNumber.x);
+        float _374 = floor(_jit_371.x);
+        float _375 = floor(_jit_371.y);
+        float _376 = floor(_jit_371.z);
         int _377 = int(_374);
         int _378 = int(_375);
         int _379 = int(_376);
@@ -1609,9 +1623,10 @@ void main(
     float _1008 = _1000 + ((_clipmapRelativeIndexOffsets[_974]).x);
     float _1009 = _1001 + ((_clipmapRelativeIndexOffsets[_974]).y);
     float _1010 = _1002 + ((_clipmapRelativeIndexOffsets[_974]).z);
-    float _1011 = floor(_1008);
-    float _1012 = floor(_1009);
-    float _1013 = floor(_1010);
+    float3 _jit_1008 = SurfelVoxelJitter(float3(_1008, _1009, _1010), _182, _196, _frameNumber.x);
+    float _1011 = floor(_jit_1008.x);
+    float _1012 = floor(_jit_1008.y);
+    float _1013 = floor(_jit_1008.z);
     int _1014 = int(_1011);
     int _1015 = int(_1012);
     int _1016 = int(_1013);
@@ -1737,9 +1752,10 @@ void main(
         float _1146 = _1138 + ((_clipmapRelativeIndexOffsets[_1112]).x);
         float _1147 = _1139 + ((_clipmapRelativeIndexOffsets[_1112]).y);
         float _1148 = _1140 + ((_clipmapRelativeIndexOffsets[_1112]).z);
-        float _1149 = floor(_1146);
-        float _1150 = floor(_1147);
-        float _1151 = floor(_1148);
+        float3 _jit_1146 = SurfelVoxelJitter(float3(_1146, _1147, _1148), _182, _196, _frameNumber.x);
+        float _1149 = floor(_jit_1146.x);
+        float _1150 = floor(_jit_1146.y);
+        float _1151 = floor(_jit_1146.z);
         int _1152 = int(_1149);
         int _1153 = int(_1150);
         int _1154 = int(_1151);
@@ -2114,9 +2130,10 @@ void main(
                 float _1513 = _1505 + ((_clipmapRelativeIndexOffsets[_1479]).x);
                 float _1514 = _1506 + ((_clipmapRelativeIndexOffsets[_1479]).y);
                 float _1515 = _1507 + ((_clipmapRelativeIndexOffsets[_1479]).z);
-                float _1516 = floor(_1513);
-                float _1517 = floor(_1514);
-                float _1518 = floor(_1515);
+                float3 _jit_1513 = SurfelVoxelJitter(float3(_1513, _1514, _1515), _182, _196, _frameNumber.x);
+                float _1516 = floor(_jit_1513.x);
+                float _1517 = floor(_jit_1513.y);
+                float _1518 = floor(_jit_1513.z);
                 int _1519 = int(_1516);
                 int _1520 = int(_1517);
                 int _1521 = int(_1518);
@@ -2196,9 +2213,10 @@ void main(
                     float _1604 = _1596 + ((_clipmapRelativeIndexOffsets[_1570]).x);
                     float _1605 = _1597 + ((_clipmapRelativeIndexOffsets[_1570]).y);
                     float _1606 = _1598 + ((_clipmapRelativeIndexOffsets[_1570]).z);
-                    float _1607 = floor(_1604);
-                    float _1608 = floor(_1605);
-                    float _1609 = floor(_1606);
+                    float3 _jit_1604 = SurfelVoxelJitter(float3(_1604, _1605, _1606), _182, _196, _frameNumber.x);
+                    float _1607 = floor(_jit_1604.x);
+                    float _1608 = floor(_jit_1604.y);
+                    float _1609 = floor(_jit_1604.z);
                     int _1610 = int(_1607);
                     int _1611 = int(_1608);
                     int _1612 = int(_1609);
@@ -4441,9 +4459,10 @@ void main(
         float _3980 = _3972 + ((_clipmapRelativeIndexOffsets[_3946]).x);
         float _3981 = _3973 + ((_clipmapRelativeIndexOffsets[_3946]).y);
         float _3982 = _3974 + ((_clipmapRelativeIndexOffsets[_3946]).z);
-        float _3983 = floor(_3980);
-        float _3984 = floor(_3981);
-        float _3985 = floor(_3982);
+        float3 _jit_3980 = SurfelVoxelJitter(float3(_3980, _3981, _3982), _182, _196, _frameNumber.x);
+        float _3983 = floor(_jit_3980.x);
+        float _3984 = floor(_jit_3980.y);
+        float _3985 = floor(_jit_3980.z);
         int _3986 = int(_3983);
         int _3987 = int(_3984);
         int _3988 = int(_3985);
@@ -4721,9 +4740,10 @@ void main(
         float _4269 = _4261 + ((_clipmapRelativeIndexOffsets[_4235]).x);
         float _4270 = _4262 + ((_clipmapRelativeIndexOffsets[_4235]).y);
         float _4271 = _4263 + ((_clipmapRelativeIndexOffsets[_4235]).z);
-        float _4272 = floor(_4269);
-        float _4273 = floor(_4270);
-        float _4274 = floor(_4271);
+        float3 _jit_4269 = SurfelVoxelJitter(float3(_4269, _4270, _4271), _182, _196, _frameNumber.x);
+        float _4272 = floor(_jit_4269.x);
+        float _4273 = floor(_jit_4269.y);
+        float _4274 = floor(_jit_4269.z);
         int _4275 = int(_4272);
         int _4276 = int(_4273);
         int _4277 = int(_4274);
@@ -4822,9 +4842,10 @@ void main(
                     float _4400 = _4392 + ((_clipmapRelativeIndexOffsets[_4366]).x);
                     float _4401 = _4393 + ((_clipmapRelativeIndexOffsets[_4366]).y);
                     float _4402 = _4394 + ((_clipmapRelativeIndexOffsets[_4366]).z);
-                    float _4403 = floor(_4400);
-                    float _4404 = floor(_4401);
-                    float _4405 = floor(_4402);
+                    float3 _jit_4400 = SurfelVoxelJitter(float3(_4400, _4401, _4402), _182, _196, _frameNumber.x);
+                    float _4403 = floor(_jit_4400.x);
+                    float _4404 = floor(_jit_4400.y);
+                    float _4405 = floor(_jit_4400.z);
                     int _4406 = int(_4403);
                     int _4407 = int(_4404);
                     int _4408 = int(_4405);
@@ -4905,9 +4926,10 @@ void main(
                         float _4494 = _4486 + ((_clipmapRelativeIndexOffsets[_4460]).x);
                         float _4495 = _4487 + ((_clipmapRelativeIndexOffsets[_4460]).y);
                         float _4496 = _4488 + ((_clipmapRelativeIndexOffsets[_4460]).z);
-                        float _4497 = floor(_4494);
-                        float _4498 = floor(_4495);
-                        float _4499 = floor(_4496);
+                        float3 _jit_4494 = SurfelVoxelJitter(float3(_4494, _4495, _4496), _182, _196, _frameNumber.x);
+                        float _4497 = floor(_jit_4494.x);
+                        float _4498 = floor(_jit_4494.y);
+                        float _4499 = floor(_jit_4494.z);
                         int _4500 = int(_4497);
                         int _4501 = int(_4498);
                         int _4502 = int(_4499);
