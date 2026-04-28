@@ -695,7 +695,7 @@ float3 psychotm_test17(
 
 float3 psychotm_test17_customized(
     float3 bt709_linear_input,
-    float3 peak_value = 1000.f / 203.f,
+    float peak_value = 1000.f / 203.f,
     float exposure = 1.f,
     float highlights = 1.f,
     float shadows = 1.f,
@@ -715,7 +715,7 @@ float3 psychotm_test17_customized(
   float3 bt709_scene = bt709_linear_input * exposure;
 
   float3 lms_in = renodx::color::lms::from::BT709(bt709_scene);
-  float3 lms_peak = renodx::color::lms::from::BT709(peak_value);
+  float3 lms_peak = renodx::color::lms::from::BT709(float(peak_value).xxx);
   float3 current_adaptive_state_lms = renodx::color::lms::from::BT709(current_adaptive_state_bt709);
   float3 desired_background_state_lms = renodx::color::lms::from::BT709(current_background_state_bt709);
   float3 lms_working = lms_in;
@@ -742,8 +742,7 @@ float3 psychotm_test17_customized(
   }
 
   float yf_input = renodx::color::yf::from::LMS(lms_working);
-  // float yf_midgray = renodx::color::yf::from::BT709(0.18f);
-  float yf_midgray = renodx::color::yf::from::BT709(current_adaptive_state_bt709);
+  float yf_midgray = renodx::color::yf::from::BT709(0.18f);
   float yf_target = yf_input;
 
   // Stage 1: apply UI highlight/shadow/contrast controls in luminosity space.
@@ -872,7 +871,7 @@ float3 psychotm_test17_customized(
   return final_bt709;
 }
 
-float3 ApplyGradingLMS(float3 bt709_linear, float3 peak_value = 1.f, float current_adaptive_state_bt709 = 0.18f, float current_background_state_bt709 = 0.18f, renodx::draw::Config config = renodx::draw::BuildConfig()) {
+float3 ApplyGradingLMS(float3 bt709_linear, float mid_gray = 0.18f, float peak_value = 1.f, float current_adaptive_state_bt709 = 0.18f, float current_background_state_bt709 = 0.18f, renodx::draw::Config config = renodx::draw::BuildConfig()) {
   float exposure = config.tone_map_exposure;
   float highlights = config.tone_map_highlights;
   float shadows = config.tone_map_shadows;
@@ -883,14 +882,13 @@ float3 ApplyGradingLMS(float3 bt709_linear, float3 peak_value = 1.f, float curre
   float3 bt709_scene = bt709_linear * exposure;
 
   float3 lms_in = renodx::color::lms::from::BT709(bt709_scene);
-  float3 lms_peak = renodx::color::lms::from::BT709(peak_value);
+  float3 lms_peak = renodx::color::lms::from::BT709(float(peak_value).xxx);
   float3 current_adaptive_state_lms = renodx::color::lms::from::BT709(current_adaptive_state_bt709);
   float3 desired_background_state_lms = renodx::color::lms::from::BT709(current_background_state_bt709);
   float3 lms_working = lms_in;
 
   float yf_input = renodx::color::yf::from::LMS(lms_working);
-  // float yf_midgray = renodx::color::yf::from::BT709(0.18f);
-  float yf_midgray = renodx::color::yf::from::BT709(current_adaptive_state_bt709);
+  float yf_midgray = renodx::color::yf::from::BT709(mid_gray.xxx);
   float yf_target = yf_input;
 
   // Stage 1: apply UI highlight/shadow/contrast controls in luminosity space.

@@ -126,53 +126,6 @@ APPLY_METRO_SDR_TOE_ADJUSTED_LINEAR_EXTENDED(float3)
 
 #undef APPLY_METRO_SDR_TOE_ADJUSTED_LINEAR_EXTENDED
 
-float3 ImprovedBloom(float3 color, float2 uv, inout float ui_blend1) {
-#ifdef USE_LOW
-  Texture2D<min16float4> texture1 = t4;
-  Texture2D<float4> texture2 = t3;
-#else
-  Texture2D<min16float4> texture1 = t6;
-  Texture2D<float4> texture2 = t4;
-#endif
-
-  float _17 = uv.x;
-  float _18 = uv.y;
-
-  float _693 = color.x;
-  float _694 = color.y;
-  float _695 = color.z;
-
-  float _698_luma = min(dot(float3(float(_693), float(_694), float(_695)), float3(0.29907227f, 0.58691406f, 0.11401367f)), 0.9999f);
-  float _698 = 1.0f / (1.0f - _698_luma);
-  float4 _715 = texture2.Sample(s5, float2(_17, (((cb_misc_016.x / cb_misc_016.y) * (_18 + -0.5f)) + 0.5f)));
-  float _720 = _17 - cb_misc_000.x;
-  float _721 = _18 - cb_misc_000.y;
-  min16float4 _722 = texture1.Sample(s6, float2(_720, _721));
-  float _726 = cb_misc_000.y + _18;
-  min16float4 _727 = texture1.Sample(s6, float2(_720, _726));
-  float _734 = cb_misc_000.x + _17;
-  min16float4 _735 = texture1.Sample(s6, float2(_734, _726));
-  min16float4 _742 = texture1.Sample(s6, float2(_734, _721));
-  float _756 = exp2(cb_misc_336.y);
-  float _759 = float((_756 * 0.0416666679084301f) * (((_715.w * 20.0f) * cb_instance_016.x) + 1.0f));
-  float _763 = float(_759 * (((_727.x + _722.x) + _735.x) + _742.x));
-  float _764 = float(_759 * (((_727.y + _722.y) + _735.y) + _742.y));
-  float _765 = float(_759 * (((_727.z + _722.z) + _735.z) + _742.z));
-  float _766 = _763 + min(_698 * float(_693), 16384.0f);
-  float _767 = _764 + min(_698 * float(_694), 16384.0f);
-  float _768 = _765 + min(_698 * float(_695), 16384.0f);
-  float _775 = cb_misc_320.x - _17;
-  float _777 = (cb_misc_000.w / cb_misc_000.z) * (cb_misc_320.y - _18);
-  float _787 = saturate((sqrt((_777 * _777) + (_775 * _775)) - (cb_misc_320.z * 0.949999988079071f)) / (cb_misc_320.z * 0.09999996423721313f));
-  float _793 = ((_787 * _787) * (3.0f - (_787 * 2.0f))) * cb_misc_320.w;
-  float _803 = (((_763 / _756) - _766) * _793) + _766;
-  float _804 = (((_764 / _756) - _767) * _793) + _767;
-  float _805 = (((_765 / _756) - _768) * _793) + _768;
-
-  ui_blend1 = _793;
-  return float3(_803, _804, _805);
-}
-
 float3 VanillaHDRTonemap(float3 untonemapped) {
   // Extra exposure
   float3 untonemapped_scaled = untonemapped * 1.4142135381698608f;
@@ -199,85 +152,18 @@ float ComputeNeutwoSmoothClampScale(float3 untonemapped, float output_max = 1.f,
 }
 
 float3 VanillaLUTSample(float3 color) {
+  // Grading LUT and inversion
+  // min16float4 _882 = t3.Sample(s6, float3(_881, _880, _879));
   #ifdef USE_LOW
   float4 lut_sampled = t2.Sample(s6, color.zyx);
   #else
   float4 lut_sampled = t3.Sample(s6, color.zyx);
   #endif
+
+  // float _901 = saturate((_879 + -1.0f) + (float(_882.z) * 2.0f)) / scale;
+  // float _902 = saturate((_880 + -1.0f) + (float(_882.y) * 2.0f)) / scale;
+  // float _903 = saturate((_881 + -1.0f) + (float(_882.x) * 2.0f)) / scale;
   float3 lut_corrected = (color + -1.0f) + (lut_sampled.zyx * 2.0f);
-  return lut_corrected;
-}
-
-float3 ImprovedLUTSample(float3 color, float mid_gray = 0.18f) {
-  const float black_floor = 0.0001f;
-  float3 lut_corrected = VanillaLUTSample(color);
-
-  if (CUSTOM_LUT_SCALING != 0.f && mid_gray > black_floor) {
-
-    // float3 black_floor_corrected = ProcessGammaCorrection(black_floor);
-    // float3 mid_gray_corrected = ProcessGammaCorrection(mid_gray);
-    // color = ProcessGammaCorrection(color);
-    // lut_corrected = ProcessGammaCorrection(lut_corrected);
-
-    float3 black_floor_corrected = black_floor;
-    float3 mid_gray_corrected = mid_gray;
-
-    float3 lutBlackGamma = renodx::color::srgb::Encode(black_floor_corrected);
-    float3 lutBlack = saturate(VanillaLUTSample(lutBlackGamma));
-
-    float3 lutMidGamma = renodx::color::srgb::Encode(mid_gray_corrected);
-    float3 lutMid = saturate(VanillaLUTSample(lutMidGamma));
-
-    // lutBlack = renodx::color::srgb::EncodeSafe(ProcessGammaCorrection(renodx::color::srgb::DecodeSafe(lutBlack)));
-    // lutMid = renodx::color::srgb::EncodeSafe(ProcessGammaCorrection(renodx::color::srgb::DecodeSafe(lutMid)));
-    // lut_corrected = renodx::color::srgb::EncodeSafe(ProcessGammaCorrection(renodx::color::srgb::DecodeSafe(lut_corrected)));
-    // color = renodx::color::srgb::EncodeSafe(ProcessGammaCorrection(renodx::color::srgb::DecodeSafe(color)));
-
-    float3 unclamped_gamma = lut_corrected;
-    if (RENODX_TONE_MAP_TYPE == 2) {
-      float3 lut_corrected_lms = renodx::color::lms::from::BT709(lut_corrected) / LMS_WHITE;
-      lutBlack = renodx::color::lms::from::BT709(lutBlack) / LMS_WHITE;
-      lutMid = renodx::color::lms::from::BT709(lutMid) / LMS_WHITE;
-      color = renodx::color::lms::from::BT709(color) / LMS_WHITE;
-
-      if (RENODX_GAMMA_CORRECTION == 1) {
-        lutBlack = renodx::color::srgb::EncodeSafe(renodx::color::gamma::DecodeSafe(lutBlack));
-        lutMid = renodx::color::srgb::EncodeSafe(renodx::color::gamma::DecodeSafe(lutMid));
-        lut_corrected_lms = renodx::color::srgb::EncodeSafe(renodx::color::gamma::DecodeSafe(lut_corrected_lms));
-        color = renodx::color::srgb::EncodeSafe(renodx::color::gamma::DecodeSafe(color));
-        unclamped_gamma = Unclamp(lut_corrected_lms, lutBlack, lutMid, color);
-        unclamped_gamma = renodx::color::gamma::EncodeSafe(renodx::color::srgb::DecodeSafe(unclamped_gamma));
-      } else {
-        unclamped_gamma = Unclamp(lut_corrected_lms, lutBlack, lutMid, color);
-      }
-      unclamped_gamma = renodx::color::bt709::from::LMS(unclamped_gamma * LMS_WHITE);
-
-    } else {
-      if (RENODX_GAMMA_CORRECTION == 1) {
-        lutBlack = renodx::color::srgb::EncodeSafe(renodx::color::gamma::DecodeSafe(lutBlack));
-        lutMid = renodx::color::srgb::EncodeSafe(renodx::color::gamma::DecodeSafe(lutMid));
-        lut_corrected = renodx::color::srgb::EncodeSafe(renodx::color::gamma::DecodeSafe(lut_corrected));
-        color = renodx::color::srgb::EncodeSafe(renodx::color::gamma::DecodeSafe(color));
-        unclamped_gamma = Unclamp(lut_corrected, lutBlack, lutMid, color);
-        unclamped_gamma = renodx::color::gamma::EncodeSafe(renodx::color::srgb::DecodeSafe(unclamped_gamma));
-      } else {
-        unclamped_gamma = Unclamp(lut_corrected, lutBlack, lutMid, color);
-      }
-    }
-
-    if (CUSTOM_LUT_RECOLOR == 0) {
-      float3 lut_scaled = lerp(lut_corrected, unclamped_gamma, saturate(CUSTOM_LUT_SCALING));
-      lut_corrected = lut_scaled;
-    } else {
-      float3 unclamped_linear = renodx::color::srgb::DecodeSafe(unclamped_gamma);
-      float3 clamped_linear = renodx::color::srgb::DecodeSafe(lut_corrected);
-      float3 recolored = renodx::lut::RecolorUnclamped(clamped_linear, unclamped_linear, CUSTOM_LUT_SCALING);
-      float3 recolored_gamma = renodx::color::srgb::EncodeSafe(recolored);
-      lut_corrected = recolored_gamma;
-    }
-    //lut_corrected = renodx::color::srgb::EncodeSafe(ProcessGammaCorrection(renodx::color::srgb::DecodeSafe(lut_corrected), true));
-  }
-
   return lut_corrected;
 }
 
@@ -307,57 +193,26 @@ float3 ApplyGasMask(float3 tonemapped_srgb, float2 uv) {
   return float3(_994, _995, _996);
 }
 
-float4 RenoDX(float3 input_color, float2 uv, float ui_blend2) {
-  float ui_blend1 = 0.0f;
-  float3 untonemapped_linear = ImprovedBloom(input_color, uv, ui_blend1);
+float4 RenoDX(float3 untonemapped, float2 uv, float ui_blend1, float ui_blend2 = 1.f) {
+  float3 untonemapped_linear = untonemapped;
+
+  const float3 lms_white = renodx::color::lms::from::BT709(1.xxx);
 
   const float mid_gray = 0.1225084847f;
   const float mid_gray_adjusted = MetroSDRToeAdjustedLinearExtended(mid_gray);
   const float mid_gray_scale = mid_gray_adjusted / mid_gray;
 
-  float3 calculated_peak = RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS;
-  calculated_peak = ProcessGammaCorrection(calculated_peak, true);
+  float calculated_peak = RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS;
+  if (RENODX_GAMMA_CORRECTION != 0) {
+    calculated_peak = renodx::math::Select(RENODX_GAMMA_CORRECTION == 1, renodx::color::correct::Gamma(calculated_peak, true), GammaCorrectionByLuminosity(calculated_peak, true).x);
+  }
 
   float3 tonemapped_linear = untonemapped_linear;
   if (RENODX_TONE_MAP_TYPE == 1) {
     tonemapped_linear = MetroSDRToeAdjustedLinearExtended(untonemapped_linear);
   } else {
-    
-    float3 untonemapped_linear_adjusted = untonemapped_linear * mid_gray_scale;
-    float3 untonemapped_linear_adjusted_lms = renodx::color::lms::from::BT709(untonemapped_linear_adjusted);
-    float3 untonemapped_linear_contrasted_lms = renodx::tonemap::NakaRushton(untonemapped_linear_adjusted_lms / LMS_WHITE, 100.f / LMS_WHITE, mid_gray_adjusted, mid_gray_adjusted, 1.48f) * LMS_WHITE;
-    float3 untonemapped_linear_contrasted = renodx::color::bt709::from::LMS(untonemapped_linear_contrasted_lms);
-
-    tonemapped_linear = untonemapped_linear_contrasted;
-  }
-
-#ifdef USE_GASMASK
-  float3 tonemapped_srgb = renodx::color::srgb::EncodeSafe(tonemapped_linear);
-  float3 gas_mask_applied = ApplyGasMask(tonemapped_srgb, uv);
-  tonemapped_linear = renodx::color::srgb::DecodeSafe(gas_mask_applied);
-#endif
-
-  float scale = ComputeReinhardSmoothClampScale(tonemapped_linear, mid_gray_adjusted, 1.f);
-  float3 tonemapped_linear_scaled = tonemapped_linear * scale;
-
-  float mid_gray_lut_adjusted = renodx::color::srgb::DecodeSafe(VanillaLUTSample(renodx::color::srgb::Encode(mid_gray_adjusted)).x);
-
-  float3 lut_input = renodx::color::srgb::EncodeSafe(tonemapped_linear_scaled);
-  float3 lut_output = ImprovedLUTSample(lut_input, mid_gray_adjusted);
-  lut_output = renodx::color::srgb::DecodeSafe(lut_output);
-  lut_output = renodx::math::SafeDivision(lut_output, scale, renodx::math::FLT_MAX);
-  //lut_output = lerp(tonemapped_linear, lut_output, 0.f);
-
-  float3 display_mapped_bt709 = lut_output;
-  if (RENODX_TONE_MAP_TYPE == 1) {
-    lut_output = renodx::tonemap::psycho::ApplyGradingLMS(lut_output, calculated_peak, mid_gray_lut_adjusted, mid_gray_lut_adjusted);
-    float3 unmapped_bt2020 = renodx::color::bt2020::from::BT709(lut_output);
-    float3 mapped_bt2020 = renodx::tonemap::neutwo::PerChannel(unmapped_bt2020, calculated_peak);
-    display_mapped_bt709 = renodx::color::bt709::from::BT2020(mapped_bt2020);
-  } 
-  else if (RENODX_TONE_MAP_TYPE == 2) {
-    display_mapped_bt709 = renodx::tonemap::psycho::psychotm_test17_customized(
-        lut_output,
+    tonemapped_linear = renodx::tonemap::psycho::psychotm_test17_customized(
+        untonemapped_linear,
         calculated_peak,
         RENODX_TONE_MAP_EXPOSURE,
         RENODX_TONE_MAP_HIGHLIGHTS,
@@ -370,17 +225,48 @@ float4 RenoDX(float3 input_color, float2 uv, float ui_blend2) {
         1.f,
         1,
         RENODX_TONE_MAP_CONE_RESPONSE,
-        mid_gray_lut_adjusted,
-        mid_gray_lut_adjusted
+        mid_gray,
+        mid_gray_adjusted
           );
   }
+// SDR Tonemap
+#if 0
+      float3 sdr_input = untonemapped;
+      float3 tonemapped_srgb = saturate(((((((((sdr_input * 8.468000411987305f) + 1.0f) * sdr_input) + -0.002956999931484461f) * sdr_input) + 0.00010040000051958486f) * sdr_input) + -1.2739999988298223e-07f) / ((((((((sdr_input * 8.360400199890137f) + 1.822700023651123f) * sdr_input) + 0.21889999508857727f) * sdr_input) + -0.0021170000545680523f) * sdr_input) + 3.673000173876062e-05f));
+      tonemapped_linear = renodx::color::srgb::DecodeSafe(tonemapped_srgb);
+#endif
 
-  // TEST OUTPUT
-  //display_mapped_bt709 = untonemapped_linear;
+#ifdef USE_GASMASK
+  float3 tonemapped_srgb = renodx::color::srgb::EncodeSafe(tonemapped_linear);
+  float3 gas_mask_applied = ApplyGasMask(tonemapped_srgb, uv);
+  tonemapped_linear = renodx::color::srgb::DecodeSafe(gas_mask_applied);
+#endif
+
+  float lut_clip = renodx::math::Select(RENODX_TONE_MAP_TYPE == 2, calculated_peak, 100.f);
+  float n2_scale = ComputeNeutwoSmoothClampScale(tonemapped_linear, 1.f, calculated_peak);
+  float3 lut_input = renodx::color::srgb::EncodeSafe(tonemapped_linear * n2_scale);
+  float3 lut_output = VanillaLUTSample(lut_input);
+
+  lut_output = renodx::color::srgb::DecodeSafe(lut_output);
+  lut_output /= n2_scale;
+
+
+  lut_output = lerp(tonemapped_linear, lut_output, CUSTOM_COLOR_GRADE);
+
+  float3 display_mapped_bt709 = lut_output;
+  // display_mapped_bt709 = renodx::tonemap::psycho::ApplyGradingLMS(display_mapped_bt709, mid_gray, calculated_peak);
+  if (RENODX_TONE_MAP_TYPE == 1) {
+    lut_output = renodx::tonemap::psycho::ApplyGradingLMS(lut_output, mid_gray, calculated_peak);
+    float3 unmapped_bt2020 = renodx::color::bt2020::from::BT709(lut_output);
+    float3 mapped_bt2020 = renodx::tonemap::neutwo::PerChannel(unmapped_bt2020, calculated_peak);
+    display_mapped_bt709 = renodx::color::bt709::from::BT2020(mapped_bt2020);
+  }
 
   display_mapped_bt709 = CustomPostProcessing(display_mapped_bt709, uv);
 
-  display_mapped_bt709 = ProcessGammaCorrection(display_mapped_bt709);
+  if (RENODX_GAMMA_CORRECTION != 0) {
+    display_mapped_bt709 = renodx::math::Select(RENODX_GAMMA_CORRECTION == 1, renodx::color::correct::GammaSafe(display_mapped_bt709), GammaCorrectionByLuminosity(display_mapped_bt709));
+  }
 
   display_mapped_bt709 *= (RENODX_DIFFUSE_WHITE_NITS / RENODX_GRAPHICS_WHITE_NITS);
 
@@ -403,7 +289,6 @@ float4 RenoDX(float3 input_color, float2 uv, float ui_blend2) {
   // float y_out = lerp(y_in, y_tonemapped, ui_color_gamma.a);
 
   // display_mapped_bt709 = renodx::color::correct::Luminance(display_mapped_bt709, y_in, y_out);
-  
   float3 scene_color_linear = max(0, renodx::color::bt2020::from::BT709(display_mapped_bt709));
   ui_color_gamma.xyz = renodx::color::bt2020::from::BT709(ui_color_gamma.xyz);
 
@@ -416,21 +301,14 @@ float4 RenoDX(float3 input_color, float2 uv, float ui_blend2) {
   #else
     _937 = (((((((ui_blend1 * 2.0f) + ui_blend2) * 0.5f) + 0.5f) + cb_misc_704.x) * 0.008331298828125f) + 0.008331298828125f) * (frac(sin(dot(float2((cb_misc_576.w + uv.x), (cb_misc_576.w + uv.y)), float2(12.989800453186035f, 78.23300170898438f))) * 43758.546875f) + -0.5f);
   #endif
-    scene_color_gamma = _937 + renodx::math::SqrtSafe(((cb_misc_272.w * (2.700000047683716f - scene_color_gamma)) + scene_color_gamma));
-    //scene_color_gamma = _937 + renodx::color::srgb::EncodeSafe(scene_color_gamma);
-
+  scene_color_gamma = _937 + renodx::math::SqrtSafe(((cb_misc_272.w * (2.700000047683716f - scene_color_gamma)) + scene_color_gamma));
   float3 composited_color_gamma = max(renodx::color::bt2020::from::BT709(6.103519990574569e-05f).x, (((scene_color_gamma * scene_color_gamma) * ui_color_gamma.a) + ui_color_gamma.xyz));
 
   float3 composited_color_linear = renodx::color::srgb::DecodeSafe(composited_color_gamma);
 
   composited_color_linear *= RENODX_GRAPHICS_WHITE_NITS;
-
-  if (CUSTOM_CLAMP_TYPE == 0) {
-    composited_color_linear = min(composited_color_linear, RENODX_PEAK_WHITE_NITS);
-  } else {
-    float max_channel = max(max(max(composited_color_linear.r, composited_color_linear.g), composited_color_linear.b), RENODX_PEAK_WHITE_NITS);
-    composited_color_linear *= renodx::math::DivideSafe(RENODX_PEAK_WHITE_NITS, max_channel, 1.f);  // Clamp UI or Videos
-  }
+  // float max_channel = max(max(max(composited_color_linear.r, composited_color_linear.g), composited_color_linear.b), RENODX_PEAK_WHITE_NITS);
+  // composited_color_linear *= RENODX_PEAK_WHITE_NITS / max_channel;  // Clamp UI or Videos
 
   float3 pq_color = renodx::color::pq::EncodeSafe(composited_color_linear, 1.f);
   // float3 pq_color = renodx::color::pq::EncodeSafe(renodx::color::bt2020::from::BT709(lut_output), 100.f);
