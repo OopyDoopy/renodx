@@ -33,6 +33,7 @@ float4 main(
   if (CUSTOM_VIDEO != 0 && RENODX_TONE_MAP_TYPE != 0) {
     float3 color = float3(_25, _26, _27);
     float3 linear_color = renodx::color::srgb::Decode(color);
+    linear_color = saturate(linear_color);
     float3 pq_color = renodx::color::pq::Encode(renodx::color::bt2020::from::BT709(linear_color), RENODX_GRAPHICS_WHITE_NITS);
     return float4(pq_color, _21);
   }
