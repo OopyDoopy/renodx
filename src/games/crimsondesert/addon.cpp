@@ -1389,6 +1389,7 @@ void OnPresetOff() {
       {"ColorGradeContrast", 50.f},
       {"ColorGradeSaturation", 50.f},
       {"ColorGradeConeResponse", 50.f},
+      {"ColorGradeWhitePointKelvin", 65.f},
       {"CustomToneMapMidgrayAdjust", 100.f},
 
       {"FxFilmGrainType", 0.f},
