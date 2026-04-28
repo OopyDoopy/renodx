@@ -2692,9 +2692,8 @@ void main(
     } else {
       _1824 = 1.0h;
     }
-    // RenoDX: Foliage AO for stencils 12-18.
-    half _foliageAoMask = half(select(((uint)(_113 - 12) < 7u), FOLIAGE_AO_STRENGTH, 0.0f));
-    _1824 = lerp(_1824, saturate(1.0h - _937.x), _foliageAoMask);
+    // RenoDX: Foliage AO for stencils 12-18 — DISABLED (vanilla already applies AO for stencils 12-18).
+    // _963 is false for stencils 12-18, so vanilla path already sets _1824 = saturate(1.0h - _937.x).
     _1828 = (bool)(_923 == 98) || (bool)(_999 == 96);
     if (!_1828) {
       bool __branch_chain_1829;
@@ -2833,8 +2832,8 @@ void main(
     _2091 = _1868 & -2;
     _2094 = (_1868 == 29);
     _2097 = select((((bool)(_963 || _2094)) || ((bool)((bool)(_2091 == 24) || (bool)(_renderParams.y > 0.0f)))), 1.0f, float(_937.y));
-    // RenoDX: Foliage specular AO.
-    _2097 = lerp(_2097, float(_937.y), select(((uint)(_113 - 12) < 7u), FOLIAGE_AO_STRENGTH, 0.0f));
+    // RenoDX: Foliage specular AO — DISABLED (vanilla already applies _937.y for stencils 12-18
+    // unless _renderParams.y > 0.0f, which is a rare global flag).
     _2101 = float(_1867);
     _2106 = min(max((_cavityParams.y + -1.0f), 0.0f), 2.0f);
     _2132 = saturate(saturate(1.0f - (((_2101 * _117) / max(0.0010000000474974513f, _1011)) * 0.0010000000474974513f)) * 1.25f) * saturate(((((-0.05000000074505806f - (_2106 * 0.07500000298023224f)) + max(0.019999999552965164f, _1889)) + (saturate(_117 * 0.02500000037252903f) * 0.10000000149011612f)) * min(max((_117 + 1.0f), 5.0f), 50.0f)) * (1.0f - (saturate(_2101) * 0.75f)));
@@ -3639,9 +3638,6 @@ void main(
       }
     }
     half4 _3115 = __3__36__0__0__g_sceneShadowColor.Load(int3(_95, _97, 0));
-    // RenoDX: Foliage AO on direct light
-    half _directAoMask = half(select(((uint)(_113 - 12) < 7u), FOLIAGE_AO_STRENGTH, 0.0f));
-    _3115.xyz *= lerp(1.0h, _937.x, _directAoMask);
     [branch]
     if (_963) {
       _3122 = __3__36__0__0__g_sceneNormal.Load(int3(_95, _97, 0));
@@ -4141,7 +4137,20 @@ void main(
       // RenoDX: Foliage stencil detection (stencil 12..18 inclusive)
       bool isFoliage = ((uint)(_113 - 12) < 7u);
       _3936 = (_3594 == 0);
-      if (_3936) {
+      // FIX: DXIL branches stencil 66 from %3654 directly to %4343,
+      // bypassing the GGX/cloth computation entirely. Guard both paths.
+      if (_3636) {
+        // Stencil 66: skip GGX/cloth, preserve _4344-_4352 from Marschner
+        _4344 = _3926;
+        _4345 = _3927;
+        _4346 = _3928;
+        _4347 = _3929;
+        _4348 = _3930;
+        _4349 = _3931;
+        _4350 = _3932;
+        _4351 = _3933;
+        _4352 = _3934;
+      } else if (_3936) {
         if ((bool)(_3627 > 0.0f) || (bool)(_3628 > 0.0f)) {
           _4104 = 0.0f;
           _4105 = 0.0f;
@@ -5487,6 +5496,17 @@ void main(
       _5342 = _5321;
       _5343 = _5322;
       _5344 = _5323;
+    }
+    // RenoDX: Foliage AO on direct light — applied at final output to avoid
+    // fuckery with the data flow graph of _3406/_3407/_3408 (30+ downstream references).
+    // Take shadow colour to determine direct light ratio
+    if (FOLIAGE_AO_STRENGTH > 0.0f && (uint)(_113 - 12) < 7u) {
+      half4 _rndx_shadow = __3__36__0__0__g_sceneShadowColor.Load(int3(_95, _97, 0));
+      float _rndx_directRatio = saturate(dot(float3(_rndx_shadow.xyz), float3(0.333f, 0.333f, 0.333f)));
+      float _rndx_ao = lerp(1.0f, float(_937.x), _rndx_directRatio * FOLIAGE_AO_STRENGTH);
+      _5342 *= _rndx_ao;
+      _5343 *= _rndx_ao;
+      _5344 *= _rndx_ao;
     }
     __3__38__0__1__g_sceneColorUAV[int2(_95, _97)] = float4(_5342, _5343, _5344, 1.0f);
   }
