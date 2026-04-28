@@ -15,9 +15,26 @@
 // v2: 32 steps, extended range (120 units), perspective corrected depth
 // -----------------------------------------------------------------------------
 
+// Stencil IDs that must NOT receive micro detail contact shadows
+//
+//  2        = Sky/background geometry
+//  10       = Sky
+//  21, 22   = Special effect materials (vanilla already zeroes contact for these)
+//  24, 29   = Transparent / VFX (waterfalls, water surfaces, particles)
+//  33, 55   = Cloth / velvet (vanilla reduces to 1% shadow)
+
 static const int MICRO_STEPS = 32;
 
-if (CONTACT_SHADOW_QUALITY == 1.f) {
+if (CONTACT_SHADOW_QUALITY == 1.f
+    && MICRO_STENCIL != 2
+    && MICRO_STENCIL != 10
+    && MICRO_STENCIL != 21
+    && MICRO_STENCIL != 22
+    && MICRO_STENCIL != 24
+    && MICRO_STENCIL != 29
+    && MICRO_STENCIL != 33
+    && MICRO_STENCIL != 55
+) {
   float _microLinDepth = MICRO_LINEAR_DEPTH;
 
   float _microDistFade = saturate(mad(-0.025f, _microLinDepth, 3.0f));

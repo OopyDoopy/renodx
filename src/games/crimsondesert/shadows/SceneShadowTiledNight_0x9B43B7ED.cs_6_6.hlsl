@@ -2668,6 +2668,7 @@ void main(
     #define MICRO_PIXEL_Y_FLOAT   _55
     #define MICRO_LINEAR_DEPTH    _109
     #define MICRO_CONTACT_SHADOW  _2601
+    #define MICRO_STENCIL         _74
     #define MICRO_LIGHT_DIR_X     _1646
     #define MICRO_LIGHT_DIR_Y     _1647
     #define MICRO_LIGHT_DIR_Z     _1648
@@ -2679,6 +2680,7 @@ void main(
     #undef MICRO_PIXEL_Y_FLOAT
     #undef MICRO_LINEAR_DEPTH
     #undef MICRO_CONTACT_SHADOW
+    #undef MICRO_STENCIL
     #undef MICRO_LIGHT_DIR_X
     #undef MICRO_LIGHT_DIR_Y
     #undef MICRO_LIGHT_DIR_Z
