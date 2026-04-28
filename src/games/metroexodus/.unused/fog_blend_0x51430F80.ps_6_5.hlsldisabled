@@ -1,0 +1,339 @@
+Texture2D<min16float4> t0 : register(t0);
+
+Texture2D<float4> t1 : register(t1);
+
+Texture2D<min16float3> t2 : register(t2);
+
+Texture2D<min16float3> t3 : register(t3);
+
+Texture3D<min16float4> t4 : register(t4);
+
+Texture2D<float> t5 : register(t5);
+
+// cbuffer cb8 : register(b8) {
+//   float4 cb8_data[53];
+// };
+
+cbuffer cb8 : register(b8) {
+  float4 cb_misc_000 : packoffset(c000.x);
+  float4 cb_misc_016 : packoffset(c001.x);
+  float4 cb_misc_032 : packoffset(c002.x);
+  float4 cb_misc_048 : packoffset(c003.x);
+  float4 cb_misc_064 : packoffset(c004.x);
+  float4 cb_misc_080 : packoffset(c005.x);
+  float4x4 cb_misc_096 : packoffset(c006.x);
+  float4 cb_misc_160 : packoffset(c010.x);
+  float4 cb_misc_176 : packoffset(c011.x);
+  float4 cb_misc_192 : packoffset(c012.x);
+  float4 cb_misc_208 : packoffset(c013.x);
+  float4 cb_misc_224 : packoffset(c014.x);
+  float4 cb_misc_240 : packoffset(c015.x);
+  float4 cb_misc_256 : packoffset(c016.x);
+  float4 cb_misc_272 : packoffset(c017.x);
+  float4 cb_misc_288 : packoffset(c018.x);
+  float4 cb_misc_304 : packoffset(c019.x);
+  float4 cb_misc_320 : packoffset(c020.x);
+  float4 cb_misc_336 : packoffset(c021.x);
+  float4 cb_misc_352 : packoffset(c022.x);
+  float4 cb_misc_368 : packoffset(c023.x);
+  float4 cb_misc_384 : packoffset(c024.x);
+  float4 cb_misc_400 : packoffset(c025.x);
+  float4 cb_misc_416 : packoffset(c026.x);
+  float4 cb_misc_432 : packoffset(c027.x);
+  float4x4 cb_misc_448 : packoffset(c028.x);
+  int4 cb_misc_512 : packoffset(c032.x);
+  float4 cb_misc_528 : packoffset(c033.x);
+  float4 cb_misc_544 : packoffset(c034.x);
+  float4 cb_misc_560 : packoffset(c035.x);
+  float4 cb_misc_576 : packoffset(c036.x);
+  float4 cb_misc_592 : packoffset(c037.x);
+  float3x4 cb_misc_608 : packoffset(c038.x);
+  float3x4 cb_misc_656 : packoffset(c041.x);
+  float4 cb_misc_704 : packoffset(c044.x);
+  float4 cb_misc_720 : packoffset(c045.x);
+  float4 cb_misc_736 : packoffset(c046.x);
+  float4 cb_misc_752 : packoffset(c047.x);
+  float4 cb_misc_768 : packoffset(c048.x);
+  float4 cb_misc_784[4] : packoffset(c049.x);
+};
+
+SamplerState s6 : register(s6);
+
+// DXIL FirstbitHi: returns bit position counting from MSB (leading zeros count)
+uint firstbithigh_msb(int value) { return (value == 0) ? 0xFFFFFFFF : (31u - firstbithigh(value)); }
+uint firstbithigh_msb(uint value) { return (value == 0) ? 0xFFFFFFFF : (31u - firstbithigh(value)); }
+
+float4 main(
+  noperspective float4 SV_Position : SV_Position,
+  linear float3 TEXCOORD : TEXCOORD
+) : SV_Target {
+  float4 SV_Target;
+  int _14;
+  int _15;
+  float _21;
+  float4 _23;
+  float _31;
+  float _32;
+  float _33;
+  float _35;
+  float _39;
+  float _46;
+  float _47;
+  float _48;
+  float _49;
+  int _50;
+  int _51;
+  uint _52;
+  uint _53;
+  uint _62;
+  uint _79;
+  half _167;
+  half _168;
+  half _169;
+  half _185;
+  half _186;
+  half _187;
+  half _195;
+  half _205;
+  half _206;
+  half _207;
+  half _357;
+  half _358;
+  half _359;
+  half _649;
+  half _650;
+  half _651;
+  half _319;
+  half _320;
+  half _321;
+  half _337;
+  half _338;
+  half _339;
+  half _347;
+  float _373;
+  float _374;
+  float _375;
+  float _379;
+  float _380;
+  float _382;
+  float _386;
+  float _390;
+  float _399;
+  float _402;
+  float _403;
+  float _406;
+  float _407;
+  float _409;
+  float _410;
+  float _413;
+  float _414;
+  float4 _422;
+  float _425;
+  float _433;
+  float _434;
+  float4 _442;
+  float _445;
+  float _454;
+  float _455;
+  float4 _463;
+  float _466;
+  float _477;
+  float _478;
+  float4 _486;
+  float _489;
+  float _500;
+  float _501;
+  float4 _509;
+  float _512;
+  float _523;
+  float _524;
+  float4 _532;
+  float _535;
+  float _544;
+  float _545;
+  float4 _553;
+  float _556;
+  float _567;
+  float _568;
+  float4 _576;
+  float _579;
+  float _593;
+  float _594;
+  float _595;
+  float _596;
+  float _615;
+  float _616;
+  float _617;
+  float _627;
+  float _631;
+  float _672;
+  float _673;
+  float _674;
+  float _691;
+  _14 = int(SV_Position.x);
+  _15 = int(SV_Position.y);
+  min16float4 _16 = t0.Load(int3(_14, _15, 0));
+
+  float3 test = _16.xyz;
+
+  _21 = float(_16.w);
+  _23 = t1.Load(int3(_14, _15, 0));
+  _31 = (_23.x * 2.0f) + -1.0f;
+  _32 = (_23.y * 2.0f) + -1.0f;
+  _33 = (_23.z * 2.0f) + -1.0f;
+  _35 = rsqrt(dot(float3(_31, _32, _33), float3(_31, _32, _33)));
+  _39 = t5.Load(int3(_14, _15, 0));
+  _46 = 1.0f / ((cb_misc_064.x * _39.x) + cb_misc_064.y);
+  _47 = _46 / TEXCOORD.z;
+  _48 = _47 * TEXCOORD.x;
+  _49 = _47 * TEXCOORD.y;
+  _50 = int(SV_Position.x);
+  _51 = int(SV_Position.y);
+  _52 = _50 + (uint)(-1);
+  _53 = _51 + (uint)(-1);
+  min16float3 _54 = t2.Load(int3(_52, _53, 0));
+  min16float3 _58 = t2.Load(int3(_50, _53, 0));
+  _62 = _50 + 1u;
+  min16float3 _63 = t2.Load(int3(_62, _53, 0));
+  min16float3 _67 = t2.Load(int3(_52, _51, 0));
+  min16float3 _71 = t2.Load(int3(_50, _51, 0));
+  min16float3 _75 = t2.Load(int3(_62, _51, 0));
+  _79 = _51 + 1u;
+  min16float3 _80 = t2.Load(int3(_52, _79, 0));
+  min16float3 _84 = t2.Load(int3(_50, _79, 0));
+  min16float3 _88 = t2.Load(int3(_62, _79, 0));
+  _167 = ((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)((half)(_58.x) + (half)(_54.x))) + (half)(_63.x))) + (half)(_67.x))) + (half)(_71.x))) + (half)(_75.x))) + (half)(_80.x))) + (half)(_84.x))) + (half)(_88.x))) * 0.111083984h;
+  _168 = ((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)((half)(_58.y) + (half)(_54.y))) + (half)(_63.y))) + (half)(_67.y))) + (half)(_71.y))) + (half)(_75.y))) + (half)(_80.y))) + (half)(_84.y))) + (half)(_88.y))) * 0.111083984h;
+  _169 = ((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)((half)(_58.z) + (half)(_54.z))) + (half)(_63.z))) + (half)(_67.z))) + (half)(_71.z))) + (half)(_75.z))) + (half)(_80.z))) + (half)(_84.z))) + (half)(_88.z))) * 0.111083984h;
+  _185 = (half)(_71.x) - _167;
+  _186 = (half)(_71.y) - _168;
+  _187 = (half)(_71.z) - _169;
+  _195 = max((half)(max((half)(abs((half)(_185 / (half)(sqrt((half)(abs((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)((half)(_58.x) * (half)(_58.x))) + ((half)((half)(_54.x) * (half)(_54.x))))) + ((half)((half)(_63.x) * (half)(_63.x))))) + ((half)((half)(_67.x) * (half)(_67.x))))) + ((half)((half)(_71.x) * (half)(_71.x))))) + ((half)((half)(_75.x) * (half)(_75.x))))) + ((half)((half)(_80.x) * (half)(_80.x))))) + ((half)((half)(_84.x) * (half)(_84.x))))) + ((half)((half)(_88.x) * (half)(_88.x))))) * 0.111083984h)) - ((half)(_167 * _167)))))))))), (half)(abs((half)(_186 / (half)(sqrt((half)(abs((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)((half)(_58.y) * (half)(_58.y))) + ((half)((half)(_54.y) * (half)(_54.y))))) + ((half)((half)(_63.y) * (half)(_63.y))))) + ((half)((half)(_67.y) * (half)(_67.y))))) + ((half)((half)(_71.y) * (half)(_71.y))))) + ((half)((half)(_75.y) * (half)(_75.y))))) + ((half)((half)(_80.y) * (half)(_80.y))))) + ((half)((half)(_84.y) * (half)(_84.y))))) + ((half)((half)(_88.y) * (half)(_88.y))))) * 0.111083984h)) - ((half)(_168 * _168)))))))))))), (half)(abs((half)(_187 / (half)(sqrt((half)(abs((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)((half)(_58.z) * (half)(_58.z))) + ((half)((half)(_54.z) * (half)(_54.z))))) + ((half)((half)(_63.z) * (half)(_63.z))))) + ((half)((half)(_67.z) * (half)(_67.z))))) + ((half)((half)(_71.z) * (half)(_71.z))))) + ((half)((half)(_75.z) * (half)(_75.z))))) + ((half)((half)(_80.z) * (half)(_80.z))))) + ((half)((half)(_84.z) * (half)(_84.z))))) + ((half)((half)(_88.z) * (half)(_88.z))))) * 0.111083984h)) - ((half)(_169 * _169)))))))))));
+  if (_195 > 1.0h) {
+    _205 = ((half)(((half)(_185 / _195)) + _167));
+    _206 = ((half)(((half)(_186 / _195)) + _168));
+    _207 = ((half)(((half)(_187 / _195)) + _169));
+  } else {
+    _205 = (half)(_71.x);
+    _206 = (half)(_71.y);
+    _207 = (half)(_71.z);
+  }
+  min16float3 _208 = t3.Load(int3(_52, _53, 0));
+  min16float3 _212 = t3.Load(int3(_50, _53, 0));
+  min16float3 _216 = t3.Load(int3(_62, _53, 0));
+  min16float3 _220 = t3.Load(int3(_52, _51, 0));
+  min16float3 _224 = t3.Load(int3(_50, _51, 0));
+  min16float3 _228 = t3.Load(int3(_62, _51, 0));
+  min16float3 _232 = t3.Load(int3(_52, _79, 0));
+  min16float3 _236 = t3.Load(int3(_50, _79, 0));
+  min16float3 _240 = t3.Load(int3(_62, _79, 0));
+  _319 = ((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)((half)(_212.x) + (half)(_208.x))) + (half)(_216.x))) + (half)(_220.x))) + (half)(_224.x))) + (half)(_228.x))) + (half)(_232.x))) + (half)(_236.x))) + (half)(_240.x))) * 0.111083984h;
+  _320 = ((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)((half)(_212.y) + (half)(_208.y))) + (half)(_216.y))) + (half)(_220.y))) + (half)(_224.y))) + (half)(_228.y))) + (half)(_232.y))) + (half)(_236.y))) + (half)(_240.y))) * 0.111083984h;
+  _321 = ((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)((half)(_212.z) + (half)(_208.z))) + (half)(_216.z))) + (half)(_220.z))) + (half)(_224.z))) + (half)(_228.z))) + (half)(_232.z))) + (half)(_236.z))) + (half)(_240.z))) * 0.111083984h;
+  _337 = (half)(_224.x) - _319;
+  _338 = (half)(_224.y) - _320;
+  _339 = (half)(_224.z) - _321;
+  _347 = max((half)(max((half)(abs((half)(_337 / (half)(sqrt((half)(abs((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)((half)(_212.x) * (half)(_212.x))) + ((half)((half)(_208.x) * (half)(_208.x))))) + ((half)((half)(_216.x) * (half)(_216.x))))) + ((half)((half)(_220.x) * (half)(_220.x))))) + ((half)((half)(_224.x) * (half)(_224.x))))) + ((half)((half)(_228.x) * (half)(_228.x))))) + ((half)((half)(_232.x) * (half)(_232.x))))) + ((half)((half)(_236.x) * (half)(_236.x))))) + ((half)((half)(_240.x) * (half)(_240.x))))) * 0.111083984h)) - ((half)(_319 * _319)))))))))), (half)(abs((half)(_338 / (half)(sqrt((half)(abs((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)((half)(_212.y) * (half)(_212.y))) + ((half)((half)(_208.y) * (half)(_208.y))))) + ((half)((half)(_216.y) * (half)(_216.y))))) + ((half)((half)(_220.y) * (half)(_220.y))))) + ((half)((half)(_224.y) * (half)(_224.y))))) + ((half)((half)(_228.y) * (half)(_228.y))))) + ((half)((half)(_232.y) * (half)(_232.y))))) + ((half)((half)(_236.y) * (half)(_236.y))))) + ((half)((half)(_240.y) * (half)(_240.y))))) * 0.111083984h)) - ((half)(_320 * _320)))))))))))), (half)(abs((half)(_339 / (half)(sqrt((half)(abs((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)(((half)((half)(_212.z) * (half)(_212.z))) + ((half)((half)(_208.z) * (half)(_208.z))))) + ((half)((half)(_216.z) * (half)(_216.z))))) + ((half)((half)(_220.z) * (half)(_220.z))))) + ((half)((half)(_224.z) * (half)(_224.z))))) + ((half)((half)(_228.z) * (half)(_228.z))))) + ((half)((half)(_232.z) * (half)(_232.z))))) + ((half)((half)(_236.z) * (half)(_236.z))))) + ((half)((half)(_240.z) * (half)(_240.z))))) * 0.111083984h)) - ((half)(_321 * _321)))))))))));
+  if (_347 > 1.0h) {
+    _357 = ((half)(((half)(_337 / _347)) + _319));
+    _358 = ((half)(((half)(_338 / _347)) + _320));
+    _359 = ((half)(((half)(_339 / _347)) + _321));
+  } else {
+    _357 = (half)(_224.x);
+    _358 = (half)(_224.y);
+    _359 = (half)(_224.z);
+  }
+
+  test = float3(_357, _358, _359);
+
+  [branch]
+  if (int(_23.w * 3.000999927520752f) == 3) {
+    _373 = float(_205);
+    _374 = float(_206);
+    _375 = float(_207);
+    _379 = cb_misc_000.x * SV_Position.x;
+    _380 = cb_misc_000.y * SV_Position.y;
+    _382 = rsqrt(dot(float3(_48, _49, _46), float3(_48, _49, _46)));
+    _386 = dot(float3((_31 * _35), (_32 * _35), (_33 * _35)), float3((_382 * _48), (_382 * _49), (_382 * _46)));
+    _390 = (saturate(0.125f - _386) * 0.0024999999441206455f) / _46;
+    _399 = ((cb_misc_576.w + frac(frac(dot(float2(SV_Position.x, SV_Position.y), float2(0.0671105608344078f, 0.005837149918079376f))) * 52.98291778564453f)) * 6.2831854820251465f) + -6.2831854820251465f;
+    _402 = cos(_399) * _390;
+    _403 = sin(_399) * _390;
+    _406 = cb_misc_032.x * _402;
+    _407 = cb_misc_032.x * _403;
+    _409 = cb_misc_032.y * _403;
+    _410 = cb_misc_032.y * _402;
+    _413 = (_406 * 0.125f) + _379;
+    _414 = (_409 * -0.125f) + _380;
+    min16float3 _415 = t2.SampleLevel(s6, float2(_413, _414), 0.0f);
+    _422 = t1.SampleLevel(s6, float2(_413, _414), 0.0f);
+    _425 = (_422.w * _422.w) * 0.9921875f;
+    _433 = mad(_407, -0.17679999768733978f, (_406 * -0.17679999768733978f)) + _379;
+    _434 = mad(_410, -0.17679999768733978f, (_409 * 0.17679999768733978f)) + _380;
+    min16float3 _435 = t2.SampleLevel(s6, float2(_433, _434), 0.0f);
+    _442 = t1.SampleLevel(s6, float2(_433, _434), 0.0f);
+    _445 = (_442.w * _442.w) * 0.968741774559021f;
+    _454 = mad(_407, 0.375f, -0.0f) + _379;
+    _455 = mad(_410, 0.375f, -0.0f) + _380;
+    min16float3 _456 = t2.SampleLevel(s6, float2(_454, _455), 0.0f);
+    _463 = t1.SampleLevel(s6, float2(_454, _455), 0.0f);
+    _466 = (_463.w * _463.w) * 0.9296875f;
+    _477 = mad(_407, -0.35359999537467957f, (_406 * 0.35359999537467957f)) + _379;
+    _478 = mad(_410, -0.35359999537467957f, (_409 * -0.35359999537467957f)) + _380;
+    min16float3 _479 = t2.SampleLevel(s6, float2(_477, _478), 0.0f);
+    _486 = t1.SampleLevel(s6, float2(_477, _478), 0.0f);
+    _489 = (_486.w * _486.w) * 0.8749670386314392f;
+    _500 = mad(_407, -0.0f, (_406 * -0.625f)) + _379;
+    _501 = mad(_410, -0.0f, (_409 * 0.625f)) + _380;
+    min16float3 _502 = t2.SampleLevel(s6, float2(_500, _501), 0.0f);
+    _509 = t1.SampleLevel(s6, float2(_500, _501), 0.0f);
+    _512 = (_509.w * _509.w) * 0.8046875f;
+    _523 = mad(_407, 0.5303000211715698f, (_406 * 0.5303000211715698f)) + _379;
+    _524 = mad(_410, 0.5303000211715698f, (_409 * -0.5303000211715698f)) + _380;
+    min16float3 _525 = t2.SampleLevel(s6, float2(_523, _524), 0.0f);
+    _532 = t1.SampleLevel(s6, float2(_523, _524), 0.0f);
+    _535 = (_532.w * _532.w) * 0.7187818884849548f;
+    _544 = mad(_407, -0.875f, -0.0f) + _379;
+    _545 = mad(_410, -0.875f, -0.0f) + _380;
+    min16float3 _546 = t2.SampleLevel(s6, float2(_544, _545), 0.0f);
+    _553 = t1.SampleLevel(s6, float2(_544, _545), 0.0f);
+    _556 = (_553.w * _553.w) * 0.6171875f;
+    _567 = mad(_407, 0.707099974155426f, (_406 * -0.707099974155426f)) + _379;
+    _568 = mad(_410, 0.707099974155426f, (_409 * 0.707099974155426f)) + _380;
+    min16float3 _569 = t2.SampleLevel(s6, float2(_567, _568), 0.0f);
+    _576 = t1.SampleLevel(s6, float2(_567, _568), 0.0f);
+    _579 = (_576.w * _576.w) * 0.5000096559524536f;
+    _593 = (((((((_425 + 9.999999747378752e-06f) + _445) + _466) + _489) + _512) + _535) + _556) + _579;
+    _594 = ((((((((_445 * float(_435.x)) + (_425 * float(_415.x))) + (_466 * float(_456.x))) + (_489 * float(_479.x))) + (_512 * float(_502.x))) + (_535 * float(_525.x))) + (_556 * float(_546.x))) + (_579 * float(_569.x))) / _593;
+    _595 = ((((((((_445 * float(_435.y)) + (_425 * float(_415.y))) + (_466 * float(_456.y))) + (_489 * float(_479.y))) + (_512 * float(_502.y))) + (_535 * float(_525.y))) + (_556 * float(_546.y))) + (_579 * float(_569.y))) / _593;
+    _596 = ((((((((_445 * float(_435.z)) + (_425 * float(_415.z))) + (_466 * float(_456.z))) + (_489 * float(_479.z))) + (_512 * float(_502.z))) + (_535 * float(_525.z))) + (_556 * float(_546.z))) + (_579 * float(_569.z))) / _593;
+    _615 = (((_594 - _373) + ((max(_373, _594) - _594) * 0.10000000149011612f)) * 0.9399999976158142f) + _373;
+    _616 = (((_595 - _374) + ((max(_374, _595) - _595) * 0.10000000149011612f)) * 0.6000000238418579f) + _374;
+    _617 = (((_596 - _375) + ((max(_375, _596) - _596) * 0.10000000149011612f)) * 0.6000000238418579f) + _375;
+    _627 = select((_21 > 0.0117647061124444f), _21, 1.0f);
+    _631 = (((_627 * _627) * 0.5f) * exp2(log2(saturate(_386 + 1.0f)) * 5.0f)) + 1.0f;
+    _649 = (half)(half((((_615 * float(_16.x)) * (1.25f - (saturate(dot(float3(_615, _616, _617), float3(0.5979999899864197f, 1.1740000247955322f, 0.2280000001192093f))) * 0.25f))) * _631) + float(_357)));
+    _650 = (half)(half(((_616 * float(_16.y)) * _631) + float(_358)));
+    _651 = (half)(half(((_617 * float(_16.z)) * _631) + float(_359)));
+  } else {
+    _649 = ((half)(_357 + ((half)(_205 * (half)(_16.x)))));
+    _650 = ((half)(_358 + ((half)(_206 * (half)(_16.y)))));
+    _651 = ((half)(_359 + ((half)(_207 * (half)(_16.z)))));
+  }
+
+  //test = float3(_649, _650, _651);
+
+  _672 = (((frac(frac(dot(float2(SV_Position.x, SV_Position.y), float2(0.0671105608344078f, 0.005837149918079376f))) * 52.98291778564453f) * 2.0f) + -1.0f) + cb_misc_560.w) * 3.1415927410125732f;
+  _673 = sin(_672);
+  _674 = cos(_672);
+  min16float4 _683 = t4.SampleLevel(s6, float3((mad((_673 * 0.0052083334885537624f), 0.4709285795688629f, (_674 * -0.001471651834435761f)) + (cb_misc_016.x * SV_Position.x)), (mad((_674 * 0.0031250000465661287f), 0.4709285795688629f, (_673 * 0.0024527530185878277f)) + (cb_misc_016.y * SV_Position.y)), (log2(_46 + 1.0f) * 0.09998591244220734f)), 0.0f);
+  _691 = float(_683.w);
+  SV_Target.x = float(half((_691 * float(_649)) + float(_683.x)));
+  SV_Target.y = float(half((_691 * float(_650)) + float(_683.y)));
+  SV_Target.z = float(half((_691 * float(_651)) + float(_683.z)));
+  SV_Target.w = _46;
+
+  //SV_Target.xyz = test;
+
+  return SV_Target;
+}
