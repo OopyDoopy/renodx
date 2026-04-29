@@ -36,30 +36,12 @@ const std::string build_time = __TIME__;
 
 float current_settings_mode = 0;
 
-// const std::unordered_map<std::string, float> HDR_LOOK_VALUES = {
-//    // {"ToneMapType", 3.f},
-//     {"SceneGradeMethod", 1.f},
-//     {"SceneGradeHueShift", 50.f},
-//     {"SceneGradeHueCorrection", 50.f},
-//     {"SceneGradeSaturationCorrection", 75.f},
-//     {"SceneGradeBlowoutRestoration", 80.f},
-//     {"ColorGradeExposure", 1.12f},
-//     {"ColorGradeHighlights", 52.f},
-//     {"ColorGradeShadows", 57.f},
-//     {"ColorGradeContrast", 55.f},
-//     {"ColorGradeSaturation", 56.f},
-//     {"ColorGradeHighlightSaturation", 50.f},
-//     {"ColorGradeBlowout", 43.f},
-//     {"ColorGradeFlare", 58.f},
-//    // {"SwapChainCustomColorSpace", 0.f},
-//     //{"LutGradeStrength", 100.f},
-//    // {"TonemapGradeStrength", 100.f},
-//     //{"FxFilmGrain", 0.f},
-//     //{"FxPostProcessingMaxCLL", 40.f},
-//     {"FxBloom", 33.f},
-//     //{"FxLensDirt", 50.f},
-//     {"FxSunShaftStrength", 50.f},
-// };
+const std::unordered_map<std::string, float> VANILLA_PLUS_VALUES = {
+   {"GammaCorrection", 1.f},
+   {"ToneMapType", 1.f},
+   {"CustomLUTScaling", 0.f},
+   {"FxFilmGrain", 0.f},
+};
 
 renodx::utils::settings::Setting* peak_white_nits_setting = nullptr;
 renodx::utils::settings::Setting* diffuse_white_nits_setting = nullptr;
@@ -82,7 +64,7 @@ renodx::utils::settings::Settings settings = {
         .can_reset = true,
         .label = "Tone Mapper",
         .section = "Tone Mapping",
-        .tooltip = "Sets the tone mapper type.\nVanilla+ uses the SDR tone mapping curve extended to HDR range, followed by display mapping.\nPsychoV uses a custom psychovisual tone mapper as a replacement for the game's tone mapping system and pre-tuned to be faithful.",
+        .tooltip = "Sets the tone mapper type.\nSDR Extended uses the SDR tone mapping curve extended to HDR range.\nPsychoV uses a custom psychovisual tone mapper as a replacement for the game's tone mapping system and pre-tuned to be faithful.",
         .labels = {"Vanilla HDR", "SDR Extended", "PsychoV"},
         .parse = [](float value) { return value; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
@@ -129,7 +111,7 @@ renodx::utils::settings::Settings settings = {
         .key = "GammaCorrection",
         .binding = &shader_injection.gamma_correction,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 2.f,
+        .default_value = 0.f,
         .label = "SDR EOTF Emulation",
         .section = "Tone Mapping",
         .tooltip = "Emulates the look of the game when viewed with SDR gamma.",
@@ -149,6 +131,18 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .is_visible = []() { return settings[0]->GetValue() >= 1; },
     },
+    // new renodx::utils::settings::Setting{
+    //     .key = "CustomClampType",
+    //     .binding = &shader_injection.custom_clamp_type,
+    //     .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+    //     .default_value = 0.f,
+    //     .label = "Overshoot Clamp",
+    //     .section = "Tone Mapping",
+    //     .tooltip = "Controls how overshoot is clamped. Impact is scene dependent.\nPer Channel means each channel is clipped invidually, skewing to white. Matches SDR LUT overshoot behavior.\nMax Channel scales all channels based on whether any channel is at the clip point. Hue preserving.",
+    //     .labels = {"Per Channel", "Max Channel"},
+    //     .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+    //     .is_visible = []() { return settings[0]->GetValue() >= 1; },
+    // },
     //     new renodx::utils::settings::Setting{
     //     .key = "TonemapUnderUI",
     //     .binding = &shader_injection.tonemap_under_ui,
@@ -161,6 +155,37 @@ renodx::utils::settings::Settings settings = {
     //     .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
     //     .is_visible = []() { return settings[0]->GetValue() >= 1; },
     // },
+        new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Recommended",
+        .section = "Presets",
+        .group = "button-line-1",
+        .on_change = []() {
+          for (auto setting : settings) {
+            if (setting->key.empty()) continue;
+            if (!setting->can_reset) continue;
+            renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+          }
+        },
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Vanilla+",
+        .section = "Presets",
+        .group = "button-line-1",
+        .on_change = []() {
+          for (auto* setting : settings) {
+            if (setting->key.empty()) continue;
+            if (!setting->can_reset) continue;
+            if (setting->is_global) continue;
+            if (VANILLA_PLUS_VALUES.contains(setting->key)) {
+              renodx::utils::settings::UpdateSetting(setting->key, VANILLA_PLUS_VALUES.at(setting->key));
+            } else {
+              renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+            }
+          }
+        },
+    },
     // new renodx::utils::settings::Setting{
     //     .key = "SceneGradeScaling",
     //     .binding = &shader_injection.scene_grade_scaling,
@@ -246,7 +271,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ColorGradeConeResponse",
         .binding = &shader_injection.tone_map_cone_response,
-        .default_value = 74.f,
+        .default_value = 50.f,
         .label = "Cone Response",
         .section = "Color Grading",
         .tooltip = "Adjusts contrast in a way that naturally adjusts saturation.",
@@ -280,16 +305,28 @@ renodx::utils::settings::Settings settings = {
     },
 
         new renodx::utils::settings::Setting{
-        .key = "FxFilmGrain",
-        .binding = &shader_injection.custom_film_grain,
-        .default_value = 0.f,
-        .label = "FilmGrain",
-        .section = "Effects",
-        .tooltip = "Controls new perceptual film grain. Reduces banding.",
+        .key = "CustomLUTScaling",
+        .binding = &shader_injection.custom_lut_scaling,
+        .default_value = 100.f,
+        .label = "LUT Scaling",
+        .section = "Color Grading",
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 0; },
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+
+        new renodx::utils::settings::Setting{
+        .key = "FxFilmGrain",
+        .binding = &shader_injection.custom_film_grain,
+        .default_value = 10.f,
+        .label = "FilmGrain",
+        .section = "Effects",
+        .tooltip = "Controls new perceptual film grain. Reduces banding. 0 = Vanilla.",
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 0; },
+        .parse = [](float value) { return value * 0.01f; },
+        //.is_visible = []() { return current_settings_mode >= 1.f; },
     },
 
     new renodx::utils::settings::Setting{
