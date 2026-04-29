@@ -8,6 +8,7 @@
 #define RENODX_GRAPHICS_WHITE_NITS             shader_injection.graphics_white_nits
 #define RENODX_GAMMA_CORRECTION                shader_injection.gamma_correction
 #define RENODX_GAMMA_CORRECTION_UI             shader_injection.gamma_correction_ui
+#define CUSTOM_CLAMP_TYPE                      0.f
 //#define TONEMAP_UNDER_UI                       shader_injection.tonemap_under_ui
 
 // #define SCENE_GRADE_SCALING                    shader_injection.scene_grade_scaling
@@ -21,6 +22,8 @@
 #define RENODX_TONE_MAP_SATURATION             shader_injection.tone_map_saturation
 #define RENODX_TONE_MAP_BLOWOUT                shader_injection.tone_map_blowout
 #define RENODX_TONE_MAP_CONE_RESPONSE          shader_injection.tone_map_cone_response
+#define CUSTOM_LUT_SCALING                     shader_injection.custom_lut_scaling
+
 #define CUSTOM_COLOR_GRADE                     1.f // Hard code since LUTs are used for fade to black
 
 #define CUSTOM_FILM_GRAIN_STRENGTH             shader_injection.custom_film_grain
@@ -38,6 +41,7 @@ struct ShaderInjectData {
   float tone_map_type;
   float gamma_correction;
   float gamma_correction_ui;
+  //float custom_clamp_type;
   //float tonemap_under_ui;
 
   // float scene_grade_scaling;
@@ -51,7 +55,7 @@ struct ShaderInjectData {
   float tone_map_saturation;
   float tone_map_cone_response;
   float tone_map_blowout;
-  float tone_map_flare;
+  float custom_lut_scaling;
   //float custom_color_grade;
 
   //float custom_film_grain_type;
