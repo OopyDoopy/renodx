@@ -36,11 +36,17 @@ const std::string build_time = __TIME__;
 
 float current_settings_mode = 0;
 
+const std::unordered_map<std::string, float> DO_NOT_PRESET_VALUES = {
+  {"ToneMapPeakNits", 1000.f},
+  {"ToneMapGameNits", 203.f},
+  {"ToneMapUINits", 203.f},
+  {"FxFilmGrain", 0.f},
+};
+
 const std::unordered_map<std::string, float> VANILLA_PLUS_VALUES = {
    {"GammaCorrection", 1.f},
    {"ToneMapType", 1.f},
    {"CustomLUTScaling", 0.f},
-   {"FxFilmGrain", 0.f},
 };
 
 renodx::utils::settings::Setting* peak_white_nits_setting = nullptr;
@@ -111,11 +117,11 @@ renodx::utils::settings::Settings settings = {
         .key = "GammaCorrection",
         .binding = &shader_injection.gamma_correction,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
+        .default_value = 1.f,
         .label = "SDR EOTF Emulation",
         .section = "Tone Mapping",
         .tooltip = "Emulates the look of the game when viewed with SDR gamma.",
-        .labels = {"Off", "2.2", "2.2 Hue Preserving"},
+        .labels = {"Off", "2.2"},
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .is_visible = []() { return settings[0]->GetValue() >= 1; },
     },
@@ -164,6 +170,8 @@ renodx::utils::settings::Settings settings = {
           for (auto setting : settings) {
             if (setting->key.empty()) continue;
             if (!setting->can_reset) continue;
+            if (setting->is_global) continue;
+            if (DO_NOT_PRESET_VALUES.contains(setting->key)) continue;
             renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
           }
         },
@@ -178,6 +186,7 @@ renodx::utils::settings::Settings settings = {
             if (setting->key.empty()) continue;
             if (!setting->can_reset) continue;
             if (setting->is_global) continue;
+            if (DO_NOT_PRESET_VALUES.contains(setting->key)) continue;
             if (VANILLA_PLUS_VALUES.contains(setting->key)) {
               renodx::utils::settings::UpdateSetting(setting->key, VANILLA_PLUS_VALUES.at(setting->key));
             } else {
@@ -307,11 +316,37 @@ renodx::utils::settings::Settings settings = {
         new renodx::utils::settings::Setting{
         .key = "CustomLUTScaling",
         .binding = &shader_injection.custom_lut_scaling,
-        .default_value = 100.f,
+        .default_value = 50.f,
         .label = "LUT Scaling",
         .section = "Color Grading",
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 0; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+
+    //     new renodx::utils::settings::Setting{
+    //     .key = "CustomLUTScalingBrightness",
+    //     .binding = &shader_injection.custom_lut_scaling_brightness,
+    //     .default_value = 0.f,
+    //     .label = "LUT Scaling Brightness",
+    //     .section = "Color Grading",
+    //     .max = 100.f,
+    //     .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 0 && CUSTOM_LUT_SCALING > 0.f; },
+    //     .parse = [](float value) { return value * 0.01f; },
+    //     .is_visible = []() { return current_settings_mode >= 1.f; },
+    // },
+
+        new renodx::utils::settings::Setting{
+        .key = "CustomLUTRecolor",
+        .binding = &shader_injection.custom_lut_recolor,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .label = "LUT Recolor",
+        .section = "Color Grading",
+        .tooltip = "Applies the color of the unscaled image onto the LUT scaled image.",
+        .labels = {"Off", "On"},
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 0 && CUSTOM_LUT_SCALING > 0.f; },
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
