@@ -23,6 +23,8 @@
 #define RENODX_TONE_MAP_BLOWOUT                shader_injection.tone_map_blowout
 #define RENODX_TONE_MAP_CONE_RESPONSE          shader_injection.tone_map_cone_response
 #define CUSTOM_LUT_SCALING                     shader_injection.custom_lut_scaling
+//#define CUSTOM_LUT_SCALING_BRIGHTNESS          shader_injection.custom_lut_scaling_brightness
+#define CUSTOM_LUT_RECOLOR                     shader_injection.custom_lut_recolor
 
 #define CUSTOM_COLOR_GRADE                     1.f // Hard code since LUTs are used for fade to black
 
@@ -56,6 +58,8 @@ struct ShaderInjectData {
   float tone_map_cone_response;
   float tone_map_blowout;
   float custom_lut_scaling;
+  //float custom_lut_scaling_brightness;
+  float custom_lut_recolor;
   //float custom_color_grade;
 
   //float custom_film_grain_type;
