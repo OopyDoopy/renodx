@@ -161,7 +161,7 @@ float3 VanillaLUTSample(float3 color) {
   return lut_corrected;
 }
 
-float3 ImprovedLUTSample(float3 color, float mid_gray) {
+float3 ImprovedLUTSample(float3 color, float mid_gray = 0.18f, float black_floor = 0.001f) {
 #ifdef USE_LOW
   Texture3D<min16float4> lut_texture = t2;
 #else
@@ -170,25 +170,42 @@ float3 ImprovedLUTSample(float3 color, float mid_gray) {
   float4 lut_sampled = lut_texture.Sample(s6, color.zyx);
   float3 lut_corrected = (color + -1.0f) + (lut_sampled.zyx * 2.0f);
 
-  if (CUSTOM_LUT_SCALING != 0.f) {
+  if (CUSTOM_LUT_SCALING != 0.f && mid_gray > black_floor) {
+    float3 black_floor_corrected = black_floor;
+    float3 mid_gray_corrected = mid_gray;
+    black_floor_corrected = ProcessGammaCorrection(black_floor);
+    mid_gray_corrected = ProcessGammaCorrection(mid_gray);
 
-    float lutBlackGamma = renodx::color::srgb::Encode(0.f);
-    float3 lutBlack = VanillaLUTSample(lutBlackGamma);
+    float3 lutBlackGamma = renodx::color::srgb::Encode(black_floor_corrected);
+    float3 lutBlack = saturate(VanillaLUTSample(lutBlackGamma));
 
-    float lutMidGamma = renodx::color::srgb::Encode(mid_gray);
-    float3 lutMid = VanillaLUTSample(lutMidGamma);
+    float3 lutMidGamma = renodx::color::srgb::Encode(mid_gray_corrected);
+    float3 lutMid = saturate(VanillaLUTSample(lutMidGamma));
 
-    float3 lutWhite = 1.f;
+    float3 unclamped_gamma = lut_corrected;
+    if (RENODX_TONE_MAP_TYPE == 2) {
+      float3 lut_corrected_lms = renodx::color::lms::from::BT709(lut_corrected) / LMS_WHITE;
+      lutBlack = renodx::color::lms::from::BT709(lutBlack) / LMS_WHITE;
+      lutMid = renodx::color::lms::from::BT709(lutMid) / LMS_WHITE;
+      color = renodx::color::lms::from::BT709(color) / LMS_WHITE;
 
-    float3 unclamped_gamma = renodx::lut::Unclamp(
-        lut_corrected,
-        lutBlack,
-        lutMid,
-        lutWhite,
-        color.xyz);
-    float3 unclamped_linear = renodx::color::srgb::DecodeSafe(unclamped_gamma);
-    float3 recolored = renodx::lut::RecolorUnclamped(renodx::color::srgb::DecodeSafe(lut_corrected), unclamped_linear, CUSTOM_LUT_SCALING);
-    lut_corrected = renodx::color::srgb::EncodeSafe(recolored);
+      unclamped_gamma = Unclamp(lut_corrected_lms, lutBlack, lutMid, color) * LMS_WHITE;
+      unclamped_gamma = renodx::color::bt709::from::LMS(unclamped_gamma);
+
+    } else {
+      unclamped_gamma = Unclamp(lut_corrected, lutBlack, lutMid, color);
+    }
+
+    if (CUSTOM_LUT_RECOLOR == 0) {
+      float3 lut_scaled = lerp(lut_corrected, unclamped_gamma, saturate(CUSTOM_LUT_SCALING));
+      lut_corrected = lut_scaled;
+    } else {
+      float3 unclamped_linear = renodx::color::srgb::DecodeSafe(unclamped_gamma);
+      float3 clamped_linear = renodx::color::srgb::DecodeSafe(lut_corrected);
+      float3 recolored = renodx::lut::RecolorUnclamped(clamped_linear, unclamped_linear, CUSTOM_LUT_SCALING);
+      float3 recolored_gamma = renodx::color::srgb::EncodeSafe(recolored);
+      lut_corrected = recolored_gamma;
+    }
   }
 
   return lut_corrected;
@@ -223,16 +240,12 @@ float3 ApplyGasMask(float3 tonemapped_srgb, float2 uv) {
 float4 RenoDX(float3 untonemapped, float2 uv, float ui_blend1, float ui_blend2 = 1.f) {
   float3 untonemapped_linear = untonemapped;
 
-  const float3 lms_white = renodx::color::lms::from::BT709(1.f);
-
   const float mid_gray = 0.1225084847f;
   const float mid_gray_adjusted = MetroSDRToeAdjustedLinearExtended(mid_gray);
   const float mid_gray_scale = mid_gray_adjusted / mid_gray;
 
-  float calculated_peak = RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS;
-  if (RENODX_GAMMA_CORRECTION != 0) {
-    calculated_peak = renodx::math::Select(RENODX_GAMMA_CORRECTION == 1, renodx::color::correct::Gamma(calculated_peak, true), GammaCorrectionByLuminosity(calculated_peak, true).x);
-  }
+  float3 calculated_peak = RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS;
+  calculated_peak = ProcessGammaCorrection(calculated_peak, true);
 
   float3 tonemapped_linear = untonemapped_linear;
   if (RENODX_TONE_MAP_TYPE == 1) {
@@ -241,7 +254,7 @@ float4 RenoDX(float3 untonemapped, float2 uv, float ui_blend1, float ui_blend2 =
     
     float3 untonemapped_linear_adjusted = untonemapped_linear * mid_gray_scale;
     float3 untonemapped_linear_adjusted_lms = renodx::color::lms::from::BT709(untonemapped_linear_adjusted);
-    float3 untonemapped_linear_contrasted_lms = renodx::tonemap::NakaRushton(untonemapped_linear_adjusted_lms / lms_white, 100.f / lms_white, mid_gray_adjusted, mid_gray_adjusted, 1.48f) * lms_white;
+    float3 untonemapped_linear_contrasted_lms = renodx::tonemap::NakaRushton(untonemapped_linear_adjusted_lms / LMS_WHITE, 100.f / LMS_WHITE, mid_gray_adjusted, mid_gray_adjusted, 1.48f) * LMS_WHITE;
     float3 untonemapped_linear_contrasted = renodx::color::bt709::from::LMS(untonemapped_linear_contrasted_lms);
 
     tonemapped_linear = untonemapped_linear_contrasted;
@@ -256,13 +269,14 @@ float4 RenoDX(float3 untonemapped, float2 uv, float ui_blend1, float ui_blend2 =
   float scale = ComputeReinhardSmoothClampScale(tonemapped_linear, mid_gray_adjusted, 1.f);
   tonemapped_linear *= scale;
 
-  float mid_gray_lut_adjusted = renodx::color::srgb::Decode(ImprovedLUTSample(renodx::color::srgb::Encode(mid_gray_adjusted), mid_gray_adjusted).x);
+  float mid_gray_lut_adjusted = saturate(renodx::color::srgb::Decode(VanillaLUTSample(renodx::color::srgb::Encode(mid_gray_adjusted)).x));
+  float black_floor_lut = saturate(renodx::color::srgb::Decode(VanillaLUTSample(renodx::color::srgb::Encode(0.001f)).x));
 
   float3 lut_input = renodx::color::srgb::EncodeSafe(tonemapped_linear);
-  float3 lut_output = ImprovedLUTSample(lut_input, mid_gray_lut_adjusted);
+  float3 lut_output = ImprovedLUTSample(lut_input, black_floor_lut);
   lut_output = renodx::color::srgb::DecodeSafe(lut_output);
   lut_output = renodx::math::SafeDivision(lut_output, scale, 1.f);
-  //lut_output = lerp(tonemapped_linear, lut_output, CUSTOM_COLOR_GRADE);
+  //lut_output = lerp(tonemapped_linear, lut_output, 1.f);
 
   float3 display_mapped_bt709 = lut_output;
   if (RENODX_TONE_MAP_TYPE == 1) {
@@ -293,9 +307,7 @@ float4 RenoDX(float3 untonemapped, float2 uv, float ui_blend1, float ui_blend2 =
 
   display_mapped_bt709 = CustomPostProcessing(display_mapped_bt709, uv);
 
-  if (RENODX_GAMMA_CORRECTION != 0) {
-    display_mapped_bt709 = renodx::math::Select(RENODX_GAMMA_CORRECTION == 1, renodx::color::correct::GammaSafe(display_mapped_bt709), GammaCorrectionByLuminosity(display_mapped_bt709));
-  }
+  display_mapped_bt709 = ProcessGammaCorrection(display_mapped_bt709);
 
   display_mapped_bt709 *= (RENODX_DIFFUSE_WHITE_NITS / RENODX_GRAPHICS_WHITE_NITS);
 
