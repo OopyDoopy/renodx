@@ -1,5 +1,6 @@
 #include "../shared.h"
 #include "../sky-atmospheric/sky_dawn_dusk_common.hlsli"
+#include "../lighting/purkinje_common.hlsli"
 
 struct SurfelData {
   uint _baseColor;
@@ -3441,6 +3442,15 @@ void main(
       float _3062 = _3059 * _2857;
       float _3063 = _3060 * _2857;
       float _3064 = _3061 * _2857;
+      // RenoDX: purkinje colour shift for direct moonlight
+      {
+        bool _purk_isMoon = !_2823 && (_sunDirection.y <= _moonDirection.y);
+        float3 _purk_light = ApplyPurkinjeShift(
+          float3(_3062, _3063, _3064), _sunDirection.y, _purk_isMoon);
+        _3062 = _purk_light.x;
+        _3063 = _purk_light.y;
+        _3064 = _purk_light.z;
+      }
       float _3065 = float(_2805);
       if (_2137) {
         bool _3067 = (_960 > 0.0f);
@@ -4248,6 +4258,15 @@ void main(
         float _3896 = _3895 * _3890;
         float _3897 = _3892 * _3710;
         float _3898 = _3897 * _3891;
+        // RenoDX: purkinje colour shift for direct moonlight
+        {
+          bool _purk_isMoon = !_2823 && (_sunDirection.y <= _moonDirection.y);
+          float3 _purk_light = ApplyPurkinjeShift(
+            float3(_3894, _3896, _3898), _sunDirection.y, _purk_isMoon);
+          _3894 = _purk_light.x;
+          _3896 = _purk_light.y;
+          _3898 = _purk_light.z;
+        }
         float _3899 = _3894 + _3202;
         float _3900 = _3896 + _3203;
         float _3901 = _3898 + _3204;

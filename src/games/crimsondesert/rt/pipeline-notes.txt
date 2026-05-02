@@ -537,3 +537,155 @@ CONSTANT BUFFERS
 
   GlobalPushConstants [PrepareDlssRR only]
     _postProcessParameters
+
+
+================================================================================
+SPECULAR RADIANCE — ANIMATED GEOMETRY MOTION ARTIFACT
+================================================================================
+
+STATUS: Confirmed base game limitation. Not fixable from shader replacement.
+
+SYMPTOM
+-------
+RT specular on animated geometry (characters, creatures, cloth) appears
+brighter/different when the character is in motion (walking, idle sway,
+combat animations) compared to when the character is static. Most visible
+on high-albedo or metallic surfaces (snow-covered armor, polished metal)
+where bright background radiance (sky, snow) bleeds into the specular.
+
+The artifact does NOT occur during camera-only motion with frozen game
+time (photo/camera mode), confirming it is tied to skeletal animation
+and per-object movement, not camera reprojection.
+
+ROOT CAUSE
+----------
+EvaluateSpecularRadiance_0x70DA2ED5 has two radiance sources that assume
+static geometry, with no compensation for skeletal animation:
+
+1. SCREEN-SPACE RADIANCE CACHE (primary source, ~70% of artifact)
+   Variables: _3320-_3322 (assigned from _1236-_1238)
+   
+   The shader reprojects the RT hit point into previous-frame screen
+   space using _viewProjRelativePrev (lines ~1116-1138). This matrix
+   only accounts for camera motion — it has no knowledge of per-object
+   skeletal animation, cloth simulation, or any mesh deformation.
+   
+   When the character animates:
+   a) Frame N: character's surface is at world position A
+   b) Frame N+1: character's surface moved to position B (new pose)
+   c) RT ray hits position B, shader reprojects B via _viewProjRelativePrev
+   d) The reprojected UV corresponds to where B was in frame N's camera,
+      but in frame N the character's surface was at A, not B
+   e) The UV lands on whatever was behind position B in frame N (sky, snow)
+   f) That bright background radiance is used as specular for the character
+   
+   The reprojected radiance is sampled from either:
+   - g_sceneDiffuseHalfPrev (t164) via _viewProjRelativePrev (preferred path)
+   - g_sceneColor (t173) at current-frame projected UV (fallback)
+   
+   Both sources contain the fully-lit previous frame, so sampling the
+   wrong position yields background radiance instead of surface radiance.
+
+2. SURFEL/SDF RADIANCE (secondary source, ~30% of artifact)
+   Variables: _3327-_3329 (via _2057-_2059 from _2040-_2042)
+   
+   The surfel lookup uses the RT hit point's world position to index
+   into the voxel clipmap (g_surfelIndicesVoxelsTextures → 
+   g_surfelDataBuffer). Surfels are baked/cached static radiance probes
+   that don't track animated geometry. When the character moves, the
+   hit point samples surfels that belong to the space the character
+   just moved into, not the character's actual surface.
+   
+   The SDF ray march (up to 192 steps through 
+   g_signedDistanceVoxelsTexturesLikeUav) similarly operates on the
+   static voxel field and doesn't account for animated mesh positions.
+
+INVESTIGATION METHOD
+--------------------
+Confirmed via inline debug views in EvaluateSpecularRadiance (compile-time
+SPECULAR_DEBUG_VIEW define, views 1-21):
+
+- View 15 (_3320-_3322, screen-space only): Shows motion artifact → primary
+- View 13 (_3327-_3329, surfel/SDF only): Shows motion artifact → secondary  
+- View 20 (kill screen-space, keep surfel): Most artifact gone, residual remains
+- View 21 (kill both screen-space and surfel): All motion artifacts eliminated
+- View 9 (cubemap only): Clean, no motion dependency
+- Camera mode test (frozen game time): No artifact during camera-only motion
+
+WHY IT CANNOT BE FULLY FIXED FROM SHADER REPLACEMENT
+-----------------------------------------------------
+The fundamental problem is that the RT hit point world position corresponds
+to the character's CURRENT frame pose, but the reprojection and surfel
+lookup need the PREVIOUS frame pose to be correct. The shader has no access
+to:
+
+- Per-vertex skinning matrices (current or previous frame)
+- Per-object motion vectors at the hit point
+- Previous-frame mesh positions for the hit surface
+
+The DXR hardware trace (engine-internal DispatchRays) fills
+g_raytracingHitResult with hit distance only. The hit point is
+reconstructed geometrically: hitPos = pixelWorldPos + hitDist * reflDir.
+No per-object motion data is carried through from the trace.
+
+The engine does have per-pixel motion vectors (g_velocity) for dynamic
+objects, but these are screen-space 2D vectors at the SHADING pixel, not
+at the RT HIT point. They describe how the shading pixel moved between
+frames, not how the hit surface moved.
+
+APPLIED MITIGATION (DISABLE_SS_SPECULAR)
+-----------------------------------------
+The screen-space radiance cache path is bypassed entirely by forcing
+__defer_1023_1309 = true at the top of the screen-space branch. This
+sends all pixels through the surfel/SDF fallback path, which naturally
+falls through to the far-hit cubemap (mip 4 + sky visibility voxels)
+when surfels produce zero radiance.
+
+This approach was chosen over zeroing the screen-space outputs because:
+- Zeroing _3320-_3322 and forcing _3326=0 triggered the mip 0 cubemap
+  fallback at _3362, which produced unoccluded, overly bright specular
+  with no sky visibility attenuation.
+- Skipping the screen-space branch entirely preserves the vanilla energy
+  balance and AO behavior of the surfel/SDF/cubemap fallback path.
+
+Trade-off: Pixels that previously got high-quality screen-space specular
+(static geometry with valid reprojection) now get the lower-quality
+surfel/cubemap path. The surfel path still has a minor (~30%) motion
+artifact from static voxel lookups on animated geometry, but this is
+much less visible than the screen-space artifact.
+
+Controlled by compile-time define DISABLE_SS_SPECULAR (0=off, 1=on)
+at the top of EvaluateSpecularRadiance_0x70DA2ED5.cs_6_6.hlsl.
+
+POTENTIAL ENGINE-LEVEL FIXES (not implementable via mod)
+--------------------------------------------------------
+1. Output previous-frame hit position from the DXR closest-hit shader
+   (requires engine access to previous-frame BVH or skinning matrices)
+2. Use per-object motion vectors at the hit point for reprojection
+   correction (requires the DXR trace to output object velocity)
+3. Detect animated stencils at the hit point and reduce/disable the
+   screen-space path for those pixels (partial mitigation, loses quality)
+4. Temporal clamping of the screen-space contribution based on
+   frame-to-frame luminance consistency (would reduce the artifact
+   but also reduce legitimate specular changes)
+
+AFFECTED SHADERS
+----------------
+- EvaluateSpecularRadiance_0x70DA2ED5.cs_6_6.hlsl (this shader)
+- Likely also affects EvaluateDiffuseRadiance variants (same screen-space
+  radiance cache architecture, section 3b in pipeline notes), though the
+  diffuse path may be less visually obvious due to lower specular contrast.
+
+DEBUG VIEWS (compile-time, SPECULAR_DEBUG_VIEW define)
+------------------------------------------------------
+Views 1-21 are available for future investigation. Key views:
+  1  = Path selector (R=screen-space, G=surfel/SDF, B=cubemap)
+  2  = g_sceneColor at this pixel's UV (raw input check)
+  3  = g_sceneDiffuseHalfPrev at this pixel's UV (raw input check)
+  10 = Final specular pre-exposure (full pipeline output)
+  13 = Surfel/SDF radiance only
+  15 = Screen-space radiance only (primary artifact source)
+  20 = Kill screen-space (confirm primary source)
+  21 = Kill screen-space + surfel (confirm both sources)
+Set SPECULAR_DEBUG_VIEW to the view number at the top of the shader file
+and rebuild with: cmake --build build --target crimsondesert --config Release

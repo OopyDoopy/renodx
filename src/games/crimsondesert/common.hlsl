@@ -2,6 +2,7 @@
 #include "./macleod_boynton.hlsli"
 #include "./psycho_test17_custom.hlsl"
 #include "./shared.h"
+#include "./lighting/purkinje_common.hlsli"
 
 float NR(float x, float sigma, float n) {
   float ax = abs(x);
@@ -462,20 +463,23 @@ float3 ColorTempAdjustment(float3 color) {
   return renodx::color::bt709::from::XYZ(adapted_xyz);
 }
 
-float3 FinalizeSDR(float3 srgb_color) {
+float3 FinalizeSDR(float3 srgb_color, float sunElevation = 1.f, float moonElevation = -1.f) {
   float3 linear_color = renodx::color::srgb::Decode(srgb_color);
   linear_color = ColorTempAdjustment(linear_color);
+  linear_color = ApplyPurkinjePostProcess(linear_color, sunElevation, moonElevation, 1.f);
   srgb_color = renodx::color::srgb::Encode(linear_color);
   srgb_color = CUSTOM_SDR_BLACK_CRUSH_FIX == 1 ? renodx::color::correct::Gamma(srgb_color, true) : srgb_color;
   return srgb_color;
 }
 
-float3 FinalizeHDR(float3 pq_color) {
+float3 FinalizeHDR(float3 pq_color, float sunElevation = 1.f, float moonElevation = -1.f) {
   float scaling = RENODX_TONE_MAP_TYPE == 0 ? 100.0f : RENODX_DIFFUSE_WHITE_NITS;
   float3 linear_color_bt2020 = renodx::color::pq::DecodeSafe(pq_color, scaling);
   float3 linear_color_bt709 = renodx::color::bt709::from::BT2020(linear_color_bt2020);
 
   linear_color_bt709 = ColorTempAdjustment(linear_color_bt709);
+  linear_color_bt709 = ApplyPurkinjePostProcess(linear_color_bt709, sunElevation, moonElevation, 
+    RENODX_TONE_MAP_TYPE == 0 ? 1.f : RENODX_DIFFUSE_WHITE_NITS / 100.f);
 
   linear_color_bt2020 = renodx::color::bt2020::from::BT709(linear_color_bt709);
   pq_color = renodx::color::pq::EncodeSafe(linear_color_bt2020, scaling);
