@@ -267,7 +267,7 @@ float4 main(
   SV_Target.z = _340;
   SV_Target.w = _14.w;
 
-  SV_Target.xyz = FinalizeSDR(SV_Target.xyz);
+  SV_Target.xyz = FinalizeSDR(SV_Target.xyz, _sunDirection.y, _moonDirection.y);
 
   return SV_Target;
 }

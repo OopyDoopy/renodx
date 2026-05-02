@@ -1,5 +1,6 @@
 #include "../shared.h"
 #include "../sky-atmospheric/sky_dawn_dusk_common.hlsli"
+#include "../lighting/purkinje_common.hlsli"
 
 // Surfel voxel jitter: surfel voxel clipmap produces abysmal minecraft square tiling
 // We add randomised noise + blur at cell boundary so that RR can denoise it
@@ -3582,6 +3583,15 @@ void main(
       float _3069 = _3066 * _2864;
       float _3070 = _3067 * _2864;
       float _3071 = _3068 * _2864;
+      // RenoDX: purkinje colour shift for direct moonlight
+      {
+        bool _purk_isMoon = !_2830 && (_sunDirection.y <= _moonDirection.y);
+        float3 _purk_light = ApplyPurkinjeShift(
+          float3(_3069, _3070, _3071), _sunDirection.y, _purk_isMoon);
+        _3069 = _purk_light.x;
+        _3070 = _purk_light.y;
+        _3071 = _purk_light.z;
+      }
       float _3072 = float(_2812);
       if (_2144) {
         bool _3074 = (_967 > 0.0f);
@@ -4389,6 +4399,15 @@ void main(
         float _3903 = _3902 * _3897;
         float _3904 = _3899 * _3717;
         float _3905 = _3904 * _3898;
+        // RenoDX: purkinje colour shift for direct moonlight
+        {
+          bool _purk_isMoon = !_2830 && (_sunDirection.y <= _moonDirection.y);
+          float3 _purk_light = ApplyPurkinjeShift(
+            float3(_3901, _3903, _3905), _sunDirection.y, _purk_isMoon);
+          _3901 = _purk_light.x;
+          _3903 = _purk_light.y;
+          _3905 = _purk_light.z;
+        }
         float _3906 = _3901 + _3209;
         float _3907 = _3903 + _3210;
         float _3908 = _3905 + _3211;
@@ -6091,6 +6110,15 @@ void main(
           float _5712 = _5711 * _5159;
           float _5713 = _5711 * _5160;
           float _5714 = _5711 * _5161;
+          // RenoDX: purkinje colour shift for direct moonlight
+          {
+            bool _purk_isMoon = !_4920 && (_sunDirection.y <= _moonDirection.y);
+            float3 _purk_light = ApplyPurkinjeShift(
+              float3(_5712, _5713, _5714), _sunDirection.y, _purk_isMoon);
+            _5712 = _purk_light.x;
+            _5713 = _purk_light.y;
+            _5714 = _purk_light.z;
+          }
           _5716 = _5712;
           _5717 = _5713;
           _5718 = _5714;
