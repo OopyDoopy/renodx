@@ -257,7 +257,7 @@ float4 main(
   SV_Target.z = select(_381, exp2(log2((1.0f / ((_348 * 18.6875f) + 1.0f)) * ((_348 * 18.8515625f) + 0.8359375f)) * 78.84375f), 0.0f);
   SV_Target.w = _14.w;
 
-  SV_Target.xyz = FinalizeHDR(SV_Target.xyz);
+  SV_Target.xyz = FinalizeHDR(SV_Target.xyz, _sunDirection.y, _moonDirection.y);
 
   return SV_Target;
 }

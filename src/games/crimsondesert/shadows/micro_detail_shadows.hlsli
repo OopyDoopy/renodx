@@ -18,20 +18,23 @@
 // Stencil IDs that must NOT receive micro detail contact shadows
 //
 //  2        = Sky/background geometry
+//  3        = Unknown (vanilla always zeroes contact shadow for this)
+//  6        = Waterfalls / minor VFX (translucent, ray march hits geometry behind)
+//  7        = SSS/VFX (vanilla reduces 6-7 to 1% shadow via _2888 & -2 == 6)
 //  10       = Sky
-//  21, 22   = Special effect materials (vanilla already zeroes contact for these)
-//  24, 29   = Transparent / VFX (waterfalls, water surfaces, particles)
+//  21, 22   = Special effect materials (vanilla zeroes cross-stencil contact for these)
 //  33, 55   = Cloth / velvet (vanilla reduces to 1% shadow)
 
 static const int MICRO_STEPS = 32;
 
 if (CONTACT_SHADOW_QUALITY == 1.f
     && MICRO_STENCIL != 2
+    && MICRO_STENCIL != 3
+    && MICRO_STENCIL != 6
+    && MICRO_STENCIL != 7
     && MICRO_STENCIL != 10
     && MICRO_STENCIL != 21
     && MICRO_STENCIL != 22
-    && MICRO_STENCIL != 24
-    && MICRO_STENCIL != 29
     && MICRO_STENCIL != 33
     && MICRO_STENCIL != 55
 ) {

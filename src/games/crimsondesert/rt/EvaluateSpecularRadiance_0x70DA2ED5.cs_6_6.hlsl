@@ -1,5 +1,58 @@
 #include "../shared.h"
 #include "../sky-atmospheric/sky_dawn_dusk_common.hlsli"
+#include "../lighting/purkinje_common.hlsli"
+
+// ============================================================================
+// SPECULAR RADIANCE DEBUG VIEWS  (v2 — refined after first pass)
+// Set SPECULAR_DEBUG_VIEW to a non-zero value and rebuild to visualize.
+// The debug output replaces g_specularResultUAV.rgb (alpha preserved).
+//
+//  0 = OFF (normal output)
+//  1 = Path selector: RED = screen-space, GREEN = surfel/SDF, BLUE = cubemap
+//  2 = g_sceneColor (t173) raw at THIS pixel's UV (not reprojected)
+//  3 = g_sceneDiffuseHalfPrev (t164) raw at THIS pixel's UV
+//  4 = Screen-space source: RED=sceneColor, GREEN=diffHalfPrev, BLACK=none
+//  5 = Hit distance (log grayscale)
+//  6 = NDC validity: GREEN=in bounds, RED=out of bounds
+//  7 = Depth validation: GREEN=pass, RED=fail
+//  8 = Screen-space weight (_3323)
+//  9 = Cubemap sample (g_environmentColor mip 4, reflection dir)
+// 10 = Final specular pre-exposure (_6349-_6351)
+// 11 = Specular AO (g_sceneAO.y)
+// 12 = _3355-_3357: pre-cubemap-fallback specular
+// 13 = _3327-_3329: SDF/surfel radiance only
+// 14 = _6147-_6149: post-full-lighting specular
+// 15 = _3320-_3322: screen-space radiance only
+// 16 = g_sceneColor at REPROJECTED hit UV (actual shader sample)
+// 17 = _997 flag: WHITE=sky miss, BLACK=valid RT hit
+// 18 = _renderParams.z (screen-space scale factor)
+// 19 = Screen-space radiance with animated stencil mask:
+//      Shows _3320-_3322 only for stencils that are animated (characters).
+//      If this shows the issue but static geometry doesn't, confirms
+//      the reprojection-on-animated-geometry theory.
+// 20 = Kill screen-space path: forces _3320-_3322 to zero, shows what
+//      specular looks like with ONLY surfel/SDF + cubemap (no SS).
+//      If the motion issue disappears, screen-space is confirmed as cause.
+// 21 = Kill screen-space AND surfel/SDF: forces both _3320-_3322 and
+//      _3327-_3329 to zero. Shows specular from cubemap only.
+//      If residual motion artifacts from view 20 disappear, surfels are
+//      the secondary source.
+// ============================================================================
+#ifndef SPECULAR_DEBUG_VIEW
+#define SPECULAR_DEBUG_VIEW 0
+#endif
+
+// ============================================================================
+// DISABLE_SS_SPECULAR: When set to 1, disables the screen-space radiance
+// cache contribution to RT specular. This eliminates the motion artifact on
+// animated geometry (characters, cloth) where the screen-space reprojection
+// samples background radiance instead of the character's surface.
+// The surfel/SDF, cubemap, and full lighting paths remain active.
+// This is a base game limitation workaround — see pipeline-notes.txt issue 15.
+// ============================================================================
+#ifndef DISABLE_SS_SPECULAR
+#define DISABLE_SS_SPECULAR 1
+#endif
 
 struct SurfelData {
   uint _baseColor;
@@ -826,6 +879,23 @@ void main(
   int _6422;
   int _6423;
   int _6424;
+#if SPECULAR_DEBUG_VIEW != 0
+  // Debug tracking variables
+  float3 _dbg_sceneColorSample = float3(0, 0, 0);      // View 2: g_sceneColor at hit UV
+  float3 _dbg_sceneDiffHalfSample = float3(0, 0, 0);    // View 3: g_sceneDiffuseHalfPrev at hit UV
+  float  _dbg_screenSpaceSource = -1.0f;                 // View 4: 0=sceneColor, 1=diffHalfPrev, -1=none
+  float  _dbg_hitDistance = 0.0f;                         // View 5: ray hit distance
+  float  _dbg_ndcValid = -1.0f;                           // View 6: 1=in bounds, 0=out of bounds
+  float  _dbg_depthValid = -1.0f;                         // View 7: 1=matched, 0=mismatch
+  float  _dbg_ssWeight = 0.0f;                            // View 8: screen-space weight (_3323)
+  float3 _dbg_cubemapSample = float3(0, 0, 0);           // View 9: cubemap fallback
+  int    _dbg_pathTaken = 0;                              // View 1: 1=SS, 2=surfel/SDF, 3=cubemap
+  float  _dbg_specAO = 1.0f;                              // View 11: specular AO
+  float3 _dbg_surfelRadiance = float3(0, 0, 0);          // View 13: surfel/SDF contribution
+  int    _dbg_hitStencil = 0;                              // View 14: stencil at reprojected pos
+  float  _dbg_ndcX = 0.0f;                                // NDC coords for view 12
+  float  _dbg_ndcY = 0.0f;
+#endif
   if (_165) {
     bool _169 = (((uint)_92 < (uint)20) || (_92 == 107));
     bool __defer_166_179 = false;
@@ -1540,6 +1610,9 @@ void main(
   float _902 = float((uint)(uint)(_901));
   float _903 = _902 * 2.3283064365386963e-10f;
   float4 _905 = __3__36__0__0__g_raytracingHitResult.Load(int3(((int)(((uint)(_80) + SV_GroupThreadID.x) + ((uint)(_61 << 3)))), ((int)((((uint)(_59 << 3)) + SV_GroupThreadID.y) + ((uint)(_78 << 5)))), 0));
+#if SPECULAR_DEBUG_VIEW != 0
+  _dbg_hitDistance = _905.x;
+#endif
   float _907 = _905.x * _813;
   float _908 = _905.x * _814;
   float _909 = _905.x * _815;
@@ -1646,8 +1719,22 @@ void main(
   float _1042 = 1.0f - _1040;
   bool _1043 = (_951 > 0.0f);
   bool __defer_1023_1309 = false;
+#if DISABLE_SS_SPECULAR
+  // For animated geometry, we keep the screenspace path but will clamp
+  // its contribution later to prevent the motion artifact.
+  // _ssIsAnimated is used after the screen-space path to apply the clamp.
+  bool _ssIsAnimated = ((uint)(_338 - 14) < (uint)7)    // 14-20: foliage/SSS
+                    || (_338 == 33)                       // cloth
+                    || ((uint)(_338 - 53) < (uint)15)    // 53-67: character/hair/skin
+                    || ((uint)(_338 - 96) < (uint)3);    // 96-98: decal/crystal/eye
+#endif
   [branch]
   if ((((_997) && (_1043)) || (!(_997) && ((_1043) && (((((((_949 > _1041))) && (((_949 < _1042))))) && (((((_950 > _1041))) && (((_950 < _1042))))))))))) {
+#if SPECULAR_DEBUG_VIEW != 0
+    _dbg_ndcValid = 1.0f;
+    _dbg_ndcX = _949;
+    _dbg_ndcY = _950;
+#endif
     float _1055 = _949 * 0.5f;
     float _1056 = _950 * -0.5f;
     float _1057 = _1055 + 0.5f;
@@ -1673,6 +1760,10 @@ void main(
     float _1079 = _1078 + 0.10000000149011612f;
     bool _1080 = (_1075 < _1077);
     bool _1083 = ((_1075 < _1079) && (_997) || (_1080));
+#if SPECULAR_DEBUG_VIEW != 0
+    _dbg_depthValid = _1083 ? 1.0f : 0.0f;
+    _dbg_hitStencil = _1071;
+#endif
     bool __defer_1054_1090 = false;
     if ((_1083) || (((!(_1083)) && (!(!(_905.x >= 99999.0f)))) && ((((_1067.x < 1.0000000116860974e-07f))) || (((_1067.x == 1.0f)))))) {
       __defer_1054_1090 = true;
@@ -1706,12 +1797,20 @@ void main(
           float _1134 = max(_1132, _1059);
           float _1135 = min(_1134, _1060);
           float4 _1138 = __3__36__0__0__g_sceneDiffuseHalfPrev.SampleLevel(__3__40__0__0__g_sampler, float2(_1135, _1133), 0.0f);
+#if SPECULAR_DEBUG_VIEW != 0
+          _dbg_sceneDiffHalfSample = _1138.xyz;
+          _dbg_screenSpaceSource = 1.0f;
+#endif
           _1150 = _1138.x;
           _1151 = _1138.y;
           _1152 = _1138.z;
           _1153 = 1.0f;
         } else {
           float4 _1145 = __3__36__0__0__g_sceneColor.SampleLevel(__3__40__0__0__g_sampler, float2(_1062, _1058), 0.0f);
+#if SPECULAR_DEBUG_VIEW != 0
+          _dbg_sceneColorSample = _1145.xyz;
+          _dbg_screenSpaceSource = 0.0f;
+#endif
           _1150 = _1145.x;
           _1151 = _1145.y;
           _1152 = _1145.z;
@@ -1884,6 +1983,10 @@ void main(
           _3332 = _911;
           _3333 = _912;
           _3334 = _1239;
+#if SPECULAR_DEBUG_VIEW != 0
+          _dbg_ssWeight = _1304;
+          _dbg_pathTaken = 1;  // screen space path succeeded
+#endif
         } else {
           _3320 = 0.0f;
           _3321 = 0.0f;
@@ -1905,8 +2008,16 @@ void main(
     }
   } else {
     __defer_1023_1309 = true;
+#if SPECULAR_DEBUG_VIEW != 0
+    _dbg_ndcValid = 0.0f;
+    _dbg_ndcX = _949;
+    _dbg_ndcY = _950;
+#endif
   }
   if (__defer_1023_1309) {
+#if SPECULAR_DEBUG_VIEW != 0
+    if (_dbg_pathTaken == 0) _dbg_pathTaken = 2;  // surfel/SDF fallback
+#endif
     bool _1312 = ((_905.x > 0.0f) && (_905.x < 10000.0f));
     if (_1312) {
       _1315 = 0;
@@ -3551,6 +3662,15 @@ void main(
             float _3118 = _3117 * _3110;
             float _3119 = _3114 * _2991;
             float _3120 = _3119 * _3111;
+            // RenoDX: purkinje colour shift for direct moonlight
+            {
+              bool _purk_isMoon = !_2753 && (_sunDirection.y <= _moonDirection.y);
+              float3 _purk_light = ApplyPurkinjeShift(
+                float3(_3116, _3118, _3120), _sunDirection.y, _purk_isMoon);
+              _3116 = _purk_light.x;
+              _3118 = _purk_light.y;
+              _3120 = _purk_light.z;
+            }
             float _3121 = dot(float3(_3116, _3118, _3120), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f));
             float _3122 = min(_856, _3121);
             float _3123 = _3122 * _3116;
@@ -3870,6 +3990,39 @@ void main(
     _3400 = _3322;
     _3401 = _3323;
   }
+#if DISABLE_SS_SPECULAR
+  // For animated stencils, clamp the screen-space specular contribution
+  // to prevent the motion artifact. The artifact manifests as the screen-space
+  // reprojection sampling bright background (sky/snow) instead of the
+  // character's surface. We use the cubemap at mip 4 as a reference for
+  // expected specular energy — if the screen-space result is much brighter,
+  // it's likely a reprojection error.
+  if (_ssIsAnimated && (_3325 != 0)) {
+    // Sample cubemap at mip 4 (diffuse-like, matches the far-hit fallback)
+    float4 _ssClampRef = __3__36__0__0__g_environmentColor.SampleLevel(
+      __3__40__0__0__g_samplerTrilinear, float3(_813, _814, _815), 4.0f);
+    float _ssClampRefLum = dot(_ssClampRef.xyz, float3(0.2126f, 0.7152f, 0.0722f));
+    float _ssClampBudget = max(_ssClampRefLum * 0.25f, 0.001f);  
+
+    // Clamp _3398 (the blended SS+cubemap result) luminance
+    float _ss3398Lum = dot(float3(_3398, _3399, _3400), float3(0.2126f, 0.7152f, 0.0722f));
+    if (_ss3398Lum > _ssClampBudget) {
+      float _ssScale = _ssClampBudget / max(_ss3398Lum, 1e-6f);
+      _3398 *= _ssScale;
+      _3399 *= _ssScale;
+      _3400 *= _ssScale;
+    }
+
+    // Also clamp _3355 (pre-cubemap specular that feeds downstream)
+    float _ss3355Lum = dot(float3(_3355, _3356, _3357), float3(0.2126f, 0.7152f, 0.0722f));
+    if (_ss3355Lum > _ssClampBudget) {
+      float _ssScale2 = _ssClampBudget / max(_ss3355Lum, 1e-6f);
+      _3355 *= _ssScale2;
+      _3356 *= _ssScale2;
+      _3357 *= _ssScale2;
+    }
+  }
+#endif
   float _3406 = _voxelParams.x * 11585.1259765625f;
   float _3407 = _bufferSizeAndInvSize.x * _556;
   float _3408 = _3407 + _555;
@@ -6426,6 +6579,15 @@ void main(
               float _6127 = _6120 * _6093;
               float _6128 = _6127 * _6117;
               float _6129 = _6128 * _6114;
+              // RenoDX: purkinje colour shift for direct moonlight
+              {
+                bool _purk_isMoon = !_4909 && (_sunDirection.y <= _moonDirection.y);
+                float3 _purk_light = ApplyPurkinjeShift(
+                  float3(_6123, _6126, _6129), _sunDirection.y, _purk_isMoon);
+                _6123 = _purk_light.x;
+                _6126 = _purk_light.y;
+                _6129 = _purk_light.z;
+              }
               float _6130 = _6123 + _4748;
               float _6131 = _6126 + _4749;
               float _6132 = _6129 + _4750;
@@ -6603,6 +6765,10 @@ void main(
       float _6292 = select(_6288, _814, _1006);
       float _6293 = select(_6288, _6290, _1007);
       float4 _6296 = __3__36__0__0__g_environmentColor.SampleLevel(__3__40__0__0__g_samplerTrilinear, float3(_6291, _6292, _6293), 4.0f);
+#if SPECULAR_DEBUG_VIEW != 0
+      _dbg_cubemapSample = _6296.xyz;
+      if (_dbg_pathTaken == 0) _dbg_pathTaken = 3;  // cubemap-only fallback
+#endif
       float _6300 = _6296.x * _6287;
       float _6301 = _6296.y * _6287;
       float _6302 = _6296.z * _6287;
@@ -6664,6 +6830,9 @@ void main(
     int _6342 = _338 & 24;
     bool _6343 = ((uint)_6342 > (uint)23);
     float _6344 = select(_6343, 1.0f, _6340.y);
+#if SPECULAR_DEBUG_VIEW != 0
+    _dbg_specAO = _6344;
+#endif
     float _6345 = _6344 * _6325;
     float _6346 = _6344 * _6326;
     float _6347 = _6344 * _6327;
@@ -6712,6 +6881,162 @@ void main(
   float _6393 = -0.0f - _6390;
   bool _6395 = (_lightingParams.w > 0.0f);
   float _6396 = select(_6395, _6368, _6334);
+
+#if SPECULAR_DEBUG_VIEW != 0
+  {
+    float3 _dbgColor = float3(0, 0, 0);
+    float  _dbgAlpha = _6396;  // preserve alpha by default
+
+    // Compute this pixel's own UV for raw texture sampling (views 2, 3)
+    float _dbgPixelU = (_107 * _bufferSizeAndInvSize.z);
+    float _dbgPixelV = (_108 * _bufferSizeAndInvSize.w);
+
+    #if SPECULAR_DEBUG_VIEW == 1
+    // Path selector: R=screen-space, G=surfel/SDF, B=cubemap
+    // Use _3325/_3326 which track the actual path taken:
+    //   _3325=1,_3326=1 → screen-space succeeded with valid hit
+    //   _3325=0,_3326=1 → surfel/SDF fallback (hit existed but SS failed)
+    //   _3325=0,_3326=0 → no valid hit (cubemap/env fallback)
+    if (_3325 != 0) _dbgColor = float3(1, 0, 0);       // screen-space
+    else if (_3326 != 0) _dbgColor = float3(0, 1, 0);   // surfel/SDF
+    else _dbgColor = float3(0, 0, 1);                    // cubemap/none
+
+    #elif SPECULAR_DEBUG_VIEW == 2
+    // g_sceneColor (t173) raw at THIS pixel's UV
+    {
+      float4 _dbgSC = __3__36__0__0__g_sceneColor.SampleLevel(
+        __3__40__0__0__g_sampler, float2(_dbgPixelU, _dbgPixelV), 0.0f);
+      _dbgColor = _dbgSC.xyz;
+    }
+
+    #elif SPECULAR_DEBUG_VIEW == 3
+    // g_sceneDiffuseHalfPrev (t164) raw at THIS pixel's UV
+    {
+      float4 _dbgDH = __3__36__0__0__g_sceneDiffuseHalfPrev.SampleLevel(
+        __3__40__0__0__g_sampler, float2(_dbgPixelU, _dbgPixelV), 0.0f);
+      _dbgColor = _dbgDH.xyz;
+    }
+
+    #elif SPECULAR_DEBUG_VIEW == 4
+    // Screen-space source selector: R=sceneColor, G=diffHalfPrev, black=none
+    if (_dbg_screenSpaceSource == 0.0f) _dbgColor = float3(1, 0, 0);
+    else if (_dbg_screenSpaceSource == 1.0f) _dbgColor = float3(0, 1, 0);
+    else _dbgColor = float3(0, 0, 0);
+
+    #elif SPECULAR_DEBUG_VIEW == 5
+    // Hit distance as grayscale (log scale for visibility)
+    {
+      float _dbgDist = _dbg_hitDistance;
+      float _dbgDistNorm = saturate(log2(max(1.0f, _dbgDist)) / 17.0f);
+      _dbgColor = float3(_dbgDistNorm, _dbgDistNorm, _dbgDistNorm);
+    }
+
+    #elif SPECULAR_DEBUG_VIEW == 6
+    // NDC validity: green=valid, red=invalid
+    if (_dbg_ndcValid > 0.5f) _dbgColor = float3(0, 1, 0);
+    else if (_dbg_ndcValid == 0.0f) _dbgColor = float3(1, 0, 0);
+    else _dbgColor = float3(0.3, 0.3, 0.3);
+
+    #elif SPECULAR_DEBUG_VIEW == 7
+    // Depth validation: green=matched, red=mismatch
+    if (_dbg_depthValid > 0.5f) _dbgColor = float3(0, 1, 0);
+    else if (_dbg_depthValid == 0.0f) _dbgColor = float3(1, 0, 0);
+    else _dbgColor = float3(0.3, 0.3, 0.3);
+
+    #elif SPECULAR_DEBUG_VIEW == 8
+    // Screen-space contribution weight (_3323)
+    _dbgColor = float3(_3323, _3323, _3323);
+
+    #elif SPECULAR_DEBUG_VIEW == 9
+    // Cubemap fallback sample in reflection direction
+    {
+      float4 _dbgCube = __3__36__0__0__g_environmentColor.SampleLevel(
+        __3__40__0__0__g_samplerTrilinear, float3(_813, _814, _815), 4.0f);
+      _dbgColor = _dbgCube.xyz;
+    }
+
+    #elif SPECULAR_DEBUG_VIEW == 10
+    // Final specular before exposure (_6349, _6350, _6351)
+    _dbgColor = float3(_6349, _6350, _6351);
+
+    #elif SPECULAR_DEBUG_VIEW == 11
+    // Specular AO
+    _dbgColor = float3(_dbg_specAO, _dbg_specAO, _dbg_specAO);
+
+    #elif SPECULAR_DEBUG_VIEW == 12
+    // _3355-_3357: pre-cubemap-fallback specular
+    _dbgColor = float3(_3355, _3356, _3357);
+
+    #elif SPECULAR_DEBUG_VIEW == 13
+    // _3327-_3329: SDF/surfel radiance only
+    _dbgColor = float3(_3327, _3328, _3329);
+
+    #elif SPECULAR_DEBUG_VIEW == 14
+    // _6147-_6149: post-full-lighting specular
+    _dbgColor = float3(_6147, _6148, _6149);
+
+    #elif SPECULAR_DEBUG_VIEW == 15
+    // _3320-_3322: screen-space radiance only
+    _dbgColor = float3(_3320, _3321, _3322);
+
+    #elif SPECULAR_DEBUG_VIEW == 16
+    // g_sceneColor at REPROJECTED hit UV (what the shader actually samples)
+    _dbgColor = _dbg_sceneColorSample;
+
+    #elif SPECULAR_DEBUG_VIEW == 17
+    // _997 flag: WHITE=sky miss, BLACK=valid RT hit
+    _dbgColor = _997 ? float3(1, 1, 1) : float3(0, 0, 0);
+
+    #elif SPECULAR_DEBUG_VIEW == 18
+    // _renderParams.z (screen-space scale factor)
+    {
+      float _dbgRPz = saturate(_renderParams.z);
+      _dbgColor = float3(_dbgRPz, _dbgRPz, _dbgRPz);
+    }
+
+    #elif SPECULAR_DEBUG_VIEW == 19
+    // Screen-space radiance masked to animated stencils only
+    // Stencils 14-20 (foliage/SSS), 33/55 (cloth), 53-67 (character), 96-98
+    {
+      bool _dbgIsAnimated = ((uint)(_338 + -14) < (uint)7) ||
+                            (_338 == 33) || (_338 == 55) ||
+                            ((uint)(_338 + -53) < (uint)15) ||
+                            ((uint)(_338 + -96) < (uint)3);
+      _dbgColor = _dbgIsAnimated ? float3(_3320, _3321, _3322) : float3(0, 0, 0);
+    }
+
+    #elif SPECULAR_DEBUG_VIEW == 20
+    // Kill screen-space: show specular with SS contribution zeroed out.
+    // Recompute what _3355 would be without _3320-_3322.
+    // If the motion issue disappears here, screen-space is the confirmed cause.
+    {
+      float3 _dbgNoSS = float3(_3355 - _3320, _3356 - _3321, _3357 - _3322);
+      _dbgColor = max(0.0f, _dbgNoSS);
+    }
+
+    #elif SPECULAR_DEBUG_VIEW == 21
+    // Kill screen-space AND surfel/SDF: zero both contributions.
+    // _3355 = _3327 + metallic_term (from _1010 path)
+    // _3327 = surfel/SDF radiance
+    // _3320 = screen-space radiance
+    // So _3355 - _3320 - _3327 = just the metallic/roughness term if any.
+    // Simpler: just output zero for the pre-cubemap part, let cubemap stand alone.
+    {
+      _dbgColor = float3(0, 0, 0);
+    }
+
+    #endif
+
+    // Scale debug output by exposure so it's visible through downstream pipeline
+    _dbgColor = _dbgColor * _exposure4.x;
+    _dbgColor = clamp(_dbgColor, 0.0f, 30000.0f);
+
+    __3__38__0__1__g_specularResultUAV[int2(((int)(((uint)(_80) + SV_GroupThreadID.x) + ((uint)(_61 << 3)))), ((int)((((uint)(_59 << 3)) + SV_GroupThreadID.y) + ((uint)(_78 << 5)))))] = float4(_dbgColor.x, _dbgColor.y, _dbgColor.z, _dbgAlpha);
+    __3__38__0__1__g_specularRayHitDistanceUAV[int2(((int)(((uint)(_80) + SV_GroupThreadID.x) + ((uint)(_61 << 3)))), ((int)((((uint)(_59 << 3)) + SV_GroupThreadID.y) + ((uint)(_78 << 5)))))] = _6368;
+    return;
+  }
+#endif
+
   __3__38__0__1__g_specularResultUAV[int2(((int)(((uint)(_80) + SV_GroupThreadID.x) + ((uint)(_61 << 3)))), ((int)((((uint)(_59 << 3)) + SV_GroupThreadID.y) + ((uint)(_78 << 5)))))] = float4(_6391, _6392, _6393, _6396);
   __3__38__0__1__g_specularRayHitDistanceUAV[int2(((int)(((uint)(_80) + SV_GroupThreadID.x) + ((uint)(_61 << 3)))), ((int)((((uint)(_59 << 3)) + SV_GroupThreadID.y) + ((uint)(_78 << 5)))))] = _6368;
 }

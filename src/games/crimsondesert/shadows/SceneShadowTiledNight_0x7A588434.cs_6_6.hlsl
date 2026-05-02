@@ -1562,6 +1562,14 @@ void main(
       float _1737 = -0.0f - _1736;
       float _1738 = mad(_1714, _1728, _1737);
       float _1739 = mad(_1707, _1648, _1738);
+      // ── Contact shadow direction stabilization ─────────────────────────
+      // RenoDX: use stable light direction to eliminate tile seam artifacts
+      if (CONTACT_SHADOW_QUALITY == 1.f) {
+        _1731 = _1646;
+        _1735 = _1647;
+        _1739 = _1648;
+      }
+      // ──────────────────────────────────────────────────────────────────
       float _1740 = _109 * 0.0024999999441206455f;
       float _1741 = _1740 + 0.25f;
       float _1742 = min(0.5f, _1741);
@@ -1569,7 +1577,8 @@ void main(
       float _1744 = _1631 - _1630;
       float _1745 = _1743 * _1744;
       float _1746 = _1745 + _1630;
-      float _1747 = select(_166, 0.009999999776482582f, 0.10000000149011612f);
+      // RenoDX: foliage ray distance scale 0.01 → 0.05 (vanilla foliage reach was ~2cm, now ~10cm)
+      float _1747 = select(_166, (CONTACT_SHADOW_QUALITY == 1.f ? 0.05000000074505806f : 0.009999999776482582f), 0.10000000149011612f);
       float _1748 = _1746 * _1747;
       if (!_166) {
         bool _1751 = ((uint)(_74 + -11) < (uint)9);
@@ -1618,7 +1627,8 @@ void main(
       }
       bool _1800 = (_1628) || (_1766);
       if (_1800) {
-        float _1802 = _1799 * 10.0f;
+        // RenoDX: foliage initial ray offset 10× → 2× (vanilla skipped nearby occluders entirely)
+        float _1802 = _1799 * (CONTACT_SHADOW_QUALITY == 1.f ? 2.0f : 10.0f);
         _1812 = _1802;
       } else {
         bool _1804 = (_74 == 15);
@@ -1755,10 +1765,11 @@ void main(
         float _1946 = _bufferSizeAndInvSize.y * 0.5f;
         float _1947 = _1946 * _1943;
         float _1948 = max(_1945, _1947);
-        float _1949 = _1948 * 0.125f;
+        // RenoDX: near-branch step subdivision halved for 16-step ray march (vanilla: 8 steps at 1/8 span)
+        float _1949 = _1948 * (CONTACT_SHADOW_QUALITY == 1.f ? 0.0625f : 0.125f);
         float _1950 = min(1.0f, _1949);
         float _1951 = 1.0f / _1950;
-        float _1952 = max(0.125f, _1951);
+        float _1952 = max((CONTACT_SHADOW_QUALITY == 1.f ? 0.0625f : 0.125f), _1951);
         float _1953 = _1952 * _1941;
         float _1954 = _1933 * 0.5f;
         float _1955 = _1934 * 0.5f;
@@ -1772,13 +1783,13 @@ void main(
         float _1966 = _1935 - _1965;
         float _1967 = abs(_1953);
         float _1968 = max(_1967, _1966);
-        float _1969 = _1742 * 0.125f;
+        float _1969 = _1742 * (CONTACT_SHADOW_QUALITY == 1.f ? 0.0625f : 0.125f);
         float _1970 = _1969 * _1968;
-        float _1971 = _1939 * 0.0625f;
+        float _1971 = _1939 * (CONTACT_SHADOW_QUALITY == 1.f ? 0.03125f : 0.0625f);
         float _1972 = _1971 * _1952;
-        float _1973 = _1940 * -0.0625f;
+        float _1973 = _1940 * (CONTACT_SHADOW_QUALITY == 1.f ? -0.03125f : -0.0625f);
         float _1974 = _1973 * _1952;
-        float _1975 = _1953 * 0.125f;
+        float _1975 = _1953 * (CONTACT_SHADOW_QUALITY == 1.f ? 0.0625f : 0.125f);
         float _1976 = abs(_1972);
         float _1977 = abs(_1974);
         float _1978 = _1976 * _bufferSizeAndInvSize.x;
@@ -1905,7 +1916,8 @@ void main(
             float _2097 = saturate(_2096);
             float _2098 = 1.0f - _1999;
             float _2099 = _2097 * _2098;
-            float _2100 = _2099 + _1999;
+            // RenoDX: 30% softer contact shadow accumulation per step
+            float _2100 = (CONTACT_SHADOW_QUALITY == 1.f ? _2099 * 0.7f : _2099) + _1999;
             float _2101 = saturate(_2100);
             _2103 = _2014;
             _2104 = _2101;
@@ -1939,7 +1951,8 @@ void main(
             _2418 = _2140;
             _2419 = _2013;
           } else {
-            bool _2114 = ((uint)_1997 < (uint)7);
+            // RenoDX: near-branch loop count 8 → 16 steps
+            bool _2114 = ((uint)_1997 < (uint)(CONTACT_SHADOW_QUALITY == 1.f ? 15 : 7));
             if (_2114) {
               float _2116 = abs(_1975);
               float _2117 = min(_2116, _2021);
@@ -1962,7 +1975,7 @@ void main(
               _2129 = _1995;
               _2130 = _1998;
             }
-            bool _2132 = ((uint)(_1997 + 1) < (uint)8);
+            bool _2132 = ((uint)(_1997 + 1) < (uint)(CONTACT_SHADOW_QUALITY == 1.f ? 16 : 8));  // RenoDX: near-branch loop termination
             if (_2132) {
               _1991 = _2103;
               _1992 = _2126;
@@ -2043,10 +2056,11 @@ void main(
         float _2216 = _bufferSizeAndInvSize.y * 0.5f;
         float _2217 = _2216 * _2213;
         float _2218 = max(_2215, _2217);
-        float _2219 = _2218 * 0.125f;
+        // RenoDX: far-branch step subdivision halved for 16-step ray march (vanilla: 8 steps at 1/16 span)
+        float _2219 = _2218 * (CONTACT_SHADOW_QUALITY == 1.f ? 0.0625f : 0.125f);
         float _2220 = min(1.0f, _2219);
         float _2221 = 1.0f / _2220;
-        float _2222 = max(0.125f, _2221);
+        float _2222 = max((CONTACT_SHADOW_QUALITY == 1.f ? 0.0625f : 0.125f), _2221);
         float _2223 = _2222 * _2211;
         float _2224 = _2203 * 0.5f;
         float _2225 = _2204 * 0.5f;
@@ -2060,13 +2074,13 @@ void main(
         float _2236 = _2205 - _2235;
         float _2237 = abs(_2223);
         float _2238 = max(_2237, _2236);
-        float _2239 = _1742 * 0.0625f;
+        float _2239 = _1742 * (CONTACT_SHADOW_QUALITY == 1.f ? 0.03125f : 0.0625f);
         float _2240 = _2239 * _2238;
-        float _2241 = _2209 * 0.0625f;
+        float _2241 = _2209 * (CONTACT_SHADOW_QUALITY == 1.f ? 0.03125f : 0.0625f);
         float _2242 = _2241 * _2222;
-        float _2243 = _2210 * -0.0625f;
+        float _2243 = _2210 * (CONTACT_SHADOW_QUALITY == 1.f ? -0.03125f : -0.0625f);
         float _2244 = _2243 * _2222;
-        float _2245 = _2223 * 0.125f;
+        float _2245 = _2223 * (CONTACT_SHADOW_QUALITY == 1.f ? 0.0625f : 0.125f);
         float _2246 = abs(_2242);
         float _2247 = abs(_2244);
         float _2248 = _2246 * _bufferSizeAndInvSize.x;
@@ -2193,7 +2207,8 @@ void main(
             float _2367 = saturate(_2366);
             float _2368 = 1.0f - _2269;
             float _2369 = _2367 * _2368;
-            float _2370 = _2369 + _2269;
+            // RenoDX: 30% softer contact shadow accumulation per step
+            float _2370 = (CONTACT_SHADOW_QUALITY == 1.f ? _2369 * 0.7f : _2369) + _2269;
             float _2371 = saturate(_2370);
             _2373 = _2284;
             _2374 = _2371;
@@ -2227,7 +2242,8 @@ void main(
             _2418 = _2410;
             _2419 = _2283;
           } else {
-            bool _2384 = ((uint)_2261 < (uint)7);
+            // RenoDX: far-branch loop count 8 → 16 steps
+            bool _2384 = ((uint)_2261 < (uint)(CONTACT_SHADOW_QUALITY == 1.f ? 15 : 7));
             if (_2384) {
               float _2386 = abs(_2245);
               float _2387 = min(_2386, _2287);
@@ -2250,7 +2266,7 @@ void main(
               _2399 = _2266;
               _2400 = _2268;
             }
-            bool _2402 = ((uint)(_2261 + 1) < (uint)8);
+            bool _2402 = ((uint)(_2261 + 1) < (uint)(CONTACT_SHADOW_QUALITY == 1.f ? 16 : 8));  // RenoDX: far-branch loop termination
             if (_2402) {
               _2261 = (_2261 + 1);
               _2262 = _2286;

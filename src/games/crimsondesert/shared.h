@@ -30,6 +30,7 @@
 //#define CUSTOM_FLAGS__D93_WHITE_POINT                 0b1000000000000000000000u
 #define CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS              0b10000000000000000000000u
 #define CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS_BIT1         0b1000000000000000000000u
+#define CUSTOM_FLAGS__PURKINJE_EFFECT                   0b100000000000000000000000u
 
 #define CUSTOM_FLAGS                               shader_injection.custom_flags
 
@@ -116,6 +117,7 @@
 #define AURORA_CHANCE                          shader_injection.aurora_chance
 #define AURORA_NIGHT_SEED                      shader_injection.aurora_night_seed
 #define NIGHT_SKY_ATTENUATION                  ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__NIGHT_SKY_ATTENUATION) != 0u ? 1.f : 0.f)
+#define PURKINJE_EFFECT                        ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__PURKINJE_EFFECT) != 0u) ? 1.f : 0.f)
 
 // Auto exposure tuning
 //#define AE_DARK_POWER_OUTDOOR                shader_injection.ae_dark_power_outdoor
@@ -191,7 +193,7 @@ struct ShaderInjectData {
   float bloom_strength;
   float aurora_brightness;
   float aurora_chance;
-  float aurora_night_seed;  
+  float aurora_night_seed;
 };
 
 #ifndef __cplusplus
