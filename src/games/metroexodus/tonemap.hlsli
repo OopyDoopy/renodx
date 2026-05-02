@@ -267,16 +267,16 @@ float4 RenoDX(float3 untonemapped, float2 uv, float ui_blend1, float ui_blend2 =
 #endif
 
   float scale = ComputeReinhardSmoothClampScale(tonemapped_linear, mid_gray_adjusted, 1.f);
-  tonemapped_linear *= scale;
+  float3 tonemapped_linear_scaled = tonemapped_linear * scale;
 
   float mid_gray_lut_adjusted = saturate(renodx::color::srgb::Decode(VanillaLUTSample(renodx::color::srgb::Encode(mid_gray_adjusted)).x));
   float black_floor_lut = saturate(renodx::color::srgb::Decode(VanillaLUTSample(renodx::color::srgb::Encode(0.001f)).x));
 
-  float3 lut_input = renodx::color::srgb::EncodeSafe(tonemapped_linear);
+  float3 lut_input = renodx::color::srgb::EncodeSafe(tonemapped_linear_scaled);
   float3 lut_output = ImprovedLUTSample(lut_input, black_floor_lut);
   lut_output = renodx::color::srgb::DecodeSafe(lut_output);
-  lut_output = renodx::math::SafeDivision(lut_output, scale, 1.f);
-  //lut_output = lerp(tonemapped_linear, lut_output, 1.f);
+  lut_output = renodx::math::SafeDivision(lut_output, scale, renodx::math::FLT_MAX);
+  //lut_output = lerp(tonemapped_linear, lut_output, 0.f);
 
   float3 display_mapped_bt709 = lut_output;
   if (RENODX_TONE_MAP_TYPE == 1) {
@@ -304,6 +304,9 @@ float4 RenoDX(float3 untonemapped, float2 uv, float ui_blend1, float ui_blend2 =
         mid_gray_lut_adjusted
           );
   }
+
+  // TEST OUTPUT
+  //display_mapped_bt709 = untonemapped_linear;
 
   display_mapped_bt709 = CustomPostProcessing(display_mapped_bt709, uv);
 
