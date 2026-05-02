@@ -1,5 +1,6 @@
 #include "../shared.h"
 #include "../sky-atmospheric/sky_dawn_dusk_common.hlsli"
+#include "../lighting/purkinje_common.hlsli"
 
 struct SurfelData {
   uint _baseColor;
@@ -3566,6 +3567,15 @@ void main(
       float _3066 = _3063 * _2861;
       float _3067 = _3064 * _2861;
       float _3068 = _3065 * _2861;
+      // RenoDX: purkinje colour shift for direct moonlight
+      {
+        bool _purk_isMoon = !_2827 && (_sunDirection.y <= _moonDirection.y);
+        float3 _purk_light = ApplyPurkinjeShift(
+          float3(_3066, _3067, _3068), _sunDirection.y, _purk_isMoon);
+        _3066 = _purk_light.x;
+        _3067 = _purk_light.y;
+        _3068 = _purk_light.z;
+      }
       float _3069 = float(_2809);
       if (_2141) {
         bool _3071 = (_964 > 0.0f);
@@ -4373,6 +4383,15 @@ void main(
         float _3900 = _3899 * _3894;
         float _3901 = _3896 * _3714;
         float _3902 = _3901 * _3895;
+        // RenoDX: purkinje colour shift for direct moonlight
+        {
+          bool _purk_isMoon = !_2827 && (_sunDirection.y <= _moonDirection.y);
+          float3 _purk_light = ApplyPurkinjeShift(
+            float3(_3898, _3900, _3902), _sunDirection.y, _purk_isMoon);
+          _3898 = _purk_light.x;
+          _3900 = _purk_light.y;
+          _3902 = _purk_light.z;
+        }
         float _3903 = _3898 + _3206;
         float _3904 = _3900 + _3207;
         float _3905 = _3902 + _3208;
@@ -6071,6 +6090,15 @@ void main(
           float _5709 = _5708 * _5156;
           float _5710 = _5708 * _5157;
           float _5711 = _5708 * _5158;
+          // RenoDX: purkinje colour shift for direct moonlight
+          {
+            bool _purk_isMoon = !_4917 && (_sunDirection.y <= _moonDirection.y);
+            float3 _purk_light = ApplyPurkinjeShift(
+              float3(_5709, _5710, _5711), _sunDirection.y, _purk_isMoon);
+            _5709 = _purk_light.x;
+            _5710 = _purk_light.y;
+            _5711 = _purk_light.z;
+          }
           _5713 = _5709;
           _5714 = _5710;
           _5715 = _5711;
