@@ -718,7 +718,8 @@ void main(
       }
 
       float _429 = _moonShading * _moonLum;
-      _430 = _429;
+      // 65% brightness reduction on the final moon disk
+      _430 = (SUN_MOON_ADJUSTMENTS == 1.f) ? _429 * 0.35f : _429;
       _431 = 1.0f;
       _432 = _426;
       _433 = _427;
