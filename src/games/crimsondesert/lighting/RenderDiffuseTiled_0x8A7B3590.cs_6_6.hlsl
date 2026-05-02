@@ -2,6 +2,7 @@
 #include "../sky-atmospheric/sky_dawn_dusk_common.hlsli"
 #include "diffuse_brdf.hlsli"
 #include "foliage_common.hlsli"
+#include "purkinje_common.hlsli"
 
 Texture2D<float4> __3__36__0__0__g_puddleMask : register(t83, space36);
 
@@ -1968,7 +1969,7 @@ void main(
     _2563 = (((_2545 * 0.6131200194358826f) + (_2546 * 0.3395099937915802f)) + (_2547 * 0.047370001673698425f)) * _2356;
     _2564 = (((_2545 * 0.07020000368356705f) + (_2546 * 0.9163600206375122f)) + (_2547 * 0.013450000435113907f)) * _2356;
     _2565 = (((_2545 * 0.02061999961733818f) + (_2546 * 0.10958000272512436f)) + (_2547 * 0.8697999715805054f)) * _2356;
-    // [DAWN_DUSK_GI] SH ambient directional boost
+    // RenoDX: DAWN_DUSK_GI SH ambient directional boost
     if (DAWN_DUSK_IMPROVEMENTS == 1.f) {
       float _ddFactor = DawnDuskFactor(_sunDirection.y);
       float3 _ddAmbient = DawnDuskAmbientBoost(
@@ -1980,6 +1981,15 @@ void main(
       _2563 = _ddAmbient.x;
       _2564 = _ddAmbient.y;
       _2565 = _ddAmbient.z;
+    }
+    // RenoDX: purkinje colour shift for direct moonlight
+    {
+      bool _purk_isMoon = !_2322 && (_sunDirection.y <= _moonDirection.y);
+      float3 _purk_light = ApplyPurkinjeShift(
+        float3(_2563, _2564, _2565), _sunDirection.y, _purk_isMoon);
+      _2563 = _purk_light.x;
+      _2564 = _purk_light.y;
+      _2565 = _purk_light.z;
     }
     _2568 = float(_2283.x);
     _2569 = float(_2283.y);
@@ -2068,7 +2078,7 @@ void main(
     _2688 = 1.0f - _2665;
     _2689 = _2688 * _2688;
     if (DIFFUSE_BRDF_MODE >= 1.0f) {
-      // EON Diffuse
+      // RenoDX: EON Diffuse
       float _eon_LdotV = dot(float3(_2648, _2649, _2650), float3(_432, _434, _436));
       _2717 = _2673 * EON_DiffuseScalar(_2673, _2665, _eon_LdotV, _2672);
     } else {

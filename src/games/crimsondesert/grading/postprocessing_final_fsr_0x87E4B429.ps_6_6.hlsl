@@ -241,7 +241,7 @@ float4 main(
   SV_Target.z = _285;
   SV_Target.w = _13.w;
 
-  SV_Target.xyz = FinalizeHDR(SV_Target.xyz);
+  SV_Target.xyz = FinalizeHDR(SV_Target.xyz, _sunDirection.y, _moonDirection.y);
 
   return SV_Target;
 }
