@@ -167,6 +167,7 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
     {"AuroraBrightness", 50.f},
     {"AuroraChance", 40.f},
     {"NightSkyAttenuation", 0.f},
+    {"PurkinjeEffect", 0.f},
 };
 
 const std::unordered_map<std::string, float> NEUTRAL_VALUES = {
@@ -1150,6 +1151,24 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == rendering_group && !RR_ENABLED; },
     },
     new renodx::utils::settings::Setting{
+        .key = "PurkinjeEffect",
+        .binding = &shader_injection.custom_flags,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .packed_values = {0u, CUSTOM_FLAGS__PURKINJE_EFFECT},
+        .can_reset = true,
+        .label = "Purkinje Effect",
+        .section = "Rendering",
+        .tooltip = "Shifts nights from yellow toward blue.\n"
+                   "Simulates the Purkinje effect at low light levels\n"
+                   "Off = vanilla yellow moonlight.\n"
+                   "On = cooler and desaturated night scenes.",
+        .labels = {"Off", "On"},
+        .tint = rendering,
+        .is_enabled = []() { return RR_ENABLED; },
+        .is_visible = []() { return current_settings_mode == rendering_group; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "ContactShadowQuality",
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -1419,6 +1438,7 @@ void OnPresetOff() {
       {"AuroraBrightness", 50.f},
       {"AuroraChance", 40.f},
       {"NightSkyAttenuation", 0.f},
+      {"PurkinjeEffect", 0.f},
 
       {"ImprovedAutoExposure", 0.f},
       {"AE_PerceptualMinBrightness", 0.f},
