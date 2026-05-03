@@ -413,16 +413,20 @@ inline reshade::api::resource_view GetResourceViewClone(
           new_desc,
           &resource_view_info->clone);
       if (created) {
-        renodx::utils::resource::store->resource_view_infos[resource_view_info->clone.handle] = renodx::utils::resource::ResourceViewInfo({
-            .device = device,
-            .desc = new_desc,
-            .view = resource_view_info->clone,
-            .fallback = resource_view_info->view,
-            .resource_info = resource_info,
-            // .clone_target = resource_info->clone_target,
-            .usage = usage,
-            .is_clone = true,
-        });
+        auto* clone_resource_info = renodx::utils::resource::GetResourceInfo(resource_clone, false);
+        renodx::utils::resource::ResourceViewInfo clone_view_info = {};
+        clone_view_info.device = device;
+        clone_view_info.desc = new_desc;
+        clone_view_info.fallback_desc = resource_view_info->desc;
+        clone_view_info.view = resource_view_info->clone;
+        clone_view_info.fallback = resource_view_info->view;
+        clone_view_info.original_resource = resource_clone;
+        clone_view_info.clone_resource = resource_clone;
+        clone_view_info.resource_info = clone_resource_info != nullptr ? clone_resource_info : resource_info;
+        clone_view_info.clone_target = target;
+        clone_view_info.usage = usage;
+        clone_view_info.is_clone = true;
+        renodx::utils::resource::store->resource_view_infos[resource_view_info->clone.handle] = clone_view_info;
       } else {
         resource_view_info->clone.handle = 0;
 #ifdef DEBUG_LEVEL_0
