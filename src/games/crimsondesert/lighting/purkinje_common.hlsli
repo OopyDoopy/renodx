@@ -3,7 +3,7 @@
 
 #include "../shared.h"
 
-// --- Purkinje effect (scotopic vision shift) ---
+// --- Purkinje effect ---
 //
 // Game renders moonlight with the same warm atmospheric transmittance as
 // sunlight, producing a yellowish tint at night.
@@ -11,7 +11,6 @@
 // The scotopic matrix is hand vibe tuned not derived from any specific
 // dataset.
 
-// [0,1] night activation. 1.0 = deep night, 0.0 = daytime
 float PurkinjeNightFactor(float sunElevation) {
   return smoothstep(0.0f, -0.10f, sunElevation);
 }
@@ -29,7 +28,6 @@ static const float3x3 CUSTOM_CS_MAT = float3x3(
   0.02061999961733818f, 0.10958000272512436f, 0.8697999715805054f
 );
 
-// inverse computed offline via cofactor/adjugate method
 static const float3x3 CUSTOM_CS_INV = float3x3(
    1.705049991607666f,   -0.6217899918556213f, -0.08325999975204468f,
   -0.13026000559329987f,  1.1407999992370605f,  -0.01054999977350235f,
@@ -78,8 +76,6 @@ float3 ApplyPurkinjePostProcess(float3 color_bt709, float sunElevation, float mo
     nightFactor,
     0.f);
 
-  // mesopic luminance gate: full shift below 2% diffuse white,
-  // fades out by 25% diffuse white. bright pixels stay untouched.
   float y = renodx::color::y::from::BT709(color_bt709);
   float lumBlend = 1.f - smoothstep(0.02f * diffuseWhite, 0.25f * diffuseWhite, y);
   float3 shifted = mul(SCOTOPIC_SHIFT_POST, color_bt709);

@@ -820,9 +820,12 @@ float4 main(
   if (_351 < 0.25f) {
     _358 = __3__36__0__0__g_glareResult.SampleLevel(__0__4__0__0__g_staticBilinearBlackBorder, float2(TEXCOORD.x, TEXCOORD.y), 0.0f);
     _363 = __3__36__0__0__g_glareResult.SampleLevel(__0__4__0__0__g_staticPointClamp, float2(TEXCOORD.x, TEXCOORD.y), 0.0f);
-    _368 = (_363.z + _358.z) / _exposure0.x;
-    _371 = (_363.y + _358.y) / _exposure0.x;
-    _374 = (_363.x + _358.x) / _exposure0.x;
+    // RenoDX: Decode bloom using slow filtered exposure to match the encode
+    // path in Histogram AWB
+    float _bloomDecodeExp = (IMPROVED_AUTO_EXPOSURE >= 1) ? max(_exposure4.z, 0.001f) : _exposure0.x;
+    _368 = (_363.z + _358.z) / _bloomDecodeExp;
+    _371 = (_363.y + _358.y) / _bloomDecodeExp;
+    _374 = (_363.x + _358.x) / _bloomDecodeExp;
 
     // RenoDX: Bloom strength control
     {
@@ -899,9 +902,11 @@ float4 main(
     _680 = -0.0f - _678;
     _681 = -0.0f - _679;
     _683 = __3__36__0__0__g_glareResult.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(TEXCOORD.x, TEXCOORD.y), 0.0f);
-    _687 = _683.x / _exposure0.x;
-    _688 = _683.y / _exposure0.x;
-    _689 = _683.z / _exposure0.x;
+    // RenoDX: Decode bloom using slow filtered exposure (same as low motion path)
+    float _bloomDecodeExp2 = (IMPROVED_AUTO_EXPOSURE >= 1) ? max(_exposure4.z, 0.001f) : _exposure0.x;
+    _687 = _683.x / _bloomDecodeExp2;
+    _688 = _683.y / _bloomDecodeExp2;
+    _689 = _683.z / _bloomDecodeExp2;
 
     // RenoDX: Bloom strength control
     {
