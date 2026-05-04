@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 
 if ([string]::IsNullOrWhiteSpace($Folder)) {
     $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $Folder = Join-Path $scriptDir '..\tonemap-sdr'
+    $Folder = Join-Path $scriptDir '..\postprocessedgecases'
 }
 
 if (-not (Test-Path -LiteralPath $Folder)) {
@@ -34,20 +34,11 @@ foreach ($file in $files) {
         $content = '#include "../tonemap.hlsli"' + $newline + $newline + $content
     }
 
-    $wrapCBuffer = {
-        param(
-            [string]$text,
-            [string]$cbufferPattern
-        )
-
-        $wrappedPattern = "(?s)#if 0 // Provided by tonemap\\.hlsli\\s*$cbufferPattern\\s*#endif"
-        if ([regex]::IsMatch($text, $wrappedPattern)) {
-            return [pscustomobject]@{ Content = $text; Found = $true }
-        }
-
-        if ([regex]::IsMatch($text, $cbufferPattern)) {
-            $updated = [regex]::Replace(
-                $text,
+    if ($content -notmatch '#if 0 // Provided by tonemap\.hlsli') {
+        $cbufferPattern = '(?s)cbuffer __3__35__0__0__ExposureConstantBuffer : register\(b29, space35\) \{.*?\};\s*cbuffer __3__1__0__0__GlobalPushConstants : register\(b0, space1\) \{.*?\};'
+        if ([regex]::IsMatch($content, $cbufferPattern)) {
+            $content = [regex]::Replace(
+                $content,
                 $cbufferPattern,
                 {
                     param($m)
@@ -55,39 +46,9 @@ foreach ($file in $files) {
                 },
                 1
             )
-
-            return [pscustomobject]@{ Content = $updated; Found = $true }
+        } else {
+            $missingCBufferPattern.Add($file.Name)
         }
-
-        return [pscustomobject]@{ Content = $text; Found = $false }
-    }
-
-    $sceneCBufferPattern = '(?s)cbuffer __3__35__0__0__SceneConstantBuffer : register\(b16, space35\) \{.*?\};'
-    $exposureCBufferPattern = '(?s)cbuffer __3__35__0__0__ExposureConstantBuffer : register\(b31, space35\) \{.*?\};'
-    $globalPushConstantsPattern = '(?s)cbuffer __3__1__0__0__GlobalPushConstants : register\(b0, space1\) \{.*?\};'
-
-    $missingAnyCBuffer = $false
-
-    $sceneWrapResult = & $wrapCBuffer $content $sceneCBufferPattern
-    $content = $sceneWrapResult.Content
-    if (-not $sceneWrapResult.Found) {
-        $missingAnyCBuffer = $true
-    }
-
-    $exposureWrapResult = & $wrapCBuffer $content $exposureCBufferPattern
-    $content = $exposureWrapResult.Content
-    if (-not $exposureWrapResult.Found) {
-        $missingAnyCBuffer = $true
-    }
-
-    $globalPushWrapResult = & $wrapCBuffer $content $globalPushConstantsPattern
-    $content = $globalPushWrapResult.Content
-    if (-not $globalPushWrapResult.Found) {
-        $missingAnyCBuffer = $true
-    }
-
-    if ($missingAnyCBuffer) {
-        $missingCBufferPattern.Add($file.Name)
     }
 
     $needle = 'if (_localToneMappingParams.w > 0.0f) {'
