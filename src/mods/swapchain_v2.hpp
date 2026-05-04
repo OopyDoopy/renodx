@@ -95,7 +95,6 @@ struct __declspec(uuid("d8712fa7-66e5-45e2-9e07-80fe6354f507")) DeviceData {
   // <swap_chain_back_buffer_handle, SwapchainProxyPass*>
   std::unordered_map<uint64_t, renodx::utils::draw::SwapchainProxyPass*> swapchain_proxy_passes;
   reshade::api::swapchain_desc swapchain_desc = {};
-  reshade::api::resource swapchain_proxy_source_override = {0u};
 };
 
 // Variables
@@ -216,18 +215,6 @@ static bool UsingSwapchainCompatibilityMode() {
 
 static void RemoveWindowBorder(HWND window) {
   renodx::utils::windowing::RemoveWindowBorder(window);
-}
-
-static void SetSwapchainProxySourceOverride(
-    reshade::api::command_list* cmd_list,
-    reshade::api::resource resource) {
-  auto* device = cmd_list->get_device();
-  if (device == nullptr) return;
-
-  auto* data = renodx::utils::data::Get<DeviceData>(device);
-  if (data == nullptr) return;
-
-  data->swapchain_proxy_source_override = resource;
 }
 
 static void CheckSwapchainSize(
@@ -807,7 +794,6 @@ static void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
 
   auto* data = renodx::utils::data::Get<DeviceData>(device);
   if (data == nullptr) return;
-  data->swapchain_proxy_source_override = {0u};
 
   auto abort_modification = [=]() {
     data->upgraded_swapchains.erase(swapchain);
@@ -945,7 +931,6 @@ static void OnDestroySwapchain(reshade::api::swapchain* swapchain, bool resize) 
 
   auto* data = renodx::utils::data::Get<DeviceData>(device);
   if (data == nullptr) return;
-  data->swapchain_proxy_source_override = {0u};
 
   const auto& desc = data->swapchain_desc;
   if (hwnd != nullptr && !resize && utils::swapchain::IsDXGI(swapchain)
@@ -1250,12 +1235,7 @@ inline void OnPresent(
   }
   assert(proxy_pass != nullptr);
 
-  const reshade::api::resource* proxy_source_override = nullptr;
-  if (data->swapchain_proxy_source_override.handle != 0u) {
-    proxy_source_override = &data->swapchain_proxy_source_override;
-  }
-
-  if (!proxy_pass->Render(swapchain, queue, proxy_source_override)) {
+  if (!proxy_pass->Render(swapchain, queue)) {
     proxy_pass->Destroy(device);
     data->swapchain_proxy_passes.erase(back_buffer_handle);
   }

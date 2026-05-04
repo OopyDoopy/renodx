@@ -57,19 +57,6 @@ const std::unordered_map<
 
 const std::unordered_map<
     std::pair<reshade::api::resource_usage, reshade::api::format>,
-    reshade::api::format, renodx::utils::hash::HashPair>
-    VIEW_UPGRADES_RGBA16_UNORM = {
-        ViewUpgradeAll(r16g16b16a16_typeless, r16g16b16a16_typeless),
-        ViewUpgradeAll(r8g8b8a8_typeless, r16g16b16a16_typeless),
-        ViewUpgradeAll(r16g16b16a16_unorm, r16g16b16a16_unorm),
-        ViewUpgradeAll(r8g8b8a8_unorm, r16g16b16a16_unorm),
-        ViewUpgradeAll(b8g8r8a8_unorm, r16g16b16a16_unorm),
-        ViewUpgradeAll(r8g8b8a8_unorm_srgb, r16g16b16a16_unorm),
-        ViewUpgradeAll(b8g8r8a8_unorm_srgb, r16g16b16a16_unorm),
-};
-
-const std::unordered_map<
-    std::pair<reshade::api::resource_usage, reshade::api::format>,
     reshade::api::format, utils::hash::HashPair>
     VIEW_UPGRADES_RGBA8_UNORM = {
         ViewUpgradeAll(r8g8b8a8_typeless, r8g8b8a8_typeless),
@@ -272,7 +259,6 @@ struct ResourceInfo {
   ResourceUpgradeInfo* upgrade_target = nullptr;
   reshade::api::resource_usage initial_state = reshade::api::resource_usage::undefined;
   float resource_tag = -1;
-  uint32_t debug_view_count = 0;
   reshade::api::resource_view swap_chain_proxy_clone_srv = {0u};
   reshade::api::resource_view swap_chain_proxy_rtv = {0u};
   void* shared_handle = nullptr;
