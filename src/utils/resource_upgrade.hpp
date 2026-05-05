@@ -4,14 +4,18 @@
 #include <include/reshade.hpp>
 #include <shared_mutex>
 #include <sstream>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "./bitwise.hpp"
 #include "./data.hpp"
+#include "./device.hpp"
 #include "./descriptor.hpp"
 #include "./log.hpp"
 #include "./resource.hpp"
+#include "./shader.hpp"
 #include "./swapchain.hpp"
 
 namespace renodx::utils::resource::upgrade {
@@ -37,17 +41,25 @@ struct HeapDescriptorInfo {
   bool is_active;
 };
 
+struct ShaderHotSwap {
+  std::vector<uint32_t> target_indices;
+  std::unordered_map<uint64_t, uint32_t> resource_targets;
+};
+
 struct __declspec(uuid("72c2182f-dbf5-42b6-a4d5-ee8de408402d")) DeviceData {
   std::shared_mutex mutex;
   std::vector<renodx::utils::resource::ResourceUpgradeInfo> upgrade_infos;
   reshade::api::resource_desc back_buffer_desc;
   bool resource_upgrade_finished = false;
   std::unordered_map<uint64_t, std::unordered_map<uint32_t, HeapDescriptorInfo*>> heap_descriptor_infos;
+  std::unordered_map<uint32_t, ShaderHotSwap> shader_hot_swaps;
 };
 
 struct __declspec(uuid("0a2b51ad-ef13-4010-81a4-37a4a0f857a6")) CommandListData {
   std::vector<BoundDescriptorInfo> unbound_descriptors;
   std::vector<PushDescriptorInfo> unpushed_updates;
+  std::vector<reshade::api::resource_view> current_render_targets;
+  std::vector<uint32_t> active_shader_hashes;
   uint8_t pass_count = 0;
 };
 
@@ -647,12 +659,97 @@ inline void FlushDescriptors(reshade::api::command_list* cmd_list) {
   cmd_data->unpushed_updates.clear();
 }
 
+inline void RebuildShaderHotSwaps(DeviceData& data) {
+  data.shader_hot_swaps.clear();
+  for (uint32_t i = 0; i < data.upgrade_infos.size(); ++i) {
+    auto& target = data.upgrade_infos[i];
+    if (target.shader_hash == 0u) continue;
+    data.shader_hot_swaps[target.shader_hash].target_indices.push_back(i);
+  }
+}
+
+inline bool TryPromoteShaderHotSwapTarget(
+    DeviceData& data,
+    ShaderHotSwap& hot_swap,
+    uint32_t target_index,
+    utils::resource::ResourceInfo* resource_info) {
+  if (resource_info == nullptr) return false;
+  if (target_index >= data.upgrade_infos.size()) return false;
+  if (resource_info->destroyed || resource_info->is_clone) return false;
+  if (resource_info->clone_target != nullptr) return false;
+  if (hot_swap.resource_targets.contains(resource_info->resource.handle)) return false;
+
+  auto& target = data.upgrade_infos[target_index];
+  if (target.completed) return false;
+  if (target.shader_hash == 0u) return false;
+
+  resource_info->clone_target = &target;
+  if (target.resource_tag != -1) {
+    resource_info->resource_tag = target.resource_tag;
+  }
+  if (!target.use_resource_view_hot_swap) {
+    resource_info->clone_enabled = true;
+  }
+
+  hot_swap.resource_targets[resource_info->resource.handle] = target_index;
+  target.completed = true;
+
+#ifdef DEBUG_LEVEL_1
+  std::stringstream s;
+  s << "utils::resource::upgrade::TryPromoteShaderHotSwapTarget(";
+  s << "shader: " << PRINT_CRC32(target.shader_hash);
+  s << ", resource: " << PRINT_PTR(resource_info->resource.handle);
+  s << ", target: " << target_index;
+  s << ", format: " << resource_info->desc.texture.format << " => " << target.new_format;
+  s << ")";
+  reshade::log::message(reshade::log::level::debug, s.str().c_str());
+#endif
+
+  return true;
+}
+
+inline bool DiscoverShaderHotSwapRenderTargets(
+    DeviceData& data,
+    CommandListData& cmd_list_data) {
+  if (cmd_list_data.active_shader_hashes.empty()) return false;
+  if (cmd_list_data.current_render_targets.empty()) return false;
+
+  bool changed = false;
+  const auto back_buffer_desc = data.back_buffer_desc;
+  const std::unique_lock lock(data.mutex);
+  for (const auto shader_hash : cmd_list_data.active_shader_hashes) {
+    auto hot_swap_iterator = data.shader_hot_swaps.find(shader_hash);
+    if (hot_swap_iterator == data.shader_hot_swaps.end()) continue;
+    auto& hot_swap = hot_swap_iterator->second;
+
+    for (const auto target_index : hot_swap.target_indices) {
+      if (target_index >= data.upgrade_infos.size()) continue;
+      auto& target = data.upgrade_infos[target_index];
+      if (target.completed) continue;
+
+      for (const auto& render_target : cmd_list_data.current_render_targets) {
+        if (render_target.handle == 0u) continue;
+        auto* view_info = utils::resource::GetResourceViewInfo(render_target);
+        if (view_info == nullptr || view_info->resource_info == nullptr) continue;
+        auto* resource_info = view_info->resource_info;
+        if (!target.CheckResourceDesc(resource_info->desc, back_buffer_desc, resource_info->initial_state)) continue;
+        if (TryPromoteShaderHotSwapTarget(data, hot_swap, target_index, resource_info)) {
+          changed = true;
+          break;
+        }
+      }
+    }
+  }
+  return changed;
+}
+
 static bool SetUpgradeInfos(reshade::api::device* device, std::span<renodx::utils::resource::ResourceUpgradeInfo> infos) {
   auto* private_data = renodx::utils::data::Get<DeviceData>(device);
   if (private_data == nullptr) return false;
 
   const std::unique_lock lock(private_data->mutex);
   private_data->upgrade_infos.assign(infos.begin(), infos.end());
+  RebuildShaderHotSwaps(*private_data);
   return true;
 }
 
@@ -752,6 +849,10 @@ static void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
     target->counted = 0;
     target->completed = false;
   }
+  for (auto& [shader_hash, hot_swap] : data->shader_hot_swaps) {
+    (void)shader_hash;
+    hot_swap.resource_targets.clear();
+  }
 }
 
 static bool OnCreateResource(
@@ -809,6 +910,7 @@ static bool OnCreateResource(
   const auto& device_back_buffer_desc = private_data->back_buffer_desc;
   auto& upgrade_infos = private_data->upgrade_infos;
   const auto len = upgrade_infos.size();
+  const bool is_modern_api = renodx::utils::device::IsModernAPI(device);
 
   // const float resource_tag = -1;
 
@@ -818,6 +920,7 @@ static bool OnCreateResource(
   for (auto i = 0; i < len; i++) {
     renodx::utils::resource::ResourceUpgradeInfo* target = &upgrade_infos[i];
     if (target->completed) continue;
+    if (is_modern_api && target->shader_hash != 0u) continue;
     if (!target->use_resource_view_cloning
         && !target->use_resource_view_cloning_and_upgrade
         && target->CheckResourceDesc(desc, device_back_buffer_desc, initial_state)) {
@@ -1007,6 +1110,7 @@ inline void OnInitResourceInfo(renodx::utils::resource::ResourceInfo* resource_i
 
     auto& upgrade_infos = private_data->upgrade_infos;
     const uint32_t len = upgrade_infos.size();
+    const bool is_modern_api = renodx::utils::device::IsModernAPI(device);
 
     renodx::utils::resource::ResourceUpgradeInfo* found_target = nullptr;
     bool all_completed = true;
@@ -1014,6 +1118,7 @@ inline void OnInitResourceInfo(renodx::utils::resource::ResourceInfo* resource_i
     for (uint32_t i = 0; i < len; i++) {
       auto* target = &upgrade_infos[i];
       if (target->completed) continue;
+      if (is_modern_api && target->shader_hash != 0u) continue;
       if (
           (target->use_resource_view_cloning
            || target->use_resource_view_cloning_and_upgrade)
@@ -1116,6 +1221,24 @@ inline void OnInitResourceInfo(renodx::utils::resource::ResourceInfo* resource_i
 
 inline void OnDestroyResourceInfo(utils::resource::ResourceInfo* info) {
   if (!is_primary_hook) return;
+
+  if (!info->is_clone) {
+    auto* data = renodx::utils::data::Get<DeviceData>(info->device);
+    if (data != nullptr) {
+      const std::unique_lock lock(data->mutex);
+      for (auto& [shader_hash, hot_swap] : data->shader_hot_swaps) {
+        (void)shader_hash;
+        auto resource_iterator = hot_swap.resource_targets.find(info->resource.handle);
+        if (resource_iterator == hot_swap.resource_targets.end()) continue;
+        const auto target_index = resource_iterator->second;
+        hot_swap.resource_targets.erase(resource_iterator);
+        if (target_index < data->upgrade_infos.size()) {
+          data->upgrade_infos[target_index].completed = false;
+        }
+        break;
+      }
+    }
+  }
 
   if (!info->is_clone && info->fallback.handle != 0u) {
     info->device->destroy_resource(info->fallback);
@@ -1663,6 +1786,58 @@ inline bool OnCopyResource(
   return true;
 }
 
+inline void OnBindPipeline(
+    reshade::api::command_list* cmd_list,
+    reshade::api::pipeline_stage stages,
+    reshade::api::pipeline pipeline) {
+  if (!is_primary_hook) return;
+  auto* cmd_list_data = renodx::utils::data::Get<CommandListData>(cmd_list);
+  if (cmd_list_data == nullptr) return;
+  cmd_list_data->active_shader_hashes.clear();
+  if (pipeline.handle == 0u) return;
+
+  auto* device = cmd_list->get_device();
+  if (!renodx::utils::device::IsModernAPI(device)) return;
+  auto* data = renodx::utils::data::Get<DeviceData>(device);
+  if (data == nullptr || data->shader_hot_swaps.empty()) return;
+
+  auto* shader_store = renodx::utils::shader::GetStore();
+  if (shader_store == nullptr) return;
+
+  renodx::utils::shader::PipelineShaderDetails* details = nullptr;
+  shader_store->pipeline_shader_details.if_contains(
+      pipeline.handle,
+      [&](std::pair<const uint64_t, renodx::utils::shader::PipelineShaderDetails>& pair) {
+        details = &pair.second;
+      });
+  if (details == nullptr || details->shader_hashes.empty()) return;
+
+  std::unordered_set<uint32_t> active_shader_hashes;
+  {
+    const std::shared_lock lock(data->mutex);
+    for (const auto shader_hash : details->shader_hashes) {
+      if (!data->shader_hot_swaps.contains(shader_hash)) continue;
+      active_shader_hashes.insert(shader_hash);
+    }
+  }
+  if (active_shader_hashes.empty()) return;
+
+  cmd_list_data->active_shader_hashes.assign(active_shader_hashes.begin(), active_shader_hashes.end());
+  const bool changed = DiscoverShaderHotSwapRenderTargets(*data, *cmd_list_data);
+
+#ifdef DEBUG_LEVEL_1
+  if (changed) {
+    std::stringstream s;
+    s << "utils::resource::upgrade::OnBindPipeline(shader hot swap";
+    s << ", pipeline: " << PRINT_PTR(pipeline.handle);
+    s << ", stages: " << stages;
+    s << ", shaders: " << cmd_list_data->active_shader_hashes.size();
+    s << ")";
+    reshade::log::message(reshade::log::level::debug, s.str().c_str());
+  }
+#endif
+}
+
 // Create DescriptorTables with RSVs
 inline bool OnUpdateDescriptorTables(
     reshade::api::device* device,
@@ -2123,6 +2298,17 @@ inline void OnBindRenderTargetsAndDepthStencil(
     const reshade::api::resource_view* rtvs,
     reshade::api::resource_view dsv) {
   if (!is_primary_hook) return;
+  auto* cmd_list_data = renodx::utils::data::Get<CommandListData>(cmd_list);
+  if (cmd_list_data != nullptr) {
+    cmd_list_data->current_render_targets.clear();
+    if (count != 0u && rtvs != nullptr) {
+      cmd_list_data->current_render_targets.assign(rtvs, rtvs + count);
+    }
+    auto* data = renodx::utils::data::Get<DeviceData>(cmd_list->get_device());
+    if (data != nullptr) {
+      DiscoverShaderHotSwapRenderTargets(*data, *cmd_list_data);
+    }
+  }
   if (count == 0u) return;
 
   if (cmd_list->get_device()->get_api() == reshade::api::device_api::vulkan) {
@@ -2150,6 +2336,16 @@ static void OnBeginRenderPass(
   // Ignore subpasses
   if (cmd_list_data->pass_count++ != 0) return;
 
+  cmd_list_data->current_render_targets.clear();
+  cmd_list_data->current_render_targets.reserve(count);
+  for (uint32_t i = 0; i < count; ++i) {
+    cmd_list_data->current_render_targets.push_back(rts[i].view);
+  }
+  auto* data = renodx::utils::data::Get<DeviceData>(cmd_list->get_device());
+  if (data != nullptr) {
+    DiscoverShaderHotSwapRenderTargets(*data, *cmd_list_data);
+  }
+
   auto* new_rts = ApplyRenderTargetClones(rts, count);
   if (new_rts == nullptr) return;
 
@@ -2171,7 +2367,13 @@ static void OnEndRenderPass(reshade::api::command_list* cmd_list) {
   auto* cmd_list_data = renodx::utils::data::Get<CommandListData>(cmd_list);
   if (cmd_list_data == nullptr) return;
 
-  cmd_list_data->pass_count--;
+  if (cmd_list_data->pass_count != 0u) {
+    cmd_list_data->pass_count--;
+  }
+  if (cmd_list_data->pass_count == 0u) {
+    cmd_list_data->current_render_targets.clear();
+    cmd_list_data->active_shader_hashes.clear();
+  }
 }
 
 inline bool OnClearRenderTargetView(
@@ -2546,6 +2748,7 @@ static void Use(DWORD fdw_reason) {
         reshade::register_event<reshade::addon_event::init_command_list>(OnInitCommandList);
         reshade::register_event<reshade::addon_event::destroy_command_list>(OnDestroyCommandList);
 
+        reshade::register_event<reshade::addon_event::bind_pipeline>(OnBindPipeline);
         reshade::register_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(OnBindRenderTargetsAndDepthStencil);
         reshade::register_event<reshade::addon_event::begin_render_pass>(OnBeginRenderPass);
         reshade::register_event<reshade::addon_event::end_render_pass>(OnEndRenderPass);
@@ -2587,6 +2790,7 @@ static void Use(DWORD fdw_reason) {
 
       reshade::unregister_event<reshade::addon_event::init_command_list>(OnInitCommandList);
       reshade::unregister_event<reshade::addon_event::destroy_command_list>(OnDestroyCommandList);
+      reshade::unregister_event<reshade::addon_event::bind_pipeline>(OnBindPipeline);
       reshade::unregister_event<reshade::addon_event::begin_render_pass>(OnBeginRenderPass);
       reshade::unregister_event<reshade::addon_event::end_render_pass>(OnEndRenderPass);
 
