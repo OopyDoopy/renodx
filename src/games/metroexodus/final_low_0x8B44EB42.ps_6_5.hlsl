@@ -125,6 +125,13 @@ float4 main(
   _15 = cb_misc_048.x * SV_Position.x;
   _16 = cb_misc_048.y * SV_Position.y;
   min16float4 _17 = t1.SampleLevel(s6, float2(_15, _16), 0.0f);
+
+  if (RENODX_TONE_MAP_TYPE != 0) {
+    float3 input_color = _17.xyz;
+    SV_Target = RenoDX(input_color, float2(_15, _16), 0.f);
+    return SV_Target;
+  }
+
   _23 = 1.0h / ((half)(1.0h - (half)(dot(half3((half)(_17.x), (half)(_17.y), (half)(_17.z)), half3(0.29907227h, 0.58691406h, 0.11401367h)))));
   _45 = _15 - cb_misc_000.x;
   _46 = _16 - cb_misc_000.y;
@@ -142,6 +149,7 @@ float4 main(
   _91 = _88 + float(min(((half)(_23 * (half)(_17.x))), 16384.0h));
   _92 = _89 + float(min(((half)(_23 * (half)(_17.y))), 16384.0h));
   _93 = _90 + float(min(((half)(_23 * (half)(_17.z))), 16384.0h));
+
   _100 = cb_misc_320.x - _15;
   _102 = (cb_misc_000.w / cb_misc_000.z) * (cb_misc_320.y - _16);
   _112 = saturate((sqrt((_102 * _102) + (_100 * _100)) - (cb_misc_320.z * 0.949999988079071f)) / (cb_misc_320.z * 0.09999996423721313f));
@@ -149,12 +157,6 @@ float4 main(
   _128 = (((_88 / _81) - _91) * _118) + _91;
   _129 = (((_89 / _81) - _92) * _118) + _92;
   _130 = (((_90 / _81) - _93) * _118) + _93;
-
-  if (RENODX_TONE_MAP_TYPE != 0) {
-    float3 untonemapped = float3(_128, _129, _130);
-    SV_Target = RenoDX(untonemapped, float2(_15, _16), _118);
-    return SV_Target;
-  }
 
   _131 = _128 * 1.4142135381698608f;
   _132 = _129 * 1.4142135381698608f;
