@@ -37,6 +37,15 @@ static bool IsDXGI(const reshade::api::device* device) {
   return IsDXGI(device->get_api());
 }
 
+static bool IsModernAPI(const reshade::api::device_api& device_api) {
+  return device_api == reshade::api::device_api::d3d12
+         || device_api == reshade::api::device_api::vulkan;
+}
+
+static bool IsModernAPI(const reshade::api::device* device) {
+  return IsModernAPI(device->get_api());
+}
+
 [[nodiscard]] static bool IsD3D9ExDevice(reshade::api::device* device) {
   if (device == nullptr || device->get_api() != reshade::api::device_api::d3d9) return false;
   auto* native_device =

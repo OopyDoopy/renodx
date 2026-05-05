@@ -22,6 +22,7 @@
 #include <vector>
 
 // Local utilities
+#include "device.hpp"
 #include "pipeline.hpp"
 #include "resource.hpp"
 #include "state.hpp"
@@ -570,7 +571,7 @@ class RenderPass {
         for (const auto& [slot_space, span] : push_constants) {
           reshade::api::pipeline_layout_param param_push_constants;
           param_push_constants.type = reshade::api::pipeline_layout_param_type::push_constants;
-          if (device->get_api() == reshade::api::device_api::d3d12 || is_vulkan) {
+          if (renodx::utils::device::IsModernAPI(device)) {
             param_push_constants.push_constants.count = span.size();
           } else {
             param_push_constants.push_constants.count = 1;

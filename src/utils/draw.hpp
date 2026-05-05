@@ -18,6 +18,7 @@
 #include <span>
 #include <utility>
 
+#include "./device.hpp"
 #include "./mutex.hpp"
 #include "./render.hpp"
 #include "./resource.hpp"
@@ -231,8 +232,7 @@ struct SwapchainProxyPass {
     }
     pass.push_constants.clear();
 
-    const bool is_modern_api = device->get_api() == reshade::api::device_api::d3d12
-                               || device->get_api() == reshade::api::device_api::vulkan;
+    const bool is_modern_api = renodx::utils::device::IsModernAPI(device);
     if (shader_injection_size != 0u) {
       uint8_t register_index;
       if (expected_constant_buffer_index == -1) {

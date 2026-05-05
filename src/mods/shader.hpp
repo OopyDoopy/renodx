@@ -28,6 +28,7 @@
 
 #include "../utils/constants.hpp"
 #include "../utils/data.hpp"
+#include "../utils/device.hpp"
 #include "../utils/format.hpp"
 #include "../utils/resource.hpp"
 #include "../utils/shader.hpp"
@@ -572,7 +573,7 @@ static void OnInitPipelineLayout(
 
     injection_index = 0;
 
-  } else if (device_api == reshade::api::device_api::d3d12 || device_api == reshade::api::device_api::vulkan) {
+  } else if (renodx::utils::device::IsModernAPI(device_api)) {
     if (data->use_pipeline_layout_cloning) {
       const uint32_t old_count = param_count;
       uint32_t new_count = old_count;
