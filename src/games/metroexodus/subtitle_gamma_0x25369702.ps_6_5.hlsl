@@ -60,7 +60,7 @@ float4 main(
     float3 subtitles_linear = renodx::color::srgb::DecodeSafe(subtitles);
     subtitles_linear = saturate(subtitles_linear);
     float3 pq_color = renodx::color::pq::Encode(renodx::color::bt2020::from::BT709(subtitles_linear), RENODX_GRAPHICS_WHITE_NITS);
-    SV_Target = float4(pq_color, _84);
+    SV_Target = float4(pq_color, saturate(_84));
     return SV_Target;
   }
 
