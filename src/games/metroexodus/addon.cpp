@@ -316,7 +316,7 @@ renodx::utils::settings::Settings settings = {
         new renodx::utils::settings::Setting{
         .key = "CustomLUTScaling",
         .binding = &shader_injection.custom_lut_scaling,
-        .default_value = 50.f,
+        .default_value = 100.f,
         .label = "LUT Scaling",
         .section = "Color Grading",
         .max = 100.f,

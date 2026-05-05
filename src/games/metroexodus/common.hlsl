@@ -36,6 +36,10 @@ float3 ProcessGammaCorrection(float3 color, bool pow_to_srgb = false, float gamm
 }
 
 float3 Unclamp(float3 original_gamma, float3 black_gamma, float3 mid_gray_gamma, float3 neutral_gamma) {
+  //mid_gray_gamma = renodx::color::srgb::EncodeSafe(ProcessGammaCorrection(renodx::color::srgb::DecodeSafe(mid_gray_gamma), false));
+  //black_gamma = renodx::color::srgb::EncodeSafe(ProcessGammaCorrection(renodx::color::srgb::DecodeSafe(black_gamma), false));
+  //neutral_gamma = renodx::color::srgb::EncodeSafe(ProcessGammaCorrection(renodx::color::srgb::DecodeSafe(neutral_gamma), false));
+
   const float3 added_gamma = black_gamma;
 
   // Remove from 0 to mid-gray
@@ -43,7 +47,9 @@ float3 Unclamp(float3 original_gamma, float3 black_gamma, float3 mid_gray_gamma,
   const float3 shadow_stop = neutral_gamma;
   const float3 t = max(0, shadow_length - shadow_stop) / shadow_length;
   //const float3 curved = renodx::math::SafePow(t, lerp(1.0f, 10.0f, CUSTOM_LUT_SCALING_BRIGHTNESS));
-  const float3 floor_remove = added_gamma * t;
+  float3 floor_remove = added_gamma * t;
+
+  // floor_remove = renodx::color::srgb::EncodeSafe(ProcessGammaCorrection(renodx::color::srgb::DecodeSafe(floor_remove)));
 
   const float3 unclamped_gamma = max(0, original_gamma - floor_remove);
   return unclamped_gamma;
