@@ -79,6 +79,9 @@ float4 main(
   float _23 = _18 * cb_misc_032.y;
   float _24 = t5.SampleLevel(s6, float2(_22, _23), 0.0f);
   min16float4 _26 = t2.SampleLevel(s6, float2(_17, _18), 0.0f);
+
+  float3 test = _26.xyz;
+
   float2 _30 = t0.Sample(s6, float2(_22, _23));
   float _33 = dot(float2(_30.x, _30.y), float2(_30.x, _30.y));
   float _692;
@@ -180,12 +183,12 @@ float4 main(
     float _572 = t5.SampleLevel(s6, float2((cb_misc_032.x * _565), (cb_misc_032.y * _566)), 0.0f);
     min16float4 _574 = t2.SampleLevel(s6, float2(_565, _566), 0.0f);
     float _582 = 1.0f / ((max((_24.x - _572.x), 0.0f) * 3.0f) + 1.0f);
-    half _600 = half(_582 + float(half(_540 + float(half(_501 + float(half(_462 + float(half(_423 + float(half(_384 + float(half(_345 + float(half(_307 + float(half(_268 + float(half(_229 + float(half(_190 + float(half(_151 + float(half(_112 + float(half(_74 + 1.0f)))))))))))))))))))))))))));
+    float _600 = _582 + _540 + _501 + _462 + _423 + _384 + _345 + _307 + _268 + _229 + _190 + _151 + _112 + _74 + 1.0f;
     float _606 = saturate((_33 + -0.0002500000118743628f) * 3999.999755859375f);
     _692 = 0.0f;
-    _693 = half((_606 * (float(half((float(_574.x) * _582) + float(half((float(_532.x) * _540) + float(half((float(_493.x) * _501) + float(half((float(_454.x) * _462) + float(half((float(_415.x) * _423) + float(half((float(_376.x) * _384) + float(half((float(_337.x) * _345) + float(half((float(_299.x) * _307) + float(half((float(_260.x) * _268) + float(half((float(_221.x) * _229) + float(half((float(_182.x) * _190) + float(half((float(_143.x) * _151) + float(half((float(_104.x) * _112) + float(half((float(_66.x) * _74) + _81))))))))))))))))))))))))))) / _600) - _81)) + _81);
-    _694 = half((_606 * (float(half((float(_574.y) * _582) + float(half((float(_532.y) * _540) + float(half((float(_493.y) * _501) + float(half((float(_454.y) * _462) + float(half((float(_415.y) * _423) + float(half((float(_376.y) * _384) + float(half((float(_337.y) * _345) + float(half((float(_299.y) * _307) + float(half((float(_260.y) * _268) + float(half((float(_221.y) * _229) + float(half((float(_182.y) * _190) + float(half((float(_143.y) * _151) + float(half((float(_104.y) * _112) + float(half((float(_66.y) * _74) + _82))))))))))))))))))))))))))) / _600) - _82)) + _82);
-    _695 = half(((float(half((float(_574.z) * _582) + float(half((float(_532.z) * _540) + float(half((float(_493.z) * _501) + float(half((float(_454.z) * _462) + float(half((float(_415.z) * _423) + float(half((float(_376.z) * _384) + float(half((float(_337.z) * _345) + float(half((float(_299.z) * _307) + float(half((float(_260.z) * _268) + float(half((float(_221.z) * _229) + float(half((float(_182.z) * _190) + float(half((float(_143.z) * _151) + float(half((float(_104.z) * _112) + float(half((float(_66.z) * _74) + _83))))))))))))))))))))))))))) / _600) - _83) * _606) + _83);
+    _693 = half(_81 + _606 * (((float(_574.x) * _582) + (float(_532.x) * _540) + (float(_493.x) * _501) + (float(_454.x) * _462) + (float(_415.x) * _423) + (float(_376.x) * _384) + (float(_337.x) * _345) + (float(_299.x) * _307) + (float(_260.x) * _268) + (float(_221.x) * _229) + (float(_182.x) * _190) + (float(_143.x) * _151) + (float(_104.x) * _112) + (float(_66.x) * _74) + _81) / _600 - _81));
+    _694 = half(_82 + _606 * (((float(_574.y) * _582) + (float(_532.y) * _540) + (float(_493.y) * _501) + (float(_454.y) * _462) + (float(_415.y) * _423) + (float(_376.y) * _384) + (float(_337.y) * _345) + (float(_299.y) * _307) + (float(_260.y) * _268) + (float(_221.y) * _229) + (float(_182.y) * _190) + (float(_143.y) * _151) + (float(_104.y) * _112) + (float(_66.y) * _74) + _82) / _600 - _82));
+    _695 = half(_83 + _606 * (((float(_574.z) * _582) + (float(_532.z) * _540) + (float(_493.z) * _501) + (float(_454.z) * _462) + (float(_415.z) * _423) + (float(_376.z) * _384) + (float(_337.z) * _345) + (float(_299.z) * _307) + (float(_260.z) * _268) + (float(_221.z) * _229) + (float(_182.z) * _190) + (float(_143.z) * _151) + (float(_104.z) * _112) + (float(_66.z) * _74) + _83) / _600 - _83));
   } else {
     float _636 = abs((1.0f - saturate((cb_misc_256.z * _24.x) - cb_misc_256.y)) - saturate((cb_misc_256.w * _24.x) - cb_misc_256.x));
     float _640 = 0.5f - (saturate(_33 * 3999.999755859375f) * 0.5f);
@@ -207,8 +210,14 @@ float4 main(
     _694 = max((((((_655.y + _650.y) + _660.y) + _664.y) * _681) + (_668 * _26.y)), 0.0h);
     _695 = max((((((_655.z + _650.z) + _660.z) + _664.z) * _681) + (_668 * _26.z)), 0.0h);
   }
-  half _698 = 1.0h / (1.0h - dot(half3(_693, _694, _695), half3(0.29907227h, 0.58691406h, 0.11401367h)));
-  float4 _715 = t4.Sample(s5, float2(_17, (((cb_misc_016.x / cb_misc_016.y) * (_18 + -0.5f)) + 0.5f)));
+
+  if (RENODX_TONE_MAP_TYPE != 0) {
+    float3 input_color = float3(_693, _694, _695);
+    SV_Target = RenoDX(input_color, float2(_17, _18), _692);
+    return SV_Target;
+  }
+
+  float _698 = 1.0h / ((half)(1.0h - (half)(dot(half3(_693, _694, _695), half3(0.29907227h, 0.58691406h, 0.11401367h)))));
   float _720 = _17 - cb_misc_000.x;
   float _721 = _18 - cb_misc_000.y;
   min16float4 _722 = t6.Sample(s6, float2(_720, _721));
@@ -218,18 +227,13 @@ float4 main(
   min16float4 _735 = t6.Sample(s6, float2(_734, _726));
   min16float4 _742 = t6.Sample(s6, float2(_734, _721));
   float _756 = exp2(cb_misc_336.y);
-  half _759 = half((_756 * 0.0416666679084301f) * (((_715.w * 20.0f) * cb_instance_016.x) + 1.0f));
-  float _763 = float(_759 * (((_727.x + _722.x) + _735.x) + _742.x));
-  float _764 = float(_759 * (((_727.y + _722.y) + _735.y) + _742.y));
-  float _765 = float(_759 * (((_727.z + _722.z) + _735.z) + _742.z));
-
-  float3 test = float3(_763, _764, _765);
-
-  float _766 = _763 + float(min((_698 * _693), 16384.0h));
-  float _767 = _764 + float(min((_698 * _694), 16384.0h));
-  float _768 = _765 + float(min((_698 * _695), 16384.0h));
-
-
+  float _759 = half((_756 * 0.0416666679084301f) * ((((((float4)(t4.Sample(s5, float2(_17, (((cb_misc_016.x / cb_misc_016.y) * (_18 + -0.5f)) + 0.5f))))).w) * 20.0f) * cb_instance_016.x) + 1.0f));
+  float _763 = float(_759 * ((half)(((half)(((half)((half)(_727.x) + (half)(_722.x))) + (half)(_735.x))) + (half)(_742.x))));
+  float _764 = float(_759 * ((half)(((half)(((half)((half)(_727.y) + (half)(_722.y))) + (half)(_735.y))) + (half)(_742.y))));
+  float _765 = float(_759 * ((half)(((half)(((half)((half)(_727.z) + (half)(_722.z))) + (half)(_735.z))) + (half)(_742.z))));
+  float _766 = _763 + float(min(((half)(_698 * _693)), 16384.0h));
+  float _767 = _764 + float(min(((half)(_698 * _694)), 16384.0h));
+  float _768 = _765 + float(min(((half)(_698 * _695)), 16384.0h));
   float _775 = cb_misc_320.x - _17;
   float _777 = (cb_misc_000.w / cb_misc_000.z) * (cb_misc_320.y - _18);
   float _787 = saturate((sqrt((_777 * _777) + (_775 * _775)) - (cb_misc_320.z * 0.949999988079071f)) / (cb_misc_320.z * 0.09999996423721313f));
@@ -237,12 +241,6 @@ float4 main(
   float _803 = (((_763 / _756) - _766) * _793) + _766;
   float _804 = (((_764 / _756) - _767) * _793) + _767;
   float _805 = (((_765 / _756) - _768) * _793) + _768;
-
-  if (RENODX_TONE_MAP_TYPE != 0) {
-    float3 untonemapped = float3(_803, _804, _805);
-    SV_Target = RenoDX(untonemapped, float2(_17, _18), _793, _692);
-    return SV_Target;
-  }
 
   // tone mapping
   float _808 = _803 * 1.4142135381698608f;
@@ -290,3 +288,4 @@ float4 main(
   SV_Target.w = 1.0f;
   return SV_Target;
 }
+

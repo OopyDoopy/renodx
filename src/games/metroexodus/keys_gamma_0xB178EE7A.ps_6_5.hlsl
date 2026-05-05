@@ -33,7 +33,7 @@ float4 main(
     float3 linear_color = renodx::color::srgb::Decode(color);
     linear_color = saturate(linear_color);
     float3 pq_color = renodx::color::pq::Encode(renodx::color::bt2020::from::BT709(linear_color), RENODX_GRAPHICS_WHITE_NITS);
-    return float4(pq_color, _21);
+    return float4(pq_color, saturate(_21));
   }
 
   _55 = exp2(log2(abs(mad(0.04331360012292862f, _33, mad(0.3292819857597351f, _32, (_31 * 0.627403974533081f))) * 0.02500000037252903f)) * 0.1593017578125f);

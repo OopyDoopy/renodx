@@ -312,6 +312,13 @@ float4 main(
     _613 = (half)(max(((half)(((half)(((half)(((half)(((half)((half)(_574.y) + (half)(_569.y))) + (half)(_579.y))) + (half)(_583.y))) * _600)) + ((half)(_587 * (half)(_26.y))))), 0.0h));
     _614 = (half)(max(((half)(((half)(((half)(((half)(((half)((half)(_574.z) + (half)(_569.z))) + (half)(_579.z))) + (half)(_583.z))) * _600)) + ((half)(_587 * (half)(_26.z))))), 0.0h));
   }
+
+  if (RENODX_TONE_MAP_TYPE != 0) {
+    float3 input_color = float3(_612, _613, _614);
+    SV_Target = RenoDX(input_color, float2(_17, _18), _611);
+    return SV_Target;
+  }
+
   _617 = 1.0h / ((half)(1.0h - (half)(dot(half3(_612, _613, _614), half3(0.29907227h, 0.58691406h, 0.11401367h)))));
   _639 = _17 - cb_misc_000.x;
   _640 = _18 - cb_misc_000.y;
@@ -336,12 +343,6 @@ float4 main(
   _722 = (((_682 / _675) - _685) * _712) + _685;
   _723 = (((_683 / _675) - _686) * _712) + _686;
   _724 = (((_684 / _675) - _687) * _712) + _687;
-
-  if (RENODX_TONE_MAP_TYPE != 0) {
-    float3 untonemapped = float3(_722, _723, _724);
-    SV_Target = RenoDX(untonemapped, float2(_17, _18), _712, _611);
-    return SV_Target;
-  }
 
   _727 = _722 * 1.4142135381698608f;
   _728 = _723 * 1.4142135381698608f;
