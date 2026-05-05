@@ -14,6 +14,14 @@ float3 ToneMapMaxCLL(float3 color, float rolloff_start = 0.375f, float output_ma
   return min(output_max, color * scale);
 }
 
+float ComputeReinhardSmoothClampScale(float3 untonemapped, float rolloff_start = 0.375f, float output_max = 1.f, float white_clip = 100.f) {
+  float peak = renodx::math::Max(untonemapped);
+  float mapped_peak = renodx::tonemap::ReinhardPiecewiseExtended(peak, white_clip, output_max, rolloff_start);
+  float scale = renodx::math::DivideSafe(mapped_peak, peak, 1.f);
+
+  return scale;
+}
+
 float3 VanillaUncharted2Tonemap(float3 x) {
 //   float3 _552 = x * 0.2199999988079071044921875;
 //   float3 _535 = ((fma(x, _552 + float3(0.0300000011920928955078125), float3(0.00200000009499490261077880859375)) / fma(x, _552 + float3(0.300000011920928955078125), float3(0.060000002384185791015625))) - float3(0.0333333313465118408203125)) * float3(2.492836475372314453125);
