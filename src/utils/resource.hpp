@@ -188,10 +188,7 @@ struct ResourceUpgradeInfo {
     if (this->state != reshade::api::resource_usage::undefined) {
       if (this->state != state) return false;
     }
-    const bool has_min_dimensions = this->min_dimensions.width >= 0
-                                    || this->min_dimensions.height >= 0
-                                    || this->min_dimensions.depth >= 0;
-    if (!(this->ignore_size || has_min_dimensions)) {
+    if (!this->ignore_size) {
       if (this->aspect_ratio == ANY) {
         if (dimensions.width == BACK_BUFFER) {
           if (back_buffer_desc.type == reshade::api::resource_type::unknown) return false;
