@@ -61,6 +61,7 @@
 #include "../../utils/shader_dump.hpp"
 #include "../../utils/string_view.hpp"
 #include "../../utils/swapchain.hpp"
+#include "../../utils/resource_upgrade.hpp"
 #include "../../utils/trace.hpp"
 #include "./formatting.hpp"
 #include "./mcp/device_selection.hpp"
@@ -1042,9 +1043,6 @@ renodx::utils::resource::ResourceUpgradeInfo devkit_resource_clone_target = {
   }
   if (device->get_api() == reshade::api::device_api::d3d12) {
     return "DX12 per-resource clone hotswap is not supported in devkit yet.";
-  }
-  if (device->get_api() == reshade::api::device_api::vulkan) {
-    return "Vulkan per-resource clone hotswap is not supported in devkit yet.";
   }
   if (enabling
       && info->clone_target != nullptr
@@ -3076,6 +3074,14 @@ void OnPushDescriptors(
       case reshade::api::pipeline_layout_param_type::push_descriptors:
         dx_register_index = param.push_descriptors.dx_register_index;
         dx_register_space = param.push_descriptors.dx_register_space;
+        break;
+      case reshade::api::pipeline_layout_param_type::push_descriptors_with_ranges:
+        if (param.descriptor_table.count <= update.binding) {
+          reshade::log::message(reshade::log::level::error, "Push descriptor binding out of range.");
+          return;
+        }
+        dx_register_index = param.descriptor_table.ranges[update.binding].dx_register_index;
+        dx_register_space = param.descriptor_table.ranges[update.binding].dx_register_space;
         break;
       default:
         reshade::log::message(reshade::log::level::error, "Not descriptor table.");
@@ -5505,10 +5511,9 @@ void RenderResourcesPane(reshade::api::device* device, DeviceData* data) {
   }
 
   const bool api_blocked =
-      device->get_api() == reshade::api::device_api::d3d12
-      || device->get_api() == reshade::api::device_api::vulkan;
+      device->get_api() == reshade::api::device_api::d3d12;
   if (api_blocked) {
-    ImGui::TextDisabled("Enable/Disable is blocked for this API (DX12/Vulkan).");
+    ImGui::TextDisabled("Enable/Disable is blocked for this API (DX12).");
   }
 
   struct ResourceRow {
@@ -5727,7 +5732,7 @@ void RenderResourcesPane(reshade::api::device* device, DeviceData* data) {
         ImGui::EndDisabled();
         if (!can_toggle_clone && ImGui::IsItemHovered()) {
           if (api_blocked) {
-            ImGui::SetItemTooltip("Enable/Disable is blocked for this API (DX12/Vulkan).");
+            ImGui::SetItemTooltip("Enable/Disable is blocked for this API (DX12).");
           } else if (!row.blocked_reason.empty()) {
             ImGui::SetItemTooltip("%s", row.blocked_reason.c_str());
           }
@@ -7444,7 +7449,10 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       break;
   }
 
-  renodx::utils::resource::Use(fdw_reason);
+  if (fdw_reason == DLL_PROCESS_ATTACH) {
+    renodx::utils::resource::upgrade::use_resource_cloning = true;
+  }
+  renodx::utils::resource::upgrade::Use(fdw_reason);
 
   // ResourceWatcher::Use(fdwReason);
 

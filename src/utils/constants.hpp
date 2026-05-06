@@ -20,6 +20,7 @@
 
 #include "./bitwise.hpp"
 #include "./data.hpp"
+#include "./device.hpp"
 #include "./format.hpp"
 #include "./pipeline_layout.hpp"
 
@@ -328,7 +329,7 @@ inline void PushShaderInjections(
     float resource_tag = 0.f,
     reshade::api::shader_stage shader_stage = reshade::api::shader_stage::all) {
   auto device_api = cmd_list->get_device()->get_api();
-  bool use_root_constants = (device_api == reshade::api::device_api::d3d12 || device_api == reshade::api::device_api::vulkan);
+  bool use_root_constants = renodx::utils::device::IsModernAPI(device_api);
 
 #ifdef DEBUG_LEVEL_2
   std::stringstream s;
