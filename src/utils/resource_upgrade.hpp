@@ -11,8 +11,8 @@
 
 #include "./bitwise.hpp"
 #include "./data.hpp"
-#include "./device.hpp"
 #include "./descriptor.hpp"
+#include "./device.hpp"
 #include "./log.hpp"
 #include "./resource.hpp"
 #include "./shader.hpp"
@@ -53,6 +53,7 @@ struct __declspec(uuid("72c2182f-dbf5-42b6-a4d5-ee8de408402d")) DeviceData {
   bool resource_upgrade_finished = false;
   std::unordered_map<uint64_t, std::unordered_map<uint32_t, HeapDescriptorInfo*>> heap_descriptor_infos;
   std::unordered_map<uint32_t, ShaderHotSwap> shader_hot_swaps;
+  std::unordered_map<uint32_t, uint32_t> shader_hot_swap_pass_counts;
 };
 
 struct __declspec(uuid("0a2b51ad-ef13-4010-81a4-37a4a0f857a6")) CommandListData {
@@ -60,6 +61,7 @@ struct __declspec(uuid("0a2b51ad-ef13-4010-81a4-37a4a0f857a6")) CommandListData 
   std::vector<PushDescriptorInfo> unpushed_updates;
   std::vector<reshade::api::resource_view> current_render_targets;
   std::vector<uint32_t> active_shader_hashes;
+  std::unordered_set<uint32_t> shader_hot_swap_counted_targets;
   uint8_t pass_count = 0;
 };
 
@@ -694,18 +696,46 @@ inline bool TryPromoteShaderHotSwapTarget(
   hot_swap.resource_targets[resource_info->resource.handle] = target_index;
   target.completed = true;
 
-#ifdef DEBUG_LEVEL_1
-  std::stringstream s;
-  s << "utils::resource::upgrade::TryPromoteShaderHotSwapTarget(";
-  s << "shader: " << PRINT_CRC32(target.shader_hash);
-  s << ", resource: " << PRINT_PTR(resource_info->resource.handle);
-  s << ", target: " << target_index;
-  s << ", format: " << resource_info->desc.texture.format << " => " << target.new_format;
-  s << ")";
-  reshade::log::message(reshade::log::level::debug, s.str().c_str());
-#endif
+  return true;
+}
+
+inline bool CanPromoteShaderHotSwapTarget(
+    DeviceData& data,
+    ShaderHotSwap& hot_swap,
+    uint32_t target_index,
+    utils::resource::ResourceInfo* resource_info) {
+  if (resource_info == nullptr) return false;
+  if (target_index >= data.upgrade_infos.size()) return false;
+  if (resource_info->destroyed || resource_info->is_clone) return false;
+  if (resource_info->clone_target != nullptr) return false;
+  if (hot_swap.resource_targets.contains(resource_info->resource.handle)) return false;
+
+  auto& target = data.upgrade_infos[target_index];
+  if (target.completed) return false;
+  if (target.shader_hash == 0u) return false;
 
   return true;
+}
+
+inline bool CountShaderHotSwapPass(
+    DeviceData& data,
+    CommandListData& cmd_list_data,
+    const uint32_t target_index,
+    const int32_t pass_index,
+    bool* pass_counted = nullptr,
+    uint32_t* counted_pass_index = nullptr) {
+  if (pass_index < 0) return true;
+
+  if (!cmd_list_data.shader_hot_swap_counted_targets.insert(target_index).second) {
+    return false;
+  }
+  auto& pass_count = data.shader_hot_swap_pass_counts[target_index];
+  const auto current_pass_index = pass_count++;
+  if (pass_counted != nullptr) *pass_counted = true;
+  if (counted_pass_index != nullptr) *counted_pass_index = current_pass_index;
+  const bool matched = current_pass_index == static_cast<uint32_t>(pass_index);
+
+  return matched;
 }
 
 inline bool DiscoverShaderHotSwapRenderTargets(
@@ -727,16 +757,73 @@ inline bool DiscoverShaderHotSwapRenderTargets(
       auto& target = data.upgrade_infos[target_index];
       if (target.completed) continue;
 
-      for (const auto& render_target : cmd_list_data.current_render_targets) {
-        if (render_target.handle == 0u) continue;
+      const auto try_render_target = [&](const reshade::api::resource_view& render_target, bool& counted) {
+        counted = false;
+        if (render_target.handle == 0u) return false;
         auto* view_info = utils::resource::GetResourceViewInfo(render_target);
-        if (view_info == nullptr || view_info->resource_info == nullptr) continue;
+        if (view_info == nullptr || view_info->resource_info == nullptr) {
+          return false;
+        }
         auto* resource_info = view_info->resource_info;
-        if (!target.CheckResourceDesc(resource_info->desc, back_buffer_desc, resource_info->initial_state)) continue;
-        if (TryPromoteShaderHotSwapTarget(data, hot_swap, target_index, resource_info)) {
+        if (!target.CheckResourceDesc(resource_info->desc, back_buffer_desc, resource_info->initial_state)) {
+          return false;
+        }
+        const bool uses_promoted_resource = hot_swap.resource_targets.contains(resource_info->resource.handle);
+        const bool can_promote_resource = CanPromoteShaderHotSwapTarget(data, hot_swap, target_index, resource_info);
+        if (!uses_promoted_resource && !can_promote_resource) return false;
+
+        counted = true;
+        bool pass_counted = false;
+        uint32_t counted_pass_index = 0u;
+        if (!CountShaderHotSwapPass(data, cmd_list_data, target_index, target.index, &pass_counted, &counted_pass_index)) {
+#ifdef DEBUG_LEVEL_1
+          if (pass_counted) {
+            const auto& desc = resource_info->desc;
+            std::stringstream s;
+            s << "utils::resource::upgrade::DiscoverShaderHotSwapRenderTargets(skip";
+            s << ", reason: index don't match";
+            s << ", shader: " << PRINT_CRC32(target.shader_hash);
+            s << ", pass index: " << counted_pass_index;
+            s << ", index: " << target.index;
+            s << ", size: " << desc.texture.width << "x" << desc.texture.height;
+            s << ", resource: " << PRINT_PTR(resource_info->resource.handle);
+            s << ", format: " << desc.texture.format;
+            s << ", target slot: " << target_index;
+            s << ", already promoted: " << (uses_promoted_resource ? "true" : "false");
+            s << ")";
+            reshade::log::message(reshade::log::level::debug, s.str().c_str());
+          }
+#endif
+          return false;
+        }
+        if (uses_promoted_resource) return false;
+        const bool promoted = TryPromoteShaderHotSwapTarget(data, hot_swap, target_index, resource_info);
+#ifdef DEBUG_LEVEL_1
+        if (promoted) {
+          const auto& desc = resource_info->desc;
+          std::stringstream s;
+          s << "utils::resource::upgrade::DiscoverShaderHotSwapRenderTargets(upgraded";
+          s << ", shader: " << PRINT_CRC32(target.shader_hash);
+          s << ", pass index: " << counted_pass_index;
+          s << ", index: " << target.index;
+          s << ", size: " << desc.texture.width << "x" << desc.texture.height;
+          s << ", resource: " << PRINT_PTR(resource_info->resource.handle);
+          s << ", format: " << desc.texture.format << " => " << target.new_format;
+          s << ", target slot: " << target_index;
+          s << ")";
+          reshade::log::message(reshade::log::level::debug, s.str().c_str());
+        }
+#endif
+        return promoted;
+      };
+
+      for (const auto& render_target : cmd_list_data.current_render_targets) {
+        bool counted = false;
+        if (try_render_target(render_target, counted)) {
           changed = true;
           break;
         }
+        if (counted) break;
       }
     }
   }
@@ -833,6 +920,38 @@ static void OnDestroyCommandList(reshade::api::command_list* cmd_list) {
   renodx::utils::data::Delete<CommandListData>(cmd_list);
 }
 
+static void OnPresent(
+    reshade::api::command_queue* queue,
+    reshade::api::swapchain* swapchain,
+    const reshade::api::rect* source_rect,
+    const reshade::api::rect* dest_rect,
+    uint32_t dirty_rect_count,
+    const reshade::api::rect* dirty_rects) {
+  if (!is_primary_hook) return;
+  (void)queue;
+  (void)source_rect;
+  (void)dest_rect;
+  (void)dirty_rect_count;
+  (void)dirty_rects;
+  if (swapchain == nullptr) return;
+
+  auto* data = renodx::utils::data::Get<DeviceData>(swapchain->get_device());
+  if (data == nullptr) return;
+  const std::unique_lock lock(data->mutex);
+#ifdef DEBUG_LEVEL_1
+  if (!data->shader_hot_swap_pass_counts.empty()) {
+    std::stringstream s;
+    s << "utils::resource::upgrade::OnPresent(shader hot swap pass counts";
+    for (const auto& [target_index, pass_count] : data->shader_hot_swap_pass_counts) {
+      s << ", upgrade_target " << target_index << ": " << pass_count;
+    }
+    s << ")";
+    reshade::log::message(reshade::log::level::debug, s.str().c_str());
+  }
+#endif
+  data->shader_hot_swap_pass_counts.clear();
+}
+
 static void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
   if (!is_primary_hook) return;
   auto* device = swapchain->get_device();
@@ -840,6 +959,7 @@ static void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
   if (data == nullptr) return;
   data->back_buffer_desc = device->get_resource_desc(swapchain->get_current_back_buffer());
   data->resource_upgrade_finished = false;
+  data->shader_hot_swap_pass_counts.clear();
   reshade::log::message(reshade::log::level::debug, "utils::resource::upgrade::OnInitSwapchain(reset resource upgrade)");
   const uint32_t len = data->upgrade_infos.size();
   // Reset
@@ -1406,13 +1526,13 @@ inline bool OnCopyBufferToTexture(
       s << ")";
       reshade::log::message(reshade::log::level::debug, s.str().c_str());
 #endif
-    cmd_list->copy_buffer_to_texture(source, source_offset, row_length, slice_height, dest_clone, dest_subresource, dest_box);
+      cmd_list->copy_buffer_to_texture(source, source_offset, row_length, slice_height, dest_clone, dest_subresource, dest_box);
 
-    return true;
-    // remap to other
-  }
-  // Mismatched, copy to original and blit?
-  cmd_list->copy_buffer_to_texture(source, source_offset, row_length, slice_height, dest, dest_subresource, dest_box);
+      return true;
+      // remap to other
+    }
+    // Mismatched, copy to original and blit?
+    cmd_list->copy_buffer_to_texture(source, source_offset, row_length, slice_height, dest, dest_subresource, dest_box);
 
     std::stringstream s;
     s << "utils::resource::upgrade::OnCopyBufferToTexture(mismatched ";
@@ -2301,6 +2421,7 @@ inline void OnBindRenderTargetsAndDepthStencil(
   auto* cmd_list_data = renodx::utils::data::Get<CommandListData>(cmd_list);
   if (cmd_list_data != nullptr) {
     cmd_list_data->current_render_targets.clear();
+    cmd_list_data->shader_hot_swap_counted_targets.clear();
     if (count != 0u && rtvs != nullptr) {
       cmd_list_data->current_render_targets.assign(rtvs, rtvs + count);
     }
@@ -2337,6 +2458,7 @@ static void OnBeginRenderPass(
   if (cmd_list_data->pass_count++ != 0) return;
 
   cmd_list_data->current_render_targets.clear();
+  cmd_list_data->shader_hot_swap_counted_targets.clear();
   cmd_list_data->current_render_targets.reserve(count);
   for (uint32_t i = 0; i < count; ++i) {
     cmd_list_data->current_render_targets.push_back(rts[i].view);
@@ -2372,6 +2494,7 @@ static void OnEndRenderPass(reshade::api::command_list* cmd_list) {
   }
   if (cmd_list_data->pass_count == 0u) {
     cmd_list_data->current_render_targets.clear();
+    cmd_list_data->shader_hot_swap_counted_targets.clear();
     cmd_list_data->active_shader_hashes.clear();
   }
 }
@@ -2645,7 +2768,7 @@ inline bool OnCopyTextureRegion(
       dest_new = dest_clone;
     }
   }
-  
+
   bool can_be_copied = (source_desc_new.texture.format == dest_desc_new.texture.format)
                        || (utils::resource::FormatToTypeless(source_desc_new.texture.format) == utils::resource::FormatToTypeless(dest_desc_new.texture.format))
                        || utils::resource::IsCompressible(source_desc_new.texture.format, dest_desc_new.texture.format);
@@ -2749,6 +2872,7 @@ static void Use(DWORD fdw_reason) {
         reshade::register_event<reshade::addon_event::destroy_command_list>(OnDestroyCommandList);
 
         reshade::register_event<reshade::addon_event::bind_pipeline>(OnBindPipeline);
+        reshade::register_event<reshade::addon_event::present>(OnPresent);
         reshade::register_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(OnBindRenderTargetsAndDepthStencil);
         reshade::register_event<reshade::addon_event::begin_render_pass>(OnBeginRenderPass);
         reshade::register_event<reshade::addon_event::end_render_pass>(OnEndRenderPass);
@@ -2791,6 +2915,7 @@ static void Use(DWORD fdw_reason) {
       reshade::unregister_event<reshade::addon_event::init_command_list>(OnInitCommandList);
       reshade::unregister_event<reshade::addon_event::destroy_command_list>(OnDestroyCommandList);
       reshade::unregister_event<reshade::addon_event::bind_pipeline>(OnBindPipeline);
+      reshade::unregister_event<reshade::addon_event::present>(OnPresent);
       reshade::unregister_event<reshade::addon_event::begin_render_pass>(OnBeginRenderPass);
       reshade::unregister_event<reshade::addon_event::end_render_pass>(OnEndRenderPass);
 

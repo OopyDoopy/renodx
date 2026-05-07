@@ -188,8 +188,30 @@ struct ResourceUpgradeInfo {
     if (this->state != reshade::api::resource_usage::undefined) {
       if (this->state != state) return false;
     }
-    if (!this->ignore_size) {
-      if (this->aspect_ratio == ANY) {
+
+    if (this->ignore_size) return true;
+
+    const bool has_default_dimensions = this->dimensions.width == BACK_BUFFER
+                                        && this->dimensions.height == BACK_BUFFER
+                                        && this->dimensions.depth == BACK_BUFFER;
+    const auto matches_min_dimensions = [&]() {
+      if (min_dimensions.height >= 0) {
+        if (desc.texture.height <= min_dimensions.height) return false;
+      }
+
+      if (min_dimensions.width >= 0) {
+        if (desc.texture.width <= min_dimensions.width) return false;
+      }
+
+      if (min_dimensions.depth >= 0) {
+        if (desc.texture.depth_or_layers <= min_dimensions.depth) return false;
+      }
+
+      return true;
+    };
+
+    if (this->aspect_ratio == ANY) {
+      if (!has_default_dimensions) {
         if (dimensions.width == BACK_BUFFER) {
           if (back_buffer_desc.type == reshade::api::resource_type::unknown) return false;
           if (desc.texture.width != back_buffer_desc.texture.width) return false;
@@ -208,29 +230,21 @@ struct ResourceUpgradeInfo {
           if (desc.texture.depth_or_layers != dimensions.depth) return false;
         }
       } else {
-        if (min_dimensions.height >= 0) {
-          if (desc.texture.height <= min_dimensions.height) return false;
-        }
-
-        if (min_dimensions.width >= 0) {
-          if (desc.texture.width <= min_dimensions.width) return false;
-        }
-
-        if (min_dimensions.depth >= 0) {
-          if (desc.texture.depth_or_layers <= min_dimensions.depth) return false;
-        }
-
-        const float view_ratio = static_cast<float>(desc.texture.width) / static_cast<float>(desc.texture.height);
-        float target_ratio;
-        if (this->aspect_ratio == BACK_BUFFER) {
-          if (back_buffer_desc.type == reshade::api::resource_type::unknown) return false;
-          target_ratio = static_cast<float>(back_buffer_desc.texture.width) / static_cast<float>(back_buffer_desc.texture.height);
-        } else {
-          target_ratio = this->aspect_ratio;
-        }
-        const float diff = std::abs(view_ratio - target_ratio);
-        if (diff > this->aspect_ratio_tolerance) return false;
+        if (!matches_min_dimensions()) return false;
       }
+    } else {
+      const float view_ratio = static_cast<float>(desc.texture.width) / static_cast<float>(desc.texture.height);
+      float target_ratio;
+      if (this->aspect_ratio == BACK_BUFFER) {
+        if (back_buffer_desc.type == reshade::api::resource_type::unknown) return false;
+        target_ratio = static_cast<float>(back_buffer_desc.texture.width) / static_cast<float>(back_buffer_desc.texture.height);
+      } else {
+        target_ratio = this->aspect_ratio;
+      }
+      const float diff = std::abs(view_ratio - target_ratio);
+      if (diff > this->aspect_ratio_tolerance) return false;
+
+      if (!matches_min_dimensions()) return false;
     }
     return true;
   }
