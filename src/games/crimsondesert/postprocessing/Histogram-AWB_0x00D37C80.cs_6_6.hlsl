@@ -271,6 +271,7 @@ void main(
   float _364;
   float _365;
   bool _114 = false;
+  bool _sunBloomExclude = false;  // RenoDX: wider sun bloom exclusion matching SkyMaterial 2.5× radius
   if (_99) {
     float _104 = _sunSizeAngle * 0.01745329238474369f;
     float _105 = _98 * _96;
@@ -279,6 +280,9 @@ void main(
     float _112 = dot(float3(_107, _106, _105), float3(_sunDirection.x, _sunDirection.y, _sunDirection.z));
     float _113 = acos(_112);
     _114 = (_113 < _104);
+    // Match SkyMaterial's 2.5× sun radius for bloom exclusion so the corona
+    // and near-disk glow don't feed into the bloom pyramid either.
+    _sunBloomExclude = (_113 < _104 * 2.5f);
   }
   bool _116 = (!_99) && (_57 == 28);
   bool _117 = (!_99) && (_57 == 56);
@@ -433,7 +437,16 @@ void main(
   float _291 = _288 + _282;
   float _292 = _289 + _283;
 
-  __3__38__0__1__g_glareSourceUAV[int2((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y))] = float3(_290, _291, _292);
+  // RenoDX: Exclude sun disk pixels from bloom/glare source.
+  // _127 is true when the pixel is a sky pixel (stencil == 0) AND within
+  // the sun disk angle. Zeroing the glare source for these pixels removes
+  // bloom on the sun while preserving bloom for everything else (emissives,
+  // particles, bright surfaces, moon, etc.).
+  // The sun's visual appearance (disk, corona, Mie halo) is unaffected
+  // because those are rendered in SkyMaterial and composited into scene
+  // color — this only removes the sun from the bloom extraction input.
+  float _sunBloomMask = (_sunBloomExclude && SUN_MOON_ADJUSTMENTS == 1.f) ? 0.0f : 1.0f;
+  __3__38__0__1__g_glareSourceUAV[int2((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y))] = float3(_290 * _sunBloomMask, _291 * _sunBloomMask, _292 * _sunBloomMask);
   bool _296 = (_whiteBalance.w > 0.0010000000474974513f);
   int _297 = _57 + -105;
   bool _298 = ((uint)_297 < (uint)2);
