@@ -295,8 +295,8 @@ float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frame
   uint paletteIndex;
   {
     uint raw = min((uint)(AuroraHashInt(sessionIndex + 12345u) * 12.f), 11u);
-    uint prev1 = min((uint)(AuroraHashInt((sessionIndex > 0u ? sessionIndex - 1u : 0u) + 12345u) * 12.f), 11u);
-    uint prev2 = min((uint)(AuroraHashInt((sessionIndex > 1u ? sessionIndex - 2u : 0u) + 12345u) * 12.f), 11u);
+    uint prev1 = min((uint)(AuroraHashInt(renodx::math::Select(sessionIndex > 0u, sessionIndex - 1u, 0u) + 12345u) * 12.f), 11u);
+    uint prev2 = min((uint)(AuroraHashInt(renodx::math::Select(sessionIndex > 1u, sessionIndex - 2u, 0u) + 12345u) * 12.f), 11u);
     paletteIndex = renodx::math::Select(
       raw == prev1 && raw == prev2 && sessionIndex > 1u,
       (raw + 1u) % 12u, raw);
@@ -308,8 +308,8 @@ float3 ComputeAurora(float3 viewDir, float realTime, float nightGate, uint frame
   uint presetIndex;
   {
     uint raw = min((uint)(AuroraHashInt(sessionIndex + 34567u) * 10.f), 9u);
-    uint prev1 = min((uint)(AuroraHashInt((sessionIndex > 0u ? sessionIndex - 1u : 0u) + 34567u) * 10.f), 9u);
-    uint prev2 = min((uint)(AuroraHashInt((sessionIndex > 1u ? sessionIndex - 2u : 0u) + 34567u) * 10.f), 9u);
+    uint prev1 = min((uint)(AuroraHashInt(renodx::math::Select(sessionIndex > 0u, sessionIndex - 1u, 0u) + 34567u) * 10.f), 9u);
+    uint prev2 = min((uint)(AuroraHashInt(renodx::math::Select(sessionIndex > 1u, sessionIndex - 2u, 0u) + 34567u) * 10.f), 9u);
     presetIndex = renodx::math::Select(
       raw == prev1 && raw == prev2 && sessionIndex > 1u,
       (raw + 1u) % 10u, raw);

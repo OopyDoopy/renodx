@@ -10,6 +10,7 @@
 
 #include <embed/shaders.h>
 
+#include <chrono>
 #include <d3d12.h>
 #include <deps/imgui/imgui.h>
 #include <atomic>
@@ -161,6 +162,7 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
     {"FoliageImprovements", 0.f},
     {"MaterialImprovements", 0.f},
     {"DawnDuskImprovements", 0.f},
+    {"CustomWeatherEditing", 0.f},
     {"SnowFogFix", 0.f},
     {"RaytracingQuality", 0.f},
     {"AuroraBorealis", 0.f},
@@ -204,6 +206,9 @@ bool night_shader_active = false;
 bool night_shader_was_active = false;  
 int night_check_counter = 0;
 uint32_t aurora_night_counter = 0;     
+uint32_t dawn_dusk_day_counter = 0;
+std::chrono::steady_clock::time_point dawn_dusk_blend_start{};
+float dawn_dusk_blend_duration = 60.f;  // seconds to crossfade between presets
 
 renodx::mods::shader::CustomShaders custom_shaders = {
     CustomShaderEntryCallback(0x70DA2ED5, [](reshade::api::command_list* /*cmd_list*/) {
@@ -1151,6 +1156,23 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == rendering_group && !RR_ENABLED; },
     },
     new renodx::utils::settings::Setting{
+        .key = "CustomWeatherEditing",
+        .binding = &shader_injection.custom_flags,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .packed_values = {0u, CUSTOM_FLAGS__CUSTOM_WEATHER_EDITING},
+        .can_reset = true,
+        .label = "Custom Weather Editing (WIP)",
+        .section = "Rendering",
+        .tooltip = "Randomises dawn/dusk colour hues each day cycle.\n"
+                   "Off = vanilla weather hues.\n"
+                   "On = uses randomised hue presets that vary per dawn.",
+        .labels = {"Off", "On"},
+        .tint = rendering,
+        .is_enabled = []() { return RR_ENABLED && DAWN_DUSK_IMPROVEMENTS == 1.f; },
+        .is_visible = []() { return current_settings_mode == rendering_group; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "PurkinjeEffect",
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -1432,6 +1454,7 @@ void OnPresetOff() {
       {"RaytracingQuality", 0.f},
       {"MaterialImprovements", 0.f},
       {"DawnDuskImprovements", 0.f},
+      {"CustomWeatherEditing", 0.f},
       {"SnowFogFix", 0.f},
       {"DisableAWB", 0.f},
       {"AuroraBorealis", 0.f},
@@ -1473,14 +1496,33 @@ void OnPresent(reshade::api::command_queue* /*queue*/,
   // them as a proxy to re roll the aurora seed
   night_check_counter++;
   if (night_check_counter >= 30) {
+    // Rising edge: night just started → re-roll aurora seed
     if (night_shader_active && !night_shader_was_active) {
       aurora_night_counter++;
       uint32_t seed_bits = aurora_night_counter * 2654435761u;
       shader_injection.aurora_night_seed = static_cast<float>(seed_bits & 0xFFFFu) / 65535.f;
+
+      // Re-roll dawn/dusk weather seed at dusk (rising edge of night).
+      // Start a blend from old preset → new preset so there's no hard pop.
+      // Pass the raw counter as the seed (not hashed) so the shader can
+      // derive the previous preset via sessionIndex - 1.
+      dawn_dusk_day_counter++;
+      shader_injection.dawn_dusk_weather_seed = static_cast<float>(dawn_dusk_day_counter) / 65535.f;
+      dawn_dusk_blend_start = std::chrono::steady_clock::now();
     }
     night_shader_was_active = night_shader_active;
     night_shader_active = false;
     night_check_counter = 0;
+  }
+
+  // --- Dawn/dusk weather blend ramp ---
+  // After a seed re-roll, ramp blend from 0→1 over dawn_dusk_blend_duration seconds.
+  // The shader lerps between previous and current preset using this value.
+  {
+    auto elapsed = std::chrono::steady_clock::now() - dawn_dusk_blend_start;
+    float seconds = std::chrono::duration<float>(elapsed).count();
+    float blend = (dawn_dusk_blend_duration > 0.f) ? (seconds / dawn_dusk_blend_duration) : 1.f;
+    shader_injection.dawn_dusk_weather_blend = (blend >= 1.f) ? 1.f : blend;
   }
 }
 
