@@ -434,7 +434,9 @@ static bool OnCreatePipelineLayout(
         }
       }
     } else if (param.type == reshade::api::pipeline_layout_param_type::push_constants) {
-      dword_count += param.push_constants.count;
+      if (device_api != reshade::api::device_api::d3d12) {
+        dword_count += param.push_constants.count;
+      }
       pc_count++;
       if (is_dx
           && param.push_constants.dx_register_space == data->expected_constant_buffer_space
@@ -442,7 +444,9 @@ static bool OnCreatePipelineLayout(
         cbv_index = param.push_constants.dx_register_index + param.push_constants.count;
       }
     } else if (is_dx && param.type == reshade::api::pipeline_layout_param_type::push_descriptors) {
-      dword_count += device_api == reshade::api::device_api::d3d12 ? ComputeD3D12RootParameterCost(param) : 2u;
+      if (device_api != reshade::api::device_api::d3d12) {
+        dword_count += 2u;
+      }
       if (param.push_descriptors.type == reshade::api::descriptor_type::constant_buffer) {
         if (
             param.push_descriptors.dx_register_space == data->expected_constant_buffer_space
