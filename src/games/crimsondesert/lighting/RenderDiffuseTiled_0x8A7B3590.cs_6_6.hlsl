@@ -1969,6 +1969,15 @@ void main(
     _2563 = (((_2545 * 0.6131200194358826f) + (_2546 * 0.3395099937915802f)) + (_2547 * 0.047370001673698425f)) * _2356;
     _2564 = (((_2545 * 0.07020000368356705f) + (_2546 * 0.9163600206375122f)) + (_2547 * 0.013450000435113907f)) * _2356;
     _2565 = (((_2545 * 0.02061999961733818f) + (_2546 * 0.10958000272512436f)) + (_2547 * 0.8697999715805054f)) * _2356;
+    // RenoDX: Weather-driven direct sunlight colour correction
+    if (DAWN_DUSK_IMPROVEMENTS == 1.f) {
+      float _ddFactorLight = DawnDuskFactor(_sunDirection.y);
+      float3 _corrected = WeatherDirectLightCorrection(
+        float3(_2563, _2564, _2565), _ddFactorLight);
+      _2563 = _corrected.x;
+      _2564 = _corrected.y;
+      _2565 = _corrected.z;
+    }
     // RenoDX: DAWN_DUSK_GI SH ambient directional boost
     if (DAWN_DUSK_IMPROVEMENTS == 1.f) {
       float _ddFactor = DawnDuskFactor(_sunDirection.y);

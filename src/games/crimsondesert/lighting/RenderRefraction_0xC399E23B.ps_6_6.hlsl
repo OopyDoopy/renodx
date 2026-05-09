@@ -1369,7 +1369,10 @@ float4 main(
         _1741 = _1734;
         _1742 = _1735;
         _1743 = _1736;
-        _1744 = saturate((_280 + -64.0f) * 0.0078125f);
+        // Fix vanilla bug: indirect cache voxel boundary creates visible seam on water.
+        // Force _1744 = 1.0 to skip the indirect cache blend entirely for refractive
+        // surfaces. The SH ambient is smooth and sufficient for underwater inscatter.
+        _1744 = 1.0f;
       } else {
         _1741 = _1730;
         _1742 = _1731;
@@ -1383,7 +1386,7 @@ float4 main(
       _1741 = _1734;
       _1742 = _1735;
       _1743 = _1736;
-      _1744 = saturate((_280 + -64.0f) * 0.0078125f);
+      _1744 = 1.0f;
     }
     _1782 = _193 * -1.0233277082443237f;
     _1783 = _194 * 1.0233277082443237f;
@@ -1580,6 +1583,19 @@ float4 main(
       _2360 = _1972;
       _2361 = _1974;
       _2362 = _1976;
+    }
+
+    // [NIGHT_SKY_ATTENUATION] Attenuate underwater in-scattering at night.
+    // _2360/_2361/_2362 contain the volumetric/fog lighting for the water surface.
+    // This includes SH ambient (sky probe) integrated along the underwater path.
+    // The sky probe isn't fully darkened by RenoDX night mods, so the in-scattering
+    // remains too bright relative to the darkened scene.
+    if (NIGHT_SKY_ATTENUATION == 1.f) {
+      float _nightFactor = saturate(-_sunDirection.y * 4.0f);
+      float _nightAtten = lerp(1.0f, 0.15f, _nightFactor);
+      _2360 *= _nightAtten;
+      _2361 *= _nightAtten;
+      _2362 *= _nightAtten;
     }
     _2376 = int((_472 * _bufferSizeAndInvSize.x) + 0.5f);
     _2377 = int((_473 * _bufferSizeAndInvSize.y) + 0.5f);

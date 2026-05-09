@@ -43,11 +43,12 @@
 #endif
 
 // ============================================================================
-// DISABLE_SS_SPECULAR: When set to 1, disables the screen-space radiance
-// cache contribution to RT specular. This eliminates the motion artifact on
-// animated geometry (characters, cloth) where the screen-space reprojection
-// samples background radiance instead of the character's surface.
-// The surfel/SDF, cubemap, and full lighting paths remain active.
+// DISABLE_SS_SPECULAR: When set to 1, clamps the screen-space radiance
+// cache contribution for animated geometry to prevent the motion artifact
+// where reprojection samples bright background (sky/snow) instead of the
+// character's surface. The screen-space path still runs — only its
+// luminance is clamped against the cubemap (mip 4) as a reference budget.
+// All other paths (surfel/SDF, cubemap fallback, full lighting) are unaffected.
 // This is a base game limitation workaround — see pipeline-notes.txt issue 15.
 // ============================================================================
 #ifndef DISABLE_SS_SPECULAR

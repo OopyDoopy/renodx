@@ -31,6 +31,7 @@
 #define CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS              0b10000000000000000000000u
 #define CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS_BIT1         0b1000000000000000000000u
 #define CUSTOM_FLAGS__PURKINJE_EFFECT                   0b100000000000000000000000u
+#define CUSTOM_FLAGS__CUSTOM_WEATHER_EDITING            0b1000000000000000000000000u
 
 #define CUSTOM_FLAGS                               shader_injection.custom_flags
 
@@ -112,12 +113,19 @@
 #define DAWN_DUSK_IMPROVEMENTS                 ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__DAWN_DUSK_IMPROVEMENTS) != 0u ? 1.f : 0.f)
 #define SNOW_FOG_FIX                           ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__SNOW_FOG_FIX) != 0u ? 1.f : 0.f)
 #define DAWN_DUSK_GI_ENERGY                    0.7f
+#define DAWN_DUSK_WEATHER_SEED                 shader_injection.dawn_dusk_weather_seed
+#define DAWN_DUSK_LMS_L                        1.0f
+#define DAWN_DUSK_LMS_M                        1.0f
+#define DAWN_DUSK_LMS_S                        1.0f
+#define CLOUD_REDDENING_STRENGTH               1.0f
+#define DAWN_DUSK_WEATHER_BLEND                shader_injection.dawn_dusk_weather_blend
 #define AURORA_GI_ENERGY                       1.0f
 #define AURORA_BRIGHTNESS                      shader_injection.aurora_brightness
 #define AURORA_CHANCE                          shader_injection.aurora_chance
 #define AURORA_NIGHT_SEED                      shader_injection.aurora_night_seed
 #define NIGHT_SKY_ATTENUATION                  ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__NIGHT_SKY_ATTENUATION) != 0u ? 1.f : 0.f)
 #define PURKINJE_EFFECT                        ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__PURKINJE_EFFECT) != 0u) ? 1.f : 0.f)
+#define CUSTOM_WEATHER_EDITING                 ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__CUSTOM_WEATHER_EDITING) != 0u) ? 1.f : 0.f)
 
 // Auto exposure tuning
 //#define AE_DARK_POWER_OUTDOOR                shader_injection.ae_dark_power_outdoor
@@ -147,9 +155,9 @@
 // Must be 32bit aligned
 // Should be 4x32
 //
-//// GAME BLOWS UP ONCE THERE'S MORE THAN 45 CBUFFERS ////
+//// GAME BLOWS UP ONCE THERE'S MORE THAN 45 FLOATS ////
 // 
-//// AMD BLOWS UP AT 43-44 CBUFFERS BECASUE OF FSR    ////
+//// AMD BLOWS UP AT 43-44 FLOATS BECASUE OF FSR    ////
 //
 struct ShaderInjectData {
   float peak_white_nits;
@@ -194,6 +202,8 @@ struct ShaderInjectData {
   float aurora_brightness;
   float aurora_chance;
   float aurora_night_seed;
+  float dawn_dusk_weather_seed;
+  float dawn_dusk_weather_blend;
 };
 
 #ifndef __cplusplus
