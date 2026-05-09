@@ -1772,6 +1772,11 @@ void main(
           float _1630 = exp2(_1627);
           float _1631 = exp2(_1628);
           float _1632 = exp2(_1629);
+          // [CLOUD_REDDENING] boost G/B extinction at cloud-dense steps
+          float _cloudRedFactor = CloudReddeningFactor(_1616, _dawnDuskFactor, true);
+          _1630 *= 1.f;               // R unchanged
+          _1631 *= _cloudRedFactor;   // G attenuated
+          _1632 *= _cloudRedFactor;   // B attenuated
           float _1633 = _1630 * _sky_mtx[0][0];
           float _1634 = _1630 * _sky_mtx[1][0];
           float _1635 = _1630 * _sky_mtx[2][0];
@@ -1893,6 +1898,11 @@ void main(
           float _1758 = exp2(_1755);
           float _1759 = exp2(_1756);
           float _1760 = exp2(_1757);
+          // [CLOUD_REDDENING] boost G/B extinction at cloud-dense steps
+          float _cloudRedFactor2 = CloudReddeningFactor(_1747, _dawnDuskFactor, true);
+          _1758 *= 1.f;                // R unchanged
+          _1759 *= _cloudRedFactor2;   // G attenuated
+          _1760 *= _cloudRedFactor2;   // B attenuated
           float _1761 = _1758 * _sky_mtx[0][0];
           float _1762 = _1758 * _sky_mtx[1][0];
           float _1763 = _1758 * _sky_mtx[2][0];
@@ -1963,6 +1973,11 @@ void main(
           float _1822 = exp2(_1819);
           float _1823 = exp2(_1820);
           float _1824 = exp2(_1821);
+          // [CLOUD_REDDENING] boost G/B extinction at cloud-dense steps
+          float _cloudRedFactor3 = CloudReddeningFactor(_1616, _dawnDuskFactor, true);
+          _1822 *= 1.f;                // R unchanged
+          _1823 *= _cloudRedFactor3;   // G attenuated
+          _1824 *= _cloudRedFactor3;   // B attenuated
           float _1825 = _1822 * _sky_mtx[0][0];
           float _1826 = _1822 * _sky_mtx[1][0];
           float _1827 = _1822 * _sky_mtx[2][0];
@@ -2058,6 +2073,11 @@ void main(
             float _1912 = exp2(_1909);
             float _1913 = exp2(_1910);
             float _1914 = exp2(_1911);
+            // [CLOUD_REDDENING] boost G/B extinction at cloud-dense steps
+            float _cloudRedFactor4 = CloudReddeningFactor(_1904, _dawnDuskFactor, true);
+            _1912 *= 1.f;                // R unchanged
+            _1913 *= _cloudRedFactor4;   // G attenuated
+            _1914 *= _cloudRedFactor4;   // B attenuated
             float _1915 = _1912 * _sky_mtx[0][0];
             float _1916 = _1912 * _sky_mtx[1][0];
             float _1917 = _1912 * _sky_mtx[2][0];
@@ -2102,6 +2122,11 @@ void main(
             float _1956 = exp2(_1953);
             float _1957 = exp2(_1954);
             float _1958 = exp2(_1955);
+            // [CLOUD_REDDENING] boost G/B extinction at cloud-dense steps
+            float _cloudRedFactor5 = CloudReddeningFactor(_1904, _dawnDuskFactor, true);
+            _1956 *= 1.f;                // R unchanged
+            _1957 *= _cloudRedFactor5;   // G attenuated
+            _1958 *= _cloudRedFactor5;   // B attenuated
             float _1959 = _1956 * _sky_mtx[0][0];
             float _1960 = _1956 * _sky_mtx[1][0];
             float _1961 = _1956 * _sky_mtx[2][0];
@@ -2324,6 +2349,11 @@ void main(
           float _3284 = exp2(_3281);
           float _3285 = exp2(_3282);
           float _3286 = exp2(_3283);
+          // [CLOUD_REDDENING] boost G/B extinction at cloud-dense steps
+          float _cloudRedFactor6 = CloudReddeningFactor(_3270, _dawnDuskFactor, true);
+          _3284 *= 1.f;                // R unchanged
+          _3285 *= _cloudRedFactor6;   // G attenuated
+          _3286 *= _cloudRedFactor6;   // B attenuated
           float _3287 = _3284 * _sky_mtx[0][0];
           float _3288 = _3284 * _sky_mtx[1][0];
           float _3289 = _3284 * _sky_mtx[2][0];
@@ -2442,6 +2472,11 @@ void main(
           float _3409 = exp2(_3406);
           float _3410 = exp2(_3407);
           float _3411 = exp2(_3408);
+          // [CLOUD_REDDENING] boost G/B extinction at cloud-dense steps
+          float _cloudRedFactor7 = CloudReddeningFactor(_3398, _dawnDuskFactor, true);
+          _3409 *= 1.f;                // R unchanged
+          _3410 *= _cloudRedFactor7;   // G attenuated
+          _3411 *= _cloudRedFactor7;   // B attenuated
           float _3412 = _3409 * _sky_mtx[0][0];
           float _3413 = _3409 * _sky_mtx[1][0];
           float _3414 = _3409 * _sky_mtx[2][0];
@@ -2513,6 +2548,11 @@ void main(
           float _3480 = exp2(_3477);
           float _3481 = exp2(_3478);
           float _3482 = exp2(_3479);
+          // [CLOUD_REDDENING] boost G/B extinction at cloud-dense steps
+          float _cloudRedFactor8 = CloudReddeningFactor(_3270, _dawnDuskFactor, true);
+          _3480 *= 1.f;                // R unchanged
+          _3481 *= _cloudRedFactor8;   // G attenuated
+          _3482 *= _cloudRedFactor8;   // B attenuated
           float _3483 = _3480 * _sky_mtx[0][0];
           float _3484 = _3480 * _sky_mtx[1][0];
           float _3485 = _3480 * _sky_mtx[2][0];
@@ -3682,6 +3722,11 @@ void main(
           float _3284 = exp2(_3281);
           float _3285 = exp2(_3282);
           float _3286 = exp2(_3283);
+          // [CLOUD_REDDENING] boost G/B extinction at cloud-dense steps
+          float _cloudRedFactor6 = CloudReddeningFactor(_3270, _dawnDuskFactor, true);
+          _3284 *= 1.f;                // R unchanged
+          _3285 *= _cloudRedFactor6;   // G attenuated
+          _3286 *= _cloudRedFactor6;   // B attenuated
           float _3287 = _3284 * _sky_mtx[0][0];
           float _3288 = _3284 * _sky_mtx[1][0];
           float _3289 = _3284 * _sky_mtx[2][0];
@@ -3800,6 +3845,11 @@ void main(
           float _3409 = exp2(_3406);
           float _3410 = exp2(_3407);
           float _3411 = exp2(_3408);
+          // [CLOUD_REDDENING] boost G/B extinction at cloud-dense steps
+          float _cloudRedFactor7 = CloudReddeningFactor(_3398, _dawnDuskFactor, true);
+          _3409 *= 1.f;                // R unchanged
+          _3410 *= _cloudRedFactor7;   // G attenuated
+          _3411 *= _cloudRedFactor7;   // B attenuated
           float _3412 = _3409 * _sky_mtx[0][0];
           float _3413 = _3409 * _sky_mtx[1][0];
           float _3414 = _3409 * _sky_mtx[2][0];
@@ -3871,6 +3921,11 @@ void main(
           float _3480 = exp2(_3477);
           float _3481 = exp2(_3478);
           float _3482 = exp2(_3479);
+          // [CLOUD_REDDENING] boost G/B extinction at cloud-dense steps
+          float _cloudRedFactor8 = CloudReddeningFactor(_3270, _dawnDuskFactor, true);
+          _3480 *= 1.f;                // R unchanged
+          _3481 *= _cloudRedFactor8;   // G attenuated
+          _3482 *= _cloudRedFactor8;   // B attenuated
           float _3483 = _3480 * _sky_mtx[0][0];
           float _3484 = _3480 * _sky_mtx[1][0];
           float _3485 = _3480 * _sky_mtx[2][0];
@@ -4639,7 +4694,7 @@ void main(
   }
   // [DAWN_DUSK] Inscatter colour bias
   float _viewSunDot = dot(float3(_98, _99, _100), float3(_sunDirection.x, _sunDirection.y, _sunDirection.z));
-  float3 _inscatterBias = InscatterColorBias(_viewSunDot, _dawnDuskFactor, float3(_4256, _4257, _4258));
+  float3 _inscatterBias = InscatterColorBiasProbe(_viewSunDot, _dawnDuskFactor, float3(_4256, _4257, _4258));
   _4273 *= _inscatterBias.x;
   _4274 *= _inscatterBias.y;
   _4275 *= _inscatterBias.z;

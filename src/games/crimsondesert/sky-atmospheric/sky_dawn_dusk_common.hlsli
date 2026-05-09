@@ -2,6 +2,7 @@
 #define SRC_CRIMSONDESERT_SKY_ATMOSPHERIC_SKY_DAWN_DUSK_COMMON_HLSLI_
 
 #include "../shared.h"
+#include "sky_weather_common.hlsli"
 
 float DawnDuskFactor(float sunElevation) {
   if (DAWN_DUSK_IMPROVEMENTS == 0.f) return 0.f;
@@ -27,20 +28,15 @@ float DawnDuskFactor(float sunElevation) {
 
 float NightSkyAttenuation(float sunElevation) {
   if (NIGHT_SKY_ATTENUATION == 0.f) return 1.f;
-  
-  // Night zone: sun below 0° (horizon) — hardcoded to 10% brightness
+
   float nightMin = 0.10f;
-  
-  // Twilight zone: sun between 0° and +10° — hardcoded to 10% brightness
   float twilightMin = 0.10f;
-  
-  // Blend from night to twilight as sun rises from 0° to +0.087 (~5°)
+
   float nightToTwilight = smoothstep(0.0f, 0.087f, sunElevation);
   float currentMin = lerp(nightMin, twilightMin, nightToTwilight);
-  
-  // Blend from twilight to full brightness as sun rises from +0.087 to +0.17 (~10°)
+
   float twilightToDay = smoothstep(0.087f, 0.17f, sunElevation);
-  
+
   return lerp(currentMin, 1.f, twilightToDay);
 }
 
@@ -53,19 +49,24 @@ float MiePhaseBoostedG(float baseG, float dawnDuskFactor) {
   return min(boostedG, maxG);
 }
 
-// Base game's scattering on the east and west looks very similar.
-// This adds hue differences at the horizon for better distinction.
-// Hues are picked from the spectral Rayleigh we added.
+// Inscatter colour bias — adds directional warm/cool distinction between
+// the sun-facing and away-from-sun hemispheres. Base game scattering on
+// east and west looks very similar; this adds hue differences at the
+// horizon. Hues are picked from the spectral Rayleigh we added.
+//
+// When Custom Weather Editing is on, the weather system additionally
+// shifts the warm tint from yellow toward orange. All colour math lives
+// in sky_weather_common.hlsli (WeatherInscatterBias).
 float3 InscatterColorBias(float viewSunDot, float dawnDuskFactor,
                           float3 extinctionRGB) {
-  if (dawnDuskFactor == 0.f) return 1.f;
+  return WeatherInscatterBias(viewSunDot, dawnDuskFactor);
+}
 
-  float t = mad(viewSunDot, 0.5f, 0.5f);
-  float3 warm = float3(1.044f, 1.000f, 0.965f);
-  float3 cool = float3(0.958f, 1.000f, 1.035f);
-  float3 tint = lerp(cool, warm, t);
-  float strength = 0.15f;
-  return lerp(1.f, tint, dawnDuskFactor * strength);
+// Probe variant: attenuated weather LMS shift for the offscreen sky probe
+// that feeds the GI cubemap. Prevents oversaturated indirect lighting.
+float3 InscatterColorBiasProbe(float viewSunDot, float dawnDuskFactor,
+                               float3 extinctionRGB) {
+  return WeatherInscatterBiasProbe(viewSunDot, dawnDuskFactor);
 }
 
 // Adds directional bias into the L1 SH band along the sun direction,
@@ -78,16 +79,13 @@ void SHDirectionalBias(float3 sunDir, float dawnDuskFactor, float3 L0,
   }
 
   float shScale = 0.3253f;
-
   float elevBlend = saturate(sunDir.y * 4.f);
-  float warmR = lerp(1.15f, 1.05f, elevBlend);
-  float warmG = lerp(1.02f, 1.00f, elevBlend);
-  float warmB = lerp(0.85f, 0.95f, elevBlend);
+  float3 warmth = WeatherSHWarmth(elevBlend);
 
   float biasStrength = 0.35f;
-  float magR = L0.x * biasStrength * dawnDuskFactor * warmR * shScale;
-  float magG = L0.y * biasStrength * dawnDuskFactor * warmG * shScale;
-  float magB = L0.z * biasStrength * dawnDuskFactor * warmB * shScale;
+  float magR = L0.x * biasStrength * dawnDuskFactor * warmth.x * shScale;
+  float magG = L0.y * biasStrength * dawnDuskFactor * warmth.y * shScale;
+  float magB = L0.z * biasStrength * dawnDuskFactor * warmth.z * shScale;
 
   biasR = sunDir * magR;
   biasG = sunDir * magG;
@@ -105,7 +103,7 @@ float3 DawnDuskAmbientBoost(float3 ambientRGB, float3 surfaceNormal,
   float nDotSun = dot(surfaceNormal, sunDir);
   float sunFacing = mad(nDotSun, 0.5f, 0.5f);
 
-  float3 warm = float3(1.06f, 1.00f, 0.94f);
+  float3 warm = WeatherAmbientWarmth();
   float3 cool = float3(0.94f, 1.00f, 1.06f);
   float3 tint = lerp(cool, warm, sunFacing);
 
