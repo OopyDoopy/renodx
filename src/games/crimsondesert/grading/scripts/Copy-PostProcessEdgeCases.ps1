@@ -2,7 +2,7 @@
 param(
     [string]$SourceFolder = 'G:\Games\Steam\steamapps\common\Crimson Desert\bin64\renodx-dev\dump',
     [string]$GradingFolder = 'G:\Projects\source\repos\renodx\src\games\crimsondesert\grading',
-    [string]$EdgeCasesFolder = 'G:\Projects\source\repos\renodx\src\games\crimsondesert\grading\postprocessedgecases',
+    [string]$EdgeCasesFolder = 'G:\Projects\source\repos\renodx\src\games\crimsondesert\grading\tonemap-sdr',
     [string]$Needle = '_localToneMappingParams.w > 0.0f',
     [string]$Prefix = 'PostProcessMaterial_'
 )
