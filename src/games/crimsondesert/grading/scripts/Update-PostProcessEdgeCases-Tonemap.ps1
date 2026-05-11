@@ -34,11 +34,20 @@ foreach ($file in $files) {
         $content = '#include "../tonemap.hlsli"' + $newline + $newline + $content
     }
 
-    if ($content -notmatch '#if 0 // Provided by tonemap\.hlsli') {
-        $cbufferPattern = '(?s)cbuffer __3__35__0__0__ExposureConstantBuffer : register\(b29, space35\) \{.*?\};\s*cbuffer __3__1__0__0__GlobalPushConstants : register\(b0, space1\) \{.*?\};'
-        if ([regex]::IsMatch($content, $cbufferPattern)) {
-            $content = [regex]::Replace(
-                $content,
+    $wrapCBuffer = {
+        param(
+            [string]$text,
+            [string]$cbufferPattern
+        )
+
+        $wrappedPattern = "(?s)#if 0 // Provided by tonemap\\.hlsli\\s*$cbufferPattern\\s*#endif"
+        if ([regex]::IsMatch($text, $wrappedPattern)) {
+            return [pscustomobject]@{ Content = $text; Found = $true }
+        }
+
+        if ([regex]::IsMatch($text, $cbufferPattern)) {
+            $updated = [regex]::Replace(
+                $text,
                 $cbufferPattern,
                 {
                     param($m)
@@ -46,9 +55,32 @@ foreach ($file in $files) {
                 },
                 1
             )
-        } else {
-            $missingCBufferPattern.Add($file.Name)
+
+            return [pscustomobject]@{ Content = $updated; Found = $true }
         }
+
+        return [pscustomobject]@{ Content = $text; Found = $false }
+    }
+
+    $exposureCBufferPattern = '(?s)cbuffer __3__35__0__0__ExposureConstantBuffer : register\(b31, space35\) \{.*?\};'
+    $globalPushConstantsPattern = '(?s)cbuffer __3__1__0__0__GlobalPushConstants : register\(b0, space1\) \{.*?\};'
+
+    $missingAnyCBuffer = $false
+
+    $exposureWrapResult = & $wrapCBuffer $content $exposureCBufferPattern
+    $content = $exposureWrapResult.Content
+    if (-not $exposureWrapResult.Found) {
+        $missingAnyCBuffer = $true
+    }
+
+    $globalPushWrapResult = & $wrapCBuffer $content $globalPushConstantsPattern
+    $content = $globalPushWrapResult.Content
+    if (-not $globalPushWrapResult.Found) {
+        $missingAnyCBuffer = $true
+    }
+
+    if ($missingAnyCBuffer) {
+        $missingCBufferPattern.Add($file.Name)
     }
 
     $needle = 'if (_localToneMappingParams.w > 0.0f) {'
