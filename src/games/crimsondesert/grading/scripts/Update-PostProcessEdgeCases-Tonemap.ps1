@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 
 if ([string]::IsNullOrWhiteSpace($Folder)) {
     $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $Folder = Join-Path $scriptDir '..\postprocessedgecases'
+    $Folder = Join-Path $scriptDir '..\tonemap-sdr'
 }
 
 if (-not (Test-Path -LiteralPath $Folder)) {
