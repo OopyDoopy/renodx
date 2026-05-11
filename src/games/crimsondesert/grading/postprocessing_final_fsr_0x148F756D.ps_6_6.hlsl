@@ -1,4 +1,4 @@
-#include "../tonemap.hlsli"
+#include "../common.hlsl"
 
 Texture2D<float4> __3__36__0__0__g_sceneColor : register(t28, space36);
 
@@ -6,7 +6,6 @@ cbuffer __3__35__0__0__SceneConstantBuffer : register(b16, space35) {
   uint4 __3__35__0__0__SceneConstantBuffer_raw[172];
 };
 
-#if 0 // Provided by tonemap.hlsli
 cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _postProcessParams : packoffset(c000.x);
   float4 _postProcessParams1 : packoffset(c001.x);
@@ -24,7 +23,6 @@ cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   int _nightToneParm : packoffset(c012.y);
   int2 _padding : packoffset(c012.z);
 };
-#endif
 
 SamplerState __0__4__0__0__g_staticBilinearClamp : register(s3, space4);
 
@@ -89,7 +87,12 @@ float4 main(
     _36 = _13.x;
     _37 = _13.z;
   }
-  if (_slopeParams.w > 0.0f) {
+
+  _36 = lerp(_13.x, _36, CUSTOM_CHROMATIC_ABERRATION);
+  _37 = lerp(_13.z, _37, CUSTOM_CHROMATIC_ABERRATION);
+
+  bool vanilla_film_grain = (_slopeParams.w > 0.0f) && CUSTOM_FILM_GRAIN_TYPE == 0;
+  if (vanilla_film_grain) {
     _47 = ((TEXCOORD.y + 4.0f) * (TEXCOORD.x + 4.0f)) * asfloat(__3__35__0__0__SceneConstantBuffer_raw[0u].x);
     _48 = _47 * 0.7692307829856873f;
     _52 = frac(abs(_48));
@@ -106,11 +109,33 @@ float4 main(
     _82 = _13.y;
     _83 = _37;
   }
+
+  if (CUSTOM_FILM_GRAIN_TYPE != 0 || CUSTOM_SHARPENING_TYPE != 0) {
+    float3 color_pq = float3(_81, _82, _83);
+
+    float scaling = RENODX_TONE_MAP_TYPE == 0 ? 100.0f : RENODX_DIFFUSE_WHITE_NITS;
+    float3 color_bt2020 = renodx::color::pq::DecodeSafe(color_pq, scaling);
+    float3 color_bt709 = renodx::color::bt709::from::BT2020(color_bt2020);
+    color_bt709 = CustomPostProcessing(color_bt709, TEXCOORD, __3__36__0__0__g_sceneColor, __0__4__0__0__g_staticBilinearClamp, 0, scaling);
+    color_bt2020 = renodx::color::bt2020::from::BT709(color_bt709);
+    color_pq = renodx::color::pq::EncodeSafe(color_bt2020, scaling);
+
+    _81 = color_pq.x;
+    _82 = color_pq.y;
+    _83 = color_pq.z;
+  }
+
   _111 = 1.0f - abs(_etcParams.w);
   _115 = saturate(_etcParams.w);
+#if 0
   _116 = (_111 * select((_81 < 0.040449999272823334f), (_81 * 0.07739938050508499f), exp2(log2((_81 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _115;
   _117 = (_111 * select((_82 < 0.040449999272823334f), (_82 * 0.07739938050508499f), exp2(log2((_82 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _115;
   _118 = (_111 * select((_83 < 0.040449999272823334f), (_83 * 0.07739938050508499f), exp2(log2((_83 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _115;
+#else
+  _116 = _111 * _81 + _115;
+  _117 = _111 * _82 + _115;
+  _118 = _111 * _83 + _115;
+#endif
   if (_colorGradingParams.w > 0.0f) {
     _123 = saturate(_colorGradingParams.w);
     _140 = (((max(0.0f, (1.0f - _116)) - _116) * _123) + _116);
@@ -137,7 +162,7 @@ float4 main(
   }
   _228 = abs(_177);
   _229 = abs(_178 + -1.0f);
-  _233 = saturate(1.0f - ((_225 * _postProcessParams.x) * dot(float2(_228, _229), float2(_228, _229))));
+  _233 = saturate(1.0f - ((_225 * _postProcessParams.x * CUSTOM_VIGNETTE) * dot(float2(_228, _229), float2(_228, _229))));
   _243 = exp2(log2(_233 * exp2(log2(max(0.0f, (_149 + -0.8359375f)) / (18.8515625f - (_149 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
   _244 = exp2(log2(_233 * exp2(log2(max(0.0f, (_150 + -0.8359375f)) / (18.8515625f - (_150 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
   _245 = exp2(log2(_233 * exp2(log2(max(0.0f, (_151 + -0.8359375f)) / (18.8515625f - (_151 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
@@ -160,5 +185,8 @@ float4 main(
   SV_Target.y = _284;
   SV_Target.z = _285;
   SV_Target.w = _13.w;
+
+  SV_Target.xyz = FinalizeHDR(SV_Target.xyz);
+
   return SV_Target;
 }
