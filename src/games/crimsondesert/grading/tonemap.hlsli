@@ -1,14 +1,6 @@
 #include "../common.hlsl"
 #include "./debug.hlsli"
 
-cbuffer __3__35__0__0__ExposureConstantBuffer : register(b29, space35) {
-  float4 _exposure0 : packoffset(c000.x);
-  float4 _exposure1 : packoffset(c001.x);
-  float4 _exposure2 : packoffset(c002.x);
-  float4 _exposure3 : packoffset(c003.x);
-  float4 _exposure4 : packoffset(c004.x);
-};
-
 // AE2 fields used by the grading path:
 //   _exposure0.x = final adapted exposure scalar written by AdaptExposure
 //   _exposure2.x = raw meter / histogram luminance
@@ -16,6 +8,17 @@ cbuffer __3__35__0__0__ExposureConstantBuffer : register(b29, space35) {
 //   _exposure2.z = clean adapted field ("Adapt" in the debug panel)
 //   _exposure2.w = signed slow-direction settling delta from the clean field
 //   _exposure4.z = filtered exposure history used by glare/lens effects
+
+// _userImageAdjust.z is the grading exposure multiplier
+// ("ColorGradeExposure" in the addon UI). It sits on top of the AE solve.
+
+cbuffer __3__35__0__0__ExposureConstantBuffer : register(b31, space35) {
+  float4 _exposure0 : packoffset(c000.x);
+  float4 _exposure1 : packoffset(c001.x);
+  float4 _exposure2 : packoffset(c002.x);
+  float4 _exposure3 : packoffset(c003.x);
+  float4 _exposure4 : packoffset(c004.x);
+};
 
 cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _postProcessParams : packoffset(c000.x);
@@ -31,12 +34,9 @@ cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _offsetParams : packoffset(c010.x);
   float4 _powerParams : packoffset(c011.x);
   int _colorBlindParam : packoffset(c012.x);
-  int3 _padding : packoffset(c012.y);
+  int _nightToneParm : packoffset(c012.y);
+  int2 _padding : packoffset(c012.z);
 };
-
-// _userImageAdjust.z is the grading exposure multiplier
-// ("ColorGradeExposure" in the addon UI). It sits on top of the AE solve.
-
 
 float GetPerceptualAdaptedFieldYf() {
   // Prefer the clean adapted field, then fall back to the raw meter when
