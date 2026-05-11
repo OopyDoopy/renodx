@@ -1,13 +1,13 @@
 #include "./tonemap.hlsli"
 
-Texture3D<float4> __3__36__0__0__g_displayRenderingTransformLUT : register(t130, space36);
+Texture3D<float4> __3__36__0__0__g_displayRenderingTransformLUT : register(t135, space36);
 
-Texture2D<float4> __3__36__0__0__g_sceneColor : register(t33, space36);
+Texture2D<float4> __3__36__0__0__g_sceneColor : register(t28, space36);
 
 RWTexture2D<float4> __3__38__0__1__g_textureUAV : register(u13, space38);
 
 #if 0
-cbuffer __3__35__0__0__ExposureConstantBuffer : register(b29, space35) {
+cbuffer __3__35__0__0__ExposureConstantBuffer : register(b31, space35) {
   float4 _exposure0 : packoffset(c000.x);
   float4 _exposure1 : packoffset(c001.x);
   float4 _exposure2 : packoffset(c002.x);
@@ -29,7 +29,8 @@ cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _offsetParams : packoffset(c010.x);
   float4 _powerParams : packoffset(c011.x);
   int _colorBlindParam : packoffset(c012.x);
-  int3 _padding : packoffset(c012.y);
+  int _nightToneParm : packoffset(c012.y);
+  int2 _padding : packoffset(c012.z);
 };
 #endif
 
@@ -61,13 +62,11 @@ float3 EncodeDisplayTransformLutCoordinates(float3 lut_input) {
 }
 
 float3 etcParams(float3 color, bool use_etc_params = true) {
-
   float _1797;
   float _1798;
   float _1799;
 
   if (_etcParams.z == 0.0f && use_etc_params) {
-
     float _1675;
     float _1676;
     float _1677;
