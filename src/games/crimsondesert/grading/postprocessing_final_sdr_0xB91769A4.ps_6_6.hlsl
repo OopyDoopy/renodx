@@ -1,4 +1,4 @@
-#include "../tonemap.hlsli"
+#include "../common.hlsl"
 
 Texture2D<float4> __3__36__0__0__g_sceneColor : register(t28, space36);
 
@@ -8,7 +8,6 @@ cbuffer __3__35__0__0__SceneConstantBuffer : register(b16, space35) {
   uint4 __3__35__0__0__SceneConstantBuffer_raw[172];
 };
 
-#if 0 // Provided by tonemap.hlsli
 cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _postProcessParams : packoffset(c000.x);
   float4 _postProcessParams1 : packoffset(c001.x);
@@ -26,7 +25,6 @@ cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   int _nightToneParm : packoffset(c012.y);
   int2 _padding : packoffset(c012.z);
 };
-#endif
 
 SamplerState __0__4__0__0__g_staticBilinearClamp : register(s3, space4);
 
@@ -107,7 +105,12 @@ float4 main(
     _38 = _15.x;
     _39 = _15.z;
   }
-  if (_slopeParams.w > 0.0f) {
+
+  _38 = lerp(_15.x, _38, CUSTOM_CHROMATIC_ABERRATION);
+  _39 = lerp(_15.z, _39, CUSTOM_CHROMATIC_ABERRATION);
+
+  bool vanilla_film_grain = (_slopeParams.w > 0.0f) && CUSTOM_FILM_GRAIN_TYPE == 0;
+  if (vanilla_film_grain) {
     _49 = ((TEXCOORD.y + 4.0f) * (TEXCOORD.x + 4.0f)) * asfloat(__3__35__0__0__SceneConstantBuffer_raw[0u].x);
     _50 = _49 * 0.7692307829856873f;
     _54 = frac(abs(_50));
@@ -124,6 +127,17 @@ float4 main(
     _84 = _15.y;
     _85 = _39;
   }
+
+  if (CUSTOM_FILM_GRAIN_TYPE != 0 || CUSTOM_SHARPENING_TYPE != 0) {
+    float3 color_bt709 = float3(_83, _84, _85);
+    color_bt709 = renodx::color::srgb::Decode(color_bt709);
+    color_bt709 = CustomPostProcessing(color_bt709, TEXCOORD, __3__36__0__0__g_sceneColor, __0__4__0__0__g_staticBilinearClamp, 1);
+    color_bt709 = renodx::color::srgb::Encode(color_bt709);
+    _83 = color_bt709.x;
+    _84 = color_bt709.y;
+    _85 = color_bt709.z;
+  }
+
   _91 = uint(asfloat(__3__35__0__0__SceneConstantBuffer_raw[3u].x) * TEXCOORD.x);
   _92 = uint(asfloat(__3__35__0__0__SceneConstantBuffer_raw[3u].y) * TEXCOORD.y);
   _94 = __3__36__0__0__g_depth.Sample(__0__4__0__0__g_staticPointBlackBorder, float2(TEXCOORD.x, TEXCOORD.y));
@@ -139,6 +153,9 @@ float4 main(
     _168 = saturate(((_142 * (((_114.x + _109.x) + _119.x) + _124.x)) + _83) * _145);
     _169 = saturate(((_142 * (((_114.y + _109.y) + _119.y) + _124.y)) + _84) * _145);
     _170 = saturate(((_142 * (((_114.z + _109.z) + _119.z) + _124.z)) + _85) * _145);
+    _168 = lerp(_83, _168, CUSTOM_SHARPENING);
+    _169 = lerp(_84, _169, CUSTOM_SHARPENING);
+    _170 = lerp(_85, _170, CUSTOM_SHARPENING);
   } else {
     _168 = _83;
     _169 = _84;
@@ -215,7 +232,7 @@ float4 main(
   }
   _405 = abs(_353);
   _406 = abs(_354 + -1.0f);
-  _410 = saturate(1.0f - ((_402 * _postProcessParams.x) * dot(float2(_405, _406), float2(_405, _406))));
+  _410 = saturate(1.0f - ((_402 * _postProcessParams.x * CUSTOM_VIGNETTE) * dot(float2(_405, _406), float2(_405, _406))));
   if (!(SV_Position.y < asfloat(__3__35__0__0__SceneConstantBuffer_raw[9u].w))) {
     if (SV_Position.y < (asfloat(__3__35__0__0__SceneConstantBuffer_raw[3u].y) - asfloat(__3__35__0__0__SceneConstantBuffer_raw[9u].w))) {
       _424 = (_410 * exp2(log2(saturate(mad((_12[min((uint)(((int)(6u + (_287 * 9)))), 35u)]), _246, mad((_12[min((uint)(((int)(3u + (_287 * 9)))), 35u)]), _245, ((_12[min((uint)(((int)(0u + (_287 * 9)))), 35u)]) * _244))))) * _342));
@@ -235,5 +252,8 @@ float4 main(
   SV_Target.y = _425;
   SV_Target.z = _426;
   SV_Target.w = _15.w;
+
+  SV_Target.xyz = FinalizeSDR(SV_Target.xyz);
+
   return SV_Target;
 }
