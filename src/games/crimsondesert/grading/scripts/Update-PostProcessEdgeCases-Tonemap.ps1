@@ -62,10 +62,17 @@ foreach ($file in $files) {
         return [pscustomobject]@{ Content = $text; Found = $false }
     }
 
+    $sceneCBufferPattern = '(?s)cbuffer __3__35__0__0__SceneConstantBuffer : register\(b16, space35\) \{.*?\};'
     $exposureCBufferPattern = '(?s)cbuffer __3__35__0__0__ExposureConstantBuffer : register\(b31, space35\) \{.*?\};'
     $globalPushConstantsPattern = '(?s)cbuffer __3__1__0__0__GlobalPushConstants : register\(b0, space1\) \{.*?\};'
 
     $missingAnyCBuffer = $false
+
+    $sceneWrapResult = & $wrapCBuffer $content $sceneCBufferPattern
+    $content = $sceneWrapResult.Content
+    if (-not $sceneWrapResult.Found) {
+        $missingAnyCBuffer = $true
+    }
 
     $exposureWrapResult = & $wrapCBuffer $content $exposureCBufferPattern
     $content = $exposureWrapResult.Content

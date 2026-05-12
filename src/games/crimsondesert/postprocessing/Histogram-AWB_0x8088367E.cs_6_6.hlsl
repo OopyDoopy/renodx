@@ -8,35 +8,35 @@ struct GlareInstanceData {
 };
 
 
-Texture2D<float4> __3__36__0__0__g_sceneColor : register(t33, space36);
+Texture2D<float4> __3__36__0__0__g_sceneColor : register(t28, space36);
 
-Texture2D<float4> __3__36__0__0__g_sceneColorLightingOnlyForAwb : register(t68, space36);
+Texture2D<float4> __3__36__0__0__g_sceneColorLightingOnlyForAwb : register(t47, space36);
 
-Texture2D<float> __3__36__0__0__g_depth : register(t75, space36);
+Texture2D<float> __3__36__0__0__g_depth : register(t37, space36);
 
-Texture2D<uint2> __3__36__0__0__g_stencil : register(t38, space36);
+Texture2D<uint2> __3__36__0__0__g_stencil : register(t29, space36);
 
-Texture2D<float4> __3__36__0__0__g_vertexNormal : register(t92, space36);
+Texture2D<float4> __3__36__0__0__g_vertexNormal : register(t75, space36);
 
-RWStructuredBuffer<uint> __3__39__0__1__g_histogramUAV : register(u10, space39);
+RWStructuredBuffer<uint> __3__39__0__1__g_histogramUAV : register(u9, space39);
 
-RWStructuredBuffer<uint> __3__39__0__1__g_histogram2UAV : register(u11, space39);
+RWStructuredBuffer<uint> __3__39__0__1__g_histogram2UAV : register(u10, space39);
 
-RWStructuredBuffer<uint> __3__39__0__1__g_histogramRUAV : register(u12, space39);
+RWStructuredBuffer<uint> __3__39__0__1__g_histogramRUAV : register(u11, space39);
 
-RWStructuredBuffer<uint> __3__39__0__1__g_histogramGUAV : register(u13, space39);
+RWStructuredBuffer<uint> __3__39__0__1__g_histogramGUAV : register(u12, space39);
 
-RWStructuredBuffer<uint> __3__39__0__1__g_histogramBUAV : register(u14, space39);
+RWStructuredBuffer<uint> __3__39__0__1__g_histogramBUAV : register(u13, space39);
 
 RWTexture2D<float3> __3__38__0__1__g_glareSourceUAV : register(u23, space38);
 
 RWTexture2D<float3> __3__38__0__1__g_colorAdatationSourceUAV : register(u24, space38);
 
-RWStructuredBuffer<GlareInstanceData> __3__39__0__1__g_glareInstanceUAV : register(u8, space39);
+RWStructuredBuffer<GlareInstanceData> __3__39__0__1__g_glareInstanceUAV : register(u5, space39);
 
 RWByteAddressBuffer __3__39__0__1__g_glareInstanceCounterUAV : register(u1, space39);
 
-cbuffer __3__35__0__0__SceneConstantBuffer : register(b14, space35) {
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b16, space35) {
   float4 _time;
   float4 _timeNoScale;
   uint4 _frameNumber;
@@ -127,7 +127,7 @@ cbuffer __3__35__0__0__SceneConstantBuffer : register(b14, space35) {
   uint _isPhotosensitiveMode_isAllolwBlood;
 };
 
-cbuffer __3__35__0__0__ExposureConstantBuffer : register(b29, space35) {
+cbuffer __3__35__0__0__ExposureConstantBuffer : register(b31, space35) {
   float4 _exposure0 : packoffset(c000.x);
   float4 _exposure1 : packoffset(c001.x);
   float4 _exposure2 : packoffset(c002.x);
@@ -135,7 +135,7 @@ cbuffer __3__35__0__0__ExposureConstantBuffer : register(b29, space35) {
   float4 _exposure4 : packoffset(c004.x);
 };
 
-cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b24, space35) {
+cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b26, space35) {
   float _sunLightIntensity : packoffset(c000.x);
   float _sunLightPreset : packoffset(c000.y);
   float _sunSizeAngle : packoffset(c000.z);
