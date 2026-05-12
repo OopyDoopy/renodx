@@ -12,6 +12,10 @@
 // _userImageAdjust.z is the grading exposure multiplier
 // ("ColorGradeExposure" in the addon UI). It sits on top of the AE solve.
 
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b16, space35) {
+  uint4 __3__35__0__0__SceneConstantBuffer_raw[172];
+};
+
 cbuffer __3__35__0__0__ExposureConstantBuffer : register(b31, space35) {
   float4 _exposure0 : packoffset(c000.x);
   float4 _exposure1 : packoffset(c001.x);
@@ -197,11 +201,31 @@ float3 SDRToneMap(float3 color, bool use_color_blind = false, bool use_etc_param
   float _1577 = -0.0f - _1574;
   float _1578 = -0.0f - _1575;
   float _1579 = dot(float3(_1576, _1577, _1578), float3(0.2125999927520752f, 0.7152000069618225f, 0.0722000002861023f));
-  float _1585 = saturate((_exposure2.x + -3.0f) * 0.1428571492433548f) * 0.20000004768371582f;
-  float _1586 = _1585 + 1.0f;
-  float _1617 = ((exp2(log2((_1586 - (_1585 * saturate((_1573 * _1573) * _1576))) * _1576)) - _1579) * 1.399999976158142f) + _1579;
-  float _1618 = ((exp2(log2((_1586 - (saturate((_1574 * _1574) * _1577) * _1585)) * _1577)) - _1579) * 1.399999976158142f) + _1579;
-  float _1619 = ((exp2(log2((_1586 - (saturate((_1575 * _1575) * _1578) * _1585)) * _1578)) - _1579) * 1.399999976158142f) + _1579;
+  float _1796_blend, _1797_exp, _1798_sat;
+
+  // __3__35__0__0__SceneConstantBuffer_raw[0u].w = time
+  if (_nightToneParm == 1) {
+    float _758 = exp2(exp2(log2(abs((asfloat(__3__35__0__0__SceneConstantBuffer_raw[0u].w) * 0.11666666716337204f) + -1.399999976158142f)) * 8.0f) * -1.4426950216293335f) + 1.0f;
+    float _759 = -0.7999999523162842f / _758;
+    float _760 = -1.2000000476837158f / _758;
+    float _761 = 0.20000004768371582f / _758;
+    float _767 = saturate((_exposure2.x + -0.6000000238418579f) * 0.10638298094272614f);
+    float _770 = saturate((_exposure2.x + -0.10000000149011612f) * 2.0f);
+    float _777 = (_759 + 1.399999976158142f) + (_770 * (-0.3999999761581421f - _759));
+    float _778 = (_760 + 1.600000023841858f) + (_770 * (-0.6000000238418579f - _760));
+    float _779 = (_761 + 0.8999999761581421f) + (_770 * (0.5f - _761));
+    _1796_blend = lerp(_778, 1.2000000476837158f, _767);
+    _1797_exp = lerp(_777, 1.0f, _767);
+    _1798_sat = lerp(_779, 1.399999976158142f, _767);
+  } else {
+    _1796_blend = (saturate((_exposure2.x + -3.0f) * 0.1428571492433548f) * 0.20000004768371582f) + 1.0f;
+    _1797_exp = 1.0f;
+    _1798_sat = 1.399999976158142f;
+  }
+  float _1808 = 1.0f - _1796_blend;
+  float _1617 = ((exp2(log2(((saturate((_1573 * _1573) * _1576) * _1808) + _1796_blend) * _1576) * _1797_exp) - _1579) * _1798_sat) + _1579;
+  float _1618 = ((exp2(log2(((saturate((_1574 * _1574) * _1577) * _1808) + _1796_blend) * _1577) * _1797_exp) - _1579) * _1798_sat) + _1579;
+  float _1619 = ((exp2(log2(((saturate((_1575 * _1575) * _1578) * _1808) + _1796_blend) * _1578) * _1797_exp) - _1579) * _1798_sat) + _1579;
   float _1638 = saturate(exp2(log2(mad(_1619, -0.09902974218130112f, mad(_1618, -0.09802088141441345f, (_1617 * 1.1968790292739868f)))) * 2.200000047683716f));
   float _1639 = saturate(exp2(log2(mad(_1619, -0.09896117448806763f, mad(_1618, 1.1519031524658203f, (_1617 * -0.052896853536367416f)))) * 2.200000047683716f));
   float _1640 = saturate(exp2(log2(mad(_1619, 1.151073694229126f, mad(_1618, -0.09804344922304153f, (_1617 * -0.05297163501381874f)))) * 2.200000047683716f));
