@@ -11,9 +11,11 @@ Texture2D<uint2> __3__36__0__0__g_stencil : register(t29, space36);
 
 Texture2D<uint> __3__36__0__0__g_CustomRenderPassValue : register(t69, space36);
 
+#if 0 // Provided by tonemap.hlsli
 cbuffer __3__35__0__0__SceneConstantBuffer : register(b16, space35) {
   uint4 __3__35__0__0__SceneConstantBuffer_raw[172];
 };
+#endif
 
 #if 0 // Provided by tonemap.hlsli
 cbuffer __3__35__0__0__ExposureConstantBuffer : register(b31, space35) {
