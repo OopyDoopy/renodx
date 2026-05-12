@@ -1,7 +1,7 @@
 #include "../shared.h"
 #include "../common.hlsl"
 
-Texture3D<float> __3__36__0__1__g_skyVisibilityVoxelsTexturesLikeUav : register(t141, space36);
+Texture3D<float> __3__36__0__1__g_skyVisibilityVoxelsTexturesLikeUav : register(t140, space36);
 
 StructuredBuffer<uint> __3__37__0__0__g_histogram : register(t3, space37);
 
@@ -13,11 +13,11 @@ StructuredBuffer<uint> __3__37__0__0__g_histogramG : register(t6, space37);
 
 StructuredBuffer<uint> __3__37__0__0__g_histogramB : register(t7, space37);
 
-RWStructuredBuffer<float> __3__39__0__1__g_exposureUAV : register(u9, space39);
+RWStructuredBuffer<float> __3__39__0__1__g_exposureUAV : register(u8, space39);
 
-RWStructuredBuffer<float4> __3__39__0__1__g_autoWhiteBalanceColorUAV : register(u15, space39);
+RWStructuredBuffer<float4> __3__39__0__1__g_autoWhiteBalanceColorUAV : register(u14, space39);
 
-cbuffer __3__35__0__0__SceneConstantBuffer : register(b14, space35) {
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b16, space35) {
   float4 _time;
   float4 _timeNoScale;
   uint4 _frameNumber;
@@ -108,7 +108,7 @@ cbuffer __3__35__0__0__SceneConstantBuffer : register(b14, space35) {
   uint _isPhotosensitiveMode_isAllolwBlood;
 };
 
-cbuffer __3__35__0__0__VoxelGlobalIlluminationConstantBuffer : register(b0, space35) {
+cbuffer __3__35__0__0__VoxelGlobalIlluminationConstantBuffer : register(b1, space35) {
   float4 _voxelParams : packoffset(c000.x);
   float4 _invClipmapExtent : packoffset(c001.x);
   float4 _wrappedViewPosForInject : packoffset(c002.x);
@@ -1725,6 +1725,10 @@ void main(
     }
   }
 }
+
+// groupshared uint g_pyramid[256];
+// groupshared uint g_pyramid2[256];
+// groupshared int g_pyramidRGB[768];
 
 // [numthreads(256, 1, 1)]
 // void main(
