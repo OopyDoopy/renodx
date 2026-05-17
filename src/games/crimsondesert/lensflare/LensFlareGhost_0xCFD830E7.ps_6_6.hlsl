@@ -1,4 +1,4 @@
-Texture2D<float3> __3__36__0__0__g_sceneColor : register(t19, space36);
+Texture2D<float3> __3__36__0__0__g_sceneColor : register(t0, space36);
 
 cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _textureSizeAndInvSize : packoffset(c000.x);

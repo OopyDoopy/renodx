@@ -10,45 +10,45 @@ struct SurfelData {
 };
 
 
-Texture3D<float> __3__36__0__1__g_skyVisibilityVoxelsTexturesLikeUav : register(t224, space36);
+Texture3D<float> __3__36__0__1__g_skyVisibilityVoxelsTexturesLikeUav : register(t222, space36);
 
-Texture3D<float> __3__36__0__1__g_signedDistanceVoxelsTexturesLikeUav : register(t225, space36);
+Texture3D<float> __3__36__0__1__g_signedDistanceVoxelsTexturesLikeUav : register(t223, space36);
 
-Texture3D<uint> __3__36__0__0__g_surfelIndicesVoxelsTextures : register(t218, space36);
+Texture3D<uint> __3__36__0__0__g_surfelIndicesVoxelsTextures : register(t216, space36);
 
-Texture3D<uint4> __3__36__0__0__g_axisAlignedDistanceTextures : register(t219, space36);
+Texture3D<uint4> __3__36__0__0__g_axisAlignedDistanceTextures : register(t217, space36);
 
-Texture2D<float2> __3__36__0__0__g_texNetDensity : register(t75, space36);
+Texture2D<float2> __3__36__0__0__g_texNetDensity : register(t42, space36);
 
-Texture3D<float> __3__36__0__0__g_texCloudVolumeShadow : register(t196, space36);
+Texture3D<float> __3__36__0__0__g_texCloudVolumeShadow : register(t194, space36);
 
-Texture2D<float4> __3__36__0__0__g_terrainShadowDepth : register(t140, space36);
+Texture2D<float4> __3__36__0__0__g_terrainShadowDepth : register(t49, space36);
 
-Texture2DArray<float4> __3__36__0__0__g_dynamicShadowDepthArray : register(t230, space36);
+Texture2DArray<float4> __3__36__0__0__g_dynamicShadowDepthArray : register(t228, space36);
 
-Texture2DArray<float4> __3__36__0__0__g_shadowDepthArray : register(t233, space36);
+Texture2DArray<float4> __3__36__0__0__g_shadowDepthArray : register(t231, space36);
 
-Texture2DArray<half4> __3__36__0__0__g_shadowColorArray : register(t235, space36);
+Texture2DArray<half4> __3__36__0__0__g_shadowColorArray : register(t233, space36);
 
-TextureCube<float4> __3__36__0__0__g_environmentColor : register(t226, space36);
+TextureCube<float4> __3__36__0__0__g_environmentColor : register(t224, space36);
 
-Texture2D<uint4> __3__36__0__0__g_baseColor : register(t44, space36);
+Texture2D<uint4> __3__36__0__0__g_baseColor : register(t24, space36);
 
-Texture2D<uint2> __3__36__0__0__g_normalDepth : register(t71, space36);
+Texture2D<uint2> __3__36__0__0__g_normalDepth : register(t75, space36);
 
-Texture2D<uint2> __3__36__0__0__g_normalDepthPrev : register(t50, space36);
+Texture2D<uint2> __3__36__0__0__g_normalDepthPrev : register(t76, space36);
 
-Texture2D<float4> __3__36__0__0__g_sceneColor : register(t173, space36);
+Texture2D<float4> __3__36__0__0__g_sceneColor : register(t150, space36);
 
-Texture2D<float> __3__36__0__0__g_raytracingDiffuseRayInversePDF : register(t93, space36);
+Texture2D<float> __3__36__0__0__g_raytracingDiffuseRayInversePDF : register(t160, space36);
 
-Texture2D<float4> __3__36__0__0__g_raytracingBaseColor : register(t94, space36);
+Texture2D<float4> __3__36__0__0__g_raytracingBaseColor : register(t161, space36);
 
-Texture2D<float4> __3__36__0__0__g_raytracingNormal : register(t95, space36);
+Texture2D<float4> __3__36__0__0__g_raytracingNormal : register(t162, space36);
 
-StructuredBuffer<SurfelData> __3__37__0__0__g_surfelDataBuffer : register(t18, space37);
+StructuredBuffer<SurfelData> __3__37__0__0__g_surfelDataBuffer : register(t24, space37);
 
-Texture2D<half4> __3__36__0__0__g_sceneShadowColor : register(t19, space36);
+Texture2D<half4> __3__36__0__0__g_sceneShadowColor : register(t65, space36);
 
 RWTexture2D<float4> __3__38__0__1__g_raytracingHitResultUAV : register(u43, space38);
 
@@ -59,7 +59,7 @@ cbuffer __1__3__0__0__PipelineProperty : register(b0, space3) {
   float2 __padding : packoffset(c000.z);
 };
 
-cbuffer __3__35__0__0__SceneConstantBuffer : register(b20, space35) {
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b19, space35) {
   float4 _time;
   float4 _timeNoScale;
   uint4 _frameNumber;
@@ -150,7 +150,7 @@ cbuffer __3__35__0__0__SceneConstantBuffer : register(b20, space35) {
   uint _isPhotosensitiveMode_isAllolwBlood;
 };
 
-cbuffer __3__35__0__0__ShadowConstantBuffer : register(b21, space35) {
+cbuffer __3__35__0__0__ShadowConstantBuffer : register(b20, space35) {
   float4 _shadowDepthRanges : packoffset(c000.x);
   float4 _massiveShadowSizeAndInvSize : packoffset(c001.x);
   uint4 _shadowParam : packoffset(c002.x);
@@ -186,7 +186,7 @@ cbuffer __3__35__0__0__ShadowConstantBuffer : register(b21, space35) {
   float4 _nearFieldShadowFrustumPlanes[6] : packoffset(c149.x);
 };
 
-cbuffer __3__35__0__0__VoxelGlobalIlluminationConstantBuffer : register(b2, space35) {
+cbuffer __3__35__0__0__VoxelGlobalIlluminationConstantBuffer : register(b1, space35) {
   float4 _voxelParams : packoffset(c000.x);
   float4 _invClipmapExtent : packoffset(c001.x);
   float4 _wrappedViewPosForInject : packoffset(c002.x);
@@ -201,7 +201,7 @@ cbuffer __3__35__0__0__VoxelGlobalIlluminationConstantBuffer : register(b2, spac
   uint4 _surfelTimestamps : packoffset(c047.x);
 };
 
-cbuffer __3__35__0__0__ExposureConstantBuffer : register(b34, space35) {
+cbuffer __3__35__0__0__ExposureConstantBuffer : register(b33, space35) {
   float4 _exposure0 : packoffset(c000.x);
   float4 _exposure1 : packoffset(c001.x);
   float4 _exposure2 : packoffset(c002.x);
@@ -209,7 +209,7 @@ cbuffer __3__35__0__0__ExposureConstantBuffer : register(b34, space35) {
   float4 _exposure4 : packoffset(c004.x);
 };
 
-cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b30, space35) {
+cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b29, space35) {
   float _sunLightIntensity : packoffset(c000.x);
   float _sunLightPreset : packoffset(c000.y);
   float _sunSizeAngle : packoffset(c000.z);
@@ -266,7 +266,7 @@ cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b30, space35) {
   float4 _mieScatterColor : packoffset(c014.x);
 };
 
-cbuffer __3__35__0__0__PrecomputedAmbientConstantBuffer : register(b31, space35) {
+cbuffer __3__35__0__0__PrecomputedAmbientConstantBuffer : register(b30, space35) {
   float4 _precomputedAmbient0 : packoffset(c000.x);
   float4 _precomputedAmbient1 : packoffset(c001.x);
   float4 _precomputedAmbient2 : packoffset(c002.x);
@@ -278,7 +278,7 @@ cbuffer __3__35__0__0__PrecomputedAmbientConstantBuffer : register(b31, space35)
   float4 _precomputedAmbients[56] : packoffset(c008.x);
 };
 
-cbuffer __3__35__0__0__TileConstantBuffer : register(b33, space35) {
+cbuffer __3__35__0__0__TileConstantBuffer : register(b32, space35) {
   uint4 g_tileIndex[4096] : packoffset(c000.x);
 };
 

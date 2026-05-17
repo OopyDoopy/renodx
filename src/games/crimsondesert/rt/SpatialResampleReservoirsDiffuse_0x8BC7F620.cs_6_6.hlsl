@@ -1,6 +1,6 @@
 #include "../shared.h"
 
-// RenoDX: R2 
+// RenoDX: R2
 uint _rndx_pcg(uint v) {
   uint state = v * 747796405u + 2891336453u;
   uint word  = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -16,13 +16,13 @@ float2 _rndx_sample_noise(uint2 pixelCoord, float frameIndex, uint streamIndex =
                      off2 + n * 0.5698402909980532f));
 }
 
-Texture2D<uint> __3__36__0__0__g_sceneNormal : register(t51, space36);
+Texture2D<uint> __3__36__0__0__g_sceneNormal : register(t27, space36);
 
-Texture2D<uint> __3__36__0__0__g_depthOpaque : register(t42, space36);
+Texture2D<uint> __3__36__0__0__g_depthOpaque : register(t78, space36);
 
-Texture2D<uint4> __3__36__0__0__g_diffuseGIReservoirHitGeometry : register(t28, space36);
+Texture2D<uint4> __3__36__0__0__g_diffuseGIReservoirHitGeometry : register(t86, space36);
 
-Texture2D<uint2> __3__36__0__0__g_diffuseGIReservoirRadiance : register(t30, space36);
+Texture2D<uint2> __3__36__0__0__g_diffuseGIReservoirRadiance : register(t89, space36);
 
 RWTexture2D<float4> __3__38__0__1__g_raytracingHitResultUAV : register(u43, space38);
 
@@ -30,7 +30,7 @@ RWTexture2D<float> __3__38__0__1__g_raytracingDiffuseRayInversePDFUAV : register
 
 RWTexture2D<half4> __3__38__0__1__g_diffuseResultUAV : register(u12, space38);
 
-cbuffer __3__35__0__0__SceneConstantBuffer : register(b20, space35) {
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b19, space35) {
   float4 _time;
   float4 _timeNoScale;
   uint4 _frameNumber;
