@@ -1,10 +1,10 @@
 #include "../shared.h"
 
-Texture2D<float3> __3__36__0__0__g_ghostHalo : register(t20, space36);
+Texture2D<float3> __3__36__0__0__g_ghostHalo : register(t9, space36);
 
-Texture2D<float3> __3__36__0__0__g_blade : register(t21, space36);
+Texture2D<float3> __3__36__0__0__g_blade : register(t48, space36);
 
-cbuffer __3__35__0__0__ExposureConstantBuffer : register(b29, space35) {
+cbuffer __3__35__0__0__ExposureConstantBuffer : register(b31, space35) {
   float4 _exposure0 : packoffset(c000.x);
   float4 _exposure1 : packoffset(c001.x);
   float4 _exposure2 : packoffset(c002.x);
