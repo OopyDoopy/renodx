@@ -161,8 +161,6 @@ void LUTSampling2(float3 input_color, inout float4 sdr_color, inout float4 hdr_c
 
     sdr_color = float4((((_240.x - _180) * asfloat(cb0_raw[20u].w)) + _180), (((_240.y - _181) * asfloat(cb0_raw[20u].w)) + _181), (((_240.z - _182) * asfloat(cb0_raw[20u].w)) + _182), 0.0f);
 
-    // paper white = cb0_raw[21u].x
-
     // _276 = ((asfloat(cb0_raw[20u].w) * ((asfloat(cb0_raw[21u].x) * _245.x) - _180)) + _180);
     // _277 = ((asfloat(cb0_raw[20u].w) * ((asfloat(cb0_raw[21u].x) * _245.y) - _181)) + _181);
     // _278 = ((asfloat(cb0_raw[20u].w) * ((asfloat(cb0_raw[21u].x) * _245.z) - _182)) + _182);
@@ -314,7 +312,11 @@ void main(
 
   float3 graded = float3(_180, _181, _182);
   const float mid_gray = 0.18f;
-  float mid_gray_out = renodx::math::Average(LUTSampling1(mid_gray));
+  float4 mid_gray_out_sdr;
+  float4 mid_gray_out_hdr;
+  LUTSampling2(mid_gray, mid_gray_out_sdr, mid_gray_out_hdr);
+  mid_gray_out_sdr = renodx::math::Average(mid_gray_out_sdr.xyz);
+  mid_gray_out_hdr = renodx::math::Average(mid_gray_out_hdr.xyz);
 
   float4 lut_peak_sdr;
   float4 lut_peak_hdr;
@@ -334,10 +336,11 @@ void main(
 
 #if TONE_MAP_TYPE == 2
   sdr_color.xyz = renodx::tonemap::psycho::psychotm_test17_customized(
+      //renodx::color::correct::Gamma(graded, true),
       graded,
+      renodx::color::correct::Gamma(1.f),
       1.f,
-      1.f,
-      1.f,
+      0.8f,
       1.f,
       1.f,
       asfloat(cb0_raw[22u].w),
@@ -346,9 +349,9 @@ void main(
       1.f,
       1.f,
       1,
-      1.3f,
+      1.25f,
       mid_gray,
-      mid_gray_out,
+      mid_gray_out_sdr.x,
       1.f,
       0
   );
@@ -378,10 +381,10 @@ void main(
 #if TONE_MAP_TYPE == 2
 
   float3 tonemapped = renodx::tonemap::psycho::psychotm_test17_customized(
-      graded,
+      lut_input_1,
       calculated_peak,
       1.f,
-      1.f,
+      0.8f,
       1.f,
       1.f,
       asfloat(cb0_raw[22u].w),
@@ -390,9 +393,9 @@ void main(
       1.f,
       1.f,
       1,
-      1.3f,
+      1.25f,
       mid_gray,
-      mid_gray_out
+      mid_gray_out_hdr.x
   );
   output_color.xyz = tonemapped;
 #elif TONE_MAP_TYPE == 1

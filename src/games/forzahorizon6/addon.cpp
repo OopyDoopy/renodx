@@ -6,9 +6,6 @@
 #define ImTextureID ImU64
 
 #define DEBUG_LEVEL_0
-#define DEBUG_LEVEL_1
-#define DEBUG_LEVEL_2
-
 
 #include <embed/shaders.h>
 
@@ -18,18 +15,17 @@
 #define RENODX_MODS_SWAPCHAIN_VERSION 2
 
 #include "../../mods/shader.hpp"
+#include "../../mods/swapchain.hpp"
 #include "../../templates/settings.hpp"
 #include "../../utils/platform.hpp"
+#include "../../utils/random.hpp"
 #include "../../utils/settings.hpp"
 #include "../../utils/swapchain.hpp"
-#include "../../mods/swapchain.hpp"
-#include "../../utils/random.hpp"
 #include "./shared.h"
 
 namespace {
 
 ShaderInjectData shader_injection;
-
 
 renodx::mods::shader::CustomShaders custom_shaders = {__ALL_CUSTOM_SHADERS};
 
@@ -51,9 +47,80 @@ float current_settings_mode = 0;
 //    {"CustomLUTScaling", 0.f},
 // };
 
+namespace shader_toggle {
+namespace runtime {
+float g_use_shaders = 1.f;          // Controlled by slider
+float g_current_use_shaders = 1.f;  // Will be overridden on startup
+
+void OnPresent(
+    reshade::api::command_queue*,
+    reshade::api::swapchain* swapchain,
+    const reshade::api::rect*,
+    const reshade::api::rect*,
+    uint32_t,
+    const reshade::api::rect*) {
+  if (g_use_shaders != g_current_use_shaders) {
+    reshade::log::message(
+        reshade::log::level::info,
+        (g_use_shaders != 0.f) ? "Enabling shaders (toggle)" : "Disabling shaders (toggle)");
+
+    auto* device = swapchain->get_device();
+    if (device == nullptr) {
+      reshade::log::message(reshade::log::level::error, "Device is null in OnPresent");
+      g_current_use_shaders = g_use_shaders;
+      return;
+    }
+
+    if (g_use_shaders != 0.f) {
+      for (const auto& [hash, shader] : custom_shaders) {
+        renodx::utils::shader::AddRuntimeReplacement(device, hash, shader.code);
+      }
+      reshade::log::message(
+          reshade::log::level::info,
+          ("Injected " + std::to_string(custom_shaders.size()) + " shaders").c_str());
+    } else {
+      renodx::utils::shader::RemoveRuntimeReplacements(device);
+      reshade::log::message(reshade::log::level::info, "Removed all shader replacements.");
+    }
+
+    g_current_use_shaders = g_use_shaders;
+  }
+}
+
+void RegisterEvents() {
+  g_current_use_shaders = -1.0f;
+  reshade::register_event<reshade::addon_event::present>(OnPresent);
+}
+
+void UnregisterEvents() {
+  reshade::unregister_event<reshade::addon_event::present>(OnPresent);
+}
+
+renodx::utils::settings::Setting* GetSetting() {
+  return new renodx::utils::settings::Setting{
+      .key = "",
+      .binding = &g_use_shaders,
+      .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+      .default_value = 1.f,
+      .label = "Enable Mod",
+      .section = "Options",
+      .on_change = []() {
+        g_current_use_shaders = -1.f;
+      },
+  };
+}
+}  // namespace runtime
+}  // namespace shader_toggle
+
 // renodx::utils::settings::Setting* peak_white_nits_setting = nullptr;
 // renodx::utils::settings::Setting* diffuse_white_nits_setting = nullptr;
 renodx::utils::settings::Settings settings = {
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "HDR Calibration is handled via the in-game options!",
+        .section = "Instructions",
+    },
+    shader_toggle::runtime::GetSetting(),
     // new renodx::utils::settings::Setting{
     //     .key = "SettingsMode",
     //     .binding = &current_settings_mode,
@@ -423,7 +490,7 @@ renodx::utils::settings::Settings settings = {
           renodx::utils::platform::Launch("https://github.com/clshortfuse/renodx");
         },
     },
-        new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "More RenoDX Mods",
         .section = "Links",
@@ -432,7 +499,7 @@ renodx::utils::settings::Settings settings = {
           renodx::utils::platform::Launch("https://github.com/clshortfuse/renodx/wiki/Mods/");
         },
     },
-        new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Jon's Ko-Fi",
         .section = "Links",
@@ -509,18 +576,21 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   switch (fdw_reason) {
     case DLL_PROCESS_ATTACH:
       if (!reshade::register_addon(h_module)) return FALSE;
-      //reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
-      //while (IsDebuggerPresent() == 0) Sleep(100);
+      shader_toggle::runtime::g_current_use_shaders = -1.0f;
+      reshade::register_event<reshade::addon_event::present>(shader_toggle::runtime::OnPresent);
+      // renodx::utils::shader::use_replace_async = true;
+      // reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
+      // while (IsDebuggerPresent() == 0) Sleep(100);
 
-      //renodx::mods::shader::expected_constant_buffer_space = 50;
-      //renodx::mods::shader::expected_constant_buffer_index = 13;
+      // renodx::mods::shader::expected_constant_buffer_space = 50;
+      // renodx::mods::shader::expected_constant_buffer_index = 13;
 
-      //renodx::mods::swapchain::force_borderless = true;
-      //renodx::mods::swapchain::prevent_full_screen = true;
+      // renodx::mods::swapchain::force_borderless = true;
+      // renodx::mods::swapchain::prevent_full_screen = true;
 
-      //renodx::utils::random::binds.push_back(&shader_injection.custom_random);  // film grain
+      // renodx::utils::random::binds.push_back(&shader_injection.custom_random);  // film grain
 
-      //renodx::mods::shader::revert_constant_buffer_ranges = true;
+      // renodx::mods::shader::revert_constant_buffer_ranges = true;
 
       // renodx::mods::swapchain::use_resource_cloning = true;
       // renodx::mods::swapchain::swap_chain_proxy_vertex_shader = __swap_chain_proxy_vertex_shader;
@@ -528,13 +598,13 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
 
       // renodx::mods::swapchain::swapchain_proxy_revert_state = true;
 
-      //renodx::mods::shader::allow_multiple_push_constants = true;
-      //renodx::mods::shader::force_pipeline_cloning = true;
-      // renodx::mods::shader::on_create_pipeline_layout = [](auto, auto params) {
-      //     return static_cast<bool>(params.size() < 20);
-      // };
-      //renodx::mods::shader::use_pipeline_layout_cloning = true;
-      //renodx::mods::swapchain::use_resource_cloning = true;
+      // renodx::mods::shader::allow_multiple_push_constants = true;
+      // renodx::mods::shader::force_pipeline_cloning = true;
+      //  renodx::mods::shader::on_create_pipeline_layout = [](auto, auto params) {
+      //      return static_cast<bool>(params.size() < 20);
+      //  };
+      // renodx::mods::shader::use_pipeline_layout_cloning = true;
+      // renodx::mods::swapchain::use_resource_cloning = true;
 
       // renodx::mods::swapchain::swap_chain_upgrade_targets.push_back({
       //     .old_format = reshade::api::format::r8g8b8a8_typeless,
@@ -543,18 +613,20 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
 
       break;
     case DLL_PROCESS_DETACH:
-      //reshade::unregister_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
-
+      // reshade::unregister_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
+      reshade::unregister_event<reshade::addon_event::present>(shader_toggle::runtime::OnPresent);
       reshade::unregister_addon(h_module);
       break;
   }
 
-  //renodx::utils::settings::Use(fdw_reason, &settings, &OnPresetOff);
-  //renodx::mods::shader::Use(fdw_reason, custom_shaders, &shader_injection);
+  // No cbuffers allowed
+  renodx::utils::settings::Use(fdw_reason, &settings);
   renodx::mods::shader::Use(fdw_reason, custom_shaders);
-  renodx::utils::random::Use(fdw_reason);
-  //renodx::mods::swapchain::Use(fdw_reason);
 
+  // renodx::utils::settings::Use(fdw_reason, &settings, &OnPresetOff);
+  // renodx::mods::shader::Use(fdw_reason, custom_shaders, &shader_injection);
+  // renodx::utils::random::Use(fdw_reason);
+  // renodx::mods::swapchain::Use(fdw_reason);
 
   return TRUE;
 }
