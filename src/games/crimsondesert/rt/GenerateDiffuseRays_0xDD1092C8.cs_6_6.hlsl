@@ -1,8 +1,8 @@
-Texture2D<uint2> __3__36__0__0__g_normalDepthHalf : register(t45, space36);
+Texture2D<uint2> __3__36__0__0__g_normalDepthHalf : register(t62, space36);
 
-Texture2D<float4> __3__36__0__0__g_tiledRadianceCachePlanePrev : register(t67, space36);
+Texture2D<float4> __3__36__0__0__g_tiledRadianceCachePlanePrev : register(t82, space36);
 
-Texture2D<float> __3__36__0__0__g_tiledRadianceCachePDFPrev : register(t107, space36);
+Texture2D<float> __3__36__0__0__g_tiledRadianceCachePDFPrev : register(t83, space36);
 
 RWTexture2D<float4> __3__38__0__1__g_raytracingHitResultUAV : register(u43, space38);
 
@@ -13,7 +13,7 @@ cbuffer __1__3__0__0__PipelineProperty : register(b0, space3) {
   float2 __padding : packoffset(c000.z);
 };
 
-cbuffer __3__35__0__0__SceneConstantBuffer : register(b20, space35) {
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b19, space35) {
   float4 _time;
   float4 _timeNoScale;
   uint4 _frameNumber;

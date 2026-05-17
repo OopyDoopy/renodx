@@ -10,35 +10,35 @@ struct ManyLightsData {
 };
 
 
-Texture2D<float4> __3__36__0__0__g_puddleMask : register(t83, space36);
+Texture2D<float4> __3__36__0__0__g_puddleMask : register(t136, space36);
 
-Texture2D<float> __3__36__0__0__g_lightProfile : register(t18, space36);
+Texture2D<float> __3__36__0__0__g_lightProfile : register(t57, space36);
 
-Texture2D<float4> __3__36__0__0__g_blueNoise : register(t102, space36);
+Texture2D<float4> __3__36__0__0__g_blueNoise : register(t182, space36);
 
-Texture2D<uint4> __3__36__0__0__g_baseColor : register(t44, space36);
+Texture2D<uint4> __3__36__0__0__g_baseColor : register(t24, space36);
 
-Texture2D<float4> __3__36__0__0__g_normal : register(t147, space36);
+Texture2D<float4> __3__36__0__0__g_normal : register(t25, space36);
 
-Texture2D<uint> __3__36__0__0__g_depthStencil : register(t40, space36);
+Texture2D<uint> __3__36__0__0__g_depthStencil : register(t61, space36);
 
-Texture2D<float4> __3__36__0__0__g_character : register(t70, space36);
+Texture2D<float4> __3__36__0__0__g_character : register(t59, space36);
 
-Texture2D<float2> __3__36__0__0__g_iblBrdfLookup : register(t89, space36);
+Texture2D<float2> __3__36__0__0__g_iblBrdfLookup : register(t156, space36);
 
-Texture2D<float2> __3__36__0__0__g_hairBrdfLookup : register(t91, space36);
+Texture2D<float2> __3__36__0__0__g_hairBrdfLookup : register(t158, space36);
 
 StructuredBuffer<ManyLightsData> __3__37__0__0__g_manyLightsDataBuffer : register(t7, space37);
 
-Texture2D<uint2> __3__36__0__0__g_manyLightsHitData : register(t119, space36);
+Texture2D<uint2> __3__36__0__0__g_manyLightsHitData : register(t16, space36);
 
-Texture2D<uint> __3__36__0__0__g_tiledManyLightsMasks : register(t6, space36);
+Texture2D<uint> __3__36__0__0__g_tiledManyLightsMasks : register(t20, space36);
 
 RWTexture2D<float4> __3__38__0__1__g_sceneDiffuseUAV : register(u5, space38);
 
 RWTexture2D<float4> __3__38__0__1__g_specularResultUAV : register(u8, space38);
 
-cbuffer __3__35__0__0__SceneConstantBuffer : register(b20, space35) {
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b19, space35) {
   float4 _time;
   float4 _timeNoScale;
   uint4 _frameNumber;
@@ -129,7 +129,7 @@ cbuffer __3__35__0__0__SceneConstantBuffer : register(b20, space35) {
   uint _isPhotosensitiveMode_isAllolwBlood;
 };
 
-cbuffer __3__35__0__0__ExposureConstantBuffer : register(b34, space35) {
+cbuffer __3__35__0__0__ExposureConstantBuffer : register(b33, space35) {
   float4 _exposure0 : packoffset(c000.x);
   float4 _exposure1 : packoffset(c001.x);
   float4 _exposure2 : packoffset(c002.x);
@@ -137,11 +137,11 @@ cbuffer __3__35__0__0__ExposureConstantBuffer : register(b34, space35) {
   float4 _exposure4 : packoffset(c004.x);
 };
 
-cbuffer __3__35__0__0__TileConstantBuffer : register(b33, space35) {
+cbuffer __3__35__0__0__TileConstantBuffer : register(b32, space35) {
   uint4 g_tileIndex[4096] : packoffset(c000.x);
 };
 
-cbuffer __3__35__0__0__MaterialParameterPresetTableConstantBuffer : register(b42, space35) {
+cbuffer __3__35__0__0__MaterialParameterPresetTableConstantBuffer : register(b41, space35) {
   float4 _clothLightingCategory : packoffset(c000.x);
   float4 _clothLightingParameter[8] : packoffset(c001.x);
   float4 _colorPresetInfo : packoffset(c009.x);
