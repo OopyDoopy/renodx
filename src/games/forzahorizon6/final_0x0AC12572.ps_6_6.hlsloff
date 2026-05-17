@@ -349,6 +349,11 @@ float4 main(
   _240 = _238 * _218;
   _241 = _238 * _219;
 
+  // float3 pre_lut_tonemap = renodx::tonemap::neutwo::MaxChannel(float3(_239, _240, _241), 10.f);
+  // _239 = pre_lut_tonemap.x;
+  // _240 = pre_lut_tonemap.y;
+  // _241 = pre_lut_tonemap.z;
+
   _261 = (((t4.SampleLevel(s0, float2(min(max((ImageProcTexDimConstBuffer_456.x * TexCoord.x), 0.0f), ImageProcTexDimConstBuffer_464.x), min(max((ImageProcTexDimConstBuffer_456.y * TexCoord.y), 0.0f), ImageProcTexDimConstBuffer_464.y)), 0.0f)).x) > 0.5f) || (!(ImageProcPostProcessConstBuffer_1296 > 0.0f));
   if (!_261) {
     _280 = t1.SampleLevel(s0, float2(((sqrt(saturate(_239 / ImageProcPostProcessConstBuffer_1304)) * 0.999755859375f) + 0.0001220703125f), 0.0f), 0.0f);
