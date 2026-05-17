@@ -15,9 +15,9 @@ Texture2D<float4> __0__7__0__0__g_bindlessTextures[] : register(t0, space7);
 
 Texture2D<float4> __3__36__0__0__g_texSkyInscatter : register(t1, space36);
 
-Texture2D<float4> __3__36__0__0__g_texSkyExtinction : register(t70, space36);
+Texture2D<float4> __3__36__0__0__g_texSkyExtinction : register(t75, space36);
 
-Texture3D<float4> __3__36__0__0__g_texFroxel : register(t84, space36);
+Texture3D<float4> __3__36__0__0__g_texFroxel : register(t83, space36);
 
 Texture2D<float> __3__36__0__0__g_depth : register(t13, space36);
 
@@ -29,7 +29,7 @@ Texture2D<uint> __3__36__0__0__g_tileData : register(t37, space36);
 
 RWTexture2D<float4> __3__38__0__1__g_postProcessUAV : register(u0, space38);
 
-cbuffer __3__35__0__0__SceneConstantBuffer : register(b11, space35) {
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b14, space35) {
   float4 _time;
   float4 _timeNoScale;
   uint4 _frameNumber;
@@ -120,7 +120,7 @@ cbuffer __3__35__0__0__SceneConstantBuffer : register(b11, space35) {
   uint _isPhotosensitiveMode_isAllolwBlood;
 };
 
-cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b13, space35) {
+cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b24, space35) {
   float _sunLightIntensity : packoffset(c000.x);
   float _sunLightPreset : packoffset(c000.y);
   float _sunSizeAngle : packoffset(c000.z);
@@ -177,7 +177,7 @@ cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b13, space35) {
   float4 _mieScatterColor : packoffset(c014.x);
 };
 
-cbuffer __3__35__0__0__PrecomputedAmbientConstantBuffer : register(b27, space35) {
+cbuffer __3__35__0__0__PrecomputedAmbientConstantBuffer : register(b25, space35) {
   float4 _precomputedAmbient0 : packoffset(c000.x);
   float4 _precomputedAmbient1 : packoffset(c001.x);
   float4 _precomputedAmbient2 : packoffset(c002.x);
@@ -189,7 +189,7 @@ cbuffer __3__35__0__0__PrecomputedAmbientConstantBuffer : register(b27, space35)
   float4 _precomputedAmbients[56] : packoffset(c008.x);
 };
 
-cbuffer __3__35__0__0__TileConstantBuffer : register(b28, space35) {
+cbuffer __3__35__0__0__TileConstantBuffer : register(b26, space35) {
   uint4 g_tileIndex[4096] : packoffset(c000.x);
 };
 
@@ -554,7 +554,7 @@ void main(
       #endif
 
       // --- K corona: falloff past the disk rim ---------------
-      // Mimics electron scattering corona: independent of bloom 
+      // Mimics electron scattering corona: independent of bloom
       #if SUN_ENABLE_CORONA
       float _coronaR = max(0.0f, _341 - _sunRadiusR) / max(_sunRadius, 1e-6f);
       float _corona  = _sunLum * 0.006f / (1.0f + _coronaR * _coronaR * 10.0f);
@@ -586,8 +586,8 @@ void main(
         float _g       = _miePhaseConst;
         float _g2      = _g * _g;
         float _denom   = max(1e-6f, 1.0f + _g2 - 2.0f * _g * _337);
-        float _HG      = (1.0f - _g2) / (_denom * sqrt(_denom)); 
-        float _HG_4pi  = _HG * 0.07957747f;                       
+        float _HG      = (1.0f - _g2) / (_denom * sqrt(_denom));
+        float _HG_4pi  = _HG * 0.07957747f;
         float _HG_iso  = 0.07957747f;
         float _HG_residual = max(0.0f, _HG_4pi - _HG_iso);
         float _sigma   = 0.087f;
@@ -687,7 +687,7 @@ void main(
       // Goofy ahh moment
       float _moonRaw = _precomputedAmbient7.z;
       float _moonLum = renodx::math::Select(
-        (SUN_MOON_ADJUSTMENTS == 1.f), 
+        (SUN_MOON_ADJUSTMENTS == 1.f),
         (_moonRaw * 0.01f),              // 100x reduction
         (_moonRaw));                     // vanilla
 

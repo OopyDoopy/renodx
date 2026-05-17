@@ -17,7 +17,7 @@ Texture2D<uint2> __3__36__0__0__g_stencil : register(t17, space36);
 
 RWTexture2D<float4> __3__38__0__1__g_postProcessUAV : register(u0, space38);
 
-cbuffer __3__35__0__0__SceneConstantBuffer : register(b11, space35) {
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b14, space35) {
   float4 _time;
   float4 _timeNoScale;
   uint4 _frameNumber;
@@ -108,7 +108,7 @@ cbuffer __3__35__0__0__SceneConstantBuffer : register(b11, space35) {
   uint _isPhotosensitiveMode_isAllolwBlood;
 };
 
-cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b13, space35) {
+cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b24, space35) {
   float _sunLightIntensity : packoffset(c000.x);
   float _sunLightPreset : packoffset(c000.y);
   float _sunSizeAngle : packoffset(c000.z);

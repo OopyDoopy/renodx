@@ -10,25 +10,25 @@
 // ID 18 = Very small bushes + grass not covered by other IDs (close/medium range)
 // ─────────────────────────────────────────────────────────────────────
 
-Texture2D<float4> __3__36__0__0__g_terrainShadowDepth : register(t140, space36);
+Texture2D<float4> __3__36__0__0__g_terrainShadowDepth : register(t49, space36);
 
-Texture2DArray<float4> __3__36__0__0__g_dynamicShadowDepthArray : register(t230, space36);
+Texture2DArray<float4> __3__36__0__0__g_dynamicShadowDepthArray : register(t228, space36);
 
-Texture2DArray<half4> __3__36__0__0__g_dynamicShadowColorArray : register(t232, space36);
+Texture2DArray<half4> __3__36__0__0__g_dynamicShadowColorArray : register(t230, space36);
 
-Texture2DArray<float4> __3__36__0__0__g_shadowDepthArray : register(t233, space36);
+Texture2DArray<float4> __3__36__0__0__g_shadowDepthArray : register(t231, space36);
 
-Texture2D<uint4> __3__36__0__0__g_baseColor : register(t44, space36);
+Texture2D<uint4> __3__36__0__0__g_baseColor : register(t24, space36);
 
-Texture2D<uint> __3__36__0__0__g_depthStencil : register(t40, space36);
+Texture2D<uint> __3__36__0__0__g_depthStencil : register(t61, space36);
 
-Texture2D<uint> __3__36__0__0__g_sceneNormal : register(t51, space36);
+Texture2D<uint> __3__36__0__0__g_sceneNormal : register(t27, space36);
 
-Texture2D<float> __3__36__0__0__g_nearFieldShadowDepth : register(t72, space36);
+Texture2D<float> __3__36__0__0__g_nearFieldShadowDepth : register(t127, space36);
 
 RWTexture2D<half4> __3__38__0__1__g_shadowColorResultUAV : register(u39, space38);
 
-cbuffer __3__35__0__0__SceneConstantBuffer : register(b20, space35) {
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b19, space35) {
   float4 _time;
   float4 _timeNoScale;
   uint4 _frameNumber;
@@ -119,7 +119,7 @@ cbuffer __3__35__0__0__SceneConstantBuffer : register(b20, space35) {
   uint _isPhotosensitiveMode_isAllolwBlood;
 };
 
-cbuffer __3__35__0__0__ShadowConstantBuffer : register(b21, space35) {
+cbuffer __3__35__0__0__ShadowConstantBuffer : register(b20, space35) {
   float4 _shadowDepthRanges : packoffset(c000.x);
   float4 _massiveShadowSizeAndInvSize : packoffset(c001.x);
   uint4 _shadowParam : packoffset(c002.x);
@@ -155,11 +155,11 @@ cbuffer __3__35__0__0__ShadowConstantBuffer : register(b21, space35) {
   float4 _nearFieldShadowFrustumPlanes[6] : packoffset(c149.x);
 };
 
-cbuffer __3__35__0__0__TileConstantBuffer : register(b33, space35) {
+cbuffer __3__35__0__0__TileConstantBuffer : register(b32, space35) {
   uint4 g_tileIndex[4096] : packoffset(c000.x);
 };
 
-cbuffer __3__35__0__0__NearFieldShadowConstantBuffer : register(b43, space35) {
+cbuffer __3__35__0__0__NearFieldShadowConstantBuffer : register(b42, space35) {
   float4 _nearFieldShadowBoundsMin : packoffset(c000.x);
   float4 _nearFieldShadowBoundsMax : packoffset(c001.x);
   column_major float4x4 _nearFieldShadowViewProjCompacted : packoffset(c002.x);
@@ -1881,8 +1881,8 @@ void main(
       float _2059 = mad(_2035, _2049, _2058);
       float _2060 = mad(_2028, _1967, _2059);
       // ── Contact shadow direction stabilization ─────────────────────────
-      // Replace the per-dispatch jittered direction (_2052/_2056/_2060) with 
-      // the stable light direction (_1965/_1966/_1967) to eliminate tile seam 
+      // Replace the per-dispatch jittered direction (_2052/_2056/_2060) with
+      // the stable light direction (_1965/_1966/_1967) to eliminate tile seam
       // artifacts. The jitter comes from _shadowAOParams.z (push constant) which
       // differs between the two SceneShadowTiled dispatch variants.
       if (CONTACT_SHADOW_QUALITY == 1.f) {

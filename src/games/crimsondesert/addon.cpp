@@ -211,17 +211,17 @@ std::chrono::steady_clock::time_point dawn_dusk_blend_start{};
 float dawn_dusk_blend_duration = 60.f;  // seconds to crossfade between presets
 
 renodx::mods::shader::CustomShaders custom_shaders = {
-    CustomShaderEntryCallback(0x70DA2ED5, [](reshade::api::command_list* /*cmd_list*/) {
+    CustomShaderEntryCallback(0x5C16951B, [](reshade::api::command_list* /*cmd_list*/) {
       rr_draw = true;
       return true;
     }),
 
     // SceneShadowTiledNight shaders
-    CustomShaderEntryCallback(0x7A588434, [](reshade::api::command_list* /*cmd_list*/) {
+    CustomShaderEntryCallback(0x4CC930DF, [](reshade::api::command_list* /*cmd_list*/) {
       night_shader_active = true;
       return true;
     }),
-    CustomShaderEntryCallback(0x9B43B7ED, [](reshade::api::command_list* /*cmd_list*/) {
+    CustomShaderEntryCallback(0xE71F351D, [](reshade::api::command_list* /*cmd_list*/) {
       night_shader_active = true;
       return true;
     }),
