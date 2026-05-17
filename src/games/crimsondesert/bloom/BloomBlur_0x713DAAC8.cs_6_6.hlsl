@@ -1,4 +1,4 @@
-Texture2D<float3> __3__36__0__0__g_higherRes : register(t82, space36);
+Texture2D<float3> __3__36__0__0__g_higherRes : register(t77, space36);
 
 RWTexture2D<float3> __3__38__0__1__g_blurredBloomUAV : register(u26, space38);
 
