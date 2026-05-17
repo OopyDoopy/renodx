@@ -1,8 +1,8 @@
 #include "../shared.h"
 
-Texture2D<float3> __3__36__0__0__g_glareSource : register(t15, space36);
+Texture2D<float3> __3__36__0__0__g_glareSource : register(t34, space36);
 
-Texture2D<float3> __3__36__0__0__g_colorAdatationSource : register(t52, space36);
+Texture2D<float3> __3__36__0__0__g_colorAdatationSource : register(t76, space36);
 
 RWTexture2D<float3> __3__38__0__1__g_bloom1UAV : register(u17, space38);
 
