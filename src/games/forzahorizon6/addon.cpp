@@ -578,7 +578,10 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       if (!reshade::register_addon(h_module)) return FALSE;
       shader_toggle::runtime::g_current_use_shaders = -1.0f;
       reshade::register_event<reshade::addon_event::present>(shader_toggle::runtime::OnPresent);
-      // renodx::utils::shader::use_replace_async = true;
+
+      renodx::utils::shader::use_replace_async = true;
+      renodx::utils::settings::use_presets = false;
+
       // reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
       // while (IsDebuggerPresent() == 0) Sleep(100);
 
