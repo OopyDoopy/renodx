@@ -179,6 +179,138 @@ void LUTSampling2(float3 input_color, inout float4 sdr_color, inout float4 hdr_c
   hdr_color = float4(_276, _277, _278, 0.0f);
 }
 
+// Finds the inflection point of both the SDR and HDR tone curves sampled by
+// LUTSampling2 on the neutral (grayscale) axis.  The inflection is the midgray
+// anchor — where the sigmoid changes from concave-up to concave-down — and
+// corresponds to the output midgray the psycho tone mapper needs as anchor_out.
+//
+// Uses binary search on the sign of the discrete second derivative f''(x1):
+//   f''(x1) = f(x0) - 2·f(x1) + f(x2)
+// A sigmoid has f'' > 0 below the inflection and f'' < 0 above, giving a
+// unique bracket zero-crossing.  The search is run independently for each
+// curve (SDR, HDR) so each finds its own inflection.
+//
+// After locating x1, the pure LUT output is recovered by stripping the linear
+// passthrough baked into the lerp: lut_pure(x) = (lerp_out(x) − (1−w)·x) / w.
+// The normalised position y_norm = lut_pure(x1)/lut_pure(max_x) is used to
+// back-solve the Naka-Rushton exponent via n = 1/(1−2·y_norm).
+//
+// Cost: 2 shared endpoints + 1+24 per curve = 52 LUTSampling2 calls.
+struct LUTInflectionResult {
+  float sdr;                // SDR output (avg R/G/B) at the inflection
+  float hdr;                // HDR output (avg R/G/B) at the inflection
+  float sdr_exposure;       // SDR output/input ratio at inflection (LUT gain at pivot)
+  float hdr_exposure;       // HDR output/input ratio at inflection
+  float cone_response;      // Naka-Rushton exponent (pre-corrected) for SDR psycho mapper
+  float hdr_cone_response;  // Naka-Rushton exponent (pre-corrected) for HDR psycho mapper
+};
+
+LUTInflectionResult FindLUTSampling2Inflection() {
+  LUTInflectionResult result;
+  float max_x = asfloat(cb0_raw[20u].z);
+  float weight = asfloat(cb0_raw[20u].w);
+
+  // No LUT blend active → linear, no meaningful inflection
+  if (!(weight > 0.f)) {
+    result.sdr = max_x * 0.5f;
+    result.hdr = max_x * 0.5f;
+    result.sdr_exposure = 1.f;
+    result.hdr_exposure = 1.f;
+    result.cone_response = 1.f;
+    result.hdr_cone_response = 1.f;
+    return result;
+  }
+
+  // Shared endpoint samples — reused by both searches and the cone_response pass.
+  float4 sdr_lo, hdr_lo, sdr_hi, hdr_hi;
+  LUTSampling2(0.f.xxx, sdr_lo, hdr_lo);
+  LUTSampling2(max_x.xxx, sdr_hi, hdr_hi);
+
+  // ── SDR: bisect on second derivative of the SDR signal ───────────────────
+  float sdr_x0 = 0.f;
+  float sdr_x2 = max_x;
+  float sdr_x1 = max_x * 0.5f;
+  float sdr_f0 = renodx::math::Average(sdr_lo.xyz);
+  float sdr_f2 = renodx::math::Average(sdr_hi.xyz);
+  float4 sdr_mid, hdr_mid_sdr;
+  LUTSampling2(sdr_x1.xxx, sdr_mid, hdr_mid_sdr);
+  float sdr_f1 = renodx::math::Average(sdr_mid.xyz);
+
+  [loop]
+  for (uint i = 0u; i < 24u; i++) {
+    if ((sdr_f0 - 2.f * sdr_f1 + sdr_f2) >= 0.f) {
+      sdr_x0 = sdr_x1;
+      sdr_f0 = sdr_f1;
+    } else {
+      sdr_x2 = sdr_x1;
+      sdr_f2 = sdr_f1;
+    }
+    sdr_x1 = (sdr_x0 + sdr_x2) * 0.5f;
+    LUTSampling2(sdr_x1.xxx, sdr_mid, hdr_mid_sdr);
+    sdr_f1 = renodx::math::Average(sdr_mid.xyz);
+  }
+
+  float sdr_out = renodx::math::Average(sdr_mid.xyz);
+  result.sdr = sdr_out;
+  result.sdr_exposure = renodx::math::DivideSafe(sdr_out, sdr_x1, 1.f);
+
+  // ── HDR: bisect on second derivative of the HDR signal ───────────────────
+  float hdr_x0 = 0.f;
+  float hdr_x2 = max_x;
+  float hdr_x1 = max_x * 0.5f;
+  float hdr_f0 = renodx::math::Average(hdr_lo.xyz);
+  float hdr_f2 = renodx::math::Average(hdr_hi.xyz);
+  float4 sdr_mid_hdr, hdr_mid;
+  LUTSampling2(hdr_x1.xxx, sdr_mid_hdr, hdr_mid);
+  float hdr_f1 = renodx::math::Average(hdr_mid.xyz);
+
+  [loop]
+  for (uint i = 0u; i < 24u; i++) {
+    if ((hdr_f0 - 2.f * hdr_f1 + hdr_f2) >= 0.f) {
+      hdr_x0 = hdr_x1;
+      hdr_f0 = hdr_f1;
+    } else {
+      hdr_x2 = hdr_x1;
+      hdr_f2 = hdr_f1;
+    }
+    hdr_x1 = (hdr_x0 + hdr_x2) * 0.5f;
+    LUTSampling2(hdr_x1.xxx, sdr_mid_hdr, hdr_mid);
+    hdr_f1 = renodx::math::Average(hdr_mid.xyz);
+  }
+
+  float hdr_out = renodx::math::Average(hdr_mid.xyz);
+  result.hdr = hdr_out;
+  result.hdr_exposure = renodx::math::DivideSafe(hdr_out, hdr_x1, 1.f);
+
+  // ── Cone response: Naka-Rushton back-solve, strip linear passthrough ──────
+  // lut_pure(x) = (lerp_out(x) - (1-w)·x) / w   removes the linear blend term
+  // y_norm = lut_pure(inflection) / lut_pure(max_x)
+  // n_target = 1 / (1 - 2·y_norm)
+  //
+  // SDR psycho: effective n = cone_response / (1 - sdr_out)  [peak=1, anchor=sdr_out]
+  //   → cone_response = n_target · (1 - sdr_out)
+  //
+  // HDR psycho: effective n = cone_response · peak / (peak - hdr_out)
+  //   → hdr_cone_response = n_target · (calculated_peak - hdr_out) / calculated_peak
+  float peak_sdr = renodx::math::Average(sdr_hi.xyz);
+  float sdr_lut_infl = renodx::math::DivideSafe(sdr_out - (1.f - weight) * sdr_x1, weight, sdr_out);
+  float sdr_lut_peak = renodx::math::DivideSafe(peak_sdr - (1.f - weight) * max_x, weight, peak_sdr);
+  float sdr_y_norm = saturate(renodx::math::DivideSafe(sdr_lut_infl, sdr_lut_peak, 0.5f));
+  result.cone_response = max(1.f, renodx::math::DivideSafe(1.f - sdr_out, max(1e-4f, 1.f - 2.f * sdr_y_norm), 1.f));
+
+  float calculated_peak = asfloat(cb0_raw[21u].z);
+  float peak_hdr = renodx::math::Average(hdr_hi.xyz);
+  float hdr_lut_infl = renodx::math::DivideSafe(hdr_out - (1.f - weight) * hdr_x1, weight, hdr_out);
+  float hdr_lut_peak = renodx::math::DivideSafe(peak_hdr - (1.f - weight) * max_x, weight, peak_hdr);
+  float hdr_y_norm = saturate(renodx::math::DivideSafe(hdr_lut_infl, hdr_lut_peak, 0.5f));
+  result.hdr_cone_response = max(1.f, renodx::math::DivideSafe(
+      calculated_peak - hdr_out,
+      calculated_peak * max(1e-4f, 1.f - 2.f * hdr_y_norm),
+      1.f));
+
+  return result;
+}
+
 [numthreads(8, 8, 8)]
 void main(
   uint3 SV_DispatchThreadID : SV_DispatchThreadID,
@@ -262,18 +394,10 @@ void main(
   float y_out = renodx::tonemap::Neutwo(y_in, lut_peak);
 
   float3 reference_color_1 = renodx::color::correct::Luminance(lut_input_1, y_in, y_out);
-  //float scale = renodx::math::DivideSafe(y_out, y_in, 1.f);
-
-  // float3 lut_peak = LUTSampling1(100.f);
-  // float3 reference_color_1 = renodx::tonemap::neutwo::PerChannel(lut_input_1, lut_peak);
-
 
   float3 lut_output_1 = LUTSampling1(lut_input_1);
 
   float3 lut_upgraded_1 = renodx::tonemap::UpgradeToneMap(lut_input_1, reference_color_1, lut_output_1);
-  //float3 lut_upgraded_1 = UpgradeToneMapPerChannel(lut_input_1, reference_color_1, lut_output_1);
-
-  //lut_upgraded_1 = lut_output_1;
 
   _63 = lut_upgraded_1.z;
   _64 = lut_upgraded_1.y;
@@ -311,47 +435,56 @@ void main(
   _182 = _170;
 
   float3 graded = float3(_180, _181, _182);
-  const float mid_gray = 0.18f;
-  float4 mid_gray_out_sdr;
-  float4 mid_gray_out_hdr;
-  LUTSampling2(mid_gray, mid_gray_out_sdr, mid_gray_out_hdr);
-  mid_gray_out_sdr = renodx::math::Average(mid_gray_out_sdr.xyz);
-  mid_gray_out_hdr = renodx::math::Average(mid_gray_out_hdr.xyz);
-
-  float4 lut_peak_sdr;
-  float4 lut_peak_hdr;
-  LUTSampling2(100.f, lut_peak_sdr, lut_peak_hdr);
-  float3 reference_color_2 = renodx::tonemap::neutwo::PerChannel(graded, lut_peak_hdr.xyz);
 
   //inout for following colors
   float4 sdr_color;
   float4 hdr_color;
   LUTSampling2(graded, sdr_color, hdr_color);
 
+#if TONE_MAP_TYPE == 1
+  float4 lut_peak_sdr;
+  float4 lut_peak_hdr;
+  LUTSampling2(100.f, lut_peak_sdr, lut_peak_hdr);
+  float3 reference_color_2 = renodx::tonemap::neutwo::PerChannel(graded, lut_peak_hdr.xyz);
   hdr_color.xyz = UpgradeToneMapPerChannel(graded, reference_color_2, hdr_color.xyz);
+#endif
 
   _276 = hdr_color.x;
   _277 = hdr_color.y;
   _278 = hdr_color.z;
 
 #if TONE_MAP_TYPE == 2
+
+  const float tone_map_exposure = 1.15f;
+  const float tone_map_highlights = 0.8f;
+  const float tone_map_shadows = 1.f;
+  const float tone_map_contrast = 1.0f;
+  const float tone_map_saturation = asfloat(cb0_raw[22u].w);
+  const float tone_map_blowout = 0.05f;
+  //const float tone_map_cone_response = lut_adjustments.hdr_cone_response;
+  const float tone_map_cone_response = 1.25f;
+  // float tone_map_hdr_cone_response = 1.2f;
+  const float mid_gray_in = 0.18f;
+  const float mid_gray_out = 0.18f;
+  
+
   sdr_color.xyz = renodx::tonemap::psycho::psychotm_test17_customized(
       //renodx::color::correct::Gamma(graded, true),
       graded,
       renodx::color::correct::Gamma(1.f),
-      1.f,
-      0.8f,
-      1.f,
-      1.f,
-      asfloat(cb0_raw[22u].w),
-      0.1f,
+      tone_map_exposure,
+      tone_map_highlights,
+      tone_map_shadows,
+      tone_map_contrast,
+      tone_map_saturation,
+      tone_map_blowout,
       100.f,
       1.f,
       1.f,
       1,
-      1.25f,
-      mid_gray,
-      mid_gray_out_sdr.x,
+      tone_map_cone_response,
+      mid_gray_in,
+      mid_gray_out,
       1.f,
       0
   );
@@ -381,21 +514,21 @@ void main(
 #if TONE_MAP_TYPE == 2
 
   float3 tonemapped = renodx::tonemap::psycho::psychotm_test17_customized(
-      lut_input_1,
+      graded,
       calculated_peak,
-      1.f,
-      0.8f,
-      1.f,
-      1.f,
-      asfloat(cb0_raw[22u].w),
-      0.1f,
+      tone_map_exposure,
+      tone_map_highlights,
+      tone_map_shadows,
+      tone_map_contrast,
+      tone_map_saturation,
+      tone_map_blowout,
       100.f,
       1.f,
       1.f,
       1,
-      1.25f,
-      mid_gray,
-      mid_gray_out_hdr.x
+      tone_map_cone_response,
+      mid_gray_in,
+      mid_gray_out
   );
   output_color.xyz = tonemapped;
 #elif TONE_MAP_TYPE == 1
