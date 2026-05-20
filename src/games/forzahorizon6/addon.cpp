@@ -24,8 +24,6 @@
 
 namespace {
 
-ShaderInjectData shader_injection;
-
 renodx::mods::shader::CustomShaders custom_shaders = {__ALL_CUSTOM_SHADERS};
 
 const std::string build_date = __DATE__;
