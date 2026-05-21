@@ -1,10 +1,8 @@
 #include "./LUTbuilder.hlsli"
 
-#define VANILLA_SDR_HDR      0
-#define VANILLA_SDR_EXTENDED 1
-#define PSYCHOV              2
-
-#define TONE_MAP_TYPE        PSYCHOV
+#ifndef TONE_MAP_TYPE
+#define TONE_MAP_TYPE FULL_CUSTOM // fallback
+#endif
 
 cbuffer _22_24 : register(b0, space0) {
   float4 _24_m0[25] : packoffset(c0);
@@ -43,36 +41,44 @@ float3 ColorGradingLUTs(float3 input_color) {
   return working_color;
 }
 
-float3 ImprovedColorGradingLUTs(float3 input_color) {
+float3 ImprovedColorGradingLUTs(float3 input_color, float lut_scaling = 1.f) {
   const float black_floor = 0.0001f;
   const float3 lms_white = renodx::color::lms::from::BT709(float3(1.0f, 1.0f, 1.0f));
 
   float3 lut_corrected = ColorGradingLUTs(input_color);
 
-  float3 mid_gray_color = ColorGradingLUTs(0.0f);
-  float3 lut_black = saturate(ColorGradingLUTs(black_floor));
-  float3 lut_mid = saturate(ColorGradingLUTs(mid_gray_color));
+  if (lut_scaling > 0.f) {
+    float3 mid_gray = renodx::math::Min(ColorGradingLUTs(0.0f));
+    float3 lut_black = renodx::math::Min(ColorGradingLUTs(0.0f));
+    float3 lut_mid = renodx::math::Min(ColorGradingLUTs(mid_gray));
 
-  float3 lut_corrected_gamma = renodx::color::gamma::EncodeSafe(lut_corrected);
-  float3 reference_color = renodx::color::gamma::EncodeSafe(input_color);
-  lut_black = renodx::color::gamma::EncodeSafe(lut_black);
-  lut_mid = renodx::color::gamma::EncodeSafe(lut_mid);
+    if (renodx::math::Min(lut_black) > black_floor) {
+      float3 unscaled_lut = lut_corrected;
 
-  float3 lut_corrected_lms = renodx::color::lms::from::BT709(lut_corrected_gamma) / lms_white;
-  float3 reference_lms = renodx::color::lms::from::BT709(reference_color) / lms_white;
-  float3 lut_black_lms = renodx::color::lms::from::BT709(lut_black) / lms_white;
-  float3 lut_mid_lms = renodx::color::lms::from::BT709(lut_mid) / lms_white;
+      float3 lut_corrected_gamma = renodx::color::gamma::EncodeSafe(lut_corrected);
+      float3 reference_color = renodx::color::gamma::EncodeSafe(input_color);
+      lut_black = renodx::color::gamma::EncodeSafe(lut_black);
+      lut_mid = renodx::color::gamma::EncodeSafe(lut_mid);
 
-  float3 shadow_length = lut_mid_lms;
-  float3 shadow_stop = reference_lms;
-  float3 shadow_t = max(0.0f, shadow_length - shadow_stop) / shadow_length;
-  float3 floor_remove = lut_black_lms * shadow_t;
-  float3 unclamped_lms = max(0.0f, lut_corrected_lms - floor_remove);
+      float3 lut_corrected_lms = renodx::color::lms::from::BT709(lut_corrected_gamma) / lms_white;
+      float3 reference_lms = renodx::color::lms::from::BT709(reference_color) / lms_white;
+      float3 lut_black_lms = renodx::color::lms::from::BT709(lut_black) / lms_white;
+      float3 lut_mid_lms = renodx::color::lms::from::BT709(lut_mid) / lms_white;
 
-  float3 unclamped_gamma = renodx::color::bt709::from::LMS(unclamped_lms * lms_white);
-  float3 unclamped_linear = renodx::color::gamma::DecodeSafe(unclamped_gamma);
+      float3 shadow_length = lut_mid_lms;
+      float3 shadow_stop = reference_lms;
+      float3 shadow_t = max(0.0f, shadow_length - shadow_stop) / shadow_length;
+      float3 floor_remove = lut_black_lms * shadow_t;
+      float3 unclamped_lms = max(0.0f, lut_corrected_lms - floor_remove);
 
-  return renodx::lut::RecolorUnclamped(lut_corrected, unclamped_linear, 1.f);
+      float3 unclamped_gamma = renodx::color::bt709::from::LMS(unclamped_lms * lms_white);
+      float3 unclamped_linear = renodx::color::srgb::DecodeSafe(unclamped_gamma);
+
+      lut_corrected = renodx::lut::RecolorUnclamped(lut_corrected, unclamped_linear, 1.f);
+      lut_corrected = lerp(unscaled_lut, unclamped_linear, saturate(lut_scaling));
+    }
+  }
+  return lut_corrected;
 }
 
 void comp_main() {
@@ -83,8 +89,13 @@ void comp_main() {
   float3 working_color = color;
 
 #if TONE_MAP_TYPE != VANILLA_SDR_HDR
-  float3 graded_color = ImprovedColorGradingLUTs(working_color);
-  float grading_peak_nits = renodx::math::Max(ImprovedColorGradingLUTs(100.f));
+#if TONE_MAP_TYPE == VANILLA_PLUS
+  float lut_scaling = 0.f;
+#elif TONE_MAP_TYPE == FULL_CUSTOM
+  float lut_scaling = 1.f;
+#endif
+  float3 graded_color = ImprovedColorGradingLUTs(working_color, lut_scaling);
+  float grading_peak_nits = renodx::math::Max(ImprovedColorGradingLUTs(100.f, lut_scaling));
   float y_in = renodx::color::yf::from::BT709(working_color);
   float y_out = renodx::tonemap::Neutwo(y_in, grading_peak_nits);
   float3 reference_color = renodx::color::correct::Luminance(working_color, y_in, y_out);
@@ -111,7 +122,7 @@ void comp_main() {
   working_color = lerp(renodx::color::y::from::BT709(working_color), working_color, _24_m0[22u].w);
 #endif
 
-#if TONE_MAP_TYPE == VANILLA_SDR_EXTENDED
+#if TONE_MAP_TYPE == VANILLA_PLUS
   // SDR Tonemap LUT
   // working_color = ApplySDRTonemapLUT(working_color, SDR_LUT, LUT_Sampler, _24_m0[20u].w, _24_m0[20u].y, _24_m0[20u].z);
 
@@ -124,14 +135,40 @@ void comp_main() {
       0.1f, 100u);
   working_color = ApplyAnchoredPowContrast(working_color, sdr_lut_curve.midgray_in, sdr_lut_curve.midgray_out, sdr_lut_curve.output_slope);
 
-  // working_color = renodx::color::correct::GammaSafe(working_color);
-  SDR_Output[gl_GlobalInvocationID] = float4(working_color, 0.0f);
-  HDR_Output[gl_GlobalInvocationID] = float4(working_color, 0.0f);
-#elif TONE_MAP_TYPE == PSYCHOV
+  renodx::draw::Config config = renodx::draw::BuildConfig();
+  config.tone_map_saturation = _24_m0[22u].w;
+  working_color= renodx::tonemap::psycho::ApplyGradingLMS(working_color, 1.f, 0.18, 0.18, config);
 
-  const float tone_map_exposure = 1.0f;
+  float display_peak_scale = renodx::color::correct::GammaSafe(_24_m0[21u].z, true);
+  float display_peak_scale_sdr = 1.f;
+
+  //HDR
+  float3 hue_and_purity_reference_hdr = renodx::tonemap::ReinhardPiecewise(renodx::color::lms::from::BT709(working_color) / LMS_WHITE_BT709, display_peak_scale, 0.5f) * LMS_WHITE_BT709;
+  hue_and_purity_reference_hdr = renodx::color::bt709::from::LMS(hue_and_purity_reference_hdr);
+
+  float3 working_color_hdr = renodx::color::correct::Luminance(hue_and_purity_reference_hdr, working_color);
+
+  working_color_hdr = renodx::color::bt2020::from::BT709(working_color_hdr);
+  working_color_hdr = renodx::tonemap::neutwo::MaxChannel(working_color_hdr, display_peak_scale);
+  working_color_hdr = renodx::color::bt709::from::BT2020(working_color_hdr);
+
+  working_color_hdr = renodx::color::correct::GammaSafe(working_color_hdr);
+
+  //SDR 
+  float3 hue_and_purity_reference_sdr = renodx::tonemap::ReinhardPiecewise(renodx::color::lms::from::BT709(working_color) / LMS_WHITE_BT709, display_peak_scale_sdr, 0.5f) * LMS_WHITE_BT709;
+  hue_and_purity_reference_sdr = renodx::color::bt709::from::LMS(hue_and_purity_reference_sdr);
+
+  float3 working_color_sdr = renodx::color::correct::Luminance(hue_and_purity_reference_sdr, working_color);
+
+  working_color_sdr = renodx::tonemap::neutwo::MaxChannel(working_color_sdr, display_peak_scale_sdr);
+
+  SDR_Output[gl_GlobalInvocationID] = float4(working_color_sdr, 0.0f);
+  HDR_Output[gl_GlobalInvocationID] = float4(working_color_hdr, 0.0f);
+#elif TONE_MAP_TYPE == FULL_CUSTOM
+
+  const float tone_map_exposure = 1.f;
   const float tone_map_highlights = 1.1f;
-  const float tone_map_shadows = 0.65f;
+  const float tone_map_shadows = 0.70f;
   const float tone_map_contrast = 1.0f;
   const float tone_map_adaptation_contrast = 1.f;
   const float tone_map_saturation = asfloat(_24_m0[22u].w);
@@ -144,7 +181,7 @@ void comp_main() {
 
   float3 working_color_hdr = renodx::tonemap::psycho::psychotm_test17_customized(
       working_color,
-      asfloat(_24_m0[21u].z),
+      renodx::color::correct::Gamma(asfloat(_24_m0[21u].z), true),
       tone_map_exposure,
       tone_map_highlights,
       tone_map_shadows,
@@ -158,8 +195,9 @@ void comp_main() {
       white_curve_mode,
       tone_map_cone_response,
       mid_gray_in,
-      mid_gray_out
-  );
+      mid_gray_out);
+
+  working_color_hdr = renodx::color::correct::GammaSafe(working_color_hdr);
 
   float3 working_color_sdr = renodx::tonemap::psycho::psychotm_test17_customized(
       working_color,
@@ -179,8 +217,7 @@ void comp_main() {
       mid_gray_in,
       mid_gray_out,
       1.f,
-      0
-  );
+      0);
   working_color_sdr = renodx::color::correct::GammaSafe(working_color_sdr, true);
 
   SDR_Output[gl_GlobalInvocationID] = float4(working_color_sdr, 0.0f);
