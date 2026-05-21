@@ -32,6 +32,9 @@ const std::string build_time = __TIME__;
 float current_settings_mode = 0;
 float r11g11b10_upgrade_enabled = 1.f;
 
+float tone_map_variant = 2.f;          // Setting binding (0=Vanilla SDR HDR, 1=Vanilla SDR Extended, 2=PsychoV)
+float current_tone_map_variant = -1.f;  // -1 forces first-frame update
+
 void OnInitDevice(reshade::api::device* device) {
   std::vector<renodx::utils::resource::ResourceUpgradeInfo> upgrade_infos = {};
 
@@ -123,6 +126,27 @@ renodx::utils::settings::Setting* GetSetting() {
 }  // namespace runtime
 }  // namespace shader_toggle
 
+void OnVariantPresent(
+    reshade::api::command_queue*,
+    reshade::api::swapchain* swapchain,
+    const reshade::api::rect*,
+    const reshade::api::rect*,
+    uint32_t,
+    const reshade::api::rect*) {
+  if (shader_toggle::runtime::g_use_shaders == 0.f) {
+    current_tone_map_variant = -1.f;  // Force re-apply when toggled back on
+    return;
+  }
+  if (tone_map_variant == current_tone_map_variant) return;
+  auto* device = swapchain->get_device();
+  if (device == nullptr) { return; }
+  const std::span<const uint8_t> variants[] = {__SHADER_VARIANTS_0x2FE5A0BE};
+  const int idx = std::clamp(static_cast<int>(tone_map_variant), 0,
+                             static_cast<int>(std::size(variants) - 1));
+  renodx::utils::shader::AddRuntimeReplacement(device, 0x2FE5A0BEu, variants[idx]);
+  current_tone_map_variant = tone_map_variant;
+}
+
 // renodx::utils::settings::Setting* peak_white_nits_setting = nullptr;
 // renodx::utils::settings::Setting* diffuse_white_nits_setting = nullptr;
 renodx::utils::settings::Settings settings = {
@@ -132,6 +156,20 @@ renodx::utils::settings::Settings settings = {
         .section = "Instructions",
     },
     shader_toggle::runtime::GetSetting(),
+    new renodx::utils::settings::Setting{
+        .key = "toneMapVariant",
+        .binding = &tone_map_variant,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .label = "Tone Map Mode",
+        .section = "Options",
+        .labels = std::vector<std::string>(
+            __SHADER_VARIANT_LABELS_0x2FE5A0BE.begin(),
+            __SHADER_VARIANT_LABELS_0x2FE5A0BE.end()),
+        .on_change = []() {
+          current_tone_map_variant = -1.f;
+        },
+    },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "RenoDX Discord",
@@ -203,6 +241,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
 
       shader_toggle::runtime::g_current_use_shaders = -1.0f;
       reshade::register_event<reshade::addon_event::present>(shader_toggle::runtime::OnPresent);
+      reshade::register_event<reshade::addon_event::present>(OnVariantPresent);
 
       renodx::utils::shader::use_replace_async = true;
       renodx::utils::settings::use_presets = false;
@@ -210,6 +249,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       break;
     case DLL_PROCESS_DETACH:
       reshade::unregister_event<reshade::addon_event::present>(shader_toggle::runtime::OnPresent);
+      reshade::unregister_event<reshade::addon_event::present>(OnVariantPresent);
       reshade::unregister_addon(h_module);
       break;
   }
