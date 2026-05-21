@@ -830,30 +830,14 @@ float3 psychotm_test17_customized(
     if (shadows != 1.f) {
       yf_target = renodx::color::grade::Shadows(yf_target, shadows, yf_midgray, 1);
     }
-    // if (contrast != 1.f) {
-    //   yf_target = renodx::color::grade::ContrastSafe(yf_target, contrast, yf_midgray);
-    // }
+    if (contrast != 1.f) {
+      yf_target = renodx::color::grade::ContrastSafe(yf_target, contrast, yf_midgray);
+    }
 
     float yf_scale = renodx::math::DivideSafe(yf_target, yf_input, 1.f);
 
     lms_graded = lms_working * yf_scale;
   }
-
-  // if (contrast != 1.f) {
-  //   float bias = 0.6f;
-  //   const float3 lms_white = renodx::color::lms::from::BT709(1.f.xxx);
-  //   lms_graded.x = ContrastSafeShadowBias(lms_graded.x * lms_white.x, contrast, current_adaptive_state_lms.x, bias) / lms_white.x;
-  //   lms_graded.y = ContrastSafeShadowBias(lms_graded.y * lms_white.y, contrast, current_adaptive_state_lms.y, bias) / lms_white.y;
-  //   lms_graded.z = ContrastSafeShadowBias(lms_graded.z * lms_white.z, contrast, current_adaptive_state_lms.z, bias) / lms_white.z;
-  // }
-
-  // if (adaptation_contrast != 1.f) {
-  //   lms_graded = psycho17_AdaptationContrast(
-  //       lms_graded,
-  //       current_adaptive_state_lms,
-  //       current_adaptive_state_lms,
-  //       adaptation_contrast);
-  // }
 
   if (purity_scale != 1.f) {
     float3 lms_graded_relative = psycho17_ToAdaptiveRelativeLMS(
@@ -883,12 +867,15 @@ float3 psychotm_test17_customized(
   float3 display_scaled_relative_weighted;
   if (white_curve_mode == 0) {
     float3 lms_clip_unit = renodx::color::lms::from::BT2020(clip_point.xxx);
-    float3 hued_color = lms_cones;
-    // hued_color.x = renodx::tonemap::ReinhardPiecewiseExtended(lms_cones.x, lms_clip_unit.x, lms_peak.x, current_adaptive_state_lms.x);
-    // hued_color.y = renodx::tonemap::ReinhardPiecewiseExtended(lms_cones.y, lms_clip_unit.y, lms_peak.y, current_adaptive_state_lms.y);
-    // hued_color.z = renodx::tonemap::ReinhardPiecewiseExtended(lms_cones.z, lms_clip_unit.z, lms_peak.z, current_adaptive_state_lms.z);
-    // hued_color = renodx::color::correct::Luminance(hued_color, lms_cones);
-    float3 display_scaled = renodx::tonemap::neutwo::PerChannel(hued_color, lms_peak, lms_clip_unit);
+
+    float3 hue_shifted_color;
+    hue_shifted_color.x = renodx::tonemap::ReinhardPiecewiseExtended(lms_cones.x, lms_clip_unit.x, lms_peak.x, current_adaptive_state_lms.x);
+    hue_shifted_color.y = renodx::tonemap::ReinhardPiecewiseExtended(lms_cones.y, lms_clip_unit.y, lms_peak.y, current_adaptive_state_lms.y);
+    hue_shifted_color.z = renodx::tonemap::ReinhardPiecewiseExtended(lms_cones.z, lms_clip_unit.z, lms_peak.z, current_adaptive_state_lms.z);
+    hue_shifted_color = renodx::color::correct::Luminance(hue_shifted_color, lms_cones);
+    float3 display_scaled = hue_shifted_color; // Display Map by max channel later
+
+   //float3 display_scaled = renodx::tonemap::neutwo::PerChannel(lms_cones, lms_peak, lms_clip_unit);
     display_scaled_relative_weighted = psycho17_ToAdaptiveRelativeWeightedLMS(
         display_scaled,
         current_adaptive_state_lms);
@@ -967,12 +954,25 @@ float3 psychotm_test17_customized(
           gamut_compression);
     }
   }
-  // Scale back from first-site adaptation;
-  float3 final_bt709 = renodx::color::bt709::from::LMS(
-      renodx::color::macleod_boynton::UnweighLMS(
-          psycho17_FromAdaptiveRelativeWeightedLMS(
-              display_scaled_relative_weighted,
-              current_adaptive_state_lms)));
+
+  float3 final_bt709;
+  if (white_curve_mode == 0) {
+    float3 final_bt2020 = renodx::color::bt2020::from::LMS(
+        renodx::color::macleod_boynton::UnweighLMS(
+            psycho17_FromAdaptiveRelativeWeightedLMS(
+                display_scaled_relative_weighted,
+                current_adaptive_state_lms)));
+    final_bt2020 = renodx::tonemap::neutwo::MaxChannel(final_bt2020, peak_value.x, clip_point);
+    final_bt709 = renodx::color::bt709::from::BT2020(final_bt2020);
+  } else {
+    // Scale back from first-site adaptation;
+    final_bt709 = renodx::color::bt709::from::LMS(
+        renodx::color::macleod_boynton::UnweighLMS(
+            psycho17_FromAdaptiveRelativeWeightedLMS(
+                display_scaled_relative_weighted,
+                current_adaptive_state_lms)));
+  }
+
   return final_bt709;
 }
 
