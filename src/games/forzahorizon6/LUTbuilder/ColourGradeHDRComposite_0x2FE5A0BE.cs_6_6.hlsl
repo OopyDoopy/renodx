@@ -1,7 +1,7 @@
 #include "./LUTbuilder.hlsli"
 
 #ifndef TONE_MAP_TYPE
-#define TONE_MAP_TYPE FULL_CUSTOM // fallback
+#define TONE_MAP_TYPE VANILLA_PLUS // fallback
 #endif
 
 cbuffer _22_24 : register(b0, space0) {
@@ -43,7 +43,6 @@ float3 ColorGradingLUTs(float3 input_color) {
 
 float3 ImprovedColorGradingLUTs(float3 input_color, float lut_scaling = 1.f) {
   const float black_floor = 0.0001f;
-  const float3 lms_white = renodx::color::lms::from::BT709(float3(1.0f, 1.0f, 1.0f));
 
   float3 lut_corrected = ColorGradingLUTs(input_color);
 
@@ -60,10 +59,10 @@ float3 ImprovedColorGradingLUTs(float3 input_color, float lut_scaling = 1.f) {
       lut_black = renodx::color::gamma::EncodeSafe(lut_black);
       lut_mid = renodx::color::gamma::EncodeSafe(lut_mid);
 
-      float3 lut_corrected_lms = renodx::color::lms::from::BT709(lut_corrected_gamma) / lms_white;
-      float3 reference_lms = renodx::color::lms::from::BT709(reference_color) / lms_white;
-      float3 lut_black_lms = renodx::color::lms::from::BT709(lut_black) / lms_white;
-      float3 lut_mid_lms = renodx::color::lms::from::BT709(lut_mid) / lms_white;
+      float3 lut_corrected_lms = renodx::color::lms::from::BT709(lut_corrected_gamma) / LMS_WHITE_BT709;
+      float3 reference_lms = renodx::color::lms::from::BT709(reference_color) / LMS_WHITE_BT709;
+      float3 lut_black_lms = renodx::color::lms::from::BT709(lut_black) / LMS_WHITE_BT709;
+      float3 lut_mid_lms = renodx::color::lms::from::BT709(lut_mid) / LMS_WHITE_BT709;
 
       float3 shadow_length = lut_mid_lms;
       float3 shadow_stop = reference_lms;
@@ -71,7 +70,7 @@ float3 ImprovedColorGradingLUTs(float3 input_color, float lut_scaling = 1.f) {
       float3 floor_remove = lut_black_lms * shadow_t;
       float3 unclamped_lms = max(0.0f, lut_corrected_lms - floor_remove);
 
-      float3 unclamped_gamma = renodx::color::bt709::from::LMS(unclamped_lms * lms_white);
+      float3 unclamped_gamma = renodx::color::bt709::from::LMS(unclamped_lms * LMS_WHITE_BT709);
       float3 unclamped_linear = renodx::color::srgb::DecodeSafe(unclamped_gamma);
 
       lut_corrected = renodx::lut::RecolorUnclamped(lut_corrected, unclamped_linear, 1.f);
@@ -133,17 +132,28 @@ void comp_main() {
       _24_m0[20u].y,
       _24_m0[20u].z,
       0.1f, 100u);
-  working_color = ApplyAnchoredPowContrast(working_color, sdr_lut_curve.midgray_in, sdr_lut_curve.midgray_out, sdr_lut_curve.output_slope);
+  //working_color = ApplyAnchoredPowContrast(working_color, sdr_lut_curve.midgray_in, sdr_lut_curve.midgray_out, sdr_lut_curve.output_slope);
+  y_in = renodx::color::yf::from::BT709(working_color);
+  y_out = ApplyAnchoredPowContrast(y_in, sdr_lut_curve.midgray_in, sdr_lut_curve.midgray_out, sdr_lut_curve.output_slope).x;
+  float3 working_color_luminance = renodx::color::correct::Luminance(working_color, y_in, y_out);
+
+  float3 working_color_lms_shifted = renodx::color::lms::from::BT709(working_color) / LMS_WHITE_BT709;
+  working_color_lms_shifted = ApplyAnchoredPowContrast(working_color_lms_shifted, sdr_lut_curve.midgray_in, sdr_lut_curve.midgray_out, sdr_lut_curve.output_slope);
+  working_color_lms_shifted = renodx::color::bt709::from::LMS(working_color_lms_shifted * LMS_WHITE_BT709);
+
+  working_color = renodx::color::correct::Chrominance(working_color_luminance, working_color_lms_shifted, 1.f, 0.f, 0);
+
+  //working_color = working_color_lms_shifted;
 
   renodx::draw::Config config = renodx::draw::BuildConfig();
   config.tone_map_saturation = _24_m0[22u].w;
-  working_color= renodx::tonemap::psycho::ApplyGradingLMS(working_color, 1.f, 0.18, 0.18, config);
+  working_color = renodx::tonemap::psycho::ApplyGradingLMS(working_color, 1.f, 0.18, 0.18, config);
 
   float display_peak_scale = renodx::color::correct::GammaSafe(_24_m0[21u].z, true);
   float display_peak_scale_sdr = 1.f;
 
   //HDR
-  float3 hue_and_purity_reference_hdr = renodx::tonemap::ReinhardPiecewise(renodx::color::lms::from::BT709(working_color) / LMS_WHITE_BT709, display_peak_scale, 0.5f) * LMS_WHITE_BT709;
+  float3 hue_and_purity_reference_hdr = renodx::tonemap::ReinhardPiecewise(renodx::color::lms::from::BT709(working_color) / LMS_WHITE_BT709, display_peak_scale, sdr_lut_curve.midgray_out) * LMS_WHITE_BT709;
   hue_and_purity_reference_hdr = renodx::color::bt709::from::LMS(hue_and_purity_reference_hdr);
 
   float3 working_color_hdr = renodx::color::correct::Luminance(hue_and_purity_reference_hdr, working_color);
@@ -155,7 +165,7 @@ void comp_main() {
   working_color_hdr = renodx::color::correct::GammaSafe(working_color_hdr);
 
   //SDR 
-  float3 hue_and_purity_reference_sdr = renodx::tonemap::ReinhardPiecewise(renodx::color::lms::from::BT709(working_color) / LMS_WHITE_BT709, display_peak_scale_sdr, 0.5f) * LMS_WHITE_BT709;
+  float3 hue_and_purity_reference_sdr = renodx::tonemap::ReinhardPiecewise(renodx::color::lms::from::BT709(working_color) / LMS_WHITE_BT709, display_peak_scale_sdr, sdr_lut_curve.midgray_out) * LMS_WHITE_BT709;
   hue_and_purity_reference_sdr = renodx::color::bt709::from::LMS(hue_and_purity_reference_sdr);
 
   float3 working_color_sdr = renodx::color::correct::Luminance(hue_and_purity_reference_sdr, working_color);
@@ -201,7 +211,7 @@ void comp_main() {
 
   float3 working_color_sdr = renodx::tonemap::psycho::psychotm_test17_customized(
       working_color,
-      renodx::color::correct::Gamma(1.f),
+      1.f,
       tone_map_exposure,
       tone_map_highlights,
       tone_map_shadows,
@@ -218,8 +228,7 @@ void comp_main() {
       mid_gray_out,
       1.f,
       0);
-  working_color_sdr = renodx::color::correct::GammaSafe(working_color_sdr, true);
-
+  
   SDR_Output[gl_GlobalInvocationID] = float4(working_color_sdr, 0.0f);
   HDR_Output[gl_GlobalInvocationID] = float4(working_color_hdr, 0.0f);
 
