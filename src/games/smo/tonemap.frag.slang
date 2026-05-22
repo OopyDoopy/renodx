@@ -455,17 +455,20 @@ void main() {
 #endif
 #if USE_LUT
 #if !USE_WOODED_TONEMAP && !USE_BEACH_TONEMAP && !USE_MOON_TONEMAP
-  float hdr_lut_scale = 1.0;
-  if (RENODX_TONE_MAP_TYPE != 0) {
-    hdr_lut_scale = renodx::tonemap::neutwo::ComputeMaxChannelScale(key);
-  }
-
-  vec3 lut_input = TonemapVanilla(key);
+  vec3 lut_input = mbt_target;
   vec3 lut_unscaled = SampleLinearLut(lut_input, false);
-  vec3 lut_scaled = SampleLinearLut(TonemapVanilla(key * hdr_lut_scale), false);
-  
-  key = lerp(key, lut_scaled / hdr_lut_scale, LUT_STRENGTH);
-  mbt_target = lerp(lut_input, lut_unscaled, LUT_STRENGTH);
+  vec3 lut_sdr = lerp(lut_input, lut_unscaled, LUT_STRENGTH);
+
+  mbt_target = lut_sdr;
+  if (RENODX_TONE_MAP_TYPE == 0) {
+    key = lut_sdr;
+  } else {
+    float hdr_blend = smoothstep(1.0, 2.0, renodx::math::Max(key));
+    float hdr_lut_scale = renodx::tonemap::neutwo::ComputeMaxChannelScale(key);
+    vec3 hdr_lut = SampleLinearLut(TonemapVanilla(key * hdr_lut_scale), false) / hdr_lut_scale;
+    vec3 hdr_mixed = lerp(key, hdr_lut, LUT_STRENGTH);
+    key = lerp(lut_sdr, hdr_mixed, hdr_blend);
+  }
 #endif
 #endif
   out_rgb = ApplyRenodxTail(key, mbt_target);
