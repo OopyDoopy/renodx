@@ -37,19 +37,6 @@ renodx::utils::settings::Settings settings = renodx::templates::settings::JoinSe
     }),
     {
         new renodx::utils::settings::Setting{
-            .key = "SDRBlendFactor",
-            .binding = &shader_injection.tone_map_sdr_blend_factor,
-            .default_value = 18.f,
-            .label = "SDR Blend Factor",
-            .section = "Tone Mapping",
-            .tooltip = "Blends SDR to look more faithful to the art style",
-            .min = 0.f,
-            .max = 60.f,
-            .is_enabled = []() { return shader_injection.tone_map_type > 0.f; },
-            .parse = [](float value) { return value * 0.01f; },
-            .is_visible = []() { return renodx::templates::settings::current_settings_mode > 1.f; },
-        },
-        new renodx::utils::settings::Setting{
             .key = "ColorGradeScene",
             .binding = &shader_injection.scene_grade_strength,
             .default_value = 70.f,
@@ -91,7 +78,7 @@ renodx::utils::settings::Settings settings = renodx::templates::settings::JoinSe
             .default_value = 100.f,
             .label = "LUT Strength",
             .section = "Color Grading",
-            .tooltip = "Controls intensity of LUT applied by the game",
+            .tooltip = "Controls intensity of LUT applied by the game. Not used in all areas",
             .max = 100.f,
             .parse = [](float value) { return value * 0.01f; },
             .is_visible = []() { return renodx::templates::settings::current_settings_mode > 1.f; },
@@ -104,6 +91,16 @@ renodx::utils::settings::Settings settings = renodx::templates::settings::JoinSe
             .label = "Bloom",
             .section = "Effects",
             .tooltip = "Controls vanilla bloom strength",
+            .max = 100.f,
+            .parse = [](float value) { return value * 0.01f; },
+        },
+
+        new renodx::utils::settings::Setting{
+            .key = "FxLensFlare",
+            .binding = &shader_injection.lens_flare,
+            .default_value = 100.f,
+            .label = "Lens Flare",
+            .section = "Effects",
             .max = 100.f,
             .parse = [](float value) { return value * 0.01f; },
         },
@@ -246,7 +243,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   const auto view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F;
 
   const renodx::utils::resource::ResourceUpgradeInfo::Dimensions min_dimensions = {
-      .width = 1600,
+      .width = 1200,
       .height = renodx::utils::resource::ResourceUpgradeInfo::ANY,
       .depth = renodx::utils::resource::ResourceUpgradeInfo::ANY,
   };
@@ -304,25 +301,48 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
           .min_dimensions = min_dimensions,
       });
 
-      renodx::mods::swapchain::resource_upgrade_infos.push_back({
-          .old_format = reshade::api::format::r8g8b8a8_typeless,
-          .new_format = target_format,
-          .ignore_size = true,        // risky...?
-          .shader_hash = 0xF8184950,  // ui mario
-          .use_resource_view_cloning = true,
-          .ignore_reset = false,
-          .min_dimensions = min_dimensions,
-      });
+      for (int i = 0; i < 3; i++) {
+        renodx::mods::swapchain::resource_upgrade_infos.push_back({
+            .old_format = reshade::api::format::r8g8b8a8_typeless,
+            .new_format = target_format,
+            .ignore_size = true,        // risky...?
+            .shader_hash = 0xF8184950,  // ui mario
+            .use_resource_view_cloning = true,
+            .ignore_reset = false,
+            .min_dimensions = min_dimensions,
+        });
 
-      renodx::mods::swapchain::resource_upgrade_infos.push_back({
-          .old_format = reshade::api::format::r8g8b8a8_typeless,
-          .new_format = target_format,
-          .ignore_size = true,        // risky...?
-          .shader_hash = 0x0256E5BE,  // ui mario
-          .use_resource_view_cloning = true,
-          .ignore_reset = false,
-          .min_dimensions = min_dimensions,
-      });
+        renodx::mods::swapchain::resource_upgrade_infos.push_back({
+            .old_format = reshade::api::format::r8g8b8a8_typeless,
+            .new_format = target_format,
+            .ignore_size = true,        // risky...?
+            .shader_hash = 0x0256E5BE,  // ui mario
+            .use_resource_view_cloning = true,
+            .ignore_reset = false,
+            .min_dimensions = min_dimensions,
+        });
+
+        renodx::mods::swapchain::resource_upgrade_infos.push_back({
+            .old_format = reshade::api::format::r8g8b8a8_typeless,
+            .new_format = target_format,
+            .ignore_size = true,        // risky...?
+            .shader_hash = 0x3B74F042,  // ui mario
+            .use_resource_view_cloning = true,
+            .ignore_reset = false,
+            .min_dimensions = min_dimensions,
+        });
+
+        renodx::mods::swapchain::resource_upgrade_infos.push_back({
+            .old_format = reshade::api::format::r8g8b8a8_typeless,
+            .new_format = target_format,
+            .ignore_size = true,        // risky...?
+            .shader_hash = 0x45536B8D,  // no idea
+            .use_resource_view_cloning = true,
+            .ignore_reset = false,
+            .min_dimensions = min_dimensions,
+        });
+
+      }
 
       if (!initialized) {
         // renodx::utils::random::binds.push_back(&shader_injection.swap_chain_output_dither_seed);

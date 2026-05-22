@@ -57,7 +57,7 @@ fp_c1_1;
 
 #if USE_WOODED_TONEMAP || USE_FLY_TONEMAP || USE_MOON_TONEMAP
 layout(set = 2, binding = 128) uniform sampler2D fp_t_tcb_E;
-#if USE_WOODED_TONEMAP && USE_MOVE_TONEMAP
+#if USE_MOVE_TONEMAP
 layout(set = 2, binding = 129) uniform sampler2D fp_t_tcb_10;
 layout(set = 2, binding = 130) uniform sampler2D fp_t_tcb_12;
 layout(set = 2, binding = 131) uniform sampler2D fp_t_tcb_1E;
@@ -134,22 +134,38 @@ vec3 TonemapVanilla(vec3 key) {
   return (key * num_slope + num_offset) / (key * den_slope + den_offset);
 }
 
+float TonemapVanillaScalar(float x) {
+  bool use_low = x < fp_c4_1._m0[10].y;
+  vec4 params = use_low ? fp_c4_1._m0[11] : fp_c4_1._m0[12];
+  return (x * params.x + params.z) / (x * params.y + params.w);
+}
+
+float TonemapVanillaScalarSlope(float x) {
+  bool use_low = x < fp_c4_1._m0[10].y;
+  vec4 params = use_low ? fp_c4_1._m0[11] : fp_c4_1._m0[12];
+  float den = x * params.y + params.w;
+  return (params.x * params.w - params.y * params.z) / (den * den);
+}
+
+vec3 TonemapHdrShoulder(vec3 key, vec3 vanilla) {
+  float max_channel = renodx::math::Max(key);
+  if (max_channel <= 1.0) {
+    return vanilla;
+  }
+
+  vec3 normalized = key / max(max_channel, 1e-6);
+  vec3 extended = TonemapVanilla(normalized) * max_channel;
+
+  float highlight_blend = smoothstep(1.0, 2.0, max_channel);
+  return lerp(vanilla, extended, highlight_blend);
+}
+
 vec3 Tonemap(vec3 key) {
   vec3 vanilla = TonemapVanilla(key);
   if (RENODX_TONE_MAP_TYPE == 0) {
     return vanilla;
   }
-
-  float max_channel = max(key.r, max(key.g, key.b));
-  if (max_channel <= 1.0) {
-    return vanilla;
-  }
-
-  vec3 normalized = key / max_channel;
-  vec3 extended = TonemapVanilla(normalized) * max_channel;
-
-  float highlight_blend = smoothstep(1.0, 2.0, max_channel);
-  return lerp(vanilla, extended, highlight_blend);
+  return TonemapHdrShoulder(key, vanilla);
 }
 
 #if USE_LUT
@@ -194,7 +210,7 @@ vec3 ApplyGenericLut(vec3 input_rgb) {
 
 vec3 ComputeLutMbtTarget(vec3 original_rgb, vec3 unscaled_lut_rgb) {
   vec3 original_exp = renodx::tonemap::ExponentialRollOff(original_rgb);
-  return lerp(original_exp, unscaled_lut_rgb,  LUT_STRENGTH);
+  return lerp(original_exp, unscaled_lut_rgb, LUT_STRENGTH);
 }
 #endif
 
@@ -308,7 +324,7 @@ void main() {
   vec3 wood_lut = SampleScaledLut(wood_lut_coord, wood_lut_scale);
   vec3 wood_lut_unscaled = SampleExpLut(woodkey, -log2(fp_c4_1._m0[6].xyz), false);
   out_rgb = lerp(wood_base, wood_lut, LUT_STRENGTH);
-  mbt_target = ComputeLutMbtTarget(woodkey, wood_lut_unscaled);
+  mbt_target = wood_lut_unscaled;
 #else
   out_rgb = wood_lut_coord / wood_lut_scale;
 #endif
@@ -329,7 +345,9 @@ void main() {
   vec3 e_scaled = fma(tex_e, vec3(fp_c4_1._m0[1].z), vec3(fp_c4_1._m0[1].y));
   key = blend_weight * (raw.xyz + fma(e_scaled, tex_12, tex_10));
 
-  out_rgb = Tonemap(key);
+  out_rgb = TonemapVanilla(key);
+  mbt_target = out_rgb;
+  key = Tonemap(key);
 
 #elif USE_MOON_TONEMAP
   vec2 uv_e = v1.xy;
@@ -341,11 +359,18 @@ void main() {
 
   vec3 e_scaled = fma(tex_e, vec3(fp_c4_1._m0[1].z), vec3(fp_c4_1._m0[1].y));
   vec3 mixed = fma(e_scaled, tex_12, tex_10);
+  vec3 moon_key_base;
+
+#if USE_MOVE_TONEMAP
+  moon_key_base = ComputeMoveBlendedKey(uv, raw.xyz, blend_weight, mixed);
+#else
+  moon_key_base = blend_weight * (raw.xyz + mixed);
+#endif
 
   // Moon path keeps channel-swizzled packing before rational curve/LUT.
-  float key_r = blend_weight * (raw.x + mixed.x);
-  float key_g = blend_weight * (raw.y + mixed.y);
-  float key_b = blend_weight * (raw.z + mixed.z);
+  float key_r = moon_key_base.x;
+  float key_g = moon_key_base.y;
+  float key_b = moon_key_base.z;
   vec3 moon_key = vec3(key_r, key_g, key_b);
 
   vec3 ratio = Tonemap(moon_key);
@@ -354,7 +379,7 @@ void main() {
   vec3 lut_rgb = SampleLinearLut(ratio, true);
   vec3 moon_lut_unscaled = SampleLinearLut(ratio, false);
   out_rgb = ApplyMoonLutShaping(lut_rgb);
-  mbt_target = ComputeLutMbtTarget(ratio, ApplyMoonLutShaping(moon_lut_unscaled));
+  mbt_target = ApplyMoonLutShaping(moon_lut_unscaled);
 #else
   out_rgb = ratio;
 #endif
@@ -372,13 +397,12 @@ void main() {
 
 #if USE_LUT
   out_rgb = lerp(packed, SampleBeachLut(packed, RENODX_TONE_MAP_TYPE != 0), LUT_STRENGTH);
-  mbt_target = ComputeLutMbtTarget(packed, SampleBeachLut(packed, false));
+  mbt_target = lerp(renodx::tonemap::ExponentialRollOff(packed), SampleBeachLut(packed), LUT_STRENGTH);
 #else
   out_rgb = packed;
   mbt_target = out_rgb;
 #endif
   key = out_rgb;
-  out_rgb = lerp(renodx::tonemap::ExponentialRollOff(packed), SampleBeachLut(packed), LUT_STRENGTH);
 
 #elif USE_DESERT && USE_FX
   vec3 glow = texture(fp_t_tcb_10, uv).xyz;
@@ -388,15 +412,16 @@ void main() {
   vec3 exp_rgb = exp2(-packed * log2(fp_c4_1._m0[6].xyz));
   out_rgb = effects.xyz + effects.w * (RENODX_TONE_MAP_TYPE == 0 ? 1 - exp_rgb : packed);
   key = out_rgb;
+  mbt_target = effects.xyz + effects.w * (1 - exp_rgb);
 
 #elif USE_SUB_TONEMAP
   vec3 glow = texture(fp_t_tcb_10, uv).xyz;
-  out_rgb = blend_weight * (raw.xyz + glow);
-  if (RENODX_TONE_MAP_TYPE == 0) {
-    out_rgb = 1.0 - exp(-out_rgb);
-  }
-  key = out_rgb;
-  out_rgb = renodx::tonemap::ExponentialRollOff(key);
+  vec3 sub_rgb = blend_weight * (raw.xyz + glow);
+  vec3 sub_sdr = renodx::tonemap::ExponentialRollOff(sub_rgb);
+
+  out_rgb = sub_sdr;
+  mbt_target = sub_sdr;
+  key = sub_rgb;
 #else
 
   float bloom_scale = HARD_BLOOM ? 1.0 : CUSTOM_BLOOM;
@@ -408,8 +433,11 @@ void main() {
 #if USE_MOVE_TONEMAP
   key = ComputeMoveBlendedKey(uv, raw.xyz, blend_weight, glow);
 #endif
-  out_rgb = TonemapVanilla(key);
-  mbt_target = out_rgb;
+  out_rgb = key;
+  mbt_target = key;
+  out_rgb = TonemapVanilla(out_rgb);
+  mbt_target = TonemapVanilla(mbt_target);
+  key = Tonemap(key);
 #endif
 #endif
 #if USE_TONEMAP_OUTPUT1
@@ -421,15 +449,23 @@ void main() {
 #if USE_FX
 #if !USE_WOODED_TONEMAP && !USE_SUB_TONEMAP && !USE_FLY_TONEMAP && !USE_DESERT
   out_rgb = out_rgb * effects.w + effects.xyz;
+  key = key * effects.w + effects.xyz;
+  mbt_target = mbt_target * effects.w + effects.xyz;
 #endif
 #endif
 #if USE_LUT
 #if !USE_WOODED_TONEMAP && !USE_BEACH_TONEMAP && !USE_MOON_TONEMAP
-  vec3 lut_original = out_rgb;
-  vec3 lut_unscaled = SampleLinearLut(lut_original, false);
-  out_rgb = ApplyGenericLut(out_rgb);
-  key = ApplyGenericLut(Tonemap(key));
-  mbt_target = ComputeLutMbtTarget(lut_original, lut_unscaled);
+  float hdr_lut_scale = 1.0;
+  if (RENODX_TONE_MAP_TYPE != 0) {
+    hdr_lut_scale = renodx::tonemap::neutwo::ComputeMaxChannelScale(key);
+  }
+
+  vec3 lut_input = TonemapVanilla(key);
+  vec3 lut_unscaled = SampleLinearLut(lut_input, false);
+  vec3 lut_scaled = SampleLinearLut(TonemapVanilla(key * hdr_lut_scale), false);
+  
+  key = lerp(key, lut_scaled / hdr_lut_scale, LUT_STRENGTH);
+  mbt_target = lerp(lut_input, lut_unscaled, LUT_STRENGTH);
 #endif
 #endif
   out_rgb = ApplyRenodxTail(key, mbt_target);
