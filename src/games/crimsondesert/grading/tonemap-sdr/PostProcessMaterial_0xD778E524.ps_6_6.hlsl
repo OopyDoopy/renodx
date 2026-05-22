@@ -51,8 +51,6 @@ cbuffer __3__1__0__0__PostProcessSizeConstant : register(b1, space1) {
   float4 _destTargetSizAndInv : packoffset(c001.x);
 };
 
-SamplerState __3__40__0__0__g_sampler : register(s1, space40);
-
 SamplerState __0__4__0__0__g_staticBilinearClamp : register(s3, space4);
 
 // DXIL FirstbitHi: returns bit position counting from MSB (leading zeros count)
@@ -184,7 +182,7 @@ float4 main(
     _54 = -6;
     while(true) {
       _61 = (_global_0[min((uint)((_49 + 6)), 12u)]) * (_global_0[min((uint)((_54 + 6)), 12u)]);
-      _72 = __3__36__0__0__g_postProcessSizeColor.Sample(__3__40__0__0__g_sampler, float2((((_44 * _srcTargetSizeAndInv.z) * float((int)(_49))) + TEXCOORD.x), (((_44 * _srcTargetSizeAndInv.w) * float((int)(_54))) + TEXCOORD.y)));
+      _72 = __3__36__0__0__g_postProcessSizeColor.Sample(__0__4__0__0__g_staticBilinearClamp, float2((((_44 * _srcTargetSizeAndInv.z) * float((int)(_49))) + TEXCOORD.x), (((_44 * _srcTargetSizeAndInv.w) * float((int)(_54))) + TEXCOORD.y)));
       _79 = (_72.x * _61) + _51;
       _80 = (_72.y * _61) + _52;
       _81 = (_72.z * _61) + _53;

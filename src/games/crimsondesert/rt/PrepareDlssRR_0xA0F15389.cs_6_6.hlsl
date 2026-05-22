@@ -1,16 +1,16 @@
 #include "../shared.h"
 
-Texture2D<uint4> __3__36__0__0__g_baseColor : register(t12, space36);
+Texture2D<uint4> __3__36__0__0__g_baseColor : register(t25, space36);
 
-Texture2D<float4> __3__36__0__0__g_normal : register(t13, space36);
+Texture2D<float4> __3__36__0__0__g_normal : register(t26, space36);
 
-Texture2D<uint2> __3__36__0__0__g_stencil : register(t29, space36);
+Texture2D<uint2> __3__36__0__0__g_stencil : register(t35, space36);
 
-Texture2D<float4> __3__36__0__0__g_normalRoughnessOpaque : register(t36, space36);
+Texture2D<float4> __3__36__0__0__g_normalRoughnessOpaque : register(t32, space36);
 
-Texture2D<float4> __3__36__0__0__g_sceneColor : register(t37, space36);
+Texture2D<float4> __3__36__0__0__g_sceneColor : register(t34, space36);
 
-Texture2D<float4> __3__36__0__0__g_sceneColorBeforeSSS : register(t14, space36);
+Texture2D<float4> __3__36__0__0__g_sceneColorBeforeSSS : register(t38, space36);
 
 RWTexture2D<float4> __3__38__0__1__g_diffuseAlbedoUAV : register(u24, space38);
 

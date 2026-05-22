@@ -4,75 +4,75 @@
 #include "foliage_common.hlsli"
 #include "purkinje_common.hlsli"
 
-Texture2D<float4> __3__36__0__0__g_puddleMask : register(t136, space36);
+Texture2D<float4> __3__36__0__0__g_puddleMask : register(t124, space36);
 
-Texture2D<float4> __3__36__0__0__g_climateSandTex : register(t137, space36);
+Texture2D<float4> __3__36__0__0__g_climateSandTex : register(t125, space36);
 
-Texture2D<uint16_t> __3__36__0__0__g_sceneDecalMask : register(t138, space36);
+Texture2D<uint16_t> __3__36__0__0__g_sceneDecalMask : register(t126, space36);
 
-Texture2D<float2> __3__36__0__0__g_texNetDensity : register(t42, space36);
+Texture2D<float2> __3__36__0__0__g_texNetDensity : register(t29, space36);
 
-Texture3D<float> __3__36__0__0__g_texCloudVolumeShadow : register(t194, space36);
+Texture3D<float> __3__36__0__0__g_texCloudVolumeShadow : register(t196, space36);
 
-Texture2D<uint4> __3__36__0__0__g_baseColor : register(t24, space36);
+Texture2D<uint4> __3__36__0__0__g_baseColor : register(t15, space36);
 
-Texture2D<float4> __3__36__0__0__g_normal : register(t25, space36);
+Texture2D<float4> __3__36__0__0__g_normal : register(t16, space36);
 
-Texture2D<uint> __3__36__0__0__g_sceneNormal : register(t27, space36);
+Texture2D<uint> __3__36__0__0__g_sceneNormal : register(t18, space36);
 
-Texture2D<uint> __3__36__0__0__g_sceneNormalPrev : register(t74, space36);
+Texture2D<uint> __3__36__0__0__g_sceneNormalPrev : register(t63, space36);
 
-Texture2D<float2> __3__36__0__0__g_velocity : register(t26, space36);
+Texture2D<float2> __3__36__0__0__g_velocity : register(t17, space36);
 
-Texture2D<float> __3__36__0__0__g_depth : register(t60, space36);
+Texture2D<float> __3__36__0__0__g_depth : register(t42, space36);
 
-Texture2D<uint> __3__36__0__0__g_depthOpaque : register(t78, space36);
+Texture2D<uint> __3__36__0__0__g_depthOpaque : register(t52, space36);
 
-Texture2D<uint> __3__36__0__0__g_depthOpaquePrev : register(t79, space36);
+Texture2D<uint> __3__36__0__0__g_depthOpaquePrev : register(t66, space36);
 
-Texture2D<uint2> __3__36__0__0__g_stencil : register(t63, space36);
+Texture2D<uint2> __3__36__0__0__g_stencil : register(t45, space36);
 
-Texture2D<float4> __3__36__0__0__g_specularResult : register(t153, space36);
+Texture2D<float4> __3__36__0__0__g_specularResult : register(t146, space36);
 
-Texture2D<float> __3__36__0__0__g_specularRayHitDistance : register(t80, space36);
+Texture2D<float> __3__36__0__0__g_specularRayHitDistance : register(t67, space36);
 
-Texture2D<float4> __3__36__0__0__g_manyLightsMoments : register(t18, space36);
+Texture2D<float4> __3__36__0__0__g_manyLightsMoments : register(t53, space36);
 
-Texture2D<float2> __3__36__0__0__g_iblBrdfLookup : register(t156, space36);
+Texture2D<float2> __3__36__0__0__g_iblBrdfLookup : register(t155, space36);
 
-Texture2D<uint2> __3__36__0__0__g_stencilPrev : register(t140, space36);
+Texture2D<uint2> __3__36__0__0__g_stencilPrev : register(t61, space36);
 
-Texture2D<half4> __3__36__0__0__g_sceneDiffuse : register(t181, space36);
+Texture2D<half4> __3__36__0__0__g_sceneDiffuse : register(t177, space36);
 
-Texture2D<half4> __3__36__0__0__g_diffuseResult : register(t69, space36);
+Texture2D<half4> __3__36__0__0__g_diffuseResult : register(t178, space36);
 
-Texture2D<half4> __3__36__0__0__g_diffuseResultPrev : register(t70, space36);
+Texture2D<half4> __3__36__0__0__g_diffuseResultPrev : register(t179, space36);
 
-Texture2D<half4> __3__36__0__0__g_specularResultPrev : register(t71, space36);
+Texture2D<half4> __3__36__0__0__g_specularResultPrev : register(t180, space36);
 
-Texture2D<half2> __3__36__0__0__g_sceneAO : register(t72, space36);
+Texture2D<half2> __3__36__0__0__g_sceneAO : register(t51, space36);
 
-Texture2D<float> __3__36__0__0__g_caustic : register(t81, space36);
+Texture2D<float> __3__36__0__0__g_caustic : register(t54, space36);
 
-Texture2D<uint> __3__36__0__0__g_tiledManyLightsMasks : register(t20, space36);
+Texture2D<uint> __3__36__0__0__g_tiledManyLightsMasks : register(t11, space36);
 
-ByteAddressBuffer __3__37__0__0__g_structureCounterBuffer : register(t27, space37);
+ByteAddressBuffer __3__37__0__0__g_structureCounterBuffer : register(t26, space37);
 
-Texture2D<half4> __3__36__0__0__g_sceneShadowColor : register(t65, space36);
+Texture2D<half4> __3__36__0__0__g_sceneShadowColor : register(t47, space36);
 
 RWTexture2D<float4> __3__38__0__1__g_diffuseHalfPrevUAV : register(u41, space38);
 
-RWTexture2D<float4> __3__38__0__1__g_sceneColorUAV : register(u10, space38);
+RWTexture2D<float4> __3__38__0__1__g_sceneColorUAV : register(u12, space38);
 
-RWTexture2D<half4> __3__38__0__1__g_sceneSpecularUAV : register(u11, space38);
+RWTexture2D<half4> __3__38__0__1__g_sceneSpecularUAV : register(u4, space38);
 
-RWTexture2D<half4> __3__38__0__1__g_diffuseResultUAV : register(u12, space38);
+RWTexture2D<half4> __3__38__0__1__g_diffuseResultUAV : register(u13, space38);
 
-RWTexture2D<half4> __3__38__0__1__g_specularResultUAV : register(u13, space38);
+RWTexture2D<half4> __3__38__0__1__g_specularResultUAV : register(u14, space38);
 
-RWTexture2D<half4> __3__38__0__1__g_sceneColorLightingOnlyForAwbUAV : register(u18, space38);
+RWTexture2D<half4> __3__38__0__1__g_sceneColorLightingOnlyForAwbUAV : register(u19, space38);
 
-cbuffer __3__35__0__0__SceneConstantBuffer : register(b19, space35) {
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b18, space35) {
   float4 _time;
   float4 _timeNoScale;
   uint4 _frameNumber;
@@ -163,7 +163,7 @@ cbuffer __3__35__0__0__SceneConstantBuffer : register(b19, space35) {
   uint _isPhotosensitiveMode_isAllolwBlood;
 };
 
-cbuffer __3__35__0__0__ExposureConstantBuffer : register(b33, space35) {
+cbuffer __3__35__0__0__ExposureConstantBuffer : register(b32, space35) {
   float4 _exposure0 : packoffset(c000.x);
   float4 _exposure1 : packoffset(c001.x);
   float4 _exposure2 : packoffset(c002.x);
@@ -171,7 +171,7 @@ cbuffer __3__35__0__0__ExposureConstantBuffer : register(b33, space35) {
   float4 _exposure4 : packoffset(c004.x);
 };
 
-cbuffer __3__35__0__0__WeatherConstantBuffer : register(b48, space35) {
+cbuffer __3__35__0__0__WeatherConstantBuffer : register(b45, space35) {
   float _rain : packoffset(c000.x);
   float _windSpeed : packoffset(c000.y);
   float _puddleRate : packoffset(c000.z);
@@ -198,7 +198,7 @@ cbuffer __3__35__0__0__WeatherConstantBuffer : register(b48, space35) {
   float _puddleCloudThickenss : packoffset(c006.w);
 };
 
-cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b29, space35) {
+cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b28, space35) {
   float _sunLightIntensity : packoffset(c000.x);
   float _sunLightPreset : packoffset(c000.y);
   float _sunSizeAngle : packoffset(c000.z);
@@ -255,7 +255,7 @@ cbuffer __3__35__0__0__AtmosphereConstantBuffer : register(b29, space35) {
   float4 _mieScatterColor : packoffset(c014.x);
 };
 
-cbuffer __3__35__0__0__PrecomputedAmbientConstantBuffer : register(b30, space35) {
+cbuffer __3__35__0__0__PrecomputedAmbientConstantBuffer : register(b29, space35) {
   float4 _precomputedAmbient0 : packoffset(c000.x);
   float4 _precomputedAmbient1 : packoffset(c001.x);
   float4 _precomputedAmbient2 : packoffset(c002.x);
@@ -267,11 +267,11 @@ cbuffer __3__35__0__0__PrecomputedAmbientConstantBuffer : register(b30, space35)
   float4 _precomputedAmbients[56] : packoffset(c008.x);
 };
 
-cbuffer __3__35__0__0__TileConstantBuffer : register(b32, space35) {
+cbuffer __3__35__0__0__TileConstantBuffer : register(b31, space35) {
   uint4 __3__35__0__0__TileConstantBuffer_raw[4096];
 };
 
-cbuffer __3__35__0__0__EnvironmentLightingHistoryConstantBuffer : register(b49, space35) {
+cbuffer __3__35__0__0__EnvironmentLightingHistoryConstantBuffer : register(b46, space35) {
   float4 _environmentLightingHistory[4] : packoffset(c000.x);
 };
 

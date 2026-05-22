@@ -111,15 +111,15 @@ StructuredBuffer<TerrainHeightFieldRegionInfo> __3__37__0__0___terrainHeightFiel
 
 StructuredBuffer<TerrainHeightFieldExtraRegionInfo> __3__37__0__0___terrainHeightFieldExtraRegionInfo : register(t10, space37);
 
-Texture2D<float4> __3__36__0__0__g_terrainVirtualTextureColor : register(t54, space36);
+Texture2D<float4> __3__36__0__0__g_terrainVirtualTextureColor : register(t34, space36);
 
-Texture2D<float4> __3__36__0__0__g_terrainVirtualTextureNormal : register(t55, space36);
+Texture2D<float4> __3__36__0__0__g_terrainVirtualTextureNormal : register(t50, space36);
 
-Texture2D<float4> __3__36__0__0__g_terrainVirtualTextureMaterial : register(t56, space36);
+Texture2D<float4> __3__36__0__0__g_terrainVirtualTextureMaterial : register(t51, space36);
 
-Texture2D<uint2> __3__36__0__0__g_textureCaptureTerrainPhysicsMaterialAndHeight : register(t57, space36);
+Texture2D<uint2> __3__36__0__0__g_textureCaptureTerrainPhysicsMaterialAndHeight : register(t52, space36);
 
-Texture2D<float> __3__36__0__0__g_roadDecalTexture : register(t63, space36);
+Texture2D<float> __3__36__0__0__g_roadDecalTexture : register(t58, space36);
 
 StructuredBuffer<InstanceData> __0__9__0__0__g_instanceDataBuffer[] : register(t0, space9);
 

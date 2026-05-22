@@ -1,10 +1,10 @@
-Texture2D<uint4> __3__36__0__0__g_baseColor : register(t35, space36);
+Texture2D<uint4> __3__36__0__0__g_baseColor : register(t11, space36);
 
-Texture2D<float4> __3__36__0__0__g_normal : register(t36, space36);
+Texture2D<float4> __3__36__0__0__g_normal : register(t12, space36);
 
-Texture2D<float> __3__36__0__0__g_depth : register(t17, space36);
+Texture2D<float> __3__36__0__0__g_depth : register(t14, space36);
 
-Texture2D<uint2> __3__36__0__0__g_stencilTranslucent : register(t39, space36);
+Texture2D<uint2> __3__36__0__0__g_stencilTranslucent : register(t25, space36);
 
 RWTexture2D<uint2> __3__38__0__1__g_materialIdStencilUAV : register(u0, space38);
 

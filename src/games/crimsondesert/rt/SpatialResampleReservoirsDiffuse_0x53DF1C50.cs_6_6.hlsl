@@ -16,21 +16,21 @@ float2 _rndx_sample_noise(uint2 pixelCoord, float frameIndex, uint streamIndex =
                      off2 + n * 0.5698402909980532f));
 }
 
-Texture2D<uint> __3__36__0__0__g_sceneNormal : register(t27, space36);
+Texture2D<uint> __3__36__0__0__g_sceneNormal : register(t18, space36);
 
-Texture2D<uint> __3__36__0__0__g_depthOpaque : register(t78, space36);
+Texture2D<uint> __3__36__0__0__g_depthOpaque : register(t52, space36);
 
-Texture2D<uint4> __3__36__0__0__g_diffuseGIReservoirHitGeometry : register(t86, space36);
+Texture2D<uint4> __3__36__0__0__g_diffuseGIReservoirHitGeometry : register(t84, space36);
 
-Texture2D<uint2> __3__36__0__0__g_diffuseGIReservoirRadiance : register(t89, space36);
+Texture2D<uint2> __3__36__0__0__g_diffuseGIReservoirRadiance : register(t73, space36);
 
 RWTexture2D<float4> __3__38__0__1__g_raytracingHitResultUAV : register(u43, space38);
 
 RWTexture2D<float> __3__38__0__1__g_raytracingDiffuseRayInversePDFUAV : register(u44, space38);
 
-RWTexture2D<half4> __3__38__0__1__g_diffuseResultUAV : register(u12, space38);
+RWTexture2D<half4> __3__38__0__1__g_diffuseResultUAV : register(u13, space38);
 
-cbuffer __3__35__0__0__SceneConstantBuffer : register(b19, space35) {
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b18, space35) {
   float4 _time;
   float4 _timeNoScale;
   uint4 _frameNumber;

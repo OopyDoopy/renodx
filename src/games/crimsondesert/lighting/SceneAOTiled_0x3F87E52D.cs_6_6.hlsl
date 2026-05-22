@@ -1,14 +1,14 @@
 #include "../shared.h"
 
-Texture2D<uint> __3__36__0__0__g_depthStencil : register(t61, space36);
+Texture2D<uint> __3__36__0__0__g_depthStencil : register(t43, space36);
 
-Texture2D<uint> __3__36__0__0__g_sceneNormal : register(t27, space36);
+Texture2D<uint> __3__36__0__0__g_sceneNormal : register(t18, space36);
 
-RWTexture2D<float2> __3__38__0__1__g_sceneAOResultUAV : register(u37, space38);
+RWTexture2D<float2> __3__38__0__1__g_sceneAOResultUAV : register(u38, space38);
 
-RWTexture2D<float4> __3__38__0__1__g_bentConeResultUAV : register(u38, space38);
+RWTexture2D<float4> __3__38__0__1__g_bentConeResultUAV : register(u39, space38);
 
-cbuffer __3__35__0__0__SceneConstantBuffer : register(b19, space35) {
+cbuffer __3__35__0__0__SceneConstantBuffer : register(b18, space35) {
   float4 _time;
   float4 _timeNoScale;
   uint4 _frameNumber;
@@ -99,7 +99,7 @@ cbuffer __3__35__0__0__SceneConstantBuffer : register(b19, space35) {
   uint _isPhotosensitiveMode_isAllolwBlood;
 };
 
-cbuffer __3__35__0__0__TileConstantBuffer : register(b32, space35) {
+cbuffer __3__35__0__0__TileConstantBuffer : register(b31, space35) {
   uint4 g_tileIndex[4096] : packoffset(c000.x);
 };
 
