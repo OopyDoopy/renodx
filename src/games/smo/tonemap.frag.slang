@@ -463,11 +463,9 @@ void main() {
   if (RENODX_TONE_MAP_TYPE == 0) {
     key = lut_sdr;
   } else {
-    float hdr_blend = smoothstep(1.0, 2.0, renodx::math::Max(key));
     float hdr_lut_scale = renodx::tonemap::neutwo::ComputeMaxChannelScale(key);
     vec3 hdr_lut = SampleLinearLut(TonemapVanilla(key * hdr_lut_scale), false) / hdr_lut_scale;
-    vec3 hdr_mixed = lerp(key, hdr_lut, LUT_STRENGTH);
-    key = lerp(lut_sdr, hdr_mixed, hdr_blend);
+    key = lerp(key, hdr_lut, LUT_STRENGTH);
   }
 #endif
 #endif
