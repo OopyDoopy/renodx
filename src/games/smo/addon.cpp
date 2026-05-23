@@ -277,7 +277,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       renodx::mods::shader::minimum_constant_buffer_stages = reshade::api::shader_stage::pixel;
 
       static std::vector<uint32_t> hashes = {0xEF015FAB, 0x7D419515, 0xC7B41AEE};  // final buffer
-
+      static std::vector<uint32_t> tonemap_hashes = {0x45536B8D, 0x3B74F042, 0x0256E5BE, 0xAA6E7DD7, 0xA4A46443, 0x4953148F, 0xF8184950, 0x615AF5B8, 0x56014231, 0x06C1180A, 0x5691A14F, 0x44E3F26C, 0x88FCDAD0, 0x5C94B551, 0x55E39309, 0x9D4AF1DF};
       for (uint32_t hash : hashes) {
         for (int i = 0; i < 3; i++) {
           renodx::mods::swapchain::resource_upgrade_infos.push_back({
@@ -292,10 +292,34 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
         }
       }
 
+    //   for (uint32_t hash : tonemap_hashes) {
+    //     for (int i = 0; i < 3; i++) {
+    //     //   renodx::mods::swapchain::resource_upgrade_infos.push_back({
+    //     //       .old_format = reshade::api::format::r8g8b8a8_typeless,
+    //     //       .new_format = target_format,
+    //     //       .shader_hash = hash,
+    //     //       //   .ignore_size = true,  // risky...?
+    //     //       .use_resource_view_cloning = true,
+    //     //       .ignore_reset = false,
+    //     //       .min_dimensions = min_dimensions,
+    //     //   });
+    //       renodx::mods::swapchain::resource_upgrade_infos.push_back({
+    //           .old_format = reshade::api::format::r10g10b10a2_typeless,
+    //           .new_format = target_format,
+    //           //   .ignore_size = true,  // risky...?
+    //           .shader_hash = hash,
+    //           .use_resource_view_cloning = true,
+    //           .ignore_reset = false,
+    //           .min_dimensions = min_dimensions,
+    //       });
+    //     }
+    //   }
+
       renodx::mods::swapchain::resource_upgrade_infos.push_back({
           .old_format = reshade::api::format::r10g10b10a2_typeless,
           .new_format = target_format,
           //   .ignore_size = true,  // risky...?
+          .shader_hash = 0x55E39309,
           .use_resource_view_cloning = true,
           .ignore_reset = false,
           .min_dimensions = min_dimensions,
@@ -321,28 +345,29 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
             .ignore_reset = false,
             .min_dimensions = min_dimensions,
         });
-
-        renodx::mods::swapchain::resource_upgrade_infos.push_back({
-            .old_format = reshade::api::format::r8g8b8a8_typeless,
-            .new_format = target_format,
-            .ignore_size = true,        // risky...?
-            .shader_hash = 0x3B74F042,  // ui mario
-            .use_resource_view_cloning = true,
-            .ignore_reset = false,
-            .min_dimensions = min_dimensions,
-        });
-
-        renodx::mods::swapchain::resource_upgrade_infos.push_back({
-            .old_format = reshade::api::format::r8g8b8a8_typeless,
-            .new_format = target_format,
-            .ignore_size = true,        // risky...?
-            .shader_hash = 0x45536B8D,  // no idea
-            .use_resource_view_cloning = true,
-            .ignore_reset = false,
-            .min_dimensions = min_dimensions,
-        });
-
       }
+
+          renodx::mods::swapchain::resource_upgrade_infos.push_back({
+              .old_format = reshade::api::format::r8g8b8a8_typeless,
+              .new_format = target_format,
+              .ignore_size = true,        // risky...?
+              .shader_hash = 0x3B74F042,  // ui mario
+              .use_resource_view_cloning = true,
+              .ignore_reset = false,
+              .min_dimensions = min_dimensions,
+          });
+
+      renodx::mods::swapchain::resource_upgrade_infos.push_back({
+          .old_format = reshade::api::format::r8g8b8a8_typeless,
+          .new_format = target_format,
+          .ignore_size = true,        // risky...?8
+          .shader_hash = 0x45536B8D,  // no idea
+          .use_resource_view_cloning = true,
+          .ignore_reset = false,
+          .min_dimensions = min_dimensions,
+      });
+
+      
 
       if (!initialized) {
         // renodx::utils::random::binds.push_back(&shader_injection.swap_chain_output_dither_seed);

@@ -28,6 +28,9 @@
 #ifndef USE_MOON_TONEMAP
 #define USE_MOON_TONEMAP 0
 #endif
+#ifndef USE_ROCKET_TONEMAP
+#define USE_ROCKET_TONEMAP 0
+#endif
 #ifndef HARD_BLOOM
 #define HARD_BLOOM false
 #endif
@@ -413,6 +416,21 @@ void main() {
   out_rgb = effects.xyz + effects.w * (RENODX_TONE_MAP_TYPE == 0 ? 1 - exp_rgb : packed);
   key = out_rgb;
   mbt_target = effects.xyz + effects.w * (1 - exp_rgb);
+
+#elif USE_ROCKET_TONEMAP
+  vec3 glow = texture(fp_t_tcb_10, uv).xyz;
+  vec3 packed = blend_weight * (raw.xyz + glow);
+  vec3 exp_rgb = exp2(-packed * log2(fp_c4_1._m0[6].xyz));
+  vec3 rocket_sdr = 1.0 - exp_rgb;
+  vec3 rocket_hdr = packed;
+
+  out_rgb = rocket_sdr;
+  if (RENODX_TONE_MAP_TYPE != 0) {
+    float hdr_blend = smoothstep(1.0, 2.0, renodx::math::Max(packed));
+    out_rgb = lerp(rocket_sdr, rocket_hdr, hdr_blend);
+  }
+  key = out_rgb;
+  mbt_target = rocket_sdr;
 
 #elif USE_SUB_TONEMAP
   vec3 glow = texture(fp_t_tcb_10, uv).xyz;
