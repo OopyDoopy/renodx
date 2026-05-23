@@ -156,7 +156,8 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
     {"FxVignette", 100.f},
 
     {"SkyScattering", 0.f},
-    {"SunMoonAdjustments", 0.f},
+    {"SunImprovements", 0.f},
+    {"MoonAdjustments", 0.f},
     {"MoonDiskSize", 1.f},
     {"ContactShadowQuality", 0.f},
     {"FoliageImprovements", 0.f},
@@ -210,24 +211,34 @@ uint32_t dawn_dusk_day_counter = 0;
 std::chrono::steady_clock::time_point dawn_dusk_blend_start{};
 float dawn_dusk_blend_duration = 60.f;  // seconds to crossfade between presets
 
-renodx::mods::shader::CustomShaders custom_shaders = {
-    CustomShaderEntryCallback(0x70C182EF, [](reshade::api::command_list* /*cmd_list*/) {
-      rr_draw = true;
-      return true;
-    }),
+renodx::mods::shader::CustomShader CreateDetectionShader(
+    uint32_t crc32,
+    std::function<bool(reshade::api::command_list*)> callback) {
+  renodx::mods::shader::CustomShader shader = {};
+  shader.crc32 = crc32;
+  shader.on_replace = std::move(callback);
+  return shader;
+}
 
-    // SceneShadowTiledNight shaders
-    CustomShaderEntryCallback(0x1E61F5E3, [](reshade::api::command_list* /*cmd_list*/) {
-      night_shader_active = true;
-      return true;
-    }),
-    CustomShaderEntryCallback(0x6D2F2634, [](reshade::api::command_list* /*cmd_list*/) {
-      night_shader_active = true;
-      return true;
-    }),
+renodx::mods::shader::CustomShaders custom_shaders = [] {
+  auto shaders = renodx::mods::shader::CustomShaders{__ALL_CUSTOM_SHADERS};
 
-    __ALL_CUSTOM_SHADERS};
-// renodx::mods::shader::CustomShaders custom_shaders;
+  // 1.8: detect RR/night passes without replacing their stale migrated HLSL.
+  shaders[0x70C182EF] = CreateDetectionShader(0x70C182EF, [](reshade::api::command_list*) {
+    rr_draw = true;
+    return false;
+  });
+  shaders[0x1E61F5E3] = CreateDetectionShader(0x1E61F5E3, [](reshade::api::command_list*) {
+    night_shader_active = true;
+    return false;
+  });
+  shaders[0x6D2F2634] = CreateDetectionShader(0x6D2F2634, [](reshade::api::command_list*) {
+    night_shader_active = true;
+    return false;
+  });
+
+  return shaders;
+}();
 
 const std::string build_date = __DATE__;
 const std::string build_time = __TIME__;
@@ -1075,19 +1086,51 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
-        .key = "SunMoonAdjustments",
+        .key = "SunImprovements",
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 1.f,
-        .packed_values = {0u, CUSTOM_FLAGS__SUN_MOON_ADJUSTMENTS},
+        .packed_values = {0u, CUSTOM_FLAGS__SUN_IMPROVEMENTS},
         .can_reset = true,
-        .label = "Sun Improvements + Moon Adjustments",
+        .label = "Sun Improvements",
         .section = "Rendering",
-        .tooltip = "Improves Sun and applies a 10x brightness reduction to the moon disk.\n"
-                   "Off = vanilla (Default shimmery sun blob + moon uses sun scale luminance, clips to white ball).\n"
-                   "On = Physically based sun additions + moon luminance reduced to reveal texture detail.",
+        .tooltip = "Improves the visible sun disk and suppresses vanilla sun bloom blowout.\n"
+                   "Off = vanilla hard/shimmery sun disk.\n"
+                   "On = wider softened disk, chromatic edge, limb darkening, corona, and Mie halo.",
         .labels = {"Off", "On"},
         .tint = rendering,
+        .is_visible = []() { return current_settings_mode == rendering_group; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "MoonAdjustments",
+        .binding = &shader_injection.custom_flags,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .packed_values = {0u, CUSTOM_FLAGS__MOON_ADJUSTMENTS},
+        .can_reset = true,
+        .label = "Moon Adjustments",
+        .section = "Rendering",
+        .tooltip = "Improves moon disk rendering.\n"
+                   "Off = vanilla moon size, luminance, and simple shading.\n"
+                   "On = Moon Disk Size slider, reduced luminance, limb darkening, inner glow, and EON diffuse shading.",
+        .labels = {"Off", "On"},
+        .tint = rendering,
+        .is_visible = []() { return current_settings_mode == rendering_group; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "MoonDiskSize",
+        .binding = &shader_injection.moon_disk_size,
+        .default_value = 4.f,
+        .can_reset = true,
+        .label = "Moon Disk Size",
+        .section = "Rendering",
+        .tooltip = "Scales the angular size of the moon disk.\n"
+                   "1 = vanilla size. 10 = 10x larger.",
+        .tint = rendering,
+        .min = 1.f,
+        .max = 10.f,
+        .format = "%.1fx",
+        .is_enabled = []() { return MOON_ADJUSTMENTS == 1.f; },
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
@@ -1131,21 +1174,6 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Fixes massive brightness swings for both the sky and GI in snowy regions with heavy fog especially.\n",
         .labels = {"Off", "On"},
         .tint = rendering,
-        .is_visible = []() { return current_settings_mode == rendering_group; },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "MoonDiskSize",
-        .binding = &shader_injection.moon_disk_size,
-        .default_value = 4.f,
-        .can_reset = true,
-        .label = "Moon Disk Size",
-        .section = "Rendering",
-        .tooltip = "Scales the angular size of the moon disk.\n"
-                   "1 = vanilla size. 10 = 10x larger.",
-        .tint = rendering,
-        .min = 1.f,
-        .max = 10.f,
-        .format = "%.1fx",
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
@@ -1447,7 +1475,8 @@ void OnPresetOff() {
       {"LocalLightSaturation", 50.f},
 
       {"SkyScattering", 0.f},
-      {"SunMoonAdjustments", 0.f},
+      {"SunImprovements", 0.f},
+      {"MoonAdjustments", 0.f},
       {"MoonDiskSize", 1.f},
       {"ContactShadowQuality", 0.f},
       {"FoliageImprovements", 0.f},
@@ -1486,7 +1515,12 @@ void OnPresent(reshade::api::command_queue* /*queue*/,
                const reshade::api::rect* /*dirty_rects*/) {
   rr_draw_counter++;
   if (rr_draw_counter >= 30) {
-    shader_injection.custom_flags = std::bit_cast<float>((CUSTOM_FLAGS_AS_UINT & ~CUSTOM_FLAGS__RR_ENABLED) | (rr_draw ? CUSTOM_FLAGS__RR_ENABLED : 0u));
+    uint32_t custom_flags = CUSTOM_FLAGS_AS_UINT & ~CUSTOM_FLAGS__RR_ENABLED;
+    if (rr_draw) {
+      custom_flags |= CUSTOM_FLAGS__RR_ENABLED;
+    }
+
+    shader_injection.custom_flags = std::bit_cast<float>(custom_flags);
     rr_draw = false;
     rr_draw_counter = 0;
   }

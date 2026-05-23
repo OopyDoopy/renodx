@@ -1,5 +1,7 @@
 #include "../shared.h"
+#include "../lighting/diffuse_brdf.hlsli"
 #include "aurora_common.hlsli"
+#include "moon_common.hlsli"
 
 struct PostProcessSkyStruct {
   uint _moonTexture;
@@ -339,12 +341,56 @@ void main(
     float _334 = _333 + (_311 * ((_290 * _296) + _290));
     float _335 = _333 + (_311 * ((_291 * _296) + _291));
     float _336 = _333 + (_311 * ((_292 * _296) + _292));
-    float _345 = select((dot(float3(_137, _138, _139), float3(_sunDirection.x, _sunDirection.y, _sunDirection.z)) > _sunSizeAngleCosine), 1.0f, 0.0f);
-    float _348 = min(1e+06f, _precomputedAmbient7.x);
-    float _355 = (_345 * (_348 - _334)) + _334;
-    float _356 = (_345 * (_348 - _335)) + _335;
-    float _357 = (_345 * (_348 - _336)) + _336;
-    float _moonSizeAngleAdjusted = _moonSizeAngle * max(1.0f, MOON_DISK_SIZE);
+    float _sunViewDot = dot(float3(_137, _138, _139), float3(_sunDirection.x, _sunDirection.y, _sunDirection.z));
+    float _sunRadiusVanilla = _sunSizeAngle * 0.01745329238474369f;
+    float _sunAngle = acos(clamp(_sunViewDot, -1.0f, 1.0f));
+    float _355, _356, _357;
+    if (SUN_IMPROVEMENTS == 1.f) {
+      float _sunRadius = _sunRadiusVanilla * 2.5f;
+      float _sunRadiusR = _sunRadius;
+      float _sunRadiusG = _sunRadius * 1.01f;
+      float _sunRadiusB = _sunRadius * 1.02f;
+      float _pixelAngle = _sunRadius * 0.05f;
+      float _sunEdgeR = 1.0f - smoothstep(_sunRadiusR - _pixelAngle, _sunRadiusR + _pixelAngle, _sunAngle);
+      float _sunEdgeG = 1.0f - smoothstep(_sunRadiusG - _pixelAngle, _sunRadiusG + _pixelAngle, _sunAngle);
+      float _sunEdgeB = 1.0f - smoothstep(_sunRadiusB - _pixelAngle, _sunRadiusB + _pixelAngle, _sunAngle);
+
+      float _sunDiskR = saturate(_sunAngle / max(_sunRadius, 1e-6f));
+      float _sunDiskMu = sqrt(1.0f - _sunDiskR * _sunDiskR);
+      float _sunLimbDark = pow(max(0.001f, _sunDiskMu), 0.6f);
+      float _sunMaskR = _sunEdgeR * _sunLimbDark;
+      float _sunMaskG = _sunEdgeG * _sunLimbDark;
+      float _sunMaskB = _sunEdgeB * ((_sunLimbDark * 0.92f) + 0.08f);
+      float _sunLum = min(1e+06f, _precomputedAmbient7.x);
+
+      float _coronaR = max(0.0f, _sunAngle - _sunRadiusR) / max(_sunRadius, 1e-6f);
+      float _corona = (_sunLum * 0.006f) / (1.0f + (_coronaR * _coronaR * 10.0f));
+      _corona *= saturate(_sunDirection.y * 5.0f);
+      float _coronaContribR = _corona * 1.10f;
+      float _coronaContribG = _corona * 0.95f;
+      float _coronaContribB = _corona * 0.75f;
+
+      float _g = _miePhaseConst;
+      float _g2 = _g * _g;
+      float _denom = max(1e-6f, 1.0f + _g2 - (2.0f * _g * _sunViewDot));
+      float _hg = (1.0f - _g2) / (_denom * sqrt(_denom));
+      float _hgResidual = max(0.0f, (_hg * 0.07957747f) - 0.07957747f);
+      float _gauss = exp((-0.5f * (_sunAngle * _sunAngle)) / (0.087f * 0.087f));
+      float _diskMask = smoothstep(_sunRadius * 0.8f, _sunRadius * 1.5f, _sunAngle);
+      float _mieHalo = _sunLum * (_mieAerosolDensity * 2e-5f) * _hgResidual * _gauss * _diskMask * saturate(_sunDirection.y * 5.0f);
+
+      _355 = (_sunMaskR * (_sunLum - _334)) + _334 + _coronaContribR + _mieHalo;
+      _356 = (_sunMaskG * (_sunLum - _335)) + _335 + _coronaContribG + _mieHalo;
+      _357 = (_sunMaskB * (_sunLum - _336)) + _336 + _coronaContribB + _mieHalo;
+    } else {
+      float _sunMask = select((_sunViewDot > _sunSizeAngleCosine), 1.0f, 0.0f);
+      float _sunLum = min(1e+06f, _precomputedAmbient7.x);
+      _355 = (_sunMask * (_sunLum - _334)) + _334;
+      _356 = (_sunMask * (_sunLum - _335)) + _335;
+      _357 = (_sunMask * (_sunLum - _336)) + _336;
+    }
+    float _moonSizeScale = renodx::math::Select(MOON_ADJUSTMENTS == 1.f, max(1.0f, MOON_DISK_SIZE), 1.0f);
+    float _moonSizeAngleAdjusted = _moonSizeAngle * _moonSizeScale;
     float _365 = sin(_moonSizeAngleAdjusted * 0.01745329238474369f);
     float _366 = -0.0f - _moonDirection.x;
     float _367 = -0.0f - _moonDirection.y;
@@ -372,11 +418,33 @@ void main(
     }
     float _406 = rsqrt(dot(float3(_moonDirection.x, _moonDirection.y, _moonDirection.z), float3(_moonDirection.x, _moonDirection.y, _moonDirection.z)));
     if (dot(float3(_137, _138, _139), float3((_406 * _moonDirection.x), (_406 * _moonDirection.y), (_406 * _moonDirection.z))) > cos(_moonSizeAngleAdjusted * 0.01745329238474369f)) {
-      float _moonLum = _precomputedAmbient7.z;
-      if (SUN_MOON_ADJUSTMENTS == 1.f) {
-        _moonLum *= 0.0035f;
+      float3 _sphereN = float3(_402, _403, _404);
+      float3 _sunDir = float3(_sunDirection.x, _sunDirection.y, _sunDirection.z);
+      float _moonRaw = _precomputedAmbient7.z;
+      float _moonLum = _moonRaw;
+      if (MOON_ADJUSTMENTS == 1.f) {
+        _moonLum *= 0.01f;
       }
-      _434 = (saturate(dot(float3(_402, _403, _404), float3(_sunDirection.x, _sunDirection.y, _sunDirection.z))) * _moonLum);
+      float _moonNdotL = saturate(dot(_sphereN, _sunDir));
+      float _moonShading;
+      if (MOON_ADJUSTMENTS == 1.f) {
+        static const float MOON_ROUGHNESS = 0.9f;
+        float3 _viewDir = float3(_137, _138, _139);
+        float _NdotV = saturate(dot(_sphereN, -_viewDir));
+        float _LdotV = dot(_sunDir, -_viewDir);
+        float _eonScalar = EON_DiffuseScalar(_moonNdotL, _NdotV, _LdotV, MOON_ROUGHNESS);
+        float _eonShading = _moonNdotL * _eonScalar * 1.3f;
+        float3 _moonFwd = float3(_406 * _moonDirection.x, _406 * _moonDirection.y, _406 * _moonDirection.z);
+        float _NdotV_moon = saturate(dot(_sphereN, _moonFwd));
+        float _limbDark = MoonLimbDarkening(_NdotV_moon, MOON_LIMB_DARKENING);
+        float _innerGlow = MoonInnerGlow(_NdotV_moon, MOON_GLOW_STRENGTH);
+        float _brightMul = MoonBrightnessMultiplier(AE_DYNAMISM_HIGH, MOON_BRIGHTNESS);
+        _moonShading = (_eonShading * _limbDark + _innerGlow) * _brightMul;
+      } else {
+        _moonShading = _moonNdotL;
+      }
+      float _moonDiskLight = _moonShading * _moonLum;
+      _434 = renodx::math::Select(MOON_ADJUSTMENTS == 1.f, _moonDiskLight * 0.35f, _moonDiskLight);
       _435 = 1.0f;
       _436 = ((dot(float3(_402, _403, _404), float3(_moonRight.x, _moonRight.y, _moonRight.z)) * 0.5f) + 0.5f);
       _437 = ((dot(float3(_402, _403, _404), float3(_moonUp.x, _moonUp.y, _moonUp.z)) * 0.5f) + 0.5f);
