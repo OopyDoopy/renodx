@@ -1808,7 +1808,10 @@ float4 main(
     _3414 = _3398;
   }
   if (CUSTOM_BASIC_POSTPROCESS_FINAL == 1.f) {
-    float3 final_color = FinalizeSDR(float3(_3412, _3413, _3414));
+    float3 final_color = FinalizeSDR(
+        float3(_3412, _3413, _3414),
+        asfloat(__3__35__0__0__SceneConstantBuffer_raw[42u].y),
+        asfloat(__3__35__0__0__SceneConstantBuffer_raw[43u].y));
     _3412 = final_color.x;
     _3413 = final_color.y;
     _3414 = final_color.z;

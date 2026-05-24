@@ -1,6 +1,7 @@
 #include "../shared.h"
 #include "diffuse_brdf.hlsli"
 #include "foliage_common.hlsli"
+#include "purkinje_common.hlsli"
 
 Texture2D<float4> __3__36__0__0__g_puddleMask : register(t124, space36);
 
@@ -2694,6 +2695,15 @@ void main(
     float _3442 = (((_3424 * 0.6131200194358826f) + (_3425 * 0.3395099937915802f)) + (_3426 * 0.047370001673698425f)) * _3234;
     float _3443 = (((_3424 * 0.07020000368356705f) + (_3425 * 0.9163600206375122f)) + (_3426 * 0.013450000435113907f)) * _3234;
     float _3444 = (((_3424 * 0.02061999961733818f) + (_3425 * 0.10958000272512436f)) + (_3426 * 0.8697999715805054f)) * _3234;
+    // RenoDX: purkinje colour shift for direct moonlight
+    {
+      bool _purk_isMoon = !_3200 && (_sunDirection.y <= _moonDirection.y);
+      float3 _purk_light = ApplyPurkinjeShift(
+        float3(_3442, _3443, _3444), _sunDirection.y, _purk_isMoon);
+      _3442 = _purk_light.x;
+      _3443 = _purk_light.y;
+      _3444 = _purk_light.z;
+    }
     float _3450 = float(_967.x);
     float _3451 = float(_3160.x);
     float _3452 = float(_3160.y);
