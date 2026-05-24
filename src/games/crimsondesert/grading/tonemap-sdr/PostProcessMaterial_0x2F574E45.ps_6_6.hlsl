@@ -1752,10 +1752,22 @@ float4 main(
     _3339 = _2901;
     _3340 = _2902;
   }
+  if (CUSTOM_BASIC_POSTPROCESS_FINAL == 1.f && CUSTOM_FILM_GRAIN_TYPE != 0) {
+    // DLAA writes this material directly to the fake swapchain, so neighbor-sampling
+    // sharpening has no matching final-color source texture at this point.
+    float3 postprocess_color = renodx::effects::ApplyFilmGrain(float3(_3338, _3339, _3340), TEXCOORD, CUSTOM_RANDOM, CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);
+    _3338 = postprocess_color.x;
+    _3339 = postprocess_color.y;
+    _3340 = postprocess_color.z;
+  }
   if (_etcParams.y > 1.0f) {
+    float custom_vignette_strength = saturate(_etcParams.y + -1.0f);
+    if (CUSTOM_BASIC_POSTPROCESS_FINAL == 1.f) {
+      custom_vignette_strength *= CUSTOM_VIGNETTE;
+    }
     _3351 = abs((TEXCOORD.x * 2.0f) + -1.0f);
     _3352 = abs((TEXCOORD.y * 2.0f) + -1.0f);
-    _3356 = saturate(1.0f - (dot(float2(_3351, _3352), float2(_3351, _3352)) * saturate(_etcParams.y + -1.0f)));
+    _3356 = saturate(1.0f - (dot(float2(_3351, _3352), float2(_3351, _3352)) * custom_vignette_strength));
     _3361 = (_3356 * _3338);
     _3362 = (_3356 * _3339);
     _3363 = (_3356 * _3340);
@@ -1794,6 +1806,12 @@ float4 main(
     _3412 = _3396;
     _3413 = _3397;
     _3414 = _3398;
+  }
+  if (CUSTOM_BASIC_POSTPROCESS_FINAL == 1.f) {
+    float3 final_color = FinalizeSDR(float3(_3412, _3413, _3414));
+    _3412 = final_color.x;
+    _3413 = final_color.y;
+    _3414 = final_color.z;
   }
   SV_Target.x = _3412;
   SV_Target.y = _3413;

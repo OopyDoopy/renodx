@@ -210,6 +210,8 @@ uint32_t aurora_night_counter = 0;
 uint32_t dawn_dusk_day_counter = 0;
 std::chrono::steady_clock::time_point dawn_dusk_blend_start{};
 float dawn_dusk_blend_duration = 60.f;  // seconds to crossfade between presets
+bool postprocess_material_draw = false;
+bool final_sdr_draw = false;
 
 renodx::mods::shader::CustomShader CreateDetectionShader(
     uint32_t crc32,
@@ -218,6 +220,14 @@ renodx::mods::shader::CustomShader CreateDetectionShader(
   shader.crc32 = crc32;
   shader.on_replace = std::move(callback);
   return shader;
+}
+
+void MarkShaderDraw(renodx::mods::shader::CustomShader& shader, bool* marker) {
+  auto previous_on_replace = std::move(shader.on_replace);
+  shader.on_replace = [previous_on_replace = std::move(previous_on_replace), marker](reshade::api::command_list* cmd_list) {
+    *marker = true;
+    return previous_on_replace == nullptr || previous_on_replace(cmd_list);
+  };
 }
 
 renodx::mods::shader::CustomShaders custom_shaders = [] {
@@ -236,6 +246,18 @@ renodx::mods::shader::CustomShaders custom_shaders = [] {
     night_shader_active = true;
     return false;
   });
+
+  for (uint32_t hash : {0x2F574E45u}) {
+    if (auto it = shaders.find(hash); it != shaders.end()) {
+      MarkShaderDraw(it->second, &postprocess_material_draw);
+    }
+  }
+
+  for (uint32_t hash : {0xB91769A4u, 0x3CF16709u, 0xD49AC7D1u, 0xF1CD8E87u}) {
+    if (auto it = shaders.find(hash); it != shaders.end()) {
+      MarkShaderDraw(it->second, &final_sdr_draw);
+    }
+  }
 
   return shaders;
 }();
@@ -1515,13 +1537,18 @@ void OnPresent(reshade::api::command_queue* /*queue*/,
                const reshade::api::rect* /*dirty_rects*/) {
   rr_draw_counter++;
   if (rr_draw_counter >= 30) {
-    uint32_t custom_flags = CUSTOM_FLAGS_AS_UINT & ~CUSTOM_FLAGS__RR_ENABLED;
+    uint32_t custom_flags = CUSTOM_FLAGS_AS_UINT & ~CUSTOM_FLAGS__RR_ENABLED & ~CUSTOM_FLAGS__BASIC_POSTPROCESS_FINAL;
     if (rr_draw) {
       custom_flags |= CUSTOM_FLAGS__RR_ENABLED;
+    }
+    if (!last_is_hdr && postprocess_material_draw && !final_sdr_draw) {
+      custom_flags |= CUSTOM_FLAGS__BASIC_POSTPROCESS_FINAL;
     }
 
     shader_injection.custom_flags = std::bit_cast<float>(custom_flags);
     rr_draw = false;
+    postprocess_material_draw = false;
+    final_sdr_draw = false;
     rr_draw_counter = 0;
   }
 

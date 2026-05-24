@@ -34,6 +34,7 @@
 #define CUSTOM_FLAGS__PURKINJE_EFFECT                   0b100000000000000000000000u
 #define CUSTOM_FLAGS__CUSTOM_WEATHER_EDITING            0b1000000000000000000000000u
 #define CUSTOM_FLAGS__MOON_ADJUSTMENTS                  0b10000000000000000000000000u
+#define CUSTOM_FLAGS__BASIC_POSTPROCESS_FINAL           0b1000000000000000000000000000u
 
 #define CUSTOM_FLAGS                               shader_injection.custom_flags
 
@@ -72,6 +73,7 @@
 #define CUSTOM_VIGNETTE                        shader_injection.custom_vignette
 #define LENS_FLARE_STRENGTH                    shader_injection.lens_flare_strength
 #define BLOOM_STRENGTH                         shader_injection.bloom_strength
+#define CUSTOM_BASIC_POSTPROCESS_FINAL          ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__BASIC_POSTPROCESS_FINAL) != 0u ? 1.f : 0.f)
 
 #define CONTACT_SHADOW_QUALITY                 ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__CONTACT_SHADOW_QUALITY) != 0u) ? 1.f : 0.f)
 #define FOLIAGE_IMPROVEMENTS                   (RR_ENABLED == 1.f ? ((float)((((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS) != 0u) ? 1u : 0u) | (((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS_BIT1) != 0u) ? 2u : 0u))) : 0.f)
