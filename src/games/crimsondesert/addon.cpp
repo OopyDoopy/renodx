@@ -1200,9 +1200,16 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "WARNING: Sliders disabled (doesn't matter what the slider says) until Ray Reconstruction/Ray Regeneration is detected\n",
+        .label = "Ray Reconstruction / Ray Regeneration Required\n",
         .section = "Rendering",
-        //.tint = 0xaa0000,
+        .tint = wiprendering,
+        .is_visible = []() { return current_settings_mode == rendering_group; },
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "Not detected: settings below are disabled until Ray Reconstruction / Ray Regeneration is active.\n",
+        .section = "Rendering",
+        .tint = 0xaa0000,
         .is_visible = []() { return current_settings_mode == rendering_group && !RR_ENABLED; },
     },
     new renodx::utils::settings::Setting{
@@ -1245,14 +1252,16 @@ renodx::utils::settings::Settings settings = {
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 1.f,
-        .packed_values = {0u, CUSTOM_FLAGS__CONTACT_SHADOW_QUALITY},
+        .packed_values = {0u, CUSTOM_FLAGS__CONTACT_SHADOW_QUALITY, CUSTOM_FLAGS__CONTACT_SHADOW_QUALITY_BIT1, CUSTOM_FLAGS__CONTACT_SHADOW_QUALITY | CUSTOM_FLAGS__CONTACT_SHADOW_QUALITY_BIT1},
         .can_reset = true,
         .label = "Contact Micro Shadows (WIP)",
         .section = "Rendering",
-        .tooltip = "Toggles contact micro shadow detail.\n"
-                   "Off = vanilla contact shadows.\n"
-                   "On = Improved shadow details + SSDM aware details,\n",
-        .labels = {"Off", "On"},
+        .tooltip = "Controls contact micro shadow detail.\n"
+                   "Off = stock 1.8 contact shadows.\n"
+                   "Balanced = current recommended default.\n"
+                   "Legacy Full = old stronger reach/start/accumulation tuning without extra helper/march/fade paths.\n"
+                   "Full = stronger corrected 1.7-style contact shadow tuning.",
+        .labels = {"Off", "Balanced", "Legacy Full", "Full"},
         .tint = rendering,
         .is_enabled = []() { return RR_ENABLED; },
         .is_visible = []() { return current_settings_mode == rendering_group; },

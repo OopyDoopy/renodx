@@ -27,7 +27,8 @@
 
 static const int MICRO_STEPS = 32;
 
-if (CONTACT_SHADOW_QUALITY == 1.f
+if (CONTACT_SHADOW_QUALITY > 0.f
+    && CONTACT_MICRO_DETAIL_STRENGTH > 0.f
     && MICRO_STENCIL != 2
     && MICRO_STENCIL != 3
     && MICRO_STENCIL != 6
@@ -120,7 +121,7 @@ if (CONTACT_SHADOW_QUALITY == 1.f
       }
     }
 
-    float _microResult = lerp(1.0f, _microShadow, _microDistFade);
+    float _microResult = lerp(1.0f, _microShadow, saturate(_microDistFade * CONTACT_MICRO_DETAIL_STRENGTH));
     MICRO_CONTACT_SHADOW = min(MICRO_CONTACT_SHADOW, _microResult);
   }
 }
