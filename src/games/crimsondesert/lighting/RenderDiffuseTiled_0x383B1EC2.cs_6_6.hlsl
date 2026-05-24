@@ -1,4 +1,5 @@
 #include "../shared.h"
+#include "foliage_common.hlsli"
 
 Texture2D<float4> __3__36__0__0__g_puddleMask : register(t124, space36);
 
@@ -1425,6 +1426,17 @@ void main(
       _1026 = _280;
       _1027 = _281;
       _1028 = _282;
+    }
+    // RenoDX: AO+ foliage color shaping.
+    if (FOLIAGE_COLOR_CORRECT > 0.0f && ((uint)(_117 - 12) < 7u)) {
+      float3 _rndx_fcBaseColor = float3(float(_1026), float(_1027), float(_1028));
+      half4 _rndx_fcShadow = __3__36__0__0__g_sceneShadowColor.Load(int3(((int)((((uint)((_70 - (_71 << 2)) << 3)) + SV_GroupThreadID.x) + ((uint)(((int)((uint)(_93) << 5)) & 8160)))), ((int)((((uint)(_71 << 3)) + SV_GroupThreadID.y) + ((uint)(((uint)((uint)(_93)) >> 3) & 8160)))), 0));
+      float _rndx_fcShadowVis = saturate(dot(float3(_rndx_fcShadow.xyz), float3(0.2126f, 0.7152f, 0.0722f)));
+      float3 _rndx_fcCorrected = FoliageColorCorrect(_rndx_fcBaseColor, _sunDirection.xyz, _rndx_fcShadowVis, float3(1.0f, 1.0f, 1.0f));
+      float3 _rndx_fscColor = FoliageSelectiveColor(_rndx_fcCorrected);
+      _1026 = half(_rndx_fscColor.x);
+      _1027 = half(_rndx_fscColor.y);
+      _1028 = half(_rndx_fscColor.z);
     }
     int _1029 = _953 & -2;
     bool _1030 = (_1029 == 66);
@@ -3019,6 +3031,10 @@ void main(
       _3978 = 0.0f;
       _3979 = 0.0f;
     }
+    float _rndx_foliageTransR = 0.0f;
+    float _rndx_foliageTransG = 0.0f;
+    float _rndx_foliageTransB = 0.0f;
+    bool _rndx_isFoliage = ((uint)(_117 - 12) < 7u);
     if (!_3682) {
       bool _3981 = (_3639 == 0);
       bool __defer_3980_4148 = false;
@@ -3124,6 +3140,28 @@ void main(
             _4247 = 0.0f;
             _4248 = 0.0f;
             _4249 = 0.0f;
+          }
+          if (FOLIAGE_TRANSMISSION > 0.0f && _rndx_isFoliage) {
+            FoliageTransmissionResult _rndx_ftResult = FoliageTransmission(
+                float3(_1033, _1034, _1035),
+                float3(_3658, _3659, _3660),
+                float3(_3488, _3489, _3490),
+                _3672,
+                float3(_3454, _3455, _3456),
+                float3(_3424, _3425, _3426),
+                float3(_3661, _3662, _3663),
+                FOLIAGE_TRANSMISSION_THICKNESS);
+
+            _rndx_foliageTransR = _rndx_ftResult.transmission.x;
+            _rndx_foliageTransG = _rndx_ftResult.transmission.y;
+            _rndx_foliageTransB = _rndx_ftResult.transmission.z;
+
+            if (_rndx_ftResult.diffuseScale > 0.0f) {
+              _4201 *= _rndx_ftResult.diffuseScale;
+            } else {
+              float _rndx_wrap = 0.25f * (1.0f - FOLIAGE_TRANSMISSION_THICKNESS);
+              _4201 = max(0.0f, (_3672 + _rndx_wrap) / (1.0f + _rndx_wrap)) * 0.31830987334251404f * 0.75f;
+            }
           }
           bool _4250 = (_3505 == 65);
           if (_3570) {
@@ -3683,9 +3721,9 @@ void main(
         }
       }
     }
-    float _4936 = _4921 + _3153;
-    float _4937 = _4922 + _3154;
-    float _4938 = _4923 + _3155;
+    float _4936 = _4921 + _3153 + _rndx_foliageTransR;
+    float _4937 = _4922 + _3154 + _rndx_foliageTransG;
+    float _4938 = _4923 + _3155 + _rndx_foliageTransB;
     uint _4941 = _frameNumber.x * 13;
     [branch]
     if (((((int)(_4941 + ((((uint)((_70 - (_71 << 2)) << 3)) + SV_GroupThreadID.x) + ((uint)(((int)((uint)(_93) << 5)) & 8160))))) | ((int)(_4941 + ((((uint)(_71 << 3)) + SV_GroupThreadID.y) + ((uint)(((uint)((uint)(_93)) >> 3) & 8160)))))) & 31) == 0) {
