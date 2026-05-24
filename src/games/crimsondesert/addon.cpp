@@ -233,19 +233,22 @@ void MarkShaderDraw(renodx::mods::shader::CustomShader& shader, bool* marker) {
 renodx::mods::shader::CustomShaders custom_shaders = [] {
   auto shaders = renodx::mods::shader::CustomShaders{__ALL_CUSTOM_SHADERS};
 
-  // 1.8: detect RR/night passes without replacing their stale migrated HLSL.
+  // 1.8: detect RR passes without replacing stale migrated HLSL.
   shaders[0x70C182EF] = CreateDetectionShader(0x70C182EF, [](reshade::api::command_list*) {
     rr_draw = true;
     return false;
   });
-  shaders[0x1E61F5E3] = CreateDetectionShader(0x1E61F5E3, [](reshade::api::command_list*) {
-    night_shader_active = true;
-    return false;
-  });
-  shaders[0x6D2F2634] = CreateDetectionShader(0x6D2F2634, [](reshade::api::command_list*) {
-    night_shader_active = true;
-    return false;
-  });
+
+  for (uint32_t hash : {0x1E61F5E3u, 0x6D2F2634u}) {
+    if (auto it = shaders.find(hash); it != shaders.end()) {
+      MarkShaderDraw(it->second, &night_shader_active);
+    } else {
+      shaders[hash] = CreateDetectionShader(hash, [](reshade::api::command_list*) {
+        night_shader_active = true;
+        return false;
+      });
+    }
+  }
 
   for (uint32_t hash : {0x2F574E45u}) {
     if (auto it = shaders.find(hash); it != shaders.end()) {
