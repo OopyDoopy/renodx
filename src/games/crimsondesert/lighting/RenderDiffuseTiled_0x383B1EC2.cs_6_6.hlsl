@@ -1,4 +1,5 @@
 #include "../shared.h"
+#include "diffuse_brdf.hlsli"
 #include "foliage_common.hlsli"
 
 Texture2D<float4> __3__36__0__0__g_puddleMask : register(t124, space36);
@@ -2788,7 +2789,11 @@ void main(
       _3594 = _3566;
       _3595 = _3567;
     }
-    float _3596 = _3464 * _3464;
+    float _rndx_spec_rough = _3464;
+    if (SPECULAR_AA > 0.0f) {
+      _rndx_spec_rough = NDFFilterRoughnessCS(float3(_3539, _3540, _3541), _3464, SPECULAR_AA);
+    }
+    float _3596 = _rndx_spec_rough * _rndx_spec_rough;
     float _3597 = _3596 * _3596;
     bool _3599 = ((uint)(_3505 + -97) < (uint)2);
     float _3601 = select(_3599, 0.5f, (_3464 * 0.60009765625f));
@@ -3119,7 +3124,13 @@ void main(
           float _4168 = _4167 * _4167;
           float _4173 = 1.0f - _3675;
           float _4174 = _4173 * _4173;
-          float _4201 = (_4160 * 0.31830987334251404f) * ((((_3680 * ((((_4161 * 34.5f) + -59.0f) * _4161) + 24.5f)) * exp2(-0.0f - (max(((_4161 * 73.19999694824219f) + -21.200000762939453f), 8.899999618530273f) * sqrt(_3677)))) + _4166) + ((((1.0f - ((_4168 * _4168) * (_4167 * 0.75f))) * (1.0f - ((_4174 * _4174) * (_4173 * 0.75f)))) - _4166) * saturate((_4161 * 2.200000047683716f) + -0.5f)));
+          float _4201;
+          if (DIFFUSE_BRDF_MODE >= 1.0f) {
+            float _eon_LdotV = dot(float3(_3658, _3659, _3660), float3(_1033, _1034, _1035));
+            _4201 = _4160 * EON_DiffuseScalar(_4160, _3675, _eon_LdotV, _3464);
+          } else {
+            _4201 = (_4160 * 0.31830987334251404f) * ((((_3680 * ((((_4161 * 34.5f) + -59.0f) * _4161) + 24.5f)) * exp2(-0.0f - (max(((_4161 * 73.19999694824219f) + -21.200000762939453f), 8.899999618530273f) * sqrt(_3677)))) + _4166) + ((((1.0f - ((_4168 * _4168) * (_4167 * 0.75f))) * (1.0f - ((_4174 * _4174) * (_4173 * 0.75f)))) - _4166) * saturate((_4161 * 2.200000047683716f) + -0.5f)));
+          }
           float _4204 = saturate(1.0f - saturate(_3678));
           float _4205 = _4204 * _4204;
           float _4207 = (_4205 * _4205) * _4204;
@@ -3140,6 +3151,25 @@ void main(
             _4247 = 0.0f;
             _4248 = 0.0f;
             _4249 = 0.0f;
+          }
+          if (DIFFRACTION > 0.0f && _3472 > 0.0f) {
+            float3 _rndx_dShift = DiffractionShiftAndSpeckleCS(
+                _3677, _3675, _rndx_spec_rough,
+                float2(_109, _110), _121,
+                float3(_3669, _3670, _3671),
+                float3(_3539, _3540, _3541),
+                float3(_3454, _3455, _3456));
+            float3 _rndx_dMod = lerp(1.0f, _rndx_dShift, DIFFRACTION * _3472);
+            _4247 *= _rndx_dMod.x;
+            _4248 *= _rndx_dMod.y;
+            _4249 *= _rndx_dMod.z;
+          }
+          if (SMOOTH_TERMINATOR > 0.0f) {
+            float _rndx_c2 = CallistoSmoothTerminator(_4160, _3680, _3677, SMOOTH_TERMINATOR, 0.5f);
+            _4201 *= _rndx_c2;
+            _4247 *= _rndx_c2;
+            _4248 *= _rndx_c2;
+            _4249 *= _rndx_c2;
           }
           if (FOLIAGE_TRANSMISSION > 0.0f && _rndx_isFoliage) {
             FoliageTransmissionResult _rndx_ftResult = FoliageTransmission(
