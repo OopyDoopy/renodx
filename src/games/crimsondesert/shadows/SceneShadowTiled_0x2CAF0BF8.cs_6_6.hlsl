@@ -1623,16 +1623,21 @@ void main(
       float _3170 = mad(_3146, _3085, mad(_3153, _3160, ((((_3161 * _3085) * _3158) + 1.0f) * _3152)));
       float _3174 = mad(_3146, _3086, mad(_3153, (_3155 + (_3159 * _3086)), ((_3152 * _3155) * _3160)));
       float _3178 = mad(_3146, _3087, mad(_3153, (-0.0f - _3086), (-0.0f - (_3161 * _3152))));
+      if (CONTACT_SHADOW_STABLE_DIRECTION == 1.f) {
+        _3170 = _3085;
+        _3174 = _3086;
+        _3178 = _3087;
+      }
       int _3179 = select(_3066, 10, 8);
       if (CONTACT_SHADOW_DETAIL_PATH == 1.f) {
-        _3179 = (int)(lerp(float(_3179), 16.0f, CONTACT_SHADOW_MARCH_BLEND) + 0.5f);
+        _3179 = (int)(lerp(float(_3179), CONTACT_SHADOW_RT_MARCH_SAMPLES, CONTACT_SHADOW_RT_TUNING) + 0.5f);
       }
       if (!_170) {
         _3185 = min(0.5f, ((_115 * 0.0024999999441206455f) + 0.25f));
       } else {
         _3185 = 1.0f;
       }
-      float _3191 = ((abs(_3086) * (select(_3068, 12.0f, 2.0f) - _3069)) + _3069) * select(_172, lerp(0.009999999776482582f, 0.05000000074505806f, CONTACT_SHADOW_REACH_BLEND), 0.10000000149011612f);
+      float _3191 = ((abs(_3086) * (select(_3068, 12.0f, 2.0f) - _3069)) + _3069) * select(_172, lerp(0.009999999776482582f, CONTACT_SHADOW_RT_REACH_TARGET, CONTACT_SHADOW_RT_TUNING), 0.10000000149011612f);
       if (!_172) {
         _3199 = max((_115 * select(((uint)(_80 + -11) < (uint)9), 0.00800000037997961f, 0.029999999329447746f)), _3191);
       } else {
@@ -1653,10 +1658,10 @@ void main(
         _3242 = (float((uint)((uint)(((int)(_3236 * 48271)) & 16777215))) * 5.960464477539063e-08f);
       }
       if ((_3067) || ((((_80 != 15)) && (((uint)(_80 + -12) < (uint)7))))) {
-        _3255 = (_3242 * lerp(10.0f, 2.0f, CONTACT_SHADOW_START_BLEND));
+        _3255 = (_3242 * lerp(10.0f, CONTACT_SHADOW_RT_START_TARGET, CONTACT_SHADOW_RT_TUNING));
       } else {
         if (_80 == 15) {
-          _3255 = ((lerp((10.0f - (saturate(_115 * 0.0010000000474974513f) * 9.0f)), 2.0f, CONTACT_SHADOW_START_BLEND)) * _3242);
+          _3255 = ((lerp((10.0f - (saturate(_115 * 0.0010000000474974513f) * 9.0f)), CONTACT_SHADOW_RT_START_TARGET, CONTACT_SHADOW_RT_TUNING)) * _3242);
         } else {
           _3255 = _3242;
         }
@@ -1790,7 +1795,7 @@ void main(
             }
             _3558 = _3461;
             float _microNearAccum = (saturate(1.0f - ((_3540 * _3540) * _3535)) * (1.0f - _3446)) * _3551;
-            _3559 = saturate((_microNearAccum * lerp(1.0f, 1.15f, CONTACT_SHADOW_BASE_TUNING)) + _3446);
+            _3559 = saturate((_microNearAccum * lerp(1.0f, CONTACT_SHADOW_RT_ACCUM_STRENGTH, CONTACT_SHADOW_RT_TUNING)) + _3446);
           } else {
             _3558 = _3438;
             _3559 = _3446;
@@ -1934,7 +1939,7 @@ void main(
             }
             _3842 = _3745;
             float _microFarAccum = (saturate(1.0f - ((_3824 * _3824) * _3819)) * (1.0f - _3730)) * _3835;
-            _3843 = saturate((_microFarAccum * lerp(1.0f, 1.15f, CONTACT_SHADOW_BASE_TUNING)) + _3730);
+            _3843 = saturate((_microFarAccum * lerp(1.0f, CONTACT_SHADOW_RT_ACCUM_STRENGTH, CONTACT_SHADOW_RT_TUNING)) + _3730);
           } else {
             _3842 = _3728;
             _3843 = _3730;
@@ -2159,10 +2164,22 @@ void main(
     #define MICRO_LIGHT_DIR_X     _3085
     #define MICRO_LIGHT_DIR_Y     _3086
     #define MICRO_LIGHT_DIR_Z     _3087
-    #define MICRO_WORLD_POS_X     (_3289 + _3278)
-    #define MICRO_WORLD_POS_Y     (_3290 + _3279)
-    #define MICRO_WORLD_POS_Z     (_3291 + _3280)
+    #define MICRO_WORLD_POS_X     _3278
+    #define MICRO_WORLD_POS_Y     _3279
+    #define MICRO_WORLD_POS_Z     _3280
+    #define CONTACT_MICRO_DETAIL_STRENGTH_ACTIVE CONTACT_MICRO_DETAIL_STRENGTH_RT
+    #define CONTACT_MICRO_DISTANCE_FADE_ACTIVE CONTACT_MICRO_DISTANCE_FADE_RT
+    #define CONTACT_MICRO_RANGE_NEAR_ACTIVE CONTACT_MICRO_RANGE_NEAR_RT
+    #define CONTACT_MICRO_RANGE_FAR_ACTIVE CONTACT_MICRO_RANGE_FAR_RT
+    #define CONTACT_MICRO_THICKNESS_MULTIPLIER_ACTIVE CONTACT_MICRO_THICKNESS_MULTIPLIER_RT
+    #define CONTACT_MICRO_OCCLUSION_SCALE_ACTIVE CONTACT_MICRO_OCCLUSION_SCALE_RT
     #include "micro_detail_shadows.hlsli"
+    #undef CONTACT_MICRO_DETAIL_STRENGTH_ACTIVE
+    #undef CONTACT_MICRO_DISTANCE_FADE_ACTIVE
+    #undef CONTACT_MICRO_RANGE_NEAR_ACTIVE
+    #undef CONTACT_MICRO_RANGE_FAR_ACTIVE
+    #undef CONTACT_MICRO_THICKNESS_MULTIPLIER_ACTIVE
+    #undef CONTACT_MICRO_OCCLUSION_SCALE_ACTIVE
     #undef MICRO_PIXEL_X_FLOAT
     #undef MICRO_PIXEL_Y_FLOAT
     #undef MICRO_LINEAR_DEPTH
@@ -2174,6 +2191,9 @@ void main(
     #undef MICRO_WORLD_POS_X
     #undef MICRO_WORLD_POS_Y
     #undef MICRO_WORLD_POS_Z
+    if (CONTACT_SHADOW_RT_TUNING > 0.f && _4056 < 1.0f) {
+      _4056 = saturate(1.0f - ((1.0f - _4056) * lerp(1.0f, CONTACT_SHADOW_RT_FINAL_STRENGTH, CONTACT_SHADOW_RT_TUNING)));
+    }
     if (CONTACT_SHADOW_DETAIL_PATH == 1.f && _4056 < 1.0f) {
       float2 _screenUV = float2((_60 + 0.5f) * _bufferSizeAndInvSize.z,
                                  (_61 + 0.5f) * _bufferSizeAndInvSize.w);

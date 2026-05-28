@@ -27,8 +27,32 @@
 
 static const int MICRO_STEPS = 32;
 
+#ifndef CONTACT_MICRO_DETAIL_STRENGTH_ACTIVE
+#define CONTACT_MICRO_DETAIL_STRENGTH_ACTIVE CONTACT_MICRO_DETAIL_STRENGTH
+#endif
+
+#ifndef CONTACT_MICRO_DISTANCE_FADE_ACTIVE
+#define CONTACT_MICRO_DISTANCE_FADE_ACTIVE CONTACT_MICRO_DISTANCE_FADE
+#endif
+
+#ifndef CONTACT_MICRO_RANGE_NEAR_ACTIVE
+#define CONTACT_MICRO_RANGE_NEAR_ACTIVE CONTACT_MICRO_RANGE_NEAR
+#endif
+
+#ifndef CONTACT_MICRO_RANGE_FAR_ACTIVE
+#define CONTACT_MICRO_RANGE_FAR_ACTIVE CONTACT_MICRO_RANGE_FAR
+#endif
+
+#ifndef CONTACT_MICRO_THICKNESS_MULTIPLIER_ACTIVE
+#define CONTACT_MICRO_THICKNESS_MULTIPLIER_ACTIVE CONTACT_MICRO_THICKNESS_MULTIPLIER
+#endif
+
+#ifndef CONTACT_MICRO_OCCLUSION_SCALE_ACTIVE
+#define CONTACT_MICRO_OCCLUSION_SCALE_ACTIVE CONTACT_MICRO_OCCLUSION_SCALE
+#endif
+
 if (MICRO_SHADOW_QUALITY > MICRO_SHADOW_QUALITY_OFF
-    && CONTACT_MICRO_DETAIL_STRENGTH > 0.f
+    && CONTACT_MICRO_DETAIL_STRENGTH_ACTIVE > 0.f
     && MICRO_STENCIL != 2
     && MICRO_STENCIL != 3
     && MICRO_STENCIL != 6
@@ -41,15 +65,15 @@ if (MICRO_SHADOW_QUALITY > MICRO_SHADOW_QUALITY_OFF
 ) {
   float _microLinDepth = MICRO_LINEAR_DEPTH;
 
-  float _microDistFade = saturate(mad(-0.025f, _microLinDepth, 3.0f));
+  float _microDistFade = CONTACT_MICRO_DISTANCE_FADE_ACTIVE;
 
   [branch]
   if (_microDistFade > 0.01f) {
-    float _microRange = lerp(0.12f, 0.80f, saturate(_microLinDepth / 100.0f));
+    float _microRange = lerp(CONTACT_MICRO_RANGE_NEAR_ACTIVE, CONTACT_MICRO_RANGE_FAR_ACTIVE, saturate(_microLinDepth / 100.0f));
     float _microStep  = _microRange / (float)MICRO_STEPS;
 
     // Perspective corrected thickness
-    float _microWorldThick = _microStep * 0.5f;
+    float _microWorldThick = _microStep * CONTACT_MICRO_THICKNESS_MULTIPLIER_ACTIVE;
     _microWorldThick = max(_microWorldThick, lerp(0.005f, 0.04f, saturate(_microLinDepth / 80.0f)));
 
     // Temporal jitter
@@ -116,12 +140,12 @@ if (MICRO_SHADOW_QUALITY > MICRO_SHADOW_QUALITY_OFF
       // Scene must be closer than ray (positive delta = scene in front of ray)
       // and within the thickness window
       if (_mLinDelta >= 0.0f && _mLinDelta <= _microWorldThick) {
-        float _mocc = saturate(_mLinDelta / _microWorldThick * 2.5f);
+        float _mocc = saturate(_mLinDelta / _microWorldThick * CONTACT_MICRO_OCCLUSION_SCALE_ACTIVE);
         _microShadow = min(_microShadow, 1.0f - _mocc);
       }
     }
 
-    float _microResult = lerp(1.0f, _microShadow, saturate(_microDistFade * CONTACT_MICRO_DETAIL_STRENGTH));
+    float _microResult = lerp(1.0f, _microShadow, saturate(_microDistFade * CONTACT_MICRO_DETAIL_STRENGTH_ACTIVE));
     MICRO_CONTACT_SHADOW = min(MICRO_CONTACT_SHADOW, _microResult);
   }
 }
