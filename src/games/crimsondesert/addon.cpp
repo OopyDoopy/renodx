@@ -1202,6 +1202,24 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
+        .key = "ContactShadowQuality",
+        .binding = &shader_injection.custom_flags,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = MICRO_SHADOW_QUALITY_BALANCED,
+        .packed_values = {0u, CUSTOM_FLAGS__MICRO_SHADOW_QUALITY_BIT0, CUSTOM_FLAGS__MICRO_SHADOW_QUALITY_BIT1, CUSTOM_FLAGS__MICRO_SHADOW_QUALITY_BIT0 | CUSTOM_FLAGS__MICRO_SHADOW_QUALITY_BIT1},
+        .can_reset = true,
+        .label = "Contact Micro Shadows",
+        .section = "Rendering",
+        .tooltip = "Controls contact micro shadow detail.\n"
+                   "Off = stock 1.8 contact shadows.\n"
+                   "Low = subtle contact detail with conservative reach and strength.\n"
+                   "Balanced = recommended contact micro shadow tuning.\n"
+                   "Full = strongest contact micro shadow tuning.",
+        .labels = {"Off", "Low", "Balanced", "Full"},
+        .tint = rendering,
+        .is_visible = []() { return current_settings_mode == rendering_group; },
+    },
+    new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
         .label = "Ray Reconstruction / Ray Regeneration Required\n",
         .section = "Rendering",
@@ -1246,25 +1264,6 @@ renodx::utils::settings::Settings settings = {
                    "Off = vanilla yellow moonlight.\n"
                    "On = cooler and desaturated night scenes.",
         .labels = {"Off", "On"},
-        .tint = rendering,
-        .is_enabled = []() { return RR_ENABLED; },
-        .is_visible = []() { return current_settings_mode == rendering_group; },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "ContactShadowQuality",
-        .binding = &shader_injection.custom_flags,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = MICRO_SHADOW_QUALITY_BALANCED,
-        .packed_values = {0u, CUSTOM_FLAGS__MICRO_SHADOW_QUALITY_BIT0, CUSTOM_FLAGS__MICRO_SHADOW_QUALITY_BIT1, CUSTOM_FLAGS__MICRO_SHADOW_QUALITY_BIT0 | CUSTOM_FLAGS__MICRO_SHADOW_QUALITY_BIT1},
-        .can_reset = true,
-        .label = "Contact Micro Shadows",
-        .section = "Rendering",
-        .tooltip = "Controls contact micro shadow detail.\n"
-                   "Off = stock 1.8 contact shadows.\n"
-                   "Low = subtle contact detail with conservative reach and strength.\n"
-                   "Balanced = recommended contact micro shadow tuning.\n"
-                   "Full = strongest contact micro shadow tuning.",
-        .labels = {"Off", "Low", "Balanced", "Full"},
         .tint = rendering,
         .is_enabled = []() { return RR_ENABLED; },
         .is_visible = []() { return current_settings_mode == rendering_group; },
