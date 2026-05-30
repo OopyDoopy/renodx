@@ -2502,6 +2502,7 @@ void main(
     } else {
       _6423 = 1.0f;
     }
+    float _rndxMicroBaseContact = _6423;
     #define MICRO_PIXEL_X_FLOAT   _60
     #define MICRO_PIXEL_Y_FLOAT   _61
     #define MICRO_LINEAR_DEPTH    _115
@@ -2519,6 +2520,10 @@ void main(
     #define CONTACT_MICRO_RANGE_FAR_ACTIVE CONTACT_MICRO_RANGE_FAR_RT
     #define CONTACT_MICRO_THICKNESS_MULTIPLIER_ACTIVE CONTACT_MICRO_THICKNESS_MULTIPLIER_RT
     #define CONTACT_MICRO_OCCLUSION_SCALE_ACTIVE CONTACT_MICRO_OCCLUSION_SCALE_RT
+    #define CONTACT_MICRO_SELF_REJECT_PIXELS_ACTIVE CONTACT_MICRO_SELF_REJECT_PIXELS_RT
+    #define CONTACT_MICRO_SELF_FADE_PIXELS_ACTIVE CONTACT_MICRO_SELF_FADE_PIXELS_RT
+    #define CONTACT_MICRO_FOLIAGE_THICKNESS_BOOST_ACTIVE CONTACT_MICRO_FOLIAGE_THICKNESS_BOOST_RT
+    #define CONTACT_MICRO_FOLIAGE_OCCLUSION_BOOST_ACTIVE CONTACT_MICRO_FOLIAGE_OCCLUSION_BOOST_RT
     #include "micro_detail_shadows.hlsli"
     #undef CONTACT_MICRO_DETAIL_STRENGTH_ACTIVE
     #undef CONTACT_MICRO_DISTANCE_FADE_ACTIVE
@@ -2526,6 +2531,10 @@ void main(
     #undef CONTACT_MICRO_RANGE_FAR_ACTIVE
     #undef CONTACT_MICRO_THICKNESS_MULTIPLIER_ACTIVE
     #undef CONTACT_MICRO_OCCLUSION_SCALE_ACTIVE
+    #undef CONTACT_MICRO_SELF_REJECT_PIXELS_ACTIVE
+    #undef CONTACT_MICRO_SELF_FADE_PIXELS_ACTIVE
+    #undef CONTACT_MICRO_FOLIAGE_THICKNESS_BOOST_ACTIVE
+    #undef CONTACT_MICRO_FOLIAGE_OCCLUSION_BOOST_ACTIVE
     #undef MICRO_PIXEL_X_FLOAT
     #undef MICRO_PIXEL_Y_FLOAT
     #undef MICRO_LINEAR_DEPTH
@@ -2537,15 +2546,36 @@ void main(
     #undef MICRO_WORLD_POS_X
     #undef MICRO_WORLD_POS_Y
     #undef MICRO_WORLD_POS_Z
-    if (CONTACT_SHADOW_RT_TUNING > 0.f && _6423 < 1.0f) {
-      _6423 = saturate(1.0f - ((1.0f - _6423) * lerp(1.0f, CONTACT_SHADOW_RT_FINAL_STRENGTH, CONTACT_SHADOW_RT_TUNING)));
-    }
-    if (CONTACT_SHADOW_DETAIL_PATH == 1.f && _6423 < 1.0f) {
-      float2 _screenUV = float2((_60 + 0.5f) * _bufferSizeAndInvSize.z,
-                                 (_61 + 0.5f) * _bufferSizeAndInvSize.w);
-      float2 _edgeDist = min(_screenUV, 1.0f - _screenUV);
-      float _edgeFade = saturate(min(_edgeDist.x, _edgeDist.y) * 10.0f);
-      _6423 = lerp(lerp(1.0f, _6423, 0.5f), _6423, _edgeFade);
+    if (CONTACT_SHADOW_RT_TUNING > 0.f || CONTACT_SHADOW_DETAIL_PATH == 1.f) {
+      float _rndxMicroWithHelper = _6423;
+      float _rndxMicroBaseBoosted = _rndxMicroBaseContact;
+      float _rndxMicroHelperBoosted = _rndxMicroWithHelper;
+      if (CONTACT_SHADOW_RT_TUNING > 0.f && _rndxMicroBaseBoosted < 1.0f) {
+        _rndxMicroBaseBoosted = saturate(1.0f - ((1.0f - _rndxMicroBaseBoosted) * lerp(1.0f, CONTACT_SHADOW_RT_FINAL_STRENGTH, CONTACT_SHADOW_RT_TUNING)));
+      }
+      if (CONTACT_SHADOW_RT_TUNING > 0.f && _rndxMicroHelperBoosted < 1.0f) {
+        _rndxMicroHelperBoosted = saturate(1.0f - ((1.0f - _rndxMicroHelperBoosted) * lerp(1.0f, CONTACT_SHADOW_RT_FINAL_STRENGTH, CONTACT_SHADOW_RT_TUNING)));
+      }
+      if (CONTACT_SHADOW_DETAIL_PATH == 1.f && _rndxMicroHelperBoosted < _rndxMicroBaseBoosted) {
+        float2 _screenUV = float2((_60 + 0.5f) * _bufferSizeAndInvSize.z,
+                                   (_61 + 0.5f) * _bufferSizeAndInvSize.w);
+        float2 _edgeDist = min(_screenUV, 1.0f - _screenUV);
+        float _edgeFade = saturate(min(_edgeDist.x, _edgeDist.y) * 10.0f);
+        _6423 = lerp(_rndxMicroBaseBoosted, _rndxMicroHelperBoosted, _edgeFade);
+      } else {
+        _6423 = _rndxMicroHelperBoosted;
+      }
+    } else {
+      if (CONTACT_SHADOW_RT_TUNING > 0.f && _6423 < 1.0f) {
+        _6423 = saturate(1.0f - ((1.0f - _6423) * lerp(1.0f, CONTACT_SHADOW_RT_FINAL_STRENGTH, CONTACT_SHADOW_RT_TUNING)));
+      }
+      if (CONTACT_SHADOW_DETAIL_PATH == 1.f && _6423 < 1.0f) {
+        float2 _screenUV = float2((_60 + 0.5f) * _bufferSizeAndInvSize.z,
+                                   (_61 + 0.5f) * _bufferSizeAndInvSize.w);
+        float2 _edgeDist = min(_screenUV, 1.0f - _screenUV);
+        float _edgeFade = saturate(min(_edgeDist.x, _edgeDist.y) * 10.0f);
+        _6423 = lerp(lerp(1.0f, _6423, 0.5f), _6423, _edgeFade);
+      }
     }
     float _6424 = min(_5260, _6423);
     _6438 = float(half(_6424 * float(_5236)));
