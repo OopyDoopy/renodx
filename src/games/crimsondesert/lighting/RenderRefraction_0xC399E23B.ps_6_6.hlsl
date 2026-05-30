@@ -1369,10 +1369,10 @@ float4 main(
         _1741 = _1734;
         _1742 = _1735;
         _1743 = _1736;
-        // Fix vanilla bug: indirect cache voxel boundary creates visible seam on water.
-        // Force _1744 = 1.0 to skip the indirect cache blend entirely for refractive
-        // surfaces. The SH ambient is smooth and sufficient for underwater inscatter.
-        _1744 = 1.0f;
+        // RenoDX: bypass the indirect cache blend only for the water/special
+        // refraction path that exposes voxel-boundary seams. Thin stencil-only
+        // glass keeps vanilla blending even when Material Improvements are on.
+        _1744 = (MATERIAL_IMPROVEMENTS == 1.f && _211) ? 1.0f : saturate((_280 + -64.0f) * 0.0078125f);
       } else {
         _1741 = _1730;
         _1742 = _1731;
@@ -1386,7 +1386,7 @@ float4 main(
       _1741 = _1734;
       _1742 = _1735;
       _1743 = _1736;
-      _1744 = 1.0f;
+      _1744 = (MATERIAL_IMPROVEMENTS == 1.f && _211) ? 1.0f : saturate((_280 + -64.0f) * 0.0078125f);
     }
     _1782 = _193 * -1.0233277082443237f;
     _1783 = _194 * 1.0233277082443237f;
@@ -1663,15 +1663,14 @@ float4 main(
     SV_Target.z = (((((((_2360 * 0.02061999961733818f) + (min(60000.0f, _2276) * _2455)) + (_2361 * 0.10958000272512436f)) + (_2362 * 0.8697999715805054f)) + ((_2345 * exp2(_1886 * _525)) * (_2446 + _2282.z))) + select(_211, (_2449 * _2451.z), 0.0f)) + _2466.z);
     SV_Target.w = 1.0f;
 
-    // RenoDX: Apply shadow on top of ice surface
+    // RenoDX: legacy refraction surface shadowing for water/ice-style refraction.
     // Vanilla only uses shadows to modulate the directional light entering the
-    // in scattering integral so shadows are underground
-    //
-    // Apply surface shadow to make it visible on top but preserve
-    // ambient contribution to avoid pure black shadows
-    if (MATERIAL_IMPROVEMENTS == 1.f && _208 > 0.0f) {
+    // in-scattering integral. Require the special refraction path and fade by
+    // optical thickness so thin interior glass on the same stencils stays native.
+    float _rndx_refraction_shadow_weight = saturate(_208 * float((bool)_211) * saturate((_1858 - 0.04f) * 16.0f));
+    if (MATERIAL_IMPROVEMENTS == 1.f && _rndx_refraction_shadow_weight > 0.0f) {
       float _rndx_surface_shadow = min(_1039, _1111);
-      float _rndx_soft_shadow = max(0.3f, _rndx_surface_shadow);
+      float _rndx_soft_shadow = lerp(1.0f, max(0.3f, _rndx_surface_shadow), _rndx_refraction_shadow_weight);
       float3 _rndx_scene_through = float3(
         (_2345 * exp2(_1886 * _523)) * (_2444 + _2282.x),
         (_2345 * exp2(_1886 * _524)) * (_2445 + _2282.y),
