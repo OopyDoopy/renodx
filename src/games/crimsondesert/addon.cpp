@@ -233,7 +233,7 @@ void MarkShaderDraw(renodx::mods::shader::CustomShader& shader, bool* marker) {
 renodx::mods::shader::CustomShaders custom_shaders = [] {
   auto shaders = renodx::mods::shader::CustomShaders{__ALL_CUSTOM_SHADERS};
 
-  // 1.8: detect RR passes without replacing stale migrated HLSL.
+  // Detect RR passes without replacing stale migrated HLSL.
   shaders[0x70C182EF] = CreateDetectionShader(0x70C182EF, [](reshade::api::command_list*) {
     rr_draw = true;
     return false;
@@ -1221,9 +1221,9 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "Ray Reconstruction / Ray Regeneration Required\n",
+        .label = "Ray Reconstruction / Ray Regeneration Features\n",
         .section = "Rendering",
-        .tint = wiprendering,
+        .tint = rendering,
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
@@ -1296,11 +1296,10 @@ renodx::utils::settings::Settings settings = {
         .can_reset = true,
         .label = "Material Improvements",
         .section = "Rendering",
-        .tooltip = "Enables all material/lighting improvements:\n"
-                   "- EON 2025 energy preserving diffuse BRDF\n"
-                   "- Callisto smooth terminator\n"
+        .tooltip = "Enables the 1.09-validated material/lighting improvements:\n"
                    "- Geometric specular anti aliasing\n"
-                   "- Spectral diffraction on metals",
+                   "- Spectral diffraction on metals\n"
+                   "Diffuse BRDF and smooth terminator hooks remain present but disabled until revalidated.",
         .labels = {"Off", "On"},
         .tint = rendering,
         .is_enabled = []() { return RR_ENABLED; },
