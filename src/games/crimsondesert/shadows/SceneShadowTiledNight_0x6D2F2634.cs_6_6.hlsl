@@ -701,12 +701,14 @@ void main(
       float _1735 = mad(_1711, _1650, mad(_1718, _1725, ((((_1726 * _1650) * _1723) + 1.0f) * _1717)));
       float _1739 = mad(_1711, _1651, mad(_1718, (_1720 + (_1724 * _1651)), ((_1717 * _1720) * _1725)));
       float _1743 = mad(_1711, _1652, mad(_1718, (-0.0f - _1651), (-0.0f - (_1726 * _1717))));
+      // Contact Micro Shadows: use the real light direction when quality is enabled.
       if (CONTACT_SHADOW_STABLE_DIRECTION == 1.f) {
         _1735 = _1650;
         _1739 = _1651;
         _1743 = _1652;
       }
       int _1744 = select(_1631, 10, 8);
+      // Contact Micro Shadows: quality gate controls extra march samples.
       if (CONTACT_SHADOW_DETAIL_PATH == 1.f) {
         _1744 = (int)(lerp(float(_1744), 16.0f, CONTACT_SHADOW_MARCH_BLEND) + 0.5f);
       }
@@ -1235,6 +1237,7 @@ void main(
       _2621 = 1.0f;
     }
 
+    // Contact Micro Shadows: screen-space helper fills missing fine occluders.
     #define MICRO_PIXEL_X_FLOAT   _58
     #define MICRO_PIXEL_Y_FLOAT   _59
     #define MICRO_LINEAR_DEPTH    _113
@@ -1259,6 +1262,7 @@ void main(
     #undef MICRO_WORLD_POS_Y
     #undef MICRO_WORLD_POS_Z
 
+    // Contact Micro Shadows: fade helper near screen edges to avoid edge brightening.
     if (CONTACT_SHADOW_DETAIL_PATH == 1.f && _2621 < 1.0f) {
       float2 _screenUV = float2((_58 + 0.5f) * _bufferSizeAndInvSize.z,
                                  (_59 + 0.5f) * _bufferSizeAndInvSize.w);

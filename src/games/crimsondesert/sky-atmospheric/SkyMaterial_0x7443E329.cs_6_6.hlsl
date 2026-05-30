@@ -345,6 +345,7 @@ void main(
     float _sunRadiusVanilla = _sunSizeAngle * 0.01745329238474369f;
     float _sunAngle = acos(clamp(_sunViewDot, -1.0f, 1.0f));
     float _355, _356, _357;
+    // Sun Improvements: softened disk and halo are fully gated; Off uses vanilla mask.
     if (SUN_IMPROVEMENTS == 1.f) {
       float _sunRadius = _sunRadiusVanilla * 2.5f;
       float _sunRadiusR = _sunRadius;
@@ -389,6 +390,7 @@ void main(
       _356 = (_sunMask * (_sunLum - _335)) + _335;
       _357 = (_sunMask * (_sunLum - _336)) + _336;
     }
+    // Moon Adjustments: disk scale, luminance, and shading return to vanilla when off.
     float _moonSizeScale = renodx::math::Select(MOON_ADJUSTMENTS == 1.f, max(1.0f, MOON_DISK_SIZE), 1.0f);
     float _moonSizeAngleAdjusted = _moonSizeAngle * _moonSizeScale;
     float _365 = sin(_moonSizeAngleAdjusted * 0.01745329238474369f);
@@ -638,6 +640,7 @@ void main(
     float _finalG = (((_945 * _801) + select(_941, 0.0f, _892.y)) + ((_804 * (((_591 * 0.9163600206375122f) + (_590 * 0.07020000368356705f)) + (_592 * 0.013450000435113907f))) * _952));
     float _finalB = (((_945 * _802) + select(_941, 0.0f, _892.z)) + ((_805 * (((_591 * 0.10958000272512436f) + (_590 * 0.02061999961733818f)) + (_592 * 0.8697999715805054f))) * _952));
 
+    // Aurora Borealis: injected only at night and only when the RR-gated feature is enabled.
     [branch]
     if (AURORA_BOREALIS_ENABLED) {
       float3 aurora = ComputeAurora(

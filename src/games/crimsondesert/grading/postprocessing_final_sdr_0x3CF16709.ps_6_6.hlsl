@@ -253,6 +253,7 @@ float4 main(
   SV_Target.z = _426;
   SV_Target.w = _15.w;
 
+  // Final grading: pass live sun/moon directions into the SDR finish.
   SV_Target.xyz = FinalizeSDR(
       SV_Target.xyz,
       asfloat(__3__35__0__0__SceneConstantBuffer_raw[42u].y),

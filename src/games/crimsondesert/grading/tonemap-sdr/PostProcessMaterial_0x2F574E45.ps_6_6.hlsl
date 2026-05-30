@@ -1752,6 +1752,7 @@ float4 main(
     _3339 = _2901;
     _3340 = _2902;
   }
+  // Basic SDR final fallback: apply film grain here only when no final SDR pass follows.
   if (CUSTOM_BASIC_POSTPROCESS_FINAL == 1.f && CUSTOM_FILM_GRAIN_TYPE != 0) {
     // DLAA writes this material directly to the fake swapchain, so neighbor-sampling
     // sharpening has no matching final-color source texture at this point.
@@ -1762,6 +1763,7 @@ float4 main(
   }
   if (_etcParams.y > 1.0f) {
     float custom_vignette_strength = saturate(_etcParams.y + -1.0f);
+    // Basic SDR final fallback: reuse the user vignette slider in this direct-to-output path.
     if (CUSTOM_BASIC_POSTPROCESS_FINAL == 1.f) {
       custom_vignette_strength *= CUSTOM_VIGNETTE;
     }
@@ -1807,6 +1809,7 @@ float4 main(
     _3413 = _3397;
     _3414 = _3398;
   }
+  // Basic SDR final fallback: finish SDR output when DLAA skips the normal final shader.
   if (CUSTOM_BASIC_POSTPROCESS_FINAL == 1.f) {
     float3 final_color = FinalizeSDR(
         float3(_3412, _3413, _3414),

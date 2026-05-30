@@ -2800,6 +2800,7 @@ void main(
       _3595 = _3567;
     }
     float _rndx_spec_rough = _3464;
+    // Material Improvements: specular AA filters roughness only when the gate is enabled.
     if (SPECULAR_AA > 0.0f) {
       _rndx_spec_rough = NDFFilterRoughnessCS(float3(_3539, _3540, _3541), _3464, SPECULAR_AA);
     }
@@ -3135,6 +3136,7 @@ void main(
           float _4173 = 1.0f - _3675;
           float _4174 = _4173 * _4173;
           float _4201;
+          // Material Improvements: optional diffuse BRDF replacement, otherwise vanilla diffuse.
           if (DIFFUSE_BRDF_MODE >= 1.0f) {
             float _eon_LdotV = dot(float3(_3658, _3659, _3660), float3(_1033, _1034, _1035));
             _4201 = _4160 * EON_DiffuseScalar(_4160, _3675, _eon_LdotV, _3464);
@@ -3162,6 +3164,7 @@ void main(
             _4248 = 0.0f;
             _4249 = 0.0f;
           }
+          // Material Improvements: diffraction tint is disabled unless the material gate is on.
           if (DIFFRACTION > 0.0f && _3472 > 0.0f) {
             float3 _rndx_dShift = DiffractionShiftAndSpeckleCS(
                 _3677, _3675, _rndx_spec_rough,
@@ -3174,6 +3177,7 @@ void main(
             _4248 *= _rndx_dMod.y;
             _4249 *= _rndx_dMod.z;
           }
+          // Material Improvements: smooth terminator is gated separately and defaults off.
           if (SMOOTH_TERMINATOR > 0.0f) {
             float _rndx_c2 = CallistoSmoothTerminator(_4160, _3680, _3677, SMOOTH_TERMINATOR, 0.5f);
             _4201 *= _rndx_c2;
@@ -3181,6 +3185,7 @@ void main(
             _4248 *= _rndx_c2;
             _4249 *= _rndx_c2;
           }
+          // Foliage Improvements: transmission is foliage-stencil only and off below AO+.
           if (FOLIAGE_TRANSMISSION > 0.0f && _rndx_isFoliage) {
             FoliageTransmissionResult _rndx_ftResult = FoliageTransmission(
                 float3(_1033, _1034, _1035),

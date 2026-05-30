@@ -824,6 +824,7 @@ void main(
               _1220 = (max((((_1184 * _601) + _1183) * _1209), 0.0f) * _1192);
               _1221 = (max((((_1184 * _602) + _1183) * _1209), 0.0f) * _1192);
               _1222 = (max((((_1184 * _603) + _1183) * _1209), 0.0f) * _1192);
+              // Material Improvements: optional diffuse BRDF replacement, otherwise vanilla diffuse.
               if (DIFFUSE_BRDF_MODE >= 2.0f) {
                 float _rndx_sNdotL = saturate(_820);
                 float _rndx_LdotV = dot(float3(_809, _810, _811), float3(_775, _776, _777));
@@ -904,6 +905,7 @@ void main(
             _1281 = ((((max((_1153 * _1110), 0.0f) - _1135) * _464) + _1135) * _1169);
             _1282 = ((((max((_1153 * _1111), 0.0f) - _1136) * _464) + _1136) * _1169);
             float _rndx_velvet_mod = (((saturate(1.0f - _effectiveMetallicForVelvet) + -1.0f) * _466) + 1.0f);
+            // Material Improvements: optional diffuse BRDF replacement, otherwise vanilla diffuse.
             if (DIFFUSE_BRDF_MODE >= 2.0f) {
               float _rndx_sNdotL2 = saturate(_820);
               float _rndx_LdotV2 = dot(float3(_809, _810, _811), float3(_775, _776, _777));
@@ -916,6 +918,7 @@ void main(
             }
           }
         }
+        // Material Improvements: diffraction tint is disabled unless the material gate is on.
         if (DIFFRACTION > 0.0f && float(_564) > 0.0f) {
           float3 _rndx_dShift = DiffractionShiftAndSpeckleCS(
               _825, _823, _606,
@@ -928,6 +931,7 @@ void main(
           _1281 *= _rndx_dMod.y;
           _1282 *= _rndx_dMod.z;
         }
+        // Material Improvements: smooth terminator is gated separately and defaults off.
         if (SMOOTH_TERMINATOR > 0.0f) {
           float _rndx_st = CallistoSmoothTerminator(_820, _826, _825, SMOOTH_TERMINATOR, 0.5f);
           _1283 *= _rndx_st;

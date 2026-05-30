@@ -375,6 +375,7 @@ void main(
           }
           _705 = ((int)(uint)((int)(_702)));
           float _aoDistFade = 1.0f - saturate(max((_619 + -100.0f), 0.0f) * 0.05000000074505806f);
+          // Foliage Improvements: extend AO reach only for foliage stencils.
           if (FOLIAGE_AO_STRENGTH > 0.0f && ((uint)(_60 - 12) < 7u)) {
             _aoDistFade = 1.0f - saturate(max((_619 + -200.0f), 0.0f) * 0.005f);
           }
@@ -482,6 +483,7 @@ void main(
         }
         __3__38__0__1__g_bentConeResultUAV[int2(((int)((((uint)((_14 - (_15 << 1)) << 4)) + SV_GroupThreadID.x) + ((uint)(((int)((uint)(_37) << 5)) & 8160)))), ((int)((((uint)(_15 << 4)) + SV_GroupThreadID.y) + ((uint)(((uint)((uint)(_37)) >> 3) & 8160)))))] = float4(((_799 * 0.5f) + 0.5f), ((_800 * 0.5f) + 0.5f), ((_801 * 0.5f) + 0.5f), saturate(1.0f - _790));
         _823 = ((_810 + _shadowAOParams.w) - (_810 * _shadowAOParams.w));
+        // Foliage Improvements: preserve stronger bent-cone visibility for foliage.
         if (FOLIAGE_AO_STRENGTH > 0.0f && ((uint)(_60 - 12) < 7u)) {
           _823 = lerp(_823, _810, FOLIAGE_AO_STRENGTH);
         }

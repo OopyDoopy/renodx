@@ -14,6 +14,8 @@
 //
 // v2: 32 steps, extended range (120 units), perspective corrected depth
 // -----------------------------------------------------------------------------
+// Contact Micro Shadows: shared helper included by shadow remaps only through the
+// quality gate below, so Off keeps the native shader path.
 
 // Stencil IDs that must NOT receive micro detail contact shadows
 //

@@ -6,6 +6,7 @@
 #include <cstdint>
 #endif
 
+// Feature gates packed into custom_flags. Off states should preserve vanilla behavior.
 #define CUSTOM_FLAGS__TONE_MAP_TYPE                     0b0000000000000000001u
 #define CUSTOM_FLAGS__SDR_BLACK_CRUSH_FIX               0b0000000000000000010u
 #define CUSTOM_FLAGS__IMPROVED_AUTO_EXPOSURE            0b0000000000000000100u
@@ -80,6 +81,7 @@
 #define MICRO_SHADOW_QUALITY_LOW               1.f
 #define MICRO_SHADOW_QUALITY_BALANCED          2.f
 #define MICRO_SHADOW_QUALITY_FULL              3.f
+// Contact Micro Shadows gate all non-RT detail edits; Off keeps the native march.
 #define MICRO_SHADOW_QUALITY                   ((float)((((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__MICRO_SHADOW_QUALITY_BIT0) != 0u) ? 1u : 0u) | (((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__MICRO_SHADOW_QUALITY_BIT1) != 0u) ? 2u : 0u)))
 #define CONTACT_SHADOW_IS_LOW                  (MICRO_SHADOW_QUALITY == MICRO_SHADOW_QUALITY_LOW)
 #define CONTACT_SHADOW_IS_BALANCED             (MICRO_SHADOW_QUALITY == MICRO_SHADOW_QUALITY_BALANCED)
@@ -97,6 +99,7 @@
 #define CONTACT_MICRO_SELF_REJECT_PIXELS       (CONTACT_SHADOW_IS_FULL ? 0.95f : 1.50f)
 #define CONTACT_SHADOW_BASE_TUNING             max(CONTACT_SHADOW_MARCH_BLEND, max(CONTACT_SHADOW_REACH_BLEND, CONTACT_SHADOW_START_BLEND))
 #define CONTACT_SHADOW_STABLE_DIRECTION        (max(CONTACT_SHADOW_BASE_TUNING, CONTACT_MICRO_DETAIL_STRENGTH) > 0.f ? 1.f : 0.f)
+// RT Sun/Moon contact shadow tuning is separated so RR+SunRT can be stronger without affecting Off.
 #define CONTACT_SHADOW_RT_TUNING               (MICRO_SHADOW_QUALITY > MICRO_SHADOW_QUALITY_OFF ? 1.f : 0.f)
 #define CONTACT_SHADOW_RT_FULL_MARCH_SAMPLES   24.0f
 #define CONTACT_SHADOW_RT_FULL_REACH_TARGET    0.080f
@@ -126,6 +129,7 @@
 #define CONTACT_MICRO_SELF_FADE_PIXELS_RT      (CONTACT_SHADOW_IS_FULL ? CONTACT_MICRO_SELF_FADE_PIXELS_RT_FULL : 2.00f)
 #define CONTACT_MICRO_FOLIAGE_THICKNESS_BOOST_RT 1.80f
 #define CONTACT_MICRO_FOLIAGE_OCCLUSION_BOOST_RT 1.40f
+// Foliage Improvements are RR-gated until the non-RR lanes receive separate tuning.
 #define FOLIAGE_IMPROVEMENTS                   (RR_ENABLED == 1.f ? ((float)((((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS) != 0u) ? 1u : 0u) | (((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS_BIT1) != 0u) ? 2u : 0u))) : 0.f)
 #define FOLIAGE_TRANSMISSION                   (FOLIAGE_IMPROVEMENTS >= 2.f ? 1.0f : 0.0f)
 #define RT_QUALITY                             (RR_ENABLED == 1.f ? (float)((CUSTOM_FLAGS_AS_UINT >> 10u) & 0x3u) : 0.f)
@@ -134,6 +138,7 @@
 #define RT_GI_KNEE                             2.0f
 #define RT_GI_STRENGTH                         0.07f
 #define MATERIAL_IMPROVEMENTS                  ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__MATERIAL_IMPROVEMENTS) != 0u) ? 1.f : 0.f)
+// 1.09 release keeps these hooks available but disabled; specular AA and diffraction are the validated material edits.
 #define DIFFUSE_BRDF_MODE                      0.0f
 #define SMOOTH_TERMINATOR                      0.0f
 #define SPECULAR_AA                            (MATERIAL_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
@@ -158,6 +163,7 @@
 
 #define IMPROVED_AUTO_EXPOSURE                 ((float)((((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__IMPROVED_AUTO_EXPOSURE) != 0u) ? 1u : 0u) | (((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__IMPROVED_AUTO_EXPOSURE_PERCEPTUAL) != 0u) ? 2u : 0u)))
 
+// Sun and moon are independent toggles so either disk can return to vanilla.
 #define SUN_IMPROVEMENTS                       ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__SUN_IMPROVEMENTS) != 0u ? 1.f : 0.f)
 #define MOON_ADJUSTMENTS                       ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__MOON_ADJUSTMENTS) != 0u ? 1.f : 0.f)
 #define SUN_MOON_ADJUSTMENTS                   (((SUN_IMPROVEMENTS == 1.f) || (MOON_ADJUSTMENTS == 1.f)) ? 1.f : 0.f)
