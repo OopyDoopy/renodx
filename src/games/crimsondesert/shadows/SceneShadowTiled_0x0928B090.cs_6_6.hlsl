@@ -1958,12 +1958,14 @@ void main(
       float _5377 = mad(_5353, _5290, mad(_5360, _5367, ((((_5368 * _5290) * _5365) + 1.0f) * _5359)));
       float _5381 = mad(_5353, _5291, mad(_5360, (_5362 + (_5366 * _5291)), ((_5359 * _5362) * _5367)));
       float _5385 = mad(_5353, _5292, mad(_5360, (-0.0f - _5291), (-0.0f - (_5368 * _5359))));
+      // Contact Micro Shadows: use the real light direction when quality is enabled.
       if (CONTACT_SHADOW_STABLE_DIRECTION == 1.f) {
         _5377 = _5290;
         _5381 = _5291;
         _5385 = _5292;
       }
       int _5386 = select(_5271, 10, 8);
+      // Contact Micro Shadows: quality gate controls extra march samples.
       if (CONTACT_SHADOW_DETAIL_PATH == 1.f) {
         _5386 = (int)(lerp(float(_5386), CONTACT_SHADOW_RT_MARCH_SAMPLES, CONTACT_SHADOW_RT_TUNING) + 0.5f);
       }
@@ -2503,6 +2505,7 @@ void main(
       _6423 = 1.0f;
     }
     float _rndxMicroBaseContact = _6423;
+    // Contact Micro Shadows: screen-space helper fills missing fine occluders.
     #define MICRO_PIXEL_X_FLOAT   _60
     #define MICRO_PIXEL_Y_FLOAT   _61
     #define MICRO_LINEAR_DEPTH    _115
@@ -2546,7 +2549,8 @@ void main(
     #undef MICRO_WORLD_POS_X
     #undef MICRO_WORLD_POS_Y
     #undef MICRO_WORLD_POS_Z
-    if (CONTACT_SHADOW_RT_TUNING > 0.f || CONTACT_SHADOW_DETAIL_PATH == 1.f) {
+    // RT Sun/Moon contact shadows: boost native and helper results only when enabled.
+    if (CONTACT_SHADOW_RT_TUNING > 0.f) {
       float _rndxMicroWithHelper = _6423;
       float _rndxMicroBaseBoosted = _rndxMicroBaseContact;
       float _rndxMicroHelperBoosted = _rndxMicroWithHelper;
@@ -2564,17 +2568,6 @@ void main(
         _6423 = lerp(_rndxMicroBaseBoosted, _rndxMicroHelperBoosted, _edgeFade);
       } else {
         _6423 = _rndxMicroHelperBoosted;
-      }
-    } else {
-      if (CONTACT_SHADOW_RT_TUNING > 0.f && _6423 < 1.0f) {
-        _6423 = saturate(1.0f - ((1.0f - _6423) * lerp(1.0f, CONTACT_SHADOW_RT_FINAL_STRENGTH, CONTACT_SHADOW_RT_TUNING)));
-      }
-      if (CONTACT_SHADOW_DETAIL_PATH == 1.f && _6423 < 1.0f) {
-        float2 _screenUV = float2((_60 + 0.5f) * _bufferSizeAndInvSize.z,
-                                   (_61 + 0.5f) * _bufferSizeAndInvSize.w);
-        float2 _edgeDist = min(_screenUV, 1.0f - _screenUV);
-        float _edgeFade = saturate(min(_edgeDist.x, _edgeDist.y) * 10.0f);
-        _6423 = lerp(lerp(1.0f, _6423, 0.5f), _6423, _edgeFade);
       }
     }
     float _6424 = min(_5260, _6423);
