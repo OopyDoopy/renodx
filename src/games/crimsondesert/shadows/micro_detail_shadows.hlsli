@@ -27,7 +27,48 @@
 
 static const int MICRO_STEPS = 32;
 
-if (CONTACT_SHADOW_QUALITY == 1.f
+#ifndef CONTACT_MICRO_DETAIL_STRENGTH_ACTIVE
+#define CONTACT_MICRO_DETAIL_STRENGTH_ACTIVE CONTACT_MICRO_DETAIL_STRENGTH
+#endif
+
+#ifndef CONTACT_MICRO_DISTANCE_FADE_ACTIVE
+#define CONTACT_MICRO_DISTANCE_FADE_ACTIVE CONTACT_MICRO_DISTANCE_FADE
+#endif
+
+#ifndef CONTACT_MICRO_RANGE_NEAR_ACTIVE
+#define CONTACT_MICRO_RANGE_NEAR_ACTIVE CONTACT_MICRO_RANGE_NEAR
+#endif
+
+#ifndef CONTACT_MICRO_RANGE_FAR_ACTIVE
+#define CONTACT_MICRO_RANGE_FAR_ACTIVE CONTACT_MICRO_RANGE_FAR
+#endif
+
+#ifndef CONTACT_MICRO_THICKNESS_MULTIPLIER_ACTIVE
+#define CONTACT_MICRO_THICKNESS_MULTIPLIER_ACTIVE CONTACT_MICRO_THICKNESS_MULTIPLIER
+#endif
+
+#ifndef CONTACT_MICRO_OCCLUSION_SCALE_ACTIVE
+#define CONTACT_MICRO_OCCLUSION_SCALE_ACTIVE CONTACT_MICRO_OCCLUSION_SCALE
+#endif
+
+#ifndef CONTACT_MICRO_SELF_REJECT_PIXELS_ACTIVE
+#define CONTACT_MICRO_SELF_REJECT_PIXELS_ACTIVE CONTACT_MICRO_SELF_REJECT_PIXELS
+#endif
+
+#ifndef CONTACT_MICRO_SELF_FADE_PIXELS_ACTIVE
+#define CONTACT_MICRO_SELF_FADE_PIXELS_ACTIVE 2.0f
+#endif
+
+#ifndef CONTACT_MICRO_FOLIAGE_THICKNESS_BOOST_ACTIVE
+#define CONTACT_MICRO_FOLIAGE_THICKNESS_BOOST_ACTIVE 1.0f
+#endif
+
+#ifndef CONTACT_MICRO_FOLIAGE_OCCLUSION_BOOST_ACTIVE
+#define CONTACT_MICRO_FOLIAGE_OCCLUSION_BOOST_ACTIVE 1.0f
+#endif
+
+if (MICRO_SHADOW_QUALITY > MICRO_SHADOW_QUALITY_OFF
+    && CONTACT_MICRO_DETAIL_STRENGTH_ACTIVE > 0.f
     && MICRO_STENCIL != 2
     && MICRO_STENCIL != 3
     && MICRO_STENCIL != 6
@@ -40,22 +81,20 @@ if (CONTACT_SHADOW_QUALITY == 1.f
 ) {
   float _microLinDepth = MICRO_LINEAR_DEPTH;
 
-  float _microDistFade = saturate(mad(-0.025f, _microLinDepth, 3.0f));
+  float _microDistFade = CONTACT_MICRO_DISTANCE_FADE_ACTIVE;
 
   [branch]
   if (_microDistFade > 0.01f) {
-    float _microRange = lerp(0.12f, 0.80f, saturate(_microLinDepth / 100.0f));
+    float _microRange = lerp(CONTACT_MICRO_RANGE_NEAR_ACTIVE, CONTACT_MICRO_RANGE_FAR_ACTIVE, saturate(_microLinDepth / 100.0f));
     float _microStep  = _microRange / (float)MICRO_STEPS;
 
     // Perspective corrected thickness
-    float _microWorldThick = _microStep * 0.5f;
+    float _microWorldThick = _microStep * CONTACT_MICRO_THICKNESS_MULTIPLIER_ACTIVE;
     _microWorldThick = max(_microWorldThick, lerp(0.005f, 0.04f, saturate(_microLinDepth / 80.0f)));
 
-    // Temporal jitter
-    float _microJitter = frac(
-      mad(float(int4(_frameNumber).x & 0xFF), 0.38196601f,
-      mad(MICRO_PIXEL_X_FLOAT, 0.7548776f,
-          MICRO_PIXEL_Y_FLOAT * 0.5698402f))) * 0.5f;
+    // Keep the 1.08-style march deterministic under RR; temporal jitter
+    // can make reconstructed shadows look camera-attached in 1.09.
+    float _microJitter = 0.0f;
 
     float3 _microPos = float3(MICRO_WORLD_POS_X, MICRO_WORLD_POS_Y, MICRO_WORLD_POS_Z);
     float3 _microDir = float3(MICRO_LIGHT_DIR_X, MICRO_LIGHT_DIR_Y, MICRO_LIGHT_DIR_Z);
@@ -97,12 +136,30 @@ if (CONTACT_SHADOW_QUALITY == 1.f
 
       // Self shadow rejection
       float2 _mPixelDist = abs(_muv - _microOriginUV) * _bufferSizeAndInvSize.xy;
-      if (_mPixelDist.x < 1.5f && _mPixelDist.y < 1.5f) continue;
+      float _microSelfDist = max(_mPixelDist.x, _mPixelDist.y);
+      float _microSelfFade = saturate((_microSelfDist - CONTACT_MICRO_SELF_REJECT_PIXELS_ACTIVE) / CONTACT_MICRO_SELF_FADE_PIXELS_ACTIVE);
+      _microSelfFade = _microSelfFade * _microSelfFade * (3.0f - (2.0f * _microSelfFade));
+      if (_microSelfFade <= 0.0f) continue;
 
       float _mRayDepth = _mcz * _rcpW;
       int2 _mpx = int2((int)(_muv.x * _bufferSizeAndInvSize.x),
                         (int)(_muv.y * _bufferSizeAndInvSize.y));
       uint _mdr = __3__36__0__0__g_depthStencil.Load(int3(_mpx, 0)).x;
+      uint _mst = (_mdr >> 24) & 127u;
+      if (_mst == 2u
+          || _mst == 3u
+          || _mst == 6u
+          || _mst == 7u
+          || _mst == 10u
+          || _mst == 21u
+          || _mst == 22u
+          || _mst == 33u
+          || _mst == 55u) continue;
+
+      float _microFoliageSample = (((_mst >= 11u && _mst <= 19u) || _mst == 66u || _mst == 107u) ? 1.0f : 0.0f);
+      float _microSampleThick = _microWorldThick * lerp(1.0f, CONTACT_MICRO_FOLIAGE_THICKNESS_BOOST_ACTIVE, _microFoliageSample);
+      float _microSampleOcclusionScale = CONTACT_MICRO_OCCLUSION_SCALE_ACTIVE * lerp(1.0f, CONTACT_MICRO_FOLIAGE_OCCLUSION_BOOST_ACTIVE, _microFoliageSample);
+
       float _msd = float(_mdr & 0xFFFFFF) * 5.960465188081798e-08f;
 
       if (_msd < 1e-7f || _msd >= 1.0f) continue;
@@ -114,13 +171,13 @@ if (CONTACT_SHADOW_QUALITY == 1.f
 
       // Scene must be closer than ray (positive delta = scene in front of ray)
       // and within the thickness window
-      if (_mLinDelta >= 0.0f && _mLinDelta <= _microWorldThick) {
-        float _mocc = saturate(_mLinDelta / _microWorldThick * 2.5f);
+      if (_mLinDelta >= 0.0f && _mLinDelta <= _microSampleThick) {
+        float _mocc = saturate(_mLinDelta / _microSampleThick * _microSampleOcclusionScale) * _microSelfFade;
         _microShadow = min(_microShadow, 1.0f - _mocc);
       }
     }
 
-    float _microResult = lerp(1.0f, _microShadow, _microDistFade);
+    float _microResult = lerp(1.0f, _microShadow, saturate(_microDistFade * CONTACT_MICRO_DETAIL_STRENGTH_ACTIVE));
     MICRO_CONTACT_SHADOW = min(MICRO_CONTACT_SHADOW, _microResult);
   }
 }

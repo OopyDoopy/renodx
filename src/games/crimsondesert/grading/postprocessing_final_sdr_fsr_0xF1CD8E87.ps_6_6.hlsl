@@ -218,6 +218,6 @@ float4 main(
       SV_Target.xyz,
       asfloat(__3__35__0__0__SceneConstantBuffer_raw[42u].y),
       asfloat(__3__35__0__0__SceneConstantBuffer_raw[43u].y));
-  
+
   return SV_Target;
 }

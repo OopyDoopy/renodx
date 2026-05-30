@@ -445,7 +445,7 @@ void main(
   // The sun's visual appearance (disk, corona, Mie halo) is unaffected
   // because those are rendered in SkyMaterial and composited into scene
   // color — this only removes the sun from the bloom extraction input.
-  float _sunBloomMask = (_sunBloomExclude && SUN_MOON_ADJUSTMENTS == 1.f) ? 0.0f : 1.0f;
+  float _sunBloomMask = (_sunBloomExclude && SUN_IMPROVEMENTS == 1.f) ? 0.0f : 1.0f;
   __3__38__0__1__g_glareSourceUAV[int2((int)(SV_DispatchThreadID.x), (int)(SV_DispatchThreadID.y))] = float3(_290 * _sunBloomMask, _291 * _sunBloomMask, _292 * _sunBloomMask);
   bool _296 = (_whiteBalance.w > 0.0010000000474974513f);
   int _297 = _57 + -105;
