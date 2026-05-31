@@ -158,6 +158,8 @@ SamplerState __0__4__0__0__g_staticPointClamp : register(s10, space4);
 
 SamplerComparisonState __3__40__0__0__g_samplerShadow : register(s0, space40);
 
+#include "micro_detail_shadows.hlsli"
+
 [numthreads(8, 8, 1)]
 void main(
   uint3 SV_DispatchThreadID : SV_DispatchThreadID,
@@ -1238,29 +1240,24 @@ void main(
     }
 
     // Contact Micro Shadows: screen-space helper fills missing fine occluders.
-    #define MICRO_PIXEL_X_FLOAT   _58
-    #define MICRO_PIXEL_Y_FLOAT   _59
-    #define MICRO_LINEAR_DEPTH    _113
-    #define MICRO_CONTACT_SHADOW  _2621
-    #define MICRO_STENCIL         _78
-    #define MICRO_LIGHT_DIR_X     _1650
-    #define MICRO_LIGHT_DIR_Y     _1651
-    #define MICRO_LIGHT_DIR_Z     _1652
-    #define MICRO_WORLD_POS_X     (_1854 + _1843)
-    #define MICRO_WORLD_POS_Y     (_1855 + _1844)
-    #define MICRO_WORLD_POS_Z     (_1856 + _1845)
-    #include "micro_detail_shadows.hlsli"
-    #undef MICRO_PIXEL_X_FLOAT
-    #undef MICRO_PIXEL_Y_FLOAT
-    #undef MICRO_LINEAR_DEPTH
-    #undef MICRO_CONTACT_SHADOW
-    #undef MICRO_STENCIL
-    #undef MICRO_LIGHT_DIR_X
-    #undef MICRO_LIGHT_DIR_Y
-    #undef MICRO_LIGHT_DIR_Z
-    #undef MICRO_WORLD_POS_X
-    #undef MICRO_WORLD_POS_Y
-    #undef MICRO_WORLD_POS_Z
+    _2621 = ApplyContactMicroDetailShadow(
+        _2621,
+        float2(_58, _59),
+        _113,
+        _78,
+        float3(_1650, _1651, _1652),
+        float3(_1854 + _1843, _1855 + _1844, _1856 + _1845),
+        CONTACT_MICRO_DETAIL_STRENGTH,
+        (CONTACT_SHADOW_IS_FULL ? -0.022f : -0.025f),
+        (CONTACT_SHADOW_IS_FULL ? 3.10f : 3.0f),
+        CONTACT_MICRO_RANGE_NEAR,
+        CONTACT_MICRO_RANGE_FAR,
+        CONTACT_MICRO_THICKNESS_MULTIPLIER,
+        CONTACT_MICRO_OCCLUSION_SCALE,
+        CONTACT_MICRO_SELF_REJECT_PIXELS,
+        2.0f,
+        1.0f,
+        1.0f);
 
     // Contact Micro Shadows: fade helper near screen edges to avoid edge brightening.
     if (CONTACT_SHADOW_DETAIL_PATH == 1.f && _2621 < 1.0f) {

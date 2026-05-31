@@ -162,6 +162,8 @@ SamplerState __0__4__0__0__g_staticPointClamp : register(s10, space4);
 
 SamplerComparisonState __3__40__0__0__g_samplerShadow : register(s0, space40);
 
+#include "micro_detail_shadows.hlsli"
+
 [numthreads(8, 8, 1)]
 void main(
   uint3 SV_DispatchThreadID : SV_DispatchThreadID,
@@ -2467,49 +2469,24 @@ void main(
     }
     float _rndxMicroBaseContact = _6138;
     // Contact Micro Shadows: screen-space helper fills missing fine occluders.
-    #define MICRO_PIXEL_X_FLOAT   _60
-    #define MICRO_PIXEL_Y_FLOAT   _61
-    #define MICRO_LINEAR_DEPTH    _115
-    #define MICRO_CONTACT_SHADOW  _6138
-    #define MICRO_STENCIL         _80
-    #define MICRO_LIGHT_DIR_X     _rndxMicroDirX
-    #define MICRO_LIGHT_DIR_Y     _rndxMicroDirY
-    #define MICRO_LIGHT_DIR_Z     _rndxMicroDirZ
-    #define MICRO_WORLD_POS_X     _rndxMicroWorldPosX
-    #define MICRO_WORLD_POS_Y     _rndxMicroWorldPosY
-    #define MICRO_WORLD_POS_Z     _rndxMicroWorldPosZ
-    #define CONTACT_MICRO_DETAIL_STRENGTH_ACTIVE CONTACT_MICRO_DETAIL_STRENGTH_RT
-    #define CONTACT_MICRO_DISTANCE_FADE_ACTIVE CONTACT_MICRO_DISTANCE_FADE_RT
-    #define CONTACT_MICRO_RANGE_NEAR_ACTIVE CONTACT_MICRO_RANGE_NEAR_RT
-    #define CONTACT_MICRO_RANGE_FAR_ACTIVE CONTACT_MICRO_RANGE_FAR_RT
-    #define CONTACT_MICRO_THICKNESS_MULTIPLIER_ACTIVE CONTACT_MICRO_THICKNESS_MULTIPLIER_RT
-    #define CONTACT_MICRO_OCCLUSION_SCALE_ACTIVE CONTACT_MICRO_OCCLUSION_SCALE_RT
-    #define CONTACT_MICRO_SELF_REJECT_PIXELS_ACTIVE CONTACT_MICRO_SELF_REJECT_PIXELS_RT
-    #define CONTACT_MICRO_SELF_FADE_PIXELS_ACTIVE CONTACT_MICRO_SELF_FADE_PIXELS_RT
-    #define CONTACT_MICRO_FOLIAGE_THICKNESS_BOOST_ACTIVE CONTACT_MICRO_FOLIAGE_THICKNESS_BOOST_RT
-    #define CONTACT_MICRO_FOLIAGE_OCCLUSION_BOOST_ACTIVE CONTACT_MICRO_FOLIAGE_OCCLUSION_BOOST_RT
-    #include "micro_detail_shadows.hlsli"
-    #undef CONTACT_MICRO_DETAIL_STRENGTH_ACTIVE
-    #undef CONTACT_MICRO_DISTANCE_FADE_ACTIVE
-    #undef CONTACT_MICRO_RANGE_NEAR_ACTIVE
-    #undef CONTACT_MICRO_RANGE_FAR_ACTIVE
-    #undef CONTACT_MICRO_THICKNESS_MULTIPLIER_ACTIVE
-    #undef CONTACT_MICRO_OCCLUSION_SCALE_ACTIVE
-    #undef CONTACT_MICRO_SELF_REJECT_PIXELS_ACTIVE
-    #undef CONTACT_MICRO_SELF_FADE_PIXELS_ACTIVE
-    #undef CONTACT_MICRO_FOLIAGE_THICKNESS_BOOST_ACTIVE
-    #undef CONTACT_MICRO_FOLIAGE_OCCLUSION_BOOST_ACTIVE
-    #undef MICRO_PIXEL_X_FLOAT
-    #undef MICRO_PIXEL_Y_FLOAT
-    #undef MICRO_LINEAR_DEPTH
-    #undef MICRO_CONTACT_SHADOW
-    #undef MICRO_STENCIL
-    #undef MICRO_LIGHT_DIR_X
-    #undef MICRO_LIGHT_DIR_Y
-    #undef MICRO_LIGHT_DIR_Z
-    #undef MICRO_WORLD_POS_X
-    #undef MICRO_WORLD_POS_Y
-    #undef MICRO_WORLD_POS_Z
+    _6138 = ApplyContactMicroDetailShadow(
+        _6138,
+        float2(_60, _61),
+        _115,
+        _80,
+        float3(_rndxMicroDirX, _rndxMicroDirY, _rndxMicroDirZ),
+        float3(_rndxMicroWorldPosX, _rndxMicroWorldPosY, _rndxMicroWorldPosZ),
+        CONTACT_MICRO_DETAIL_STRENGTH_RT,
+        (CONTACT_SHADOW_IS_FULL ? CONTACT_MICRO_FADE_SLOPE_RT_FULL : -0.025f),
+        (CONTACT_SHADOW_IS_FULL ? CONTACT_MICRO_FADE_OFFSET_RT_FULL : 3.0f),
+        CONTACT_MICRO_RANGE_NEAR_RT,
+        CONTACT_MICRO_RANGE_FAR_RT,
+        CONTACT_MICRO_THICKNESS_MULTIPLIER_RT,
+        CONTACT_MICRO_OCCLUSION_SCALE_RT,
+        CONTACT_MICRO_SELF_REJECT_PIXELS_RT,
+        CONTACT_MICRO_SELF_FADE_PIXELS_RT,
+        CONTACT_MICRO_FOLIAGE_THICKNESS_BOOST_RT,
+        CONTACT_MICRO_FOLIAGE_OCCLUSION_BOOST_RT);
     // RT Sun/Moon contact shadows: boost native and helper results only when enabled.
     if (CONTACT_SHADOW_RT_TUNING > 0.f) {
       float _rndxMicroWithHelper = _6138;

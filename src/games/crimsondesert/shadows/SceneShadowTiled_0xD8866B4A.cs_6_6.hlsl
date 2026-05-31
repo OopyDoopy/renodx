@@ -168,6 +168,8 @@ SamplerComparisonState __3__40__0__0__g_samplerShadow : register(s0, space40);
 
 static const float _global_0[32] = { -7.0f, -8.0f, 0.0f, -7.0f, -4.0f, -6.0f, 3.0f, -5.0f, 7.0f, -4.0f, -1.0f, -3.0f, -5.0f, -2.0f, 4.0f, -1.0f, -8.0f, 0.0f, 1.0f, 1.0f, -3.0f, 2.0f, 5.0f, 3.0f, -6.0f, 4.0f, 2.0f, 5.0f, -2.0f, 6.0f, 6.0f, 7.0f };
 
+#include "micro_detail_shadows.hlsli"
+
 [numthreads(8, 8, 1)]
 void main(
   uint3 SV_DispatchThreadID : SV_DispatchThreadID,
@@ -1383,29 +1385,24 @@ void main(
     }
 
     // Contact Micro Shadows: screen-space helper fills missing fine occluders.
-    #define MICRO_PIXEL_X_FLOAT   _61
-    #define MICRO_PIXEL_Y_FLOAT   _62
-    #define MICRO_LINEAR_DEPTH    _116
-    #define MICRO_CONTACT_SHADOW  _3086
-    #define MICRO_STENCIL         _81
-    #define MICRO_LIGHT_DIR_X     _1969
-    #define MICRO_LIGHT_DIR_Y     _1970
-    #define MICRO_LIGHT_DIR_Z     _1971
-    #define MICRO_WORLD_POS_X     _2299
-    #define MICRO_WORLD_POS_Y     _2300
-    #define MICRO_WORLD_POS_Z     _2301
-    #include "micro_detail_shadows.hlsli"
-    #undef MICRO_PIXEL_X_FLOAT
-    #undef MICRO_PIXEL_Y_FLOAT
-    #undef MICRO_LINEAR_DEPTH
-    #undef MICRO_CONTACT_SHADOW
-    #undef MICRO_STENCIL
-    #undef MICRO_LIGHT_DIR_X
-    #undef MICRO_LIGHT_DIR_Y
-    #undef MICRO_LIGHT_DIR_Z
-    #undef MICRO_WORLD_POS_X
-    #undef MICRO_WORLD_POS_Y
-    #undef MICRO_WORLD_POS_Z
+    _3086 = ApplyContactMicroDetailShadow(
+        _3086,
+        float2(_61, _62),
+        _116,
+        _81,
+        float3(_1969, _1970, _1971),
+        float3(_2299, _2300, _2301),
+        CONTACT_MICRO_DETAIL_STRENGTH,
+        (CONTACT_SHADOW_IS_FULL ? -0.022f : -0.025f),
+        (CONTACT_SHADOW_IS_FULL ? 3.10f : 3.0f),
+        CONTACT_MICRO_RANGE_NEAR,
+        CONTACT_MICRO_RANGE_FAR,
+        CONTACT_MICRO_THICKNESS_MULTIPLIER,
+        CONTACT_MICRO_OCCLUSION_SCALE,
+        CONTACT_MICRO_SELF_REJECT_PIXELS,
+        2.0f,
+        1.0f,
+        1.0f);
 
     // Contact Micro Shadows: fade helper near screen edges to avoid edge brightening.
     if (CONTACT_SHADOW_DETAIL_PATH == 1.f && _3086 < 1.0f) {
