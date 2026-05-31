@@ -38,6 +38,10 @@
 #define CUSTOM_FLAGS__MOON_ADJUSTMENTS                  0b10000000000000000000000000u
 #define CUSTOM_FLAGS__BASIC_POSTPROCESS_FINAL           0b1000000000000000000000000000u
 #define CUSTOM_FLAGS__FOLIAGE_SPEEDTREE_WIND_COHERENCE  0b10000000000000000000000000000u
+// RenoDX: >>> [Patch: ShadowEdgeNoiseFix] [Version: 1.09]
+// Description: Adds the Shadow Edge Noise Fix flag. The contact-shadow pass clamps X samples but not Y samples; the UI toggle can disable the X clamp so left/right edges do not reuse the last depth column.
+#define CUSTOM_FLAGS__SHADOW_EDGE_NOISE_FIX             0x20000000u
+// RenoDX: <<< [Patch: ShadowEdgeNoiseFix]
 
 #define CUSTOM_FLAGS                               shader_injection.custom_flags
 
@@ -137,6 +141,11 @@
 // Description: Exposes the foliage SpeedTree wind-coherence shader fix as a UI checkbox by reading its packed flag directly; vegetation shaders use this gate to fall back when current and previous winded positions diverge.
 #define FOLIAGE_SPEEDTREE_WIND_COHERENCE       ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_SPEEDTREE_WIND_COHERENCE) != 0u ? 1.f : 0.f)
 // RenoDX: <<< [Patch: FoliageSpeedTreeWindCoherenceToggle]
+// RenoDX: >>> [Patch: ShadowEdgeNoiseFix] [Version: 1.09]
+// Description: Vanilla clamps contact-shadow X samples before loading depth, while Y is left unclamped. With the fix on, X is also left unclamped so offscreen side samples cannot stretch the edge depth column.
+#define SHADOW_CONTACT_SAMPLE_X(sample_x, half_texel_x) \
+  (((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__SHADOW_EDGE_NOISE_FIX) != 0u) ? (sample_x) : min(max((sample_x), (half_texel_x)), (1.0f - (half_texel_x))))
+// RenoDX: <<< [Patch: ShadowEdgeNoiseFix]
 #define AURORA_BOREALIS_ENABLED                ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__AURORA_BOREALIS) != 0u) ? 1.f : 0.f)
 #define RT_GI_KNEE                             2.0f
 #define RT_GI_STRENGTH                         0.07f

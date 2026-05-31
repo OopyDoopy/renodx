@@ -818,7 +818,10 @@ void main(
         _2010 = 1.0f;
         _2011 = 0.0f;
         while(true) {
-          uint _2020 = __3__36__0__0__g_depthStencil.Load(int3(int(min(max(_2004, _2001), (1.0f - _2001)) * _bufferSizeAndInvSize.x), int(_2005 * _bufferSizeAndInvSize.y), 0));
+          // RenoDX: >>> [Patch: ShadowEdgeNoiseFix] [Version: 1.09]
+          // Description: Replaces the vanilla X clamp at this contact-shadow depth load. When a ray exits left/right, the clamp reuses the last screen column and can stretch or flicker shadows; the macro preserves vanilla when off and passes X through when on.
+          uint _2020 = __3__36__0__0__g_depthStencil.Load(int3(int(SHADOW_CONTACT_SAMPLE_X(_2004, _2001) * _bufferSizeAndInvSize.x), int(_2005 * _bufferSizeAndInvSize.y), 0));
+          // RenoDX: <<< [Patch: ShadowEdgeNoiseFix]
           int _2022 = (uint)((uint)(_2020.x)) >> 24;
           float _2025 = float((uint)((uint)(_2020.x & 16777215))) * 5.960465188081798e-08f;
           int _2026 = _2022 & 127;
@@ -957,7 +960,10 @@ void main(
         _2286 = 1.0f;
         _2287 = 0.0f;
         while(true) {
-          uint _2296 = __3__36__0__0__g_depthStencil.Load(int3(int(min(max(_2282, _2277), (1.0f - _2277)) * _bufferSizeAndInvSize.x), int(_2283 * _bufferSizeAndInvSize.y), 0));
+          // RenoDX: >>> [Patch: ShadowEdgeNoiseFix] [Version: 1.09]
+          // Description: Replaces the vanilla X clamp at this contact-shadow depth load. When a ray exits left/right, the clamp reuses the last screen column and can stretch or flicker shadows; the macro preserves vanilla when off and passes X through when on.
+          uint _2296 = __3__36__0__0__g_depthStencil.Load(int3(int(SHADOW_CONTACT_SAMPLE_X(_2282, _2277) * _bufferSizeAndInvSize.x), int(_2283 * _bufferSizeAndInvSize.y), 0));
+          // RenoDX: <<< [Patch: ShadowEdgeNoiseFix]
           int _2298 = (uint)((uint)(_2296.x)) >> 24;
           float _2301 = float((uint)((uint)(_2296.x & 16777215))) * 5.960465188081798e-08f;
           int _2302 = _2298 & 127;

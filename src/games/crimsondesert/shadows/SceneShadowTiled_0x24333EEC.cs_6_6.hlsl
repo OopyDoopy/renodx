@@ -2086,7 +2086,10 @@ void main(
         _5789 = 1.0f;
         _5790 = 0.0f;
         while(true) {
-          uint _5799 = __3__36__0__0__g_depthStencil.Load(int3(int(min(max(_5783, _5780), (1.0f - _5780)) * _bufferSizeAndInvSize.x), int(_5784 * _bufferSizeAndInvSize.y), 0));
+          // RenoDX: >>> [Patch: ShadowEdgeNoiseFix] [Version: 1.09]
+          // Description: Replaces the vanilla X clamp at this contact-shadow depth load. When a ray exits left/right, the clamp reuses the last screen column and can stretch or flicker shadows; the macro preserves vanilla when off and passes X through when on.
+          uint _5799 = __3__36__0__0__g_depthStencil.Load(int3(int(SHADOW_CONTACT_SAMPLE_X(_5783, _5780) * _bufferSizeAndInvSize.x), int(_5784 * _bufferSizeAndInvSize.y), 0));
+          // RenoDX: <<< [Patch: ShadowEdgeNoiseFix]
           int _5801 = (uint)((uint)(_5799.x)) >> 24;
           float _5804 = float((uint)((uint)(_5799.x & 16777215))) * 5.960465188081798e-08f;
           int _5805 = _5801 & 127;
@@ -2225,7 +2228,10 @@ void main(
         _6065 = 1.0f;
         _6066 = 0.0f;
         while(true) {
-          uint _6075 = __3__36__0__0__g_depthStencil.Load(int3(int(min(max(_6061, _6056), (1.0f - _6056)) * _bufferSizeAndInvSize.x), int(_6062 * _bufferSizeAndInvSize.y), 0));
+          // RenoDX: >>> [Patch: ShadowEdgeNoiseFix] [Version: 1.09]
+          // Description: Replaces the vanilla X clamp at this contact-shadow depth load. When a ray exits left/right, the clamp reuses the last screen column and can stretch or flicker shadows; the macro preserves vanilla when off and passes X through when on.
+          uint _6075 = __3__36__0__0__g_depthStencil.Load(int3(int(SHADOW_CONTACT_SAMPLE_X(_6061, _6056) * _bufferSizeAndInvSize.x), int(_6062 * _bufferSizeAndInvSize.y), 0));
+          // RenoDX: <<< [Patch: ShadowEdgeNoiseFix]
           int _6077 = (uint)((uint)(_6075.x)) >> 24;
           float _6080 = float((uint)((uint)(_6075.x & 16777215))) * 5.960465188081798e-08f;
           int _6081 = _6077 & 127;
