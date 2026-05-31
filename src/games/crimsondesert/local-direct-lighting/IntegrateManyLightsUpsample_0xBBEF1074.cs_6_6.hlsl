@@ -1,4 +1,5 @@
 #include "../shared.h"
+#include "../local-direct-lighting/local_light_common.hlsl"
 #include "../lighting/diffuse_brdf.hlsli"
 
 struct ManyLightsData {
@@ -368,6 +369,15 @@ void main(
         float _442 = __3__37__0__0__g_manyLightsDataBuffer[_435]._color.x;
         float _443 = __3__37__0__0__g_manyLightsDataBuffer[_435]._color.y;
         float _444 = __3__37__0__0__g_manyLightsDataBuffer[_435]._color.z;
+        {
+          float3 _corrected_color = ApplyLocalLightHueCorrection(
+              float3(_442, _443, _444),
+              LOCAL_LIGHT_HUE_CORRECTION,
+              LOCAL_LIGHT_SATURATION);
+          _442 = _corrected_color.x;
+          _443 = _corrected_color.y;
+          _444 = _corrected_color.z;
+        }
         float _445 = __3__37__0__0__g_manyLightsDataBuffer[_435]._color.w;
         int _447 = __3__37__0__0__g_manyLightsDataBuffer[_435]._up.x;
         int _448 = __3__37__0__0__g_manyLightsDataBuffer[_435]._up.y;
