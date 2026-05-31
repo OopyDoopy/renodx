@@ -37,6 +37,7 @@
 #define CUSTOM_FLAGS__CUSTOM_WEATHER_EDITING            0b1000000000000000000000000u
 #define CUSTOM_FLAGS__MOON_ADJUSTMENTS                  0b10000000000000000000000000u
 #define CUSTOM_FLAGS__BASIC_POSTPROCESS_FINAL           0b1000000000000000000000000000u
+#define CUSTOM_FLAGS__FOLIAGE_SPEEDTREE_WIND_COHERENCE  0b10000000000000000000000000000u
 
 #define CUSTOM_FLAGS                               shader_injection.custom_flags
 
@@ -132,6 +133,10 @@
 #define FOLIAGE_TRANSMISSION                   (FOLIAGE_IMPROVEMENTS >= 2.f ? 1.0f : 0.0f)
 #define RT_QUALITY                             (RR_ENABLED == 1.f ? (float)((CUSTOM_FLAGS_AS_UINT >> 10u) & 0x3u) : 0.f)
 #define RR_ENABLED                             ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__RR_ENABLED) != 0u ? 1.f : 0.f)
+// RenoDX: >>> [Patch: FoliageSpeedTreeWindCoherenceToggle] [Version: 1.09]
+// Description: Exposes the foliage SpeedTree wind-coherence shader fix as a UI checkbox by reading its packed flag directly; vegetation shaders use this gate to fall back when current and previous winded positions diverge.
+#define FOLIAGE_SPEEDTREE_WIND_COHERENCE       ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_SPEEDTREE_WIND_COHERENCE) != 0u ? 1.f : 0.f)
+// RenoDX: <<< [Patch: FoliageSpeedTreeWindCoherenceToggle]
 #define AURORA_BOREALIS_ENABLED                ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__AURORA_BOREALIS) != 0u) ? 1.f : 0.f)
 #define RT_GI_KNEE                             2.0f
 #define RT_GI_STRENGTH                         0.07f

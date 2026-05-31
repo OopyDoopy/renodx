@@ -1,3 +1,5 @@
+#include "../shared.h"
+
 struct IndirectDrawParameters {
   uint16_t _vertexBufferViewIndex;
   uint16_t _staticMeshDataViewIndex;
@@ -1545,6 +1547,28 @@ OutputSignature main(
     _1529 = _173;
     _1530 = _174;
   }
+  // RenoDX: >>> [Patch: FoliageSpeedTreeWindCoherence] [Version: 1.09]
+  // Description: Fixes Ultra/Cinematic foliage SpeedTree shadow flicker by falling back when current and previous winded positions diverge by 1+ unit; the coherence comparison also fails for NaN deltas.
+  if (FOLIAGE_SPEEDTREE_WIND_COHERENCE == 1.f) {
+    const float3 _renodxGrassBasePosition = float3(_96, _98, _97);
+    const float3 _renodxGrassBaseNormal = float3(_172, _173, _174);
+    const float3 _renodxGrassCurrentPosition = float3(_1522, _1523, _1524);
+    const float3 _renodxGrassPreviousPosition = float3(_1525, _1526, _1527);
+    const float3 _renodxGrassWindDelta = _renodxGrassCurrentPosition - _renodxGrassPreviousPosition;
+    const bool _renodxGrassWindCoherent = dot(_renodxGrassWindDelta, _renodxGrassWindDelta) < 1.0f;
+    if (!_renodxGrassWindCoherent) {
+      _1522 = _renodxGrassBasePosition.x;
+      _1523 = _renodxGrassBasePosition.y;
+      _1524 = _renodxGrassBasePosition.z;
+      _1525 = _renodxGrassBasePosition.x;
+      _1526 = _renodxGrassBasePosition.y;
+      _1527 = _renodxGrassBasePosition.z;
+      _1528 = _renodxGrassBaseNormal.x;
+      _1529 = _renodxGrassBaseNormal.y;
+      _1530 = _renodxGrassBaseNormal.z;
+    }
+  }
+  // RenoDX: <<< [Patch: FoliageSpeedTreeWindCoherence]
   _1533 = mad(_189, _1524, mad(_124, _1523, (_1522 * _118)));
   _1536 = mad(_191, _1524, mad(_126, _1523, (_1522 * _120)));
   _1539 = mad(_193, _1524, mad(_128, _1523, (_1522 * _122)));

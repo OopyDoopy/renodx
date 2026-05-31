@@ -1,3 +1,5 @@
+#include "../shared.h"
+
 struct IndirectDrawParameters {
   uint16_t _vertexBufferViewIndex;
   uint16_t _staticMeshDataViewIndex;
@@ -1739,6 +1741,28 @@ OutputSignature main(
     _1647 = _264;
     _1648 = _265;
   }
+  // RenoDX: >>> [Patch: FoliageSpeedTreeWindCoherence] [Version: 1.09]
+  // Description: Fixes Ultra/Cinematic foliage SpeedTree shadow flicker by falling back when current and previous winded positions diverge by 1+ unit; the coherence comparison also fails for NaN deltas.
+  if (FOLIAGE_SPEEDTREE_WIND_COHERENCE == 1.f) {
+    const float3 _renodxFoliageBasePosition = float3(_106, _108, _107);
+    const float3 _renodxFoliageBaseNormal = float3(_263, _264, _265);
+    const float3 _renodxFoliageCurrentPosition = float3(_1640, _1641, _1642);
+    const float3 _renodxFoliagePreviousPosition = float3(_1643, _1644, _1645);
+    const float3 _renodxFoliageWindDelta = _renodxFoliageCurrentPosition - _renodxFoliagePreviousPosition;
+    const bool _renodxFoliageWindCoherent = dot(_renodxFoliageWindDelta, _renodxFoliageWindDelta) < 1.0f;
+    if (!_renodxFoliageWindCoherent) {
+      _1640 = _renodxFoliageBasePosition.x;
+      _1641 = _renodxFoliageBasePosition.y;
+      _1642 = _renodxFoliageBasePosition.z;
+      _1643 = _renodxFoliageBasePosition.x;
+      _1644 = _renodxFoliageBasePosition.y;
+      _1645 = _renodxFoliageBasePosition.z;
+      _1646 = _renodxFoliageBaseNormal.x;
+      _1647 = _renodxFoliageBaseNormal.y;
+      _1648 = _renodxFoliageBaseNormal.z;
+    }
+  }
+  // RenoDX: <<< [Patch: FoliageSpeedTreeWindCoherence]
   _1650 = (float)((uint)((uint)(_410 & 65535)));
   if (!(_debugTreeShapeVariation.w == 0)) {
     _1659 = _debugTreeShapeVariation.x;
