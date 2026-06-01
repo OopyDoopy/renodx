@@ -1,6 +1,6 @@
 // ---- Created with 3Dmigoto v1.4.1 on Mon Jun  1 02:11:09 2026
 
-#include "shared.h"
+#include "./common.hlsl"
 
 cbuffer g_cbuffer_1 : register(b1)
 {
@@ -102,4 +102,13 @@ void main(
   r0.xyz = g_gamma.xxx * r0.xyz;
   o0.xyz = exp2(r0.xyz);
   o0.w = 1;
+
+  if (RENODX_HDR_UPGRADE != 0) {
+    float3 gamma_color = o0.xyz;
+    float3 linear_color = renodx::color::srgb::DecodeSafe(gamma_color);
+    linear_color = ApplyGradingLMS(linear_color);
+    linear_color = renodx::color::bt2020::from::BT709(linear_color);
+    float3 pq_color = renodx::color::pq::EncodeSafe(linear_color, RENODX_GAME_BRIGHTNESS);
+    o0.xyz = pq_color;
+  }
 }

@@ -1,16 +1,30 @@
 #ifndef SRC_MINATHEHOLLOWER_SHARED_H_
 #define SRC_MINATHEHOLLOWER_SHARED_H_
 
-#define MINA_FILTER_NONE         0
-#define MINA_FILTER_LCD_GRID_V2  1
-#define MINA_FILTER_CRT_ROYALE   2
-#define MINA_FILTER_MODE         shader_injection.filter_mode
+#define MINA_FILTER_NONE        0
+#define MINA_FILTER_LCD_GRID_V2 1
+#define MINA_FILTER_CRT_ROYALE  2
+
+#define MINA_FILTER_MODE shader_injection.filter_mode
+
+#define RENODX_HDR_UPGRADE             shader_injection.hdr_upgrade
+#define RENODX_PEAK_WHITE_NITS         shader_injection.peak_white_nits
+#define RENODX_GAME_BRIGHTNESS         shader_injection.diffuse_white_nits
+#define RENODX_TONE_MAP_SATURATION     shader_injection.tone_map_saturation
+#define RENODX_TONE_MAP_HDR_BOOST      shader_injection.tone_map_hdr_boost
 
 // Must be 32bit aligned
 // Multiple of 4x32 = 128 bytes (8 float4 registers)
 struct ShaderInjectData {
   float filter_mode;
-  
+
+  // HDR Settings
+  float hdr_upgrade;
+  float peak_white_nits;
+  float diffuse_white_nits;
+  float tone_map_saturation;
+  float tone_map_hdr_boost;
+
   // LCD Grid V2 Settings
   float lcd_gain;
   float lcd_gamma;
@@ -26,8 +40,7 @@ struct ShaderInjectData {
   float lcd_blue_r;
   float lcd_blue_g;
   float lcd_blue_b;
-  float _pad0;
-  
+
   // CRT Royale Settings
   float crt_gamma;
   float lcd_gamma_crt;
