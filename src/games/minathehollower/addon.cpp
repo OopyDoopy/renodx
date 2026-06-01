@@ -41,7 +41,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Filter",
         .section = "Graphics",
         .tooltip = "Selects the post-process filter applied to the pixel-art upscale.",
-        .labels = {"None", "LCD Grid"},
+        .labels = {"None", "LCD Grid", "CRT Royale"},
     },
 
     new renodx::utils::settings::Setting{

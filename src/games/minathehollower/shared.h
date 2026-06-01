@@ -1,10 +1,10 @@
 #ifndef SRC_MINATHEHOLLOWER_SHARED_H_
 #define SRC_MINATHEHOLLOWER_SHARED_H_
 
-#define MINA_FILTER_NONE        0
-#define MINA_FILTER_LCD_GRID_V2 1
-#define MINA_FILTER_CRT_NEWPIXIE 2
-#define MINA_FILTER_MODE        shader_injection.filter_mode
+#define MINA_FILTER_NONE         0
+#define MINA_FILTER_LCD_GRID_V2  1
+#define MINA_FILTER_CRT_ROYALE   2
+#define MINA_FILTER_MODE         shader_injection.filter_mode
 
 // Must be 32bit aligned
 // Should be 4x32
