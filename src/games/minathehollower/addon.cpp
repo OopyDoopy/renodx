@@ -12,14 +12,13 @@
 #include <deps/imgui/imgui.h>
 #include <include/reshade.hpp>
 #include "../../mods/shader.hpp"
-//#include "../../mods/swapchain.hpp"
+#include "../../mods/swapchain.hpp"
 #include "../../templates/settings.hpp"
-//#include "../../utils/platform.hpp"
-//#include "../../utils/random.hpp"
+// #include "../../utils/platform.hpp"
+// #include "../../utils/random.hpp"
 #include "../../utils/settings.hpp"
-//#include "../../utils/swapchain.hpp"
+#include "../../utils/swapchain.hpp"
 #include "./shared.h"
-
 
 namespace {
 
@@ -32,9 +31,49 @@ const std::string build_time = __TIME__;
 
 // Settings mode: 0 = Simple, 1 = Advanced
 float ui_mode = 0.f;
+bool has_hdr_swapchain = false;
+bool fired_on_init_swapchain = false;
+renodx::utils::settings::Setting* peak_white_nits_setting = nullptr;
+
+void UpdateSwapchainUpgrade() {
+  const bool enable_hdr10 = shader_injection.hdr_upgrade >= 1.f;
+  renodx::mods::swapchain::prevent_full_screen = enable_hdr10;
+  renodx::mods::swapchain::SetUseHDR10(enable_hdr10);
+}
+
+bool NeedsHDRSwapchainRestart() {
+  return (shader_injection.hdr_upgrade >= 1.f) != has_hdr_swapchain;
+}
+
+bool IsHDRUpgradeEnabled() {
+  return shader_injection.hdr_upgrade >= 1.f;
+}
+
+void OnInitSwapchain(reshade::api::swapchain* swapchain, bool /*resize*/) {
+  has_hdr_swapchain = renodx::utils::swapchain::IsHDRColorSpace(swapchain);
+
+  if (fired_on_init_swapchain) return;
+  fired_on_init_swapchain = true;
+
+  auto peak = renodx::utils::swapchain::GetPeakNits(swapchain);
+  if (peak.has_value()) {
+    peak_white_nits_setting->default_value = roundf(peak.value());
+  } else {
+    peak_white_nits_setting->default_value = 1000.f;
+  }
+}
+
+void OnPresent(reshade::api::command_queue* /*queue*/,
+               reshade::api::swapchain* swapchain,
+               const reshade::api::rect* /*source_rect*/,
+               const reshade::api::rect* /*dest_rect*/,
+               uint32_t /*dirty_rect_count*/,
+               const reshade::api::rect* /*dirty_rects*/) {
+  has_hdr_swapchain = renodx::utils::swapchain::IsHDRColorSpace(swapchain);
+}
 
 renodx::utils::settings::Settings settings = {
-    
+
     new renodx::utils::settings::Setting{
         .key = "UIMode",
         .binding = &ui_mode,
@@ -715,6 +754,75 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return ui_mode >= 1.f && shader_injection.filter_mode == 2.f; },
     },
 
+        new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "Restart game to apply swapchain changes.",
+        .section = "Display Output",
+        .tint = 0xFF0000,
+        .is_visible = []() { return NeedsHDRSwapchainRestart(); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "HDRUpgrade",
+        .binding = &shader_injection.hdr_upgrade,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .can_reset = false,
+        .label = "Upgrade to HDR10",
+        .section = "Display Output",
+        .tooltip = "Upgrades the game for HDR output",
+        .labels = {"Off", "On"},
+        .on_change = []() { UpdateSwapchainUpgrade(); },
+        .is_global = true,
+    },
+
+    peak_white_nits_setting = new renodx::utils::settings::Setting{
+        .key = "ToneMapPeakNits",
+        .binding = &shader_injection.peak_white_nits,
+        .default_value = 1000.f,
+        .can_reset = true,
+        .label = "Peak Brightness",
+        .section = "Display Output",
+        .tooltip = "Sets the value of peak white in nits",
+        .min = 80.f,
+        .max = 4000.f,
+        .is_visible = []() { return IsHDRUpgradeEnabled(); },
+    },
+
+    new renodx::utils::settings::Setting{
+        .key = "ToneMapGameNits",
+        .binding = &shader_injection.diffuse_white_nits,
+        .default_value = 203.f,
+        .can_reset = true,
+        .label = "Game Brightness",
+        .section = "Display Output",
+        .tooltip = "Sets the value of 100% white in nits",
+        .min = 80.f,
+        .max = 500.f,
+        .is_visible = []() { return IsHDRUpgradeEnabled(); },
+    },
+
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeHDRBoost",
+        .binding = &shader_injection.tone_map_hdr_boost,
+        .default_value = 0.f,
+        .label = "HDR Boost",
+        .section = "Display Output",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return IsHDRUpgradeEnabled(); },
+    },
+
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeSaturation",
+        .binding = &shader_injection.tone_map_saturation,
+        .default_value = 50.f,
+        .label = "Saturation",
+        .section = "Display Output",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.02f; },
+        .is_visible = []() { return IsHDRUpgradeEnabled(); },
+    },
+
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Reset All",
@@ -792,18 +900,41 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
     case DLL_PROCESS_ATTACH:
       if (!reshade::register_addon(h_module)) return FALSE;
 
-      //renodx::mods::shader::expected_constant_buffer_space = 50;
+      reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
+      reshade::register_event<reshade::addon_event::present>(OnPresent);
+
+      // renodx::mods::shader::expected_constant_buffer_space = 50;
       renodx::mods::shader::expected_constant_buffer_index = 13;
+      renodx::mods::swapchain::expected_constant_buffer_index = 13;
+
+      renodx::mods::swapchain::resource_upgrade_infos.push_back({
+          .old_format = reshade::api::format::r8g8b8a8_unorm,
+          .new_format = reshade::api::format::r16g16b16a16_float,
+          .aspect_ratio = 16.f / 9.f,
+      });
+      // renodx::mods::swapchain::resource_upgrade_infos.push_back({
+      //     .old_format = reshade::api::format::b8g8r8a8_unorm,
+      //     .new_format = reshade::api::format::r10g10b10a2_unorm,
+      // });
+      // renodx::mods::swapchain::resource_upgrade_infos.push_back({
+      //     .old_format = reshade::api::format::r16g16b16a16_float,
+      //     .new_format = reshade::api::format::r10g10b10a2_unorm,
+      // });
+      UpdateSwapchainUpgrade();
 
       renodx::utils::settings::use_presets = false;
 
       break;
     case DLL_PROCESS_DETACH:
+      reshade::unregister_event<reshade::addon_event::present>(OnPresent);
+      reshade::unregister_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
       reshade::unregister_addon(h_module);
       break;
   }
 
   renodx::utils::settings::Use(fdw_reason, &settings, &OnPresetOff);
+  UpdateSwapchainUpgrade();
+  renodx::mods::swapchain::Use(fdw_reason, &shader_injection);
   renodx::mods::shader::Use(fdw_reason, custom_shaders, &shader_injection);
 
   return TRUE;
