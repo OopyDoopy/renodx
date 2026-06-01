@@ -53,9 +53,48 @@ void main(
     filtered_color = SampleBaseColor(coords, prescaled_texture_size);
   } else if (MINA_FILTER_MODE == 1.f) {
     LCDGridV2Settings lcd_settings = GetLCDGridV2Settings();
+
+    lcd_settings.redSubpixelColor = float3(shader_injection.lcd_red_r, shader_injection.lcd_red_g, shader_injection.lcd_red_b);
+    lcd_settings.greenSubpixelColor = float3(shader_injection.lcd_green_r, shader_injection.lcd_green_g, shader_injection.lcd_green_b);
+    lcd_settings.blueSubpixelColor = float3(shader_injection.lcd_blue_r, shader_injection.lcd_blue_g, shader_injection.lcd_blue_b);
+    lcd_settings.gain = shader_injection.lcd_gain;
+    lcd_settings.gamma = shader_injection.lcd_gamma;
+    lcd_settings.blacklevel = shader_injection.lcd_blacklevel;
+    lcd_settings.ambient = shader_injection.lcd_ambient;
+    lcd_settings.BGR = shader_injection.lcd_bgr;
+
     filtered_color = ApplyLCDGridV2Prescaled(g_tex_view, coords, output_texel_size, prescaled_texture_size, logical_source_size, lcd_settings);
   } else {
     CRTRoyaleSettings royale_settings = GetCRTRoyaleSettings();
+
+    royale_settings.crtGamma = shader_injection.crt_gamma;
+    royale_settings.lcdGamma = shader_injection.lcd_gamma_crt;
+    royale_settings.levelsContrast = shader_injection.levels_contrast;
+    royale_settings.levelsAutodim = shader_injection.levels_autodim;
+    royale_settings.halationWeight = shader_injection.halation_weight;
+    royale_settings.diffusionWeight = shader_injection.diffusion_weight;
+    royale_settings.bloomUnderestimateLevels = shader_injection.bloom_underestimate_levels;
+    royale_settings.bloomExcess = shader_injection.bloom_excess;
+    royale_settings.beamMinSigma = shader_injection.beam_min_sigma;
+    royale_settings.beamMaxSigma = shader_injection.beam_max_sigma;
+    royale_settings.beamMinShape = shader_injection.beam_min_shape;
+    royale_settings.beamMaxShape = shader_injection.beam_max_shape;
+    royale_settings.beamSpotPower = shader_injection.beam_spot_power;
+    royale_settings.beamShapePower = shader_injection.beam_shape_power;
+    royale_settings.beamHorizSigma = shader_injection.beam_horiz_sigma;
+    royale_settings.scanlineStrength = shader_injection.scanline_strength;
+    royale_settings.convergenceR = float2(shader_injection.convergence_r_x, shader_injection.convergence_r_y);
+    royale_settings.convergenceG = float2(shader_injection.convergence_g_x, shader_injection.convergence_g_y);
+    royale_settings.convergenceB = float2(shader_injection.convergence_b_x, shader_injection.convergence_b_y);
+    royale_settings.maskType = shader_injection.mask_type;
+    royale_settings.maskTriadSize = shader_injection.mask_triad_size;
+    royale_settings.maskStrength = shader_injection.mask_strength;
+    royale_settings.maskBrightness = shader_injection.mask_brightness;
+    royale_settings.borderSize = shader_injection.border_size;
+    royale_settings.borderDarkness = shader_injection.border_darkness;
+    royale_settings.curvature = shader_injection.curvature;
+    royale_settings.geomMode = shader_injection.geom_mode;
+
     filtered_color = ApplyCRTRoyalePrescaled(g_tex_view, g_tex_sampler_s, coords, output_texel_size, prescaled_texture_size, logical_source_size, royale_settings);
   }
 
