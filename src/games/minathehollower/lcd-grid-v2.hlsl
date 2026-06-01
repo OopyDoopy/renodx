@@ -1,5 +1,7 @@
 // Port of RetroArch handheld/shaders/lcd-cgwg/lcd-grid-v2.slang to HLSL.
-// Ported with AI
+// Preset source: handheld/lcd-grid-v2.slangp
+// This shader has no external #include dependencies in the original Slang source.
+// `ApplyLCDGridV2` is the reusable helper for integrating the effect into an existing pixel shader.
 
 static const float kOutGamma = 2.2f;
 
@@ -108,10 +110,9 @@ LCDGridV2Settings GetLCDGridV2Settings();
 #else
 LCDGridV2Settings GetLCDGridV2Settings() {
   LCDGridV2Settings settings;
-  // Match the defaults from `handheld/lcd-grid-v2.slangp`, which overrides the shader pragma defaults.
-  settings.redSubpixelColor = float3(0.75f, 0.0f, 0.0f);
-  settings.greenSubpixelColor = float3(0.0f, 0.75f, 0.0f);
-  settings.blueSubpixelColor = float3(0.0f, 0.0f, 0.75f);
+  settings.redSubpixelColor = float3(1.0f, 0.125f, 0.125f);
+  settings.greenSubpixelColor = float3(0.125f, 1.0f, 0.125f);
+  settings.blueSubpixelColor = float3(0.125f, 0.125f, 1.0f);
   settings.gain = 1.5f;
   settings.gamma = 2.2f;
   settings.blacklevel = 0.00f;
