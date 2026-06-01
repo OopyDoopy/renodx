@@ -9,7 +9,8 @@ cbuffer g_cbuffer_1 : register(b1)
 
 #define LCD_GRID_V2_HELPERS_ONLY 1
 #include "lcd-grid-v2.hlsl"
-//#include "newpixie-crt.hlsl"
+#define CRT_ROYALE_HELPERS_ONLY 1
+#include "crt-royale.hlsl"
 
 SamplerState g_tex_sampler_s : register(s0);
 Texture2D<float4> g_tex_view : register(t0);
@@ -50,9 +51,12 @@ void main(
   float3 filtered_color;
   if (MINA_FILTER_MODE == 0.f) {
     filtered_color = SampleBaseColor(coords, prescaled_texture_size);
-  } else {
+  } else if (MINA_FILTER_MODE == 1.f) {
     LCDGridV2Settings lcd_settings = GetLCDGridV2Settings();
     filtered_color = ApplyLCDGridV2Prescaled(g_tex_view, coords, output_texel_size, prescaled_texture_size, logical_source_size, lcd_settings);
+  } else {
+    CRTRoyaleSettings royale_settings = GetCRTRoyaleSettings();
+    filtered_color = ApplyCRTRoyalePrescaled(g_tex_view, g_tex_sampler_s, coords, output_texel_size, prescaled_texture_size, logical_source_size, royale_settings);
   }
 
   r0.xyz = log2(max(filtered_color, 1e-6f.xxx));
