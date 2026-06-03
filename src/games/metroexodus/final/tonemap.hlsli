@@ -1,6 +1,6 @@
-#include "./shared.h"
-#include "./psycho_test17_custom.hlsl"
-#include "./common.hlsl"
+#include "../shared.h"
+#include "../psycho_test17_custom.hlsl"
+#include "../common.hlsl"
 
 #ifdef USE_LOW
 Texture2D<min16float4> t0 : register(t0);
@@ -16,8 +16,25 @@ Texture2D<min16float4> t4 : register(t4);
 Texture2D<float4> t5 : register(t5);
 
 Texture2D<float4> t6 : register(t6);
-#else
+#elif defined(USE_NO_LUT)
+Texture2D<float2> t0 : register(t0);
 
+Texture2D<min16float4> t1 : register(t1);
+
+Texture2D<min16float4> t2 : register(t2);
+
+Texture2D<float4> t3 : register(t3);
+
+Texture2D<float> t4 : register(t4);
+
+Texture2D<min16float4> t5 : register(t5);
+
+Texture2D<float4> t6 : register(t6);
+
+Texture2D<float4> t7 : register(t7);
+
+Texture2D<float4> t8 : register(t8);
+#elif defined(USE_SHIFTED_LUT)
 Texture2D<float2> t0 : register(t0);
 
 Texture2D<min16float4> t1 : register(t1);
@@ -28,6 +45,27 @@ Texture3D<min16float4> t3 : register(t3);
 
 Texture2D<float4> t4 : register(t4);
 
+Texture2D<min16float4> t5 : register(t5);
+
+Texture2D<float4> t6 : register(t6);
+
+Texture2D<float4> t7 : register(t7);
+#else
+
+Texture2D<float2> t0 : register(t0);
+
+Texture2D<min16float4> t1 : register(t1);
+
+Texture2D<min16float4> t2 : register(t2);
+
+#if defined(USE_NVG_DUAL) && !defined(USE_GASMASK) && !defined(USE_SHIFTED_LUT)
+Texture2D<float4> t3 : register(t3);
+#else
+Texture3D<min16float4> t3 : register(t3);
+#endif
+
+Texture2D<float4> t4 : register(t4);
+
 Texture2D<float> t5 : register(t5);
 
 Texture2D<min16float4> t6 : register(t6);
@@ -35,6 +73,14 @@ Texture2D<min16float4> t6 : register(t6);
 Texture2D<float4> t7 : register(t7);
 
 Texture2D<float4> t8 : register(t8);
+
+#if defined(USE_GASMASK) && (defined(USE_NVG) || defined(USE_NVG_DUAL))
+Texture2D<float4> t9 : register(t9);
+#endif
+
+#if defined(USE_GASMASK) && (defined(USE_NVG) || defined(USE_NVG_DUAL))
+Texture2D<float4> t10 : register(t10);
+#endif
 #endif
 
 cbuffer cb1 : register(b1) {
@@ -130,6 +176,12 @@ float3 ImprovedBloom(float3 color, float2 uv, inout float ui_blend1) {
 #ifdef USE_LOW
   Texture2D<min16float4> texture1 = t4;
   Texture2D<float4> texture2 = t3;
+#elif defined(USE_SHIFTED_LUT)
+  Texture2D<min16float4> texture1 = t5;
+  Texture2D<float4> texture2 = t4;
+#elif defined(USE_NO_LUT)
+  Texture2D<min16float4> texture1 = t5;
+  Texture2D<float4> texture2 = t3;
 #else
   Texture2D<min16float4> texture1 = t6;
   Texture2D<float4> texture2 = t4;
@@ -201,11 +253,17 @@ float ComputeNeutwoSmoothClampScale(float3 untonemapped, float output_max = 1.f,
 float3 VanillaLUTSample(float3 color) {
   #ifdef USE_LOW
   float4 lut_sampled = t2.Sample(s6, color.zyx);
-  #else
-  float4 lut_sampled = t3.Sample(s6, color.zyx);
-  #endif
   float3 lut_corrected = (color + -1.0f) + (lut_sampled.zyx * 2.0f);
   return lut_corrected;
+  #elif defined(USE_NO_LUT)
+  return color;
+  #elif defined(USE_NVG_DUAL) && !defined(USE_GASMASK) && !defined(USE_SHIFTED_LUT)
+  return color;  // No LUT for dual NVG (t3 is shape mask, not color LUT)
+  #else
+  float4 lut_sampled = t3.Sample(s6, color.zyx);
+  float3 lut_corrected = (color + -1.0f) + (lut_sampled.zyx * 2.0f);
+  return lut_corrected;
+  #endif
 }
 
 float3 ImprovedLUTSample(float3 color, float mid_gray = 0.18f) {
@@ -282,7 +340,10 @@ float3 ImprovedLUTSample(float3 color, float mid_gray = 0.18f) {
 }
 
 float3 ApplyGasMask(float3 tonemapped_srgb, float2 uv) {
-  #ifndef USE_LOW
+  #if defined(USE_NO_LUT) || defined(USE_SHIFTED_LUT)
+  float4 _905 = t6.Sample(s5, uv);
+  float4 _910 = t7.Sample(s5, uv);
+  #elif !defined(USE_LOW)
   float4 _905 = t7.Sample(s5, uv);
   float4 _910 = t8.Sample(s5, uv);
   #else
@@ -306,6 +367,86 @@ float3 ApplyGasMask(float3 tonemapped_srgb, float2 uv) {
   float _996 = (_990 * ((((_910.z * _910.w) * _927) + (_923 * _905.z)) + _981)) + (_983 * tonemapped_srgb.z);
   return float3(_994, _995, _996);
 }
+
+#ifndef USE_LOW
+#ifdef USE_NVG
+float3 ApplyNVG(float3 tonemapped_srgb, float2 uv) {
+#if defined(USE_NO_LUT)
+  float4 nvg = t6.Sample(s5, uv);
+#elif defined(USE_GASMASK)
+  float4 nvg = t9.Sample(s5, uv);
+#else
+  float4 nvg = t7.Sample(s5, uv);
+#endif
+  float nx = nvg.x + -0.5f;
+  float ny = nvg.y + -0.5f;
+  float nlen = rsqrt(dot(float3(nx, ny, 1.0f), float3(nx, ny, 1.0f)));
+  float specular = (dot(float3((-0.0f - cb_misc_272.x), (-0.0f - cb_misc_272.y), (-0.0f - cb_misc_272.z)), float3(nx * nlen, ny * nlen, nlen)) * 0.5f) + 1.0f;
+  float alpha = nvg.w;
+  float one_minus_alpha = 1.0f - alpha;
+  float spec_intensity = (one_minus_alpha * alpha) * max(specular * specular, 0.25f);
+  float spec_r = saturate(cb_misc_288.x);
+  float spec_g = saturate(cb_misc_288.y);
+  float spec_b = saturate(cb_misc_288.z);
+  float spec_avg = dot(float3(spec_r, spec_g, spec_b), float3(0.25f, 0.25f, 0.25f)) * 0.5f;
+  float alpha_sq = alpha * alpha;
+  float r = ((alpha_sq * (spec_intensity + nvg.x)) * min(spec_r, spec_avg)) + (one_minus_alpha * tonemapped_srgb.x);
+  float g = ((alpha_sq * (spec_intensity + nvg.y)) * min(spec_g, spec_avg)) + (one_minus_alpha * tonemapped_srgb.y);
+  float b = ((alpha_sq * (spec_intensity + nvg.z)) * min(spec_b, spec_avg)) + (one_minus_alpha * tonemapped_srgb.z);
+  return float3(r, g, b);
+}
+#endif
+
+#ifdef USE_NVG_DUAL
+float3 ApplyNVGDual(float3 tonemapped_srgb, float2 uv) {
+  // Inner goggle (t6)
+#if defined(USE_GASMASK) && !defined(USE_NO_LUT)
+  float4 inner = t9.Sample(s5, uv);
+#else
+  float4 inner = t6.Sample(s5, uv);
+#endif
+  float ix = inner.x + -0.5f;
+  float iy = inner.y + -0.5f;
+  float ilen = rsqrt(dot(float3(ix, iy, 1.0f), float3(ix, iy, 1.0f)));
+  float light_x = -0.0f - cb_misc_272.x;
+  float light_y = -0.0f - cb_misc_272.y;
+  float light_z = -0.0f - cb_misc_272.z;
+  float spec_i = (dot(float3(light_x, light_y, light_z), float3(ix * ilen, iy * ilen, ilen)) * 0.5f) + 1.0f;
+  float i_alpha_comp = 1.0f - inner.w;
+  float i_spec_intensity = (i_alpha_comp * inner.w) * max(spec_i * spec_i, 0.25f);
+  float spec_r = saturate(cb_misc_288.x);
+  float spec_g = saturate(cb_misc_288.y);
+  float spec_b = saturate(cb_misc_288.z);
+  float spec_avg_inner = dot(float3(spec_r, spec_g, spec_b), float3(0.25f, 0.25f, 0.25f)) * 0.5f;
+  float i_alpha_sq = inner.w * inner.w;
+  // Outer goggle ring (t7)
+#if defined(USE_GASMASK) && !defined(USE_NO_LUT)
+  float4 outer = t10.Sample(s5, uv);
+#else
+  float4 outer = t7.Sample(s5, uv);
+#endif
+  float ox = outer.x + -0.5f;
+  float oy = outer.y + -0.5f;
+  float olen = rsqrt(dot(float3(ox, oy, 1.0f), float3(ox, oy, 1.0f)));
+  float spec_o = (dot(float3(light_x, light_y, light_z), float3(ox * olen, oy * olen, olen)) * 0.5f) + 1.0f;
+  float o_alpha_comp = 1.0f - outer.w;
+  float o_spec_intensity = (o_alpha_comp * outer.w) * max(spec_o * spec_o, 0.25f);
+  float spec_avg_outer = dot(float3(spec_r, spec_g, spec_b), float3(0.15f, 0.15f, 0.15f)) * 0.25f;
+  float o_alpha_sq = outer.w * outer.w;
+  // Blend: outer over (inner over tonemapped scene)
+  float r = (o_alpha_sq * (o_spec_intensity + outer.x)) * min(spec_r, spec_avg_outer)
+          + o_alpha_comp * ((i_alpha_sq * (i_spec_intensity + inner.x)) * min(spec_r, spec_avg_inner)
+          + i_alpha_comp * tonemapped_srgb.x);
+  float g = (o_alpha_sq * (o_spec_intensity + outer.y)) * min(spec_g, spec_avg_outer)
+          + o_alpha_comp * ((i_alpha_sq * (i_spec_intensity + inner.y)) * min(spec_g, spec_avg_inner)
+          + i_alpha_comp * tonemapped_srgb.y);
+  float b = (o_alpha_sq * (o_spec_intensity + outer.z)) * min(spec_b, spec_avg_outer)
+          + o_alpha_comp * ((i_alpha_sq * (i_spec_intensity + inner.z)) * min(spec_b, spec_avg_inner)
+          + i_alpha_comp * tonemapped_srgb.z);
+  return float3(r, g, b);
+}
+#endif
+#endif  // ifndef USE_LOW
 
 float4 RenoDX(float3 input_color, float2 uv, float ui_blend2) {
   float ui_blend1 = 0.0f;
@@ -335,6 +476,18 @@ float4 RenoDX(float3 input_color, float2 uv, float ui_blend2) {
   float3 tonemapped_srgb = renodx::color::srgb::EncodeSafe(tonemapped_linear);
   float3 gas_mask_applied = ApplyGasMask(tonemapped_srgb, uv);
   tonemapped_linear = renodx::color::srgb::DecodeSafe(gas_mask_applied);
+#endif
+
+#ifdef USE_NVG
+  float3 tonemapped_srgb_nvg = renodx::color::srgb::EncodeSafe(tonemapped_linear);
+  float3 nvg_applied = ApplyNVG(tonemapped_srgb_nvg, uv);
+  tonemapped_linear = renodx::color::srgb::DecodeSafe(nvg_applied);
+#endif
+
+#ifdef USE_NVG_DUAL
+  float3 tonemapped_srgb_nvg_dual = renodx::color::srgb::EncodeSafe(tonemapped_linear);
+  float3 nvg_dual_applied = ApplyNVGDual(tonemapped_srgb_nvg_dual, uv);
+  tonemapped_linear = renodx::color::srgb::DecodeSafe(nvg_dual_applied);
 #endif
 
   float scale = ComputeReinhardSmoothClampScale(tonemapped_linear, mid_gray_adjusted, 1.f);
