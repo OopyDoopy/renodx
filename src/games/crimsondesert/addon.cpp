@@ -1299,9 +1299,9 @@ renodx::utils::settings::Settings settings = {
         .label = "Material Improvements",
         .section = "Rendering",
         .tooltip = "Enables the 1.09-validated material/lighting improvements:\n"
+                   "- Smooth terminator for direct lighting\n"
                    "- Geometric specular anti aliasing\n"
-                   "- Spectral diffraction on metals\n"
-                   "Diffuse BRDF and smooth terminator hooks remain present but disabled until revalidated.",
+                   "EON diffuse BRDF and spectral diffraction hooks remain present but disabled until revalidated.",
         .labels = {"Off", "On"},
         .tint = rendering,
         .is_enabled = []() { return RR_ENABLED; },
