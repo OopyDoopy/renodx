@@ -1224,7 +1224,8 @@ renodx::utils::settings::Settings settings = {
                    "Off = stock contact shadows.\n"
                    "Low = subtle contact detail with conservative reach and strength.\n"
                    "Balanced = recommended contact micro shadow tuning.\n"
-                   "Full = strongest contact micro shadow tuning.",
+                   "Full = strongest contact micro shadow tuning.\n"
+                   "Tuned for Lighting: Max; other lighting quality settings may have reduced coverage or visual artifacts.",
         .labels = {"Off", "Low", "Balanced", "Full"},
         .tint = rendering,
         .is_visible = []() { return current_settings_mode == rendering_group; },
