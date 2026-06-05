@@ -1809,7 +1809,8 @@ float4 main(
     _3413 = _3397;
     _3414 = _3398;
   }
-  // Basic SDR final fallback: finish SDR output when DLAA skips the normal final shader.
+  // RenoDX: >>> [Patch: BasicPostProcessFinalizeSDR] [Version: 1.10]
+  // Description: This retained material postprocess fallback can become the direct final-output path if an older SDR material variant is still selected. When the runtime marks it as the basic postprocess final, apply color-temperature, Purkinje, and SDR black-crush finalization here; color grading remains in this shader's earlier TonemapReplacer branch to match the historical 1.09 material remaps.
   if (CUSTOM_BASIC_POSTPROCESS_FINAL == 1.f) {
     float3 final_color = FinalizeSDR(
         float3(_3412, _3413, _3414),
@@ -1819,6 +1820,7 @@ float4 main(
     _3413 = final_color.y;
     _3414 = final_color.z;
   }
+  // RenoDX: <<< [Patch: BasicPostProcessFinalizeSDR]
   SV_Target.x = _3412;
   SV_Target.y = _3413;
   SV_Target.z = _3414;

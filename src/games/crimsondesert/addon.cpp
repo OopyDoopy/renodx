@@ -235,8 +235,8 @@ void MarkShaderDraw(renodx::mods::shader::CustomShader& shader, bool* marker) {
 renodx::mods::shader::CustomShaders custom_shaders = [] {
   auto shaders = renodx::mods::shader::CustomShaders{__ALL_CUSTOM_SHADERS};
 
-  // Detect RR passes without replacing stale migrated HLSL.
-  shaders[0x70C182EF] = CreateDetectionShader(0x70C182EF, [](reshade::api::command_list*) {
+  // 1.10 RR detector: PrepareDlssRRCS. This only drives RR_ENABLED; it does not replace migrated RR HLSL.
+  shaders[0xA0F15389] = CreateDetectionShader(0xA0F15389, [](reshade::api::command_list*) {
     rr_draw = true;
     return false;
   });
@@ -252,13 +252,21 @@ renodx::mods::shader::CustomShaders custom_shaders = [] {
     }
   }
 
-  for (uint32_t hash : {0x2F574E45u}) {
+  // SDR material/postprocess paths that can become BASIC_POSTPROCESS_FINAL.
+  // 0x2F574E45: retained 1.09 SDR Composite Material Tonemap / psPostProcessCompositeMaterial.
+  // 0x712041B2: 1.10 SDR Material Tonemap / psPostProcessMaterial.
+  // 0x6938EE6F: 1.10 SDR Composite Material Tonemap / psPostProcessCompositeMaterial.
+  for (uint32_t hash : {0x2F574E45u, 0x712041B2u, 0x6938EE6Fu}) {
     if (auto it = shaders.find(hash); it != shaders.end()) {
       MarkShaderDraw(it->second, &postprocess_material_draw);
     }
   }
 
-  for (uint32_t hash : {0xB91769A4u, 0x3CF16709u, 0xD49AC7D1u, 0xF1CD8E87u}) {
+  // SDR standalone finals that need BASIC_POSTPROCESS_FINAL finalization. HDR finals call FinalizeHDR directly.
+  // 0xB91769A4 / 0x3CF16709: retained 1.09 SDR Standalone Final / RenderPostProcessPS variants.
+  // 0xD49AC7D1 / 0xF1CD8E87: retained 1.09 SDR FSR Standalone Final variants.
+  // 0x39CC4AC5: 1.10 SDR Standalone Final / RenderPostProcessPS.
+  for (uint32_t hash : {0xB91769A4u, 0x3CF16709u, 0xD49AC7D1u, 0xF1CD8E87u, 0x39CC4AC5u}) {
     if (auto it = shaders.find(hash); it != shaders.end()) {
       MarkShaderDraw(it->second, &final_sdr_draw);
     }

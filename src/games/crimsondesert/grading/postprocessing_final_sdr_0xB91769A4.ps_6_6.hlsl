@@ -253,11 +253,13 @@ float4 main(
   SV_Target.z = _426;
   SV_Target.w = _15.w;
 
-  // Final grading: pass live sun/moon directions into the SDR finish.
+  // RenoDX: >>> [Patch: FinalizePostProcessSDR] [Version: 1.10]
+  // Description: Retained SDR final variants can still be selected by older output permutations. This patch applies the existing SDR color-temperature, Purkinje, and black-crush finalization using the live sun and moon elevation fields, preserving the shipped 1.09 final-output behavior without adding late final-space color grading.
   SV_Target.xyz = FinalizeSDR(
       SV_Target.xyz,
       asfloat(__3__35__0__0__SceneConstantBuffer_raw[42u].y),
       asfloat(__3__35__0__0__SceneConstantBuffer_raw[43u].y));
+  // RenoDX: <<< [Patch: FinalizePostProcessSDR]
 
   return SV_Target;
 }

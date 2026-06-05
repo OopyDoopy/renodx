@@ -12,9 +12,16 @@
 // _userImageAdjust.z is the grading exposure multiplier
 // ("ColorGradeExposure" in the addon UI). It sits on top of the AE solve.
 
+#ifndef RENODX_TONEMAP_EXTERNAL_SCENE_CONSTANT_BUFFER
 cbuffer __3__35__0__0__SceneConstantBuffer : register(b16, space35) {
   uint4 __3__35__0__0__SceneConstantBuffer_raw[172];
 };
+#define RENODX_TONEMAP_SCENE_TIME_W asfloat(__3__35__0__0__SceneConstantBuffer_raw[0u].w)
+#else
+#ifndef RENODX_TONEMAP_SCENE_TIME_W
+#define RENODX_TONEMAP_SCENE_TIME_W _time.w
+#endif
+#endif
 
 cbuffer __3__35__0__0__ExposureConstantBuffer : register(b31, space35) {
   float4 _exposure0 : packoffset(c000.x);
@@ -203,9 +210,9 @@ float3 SDRToneMap(float3 color, bool use_color_blind = false, bool use_etc_param
   float _1579 = dot(float3(_1576, _1577, _1578), float3(0.2125999927520752f, 0.7152000069618225f, 0.0722000002861023f));
   float _1796_blend, _1797_exp, _1798_sat;
 
-  // __3__35__0__0__SceneConstantBuffer_raw[0u].w = time
+  // RENODX_TONEMAP_SCENE_TIME_W resolves to the scene time field for the including shader.
   if (_nightToneParm == 1) {
-    float _758 = exp2(exp2(log2(abs((asfloat(__3__35__0__0__SceneConstantBuffer_raw[0u].w) * 0.11666666716337204f) + -1.399999976158142f)) * 8.0f) * -1.4426950216293335f) + 1.0f;
+    float _758 = exp2(exp2(log2(abs((RENODX_TONEMAP_SCENE_TIME_W * 0.11666666716337204f) + -1.399999976158142f)) * 8.0f) * -1.4426950216293335f) + 1.0f;
     float _759 = -0.7999999523162842f / _758;
     float _760 = -1.2000000476837158f / _758;
     float _761 = 0.20000004768371582f / _758;

@@ -186,11 +186,13 @@ float4 main(
   SV_Target.z = _285;
   SV_Target.w = _13.w;
 
-  // Final grading: pass live sun/moon directions into the HDR finish.
+  // RenoDX: >>> [Patch: FinalizePostProcessHDR] [Version: 1.10]
+  // Description: Retained HDR FSR final variants can still be selected by older display-mode permutations. This patch applies the existing HDR color-temperature and Purkinje finalization using the live sun and moon elevation fields, preserving the shipped 1.09 final-output behavior without adding late final-space color grading.
   SV_Target.xyz = FinalizeHDR(
       SV_Target.xyz,
       asfloat(__3__35__0__0__SceneConstantBuffer_raw[42u].y),
       asfloat(__3__35__0__0__SceneConstantBuffer_raw[43u].y));
+  // RenoDX: <<< [Patch: FinalizePostProcessHDR]
 
   return SV_Target;
 }
