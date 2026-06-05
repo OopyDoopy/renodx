@@ -132,8 +132,8 @@
 #define CONTACT_MICRO_SELF_FADE_PIXELS_RT      (CONTACT_SHADOW_IS_FULL ? CONTACT_MICRO_SELF_FADE_PIXELS_RT_FULL : 2.00f)
 #define CONTACT_MICRO_FOLIAGE_THICKNESS_BOOST_RT 1.80f
 #define CONTACT_MICRO_FOLIAGE_OCCLUSION_BOOST_RT 1.40f
-// Foliage Improvements are RR-gated until the non-RR lanes receive separate tuning.
-#define FOLIAGE_IMPROVEMENTS                   (RR_ENABLED == 1.f ? ((float)((((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS) != 0u) ? 1u : 0u) | (((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS_BIT1) != 0u) ? 2u : 0u))) : 0.f)
+// Foliage Improvements read packed UI bits directly; 1.10 SceneAOTiled_CS and RenderDiffuseTiledCS family replacements cover RR and non-RR lanes.
+#define FOLIAGE_IMPROVEMENTS                   ((float)((((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS) != 0u) ? 1u : 0u) | (((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS_BIT1) != 0u) ? 2u : 0u)))
 #define FOLIAGE_TRANSMISSION                   (FOLIAGE_IMPROVEMENTS >= 2.f ? 1.0f : 0.0f)
 #define RT_QUALITY                             (RR_ENABLED == 1.f ? (float)((CUSTOM_FLAGS_AS_UINT >> 10u) & 0x3u) : 0.f)
 #define RR_ENABLED                             ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__RR_ENABLED) != 0u ? 1.f : 0.f)

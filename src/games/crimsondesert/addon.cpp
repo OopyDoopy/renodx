@@ -1230,6 +1230,25 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
+        .key = "FoliageImprovements",
+        .binding = &shader_injection.custom_flags,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 2.f,
+        .packed_values = {0u, CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS, CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS | CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS_BIT1},
+        .can_reset = true,
+        .label = "Grass/Foliage Improvements",
+        .section = "Rendering",
+        .tooltip = "Toggles foliage rendering improvements.\n"
+                   "Off = vanilla foliage.\n"
+                   "AO = adds ambient occlusion for foliage materials (base game lacks it entirely).\n"
+                   "AO + Desaturation/Hue = also applies dynamic colour correction, selective colour,\n"
+                   "and transmission (diffuse scattering through vegetation).\n"
+                   "Tuned for Lighting: Max; other lighting quality settings may have reduced coverage or visual artifacts.",
+        .labels = {"Off", "AO", "AO + Desaturation/Hue"},
+        .tint = rendering,
+        .is_visible = []() { return current_settings_mode == rendering_group; },
+    },
+    new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
         .label = "Ray Reconstruction / Ray Regeneration Features\n",
         .section = "Rendering",
@@ -1274,25 +1293,6 @@ renodx::utils::settings::Settings settings = {
                    "Off = vanilla yellow moonlight.\n"
                    "On = cooler and desaturated night scenes.",
         .labels = {"Off", "On"},
-        .tint = rendering,
-        .is_enabled = []() { return RR_ENABLED; },
-        .is_visible = []() { return current_settings_mode == rendering_group; },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "FoliageImprovements",
-        .binding = &shader_injection.custom_flags,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 2.f,
-        .packed_values = {0u, CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS, CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS | CUSTOM_FLAGS__FOLIAGE_IMPROVEMENTS_BIT1},
-        .can_reset = true,
-        .label = "Grass/Foliage Improvements",
-        .section = "Rendering",
-        .tooltip = "Toggles foliage rendering improvements.\n"
-                   "Off = vanilla foliage.\n"
-                   "AO = adds ambient occlusion for foliage materials (base game lacks it entirely).\n"
-                   "AO + Desaturation/Hue = also applies dynamic colour correction, selective colour,\n"
-                   "and transmission (diffuse scattering through vegetation).",
-        .labels = {"Off", "AO", "AO + Desaturation/Hue"},
         .tint = rendering,
         .is_enabled = []() { return RR_ENABLED; },
         .is_visible = []() { return current_settings_mode == rendering_group; },

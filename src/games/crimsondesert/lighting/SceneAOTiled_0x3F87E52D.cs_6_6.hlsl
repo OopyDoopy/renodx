@@ -375,10 +375,12 @@ void main(
           }
           _705 = ((int)(uint)((int)(_702)));
           float _aoDistFade = 1.0f - saturate(max((_619 + -100.0f), 0.0f) * 0.05000000074505806f);
-          // Foliage Improvements: extend AO reach only for foliage stencils.
+          // RenoDX: >>> [Patch: FoliageAORange] [Version: 1.10-family]
+          // Description: SceneAOTiled_CS 0x3F87E52D native HBAO distance fade drops foliage occlusion too early, causing distant grass and leaf cards to look detached from surrounding terrain. When foliage AO is enabled, extend only foliage stencil AO reach so the generated scene AO remains visible farther into the mid distance without changing non-foliage materials.
           if (FOLIAGE_AO_STRENGTH > 0.0f && ((uint)(_60 - 12) < 7u)) {
             _aoDistFade = 1.0f - saturate(max((_619 + -200.0f), 0.0f) * 0.005f);
           }
+          // RenoDX: <<< [Patch: FoliageAORange]
           _706 = saturate((saturate(1.0f - exp2(log2(select((_terrainNormalParams.z > 0.0f), 0.20000000298023224f, 0.6000000238418579f)) * max(_680, (((_620 * 20.0f) * _aoDistFade) / ((_619 * 0.20000000298023224f) + 1.0f))))) * (1.0f - _599)) + _599);
         } else {
           _705 = _598;
@@ -483,10 +485,12 @@ void main(
         }
         __3__38__0__1__g_bentConeResultUAV[int2(((int)((((uint)((_14 - (_15 << 1)) << 4)) + SV_GroupThreadID.x) + ((uint)(((int)((uint)(_37) << 5)) & 8160)))), ((int)((((uint)(_15 << 4)) + SV_GroupThreadID.y) + ((uint)(((uint)((uint)(_37)) >> 3) & 8160)))))] = float4(((_799 * 0.5f) + 0.5f), ((_800 * 0.5f) + 0.5f), ((_801 * 0.5f) + 0.5f), saturate(1.0f - _790));
         _823 = ((_810 + _shadowAOParams.w) - (_810 * _shadowAOParams.w));
-        // Foliage Improvements: preserve stronger bent-cone visibility for foliage.
+        // RenoDX: >>> [Patch: FoliageAOBentConeVisibility] [Version: 1.10-family]
+        // Description: SceneAOTiled_CS 0x3F87E52D native global AO strength blend can wash out foliage bent-cone visibility after the AO solve. When foliage AO is enabled, blend foliage stencil pixels back toward the unsoftened bent-cone visibility so downstream diffuse lighting receives stronger leaf and grass occlusion while non-foliage AO remains native.
         if (FOLIAGE_AO_STRENGTH > 0.0f && ((uint)(_60 - 12) < 7u)) {
           _823 = lerp(_823, _810, FOLIAGE_AO_STRENGTH);
         }
+        // RenoDX: <<< [Patch: FoliageAOBentConeVisibility]
         _824 = _401;
         break;
       }
