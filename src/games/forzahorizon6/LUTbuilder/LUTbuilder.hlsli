@@ -1,9 +1,6 @@
 #include "../psycho_test17_custom.hlsl"
 #include "../shared.h"
 
-#define LMS_WHITE_BT709  renodx::color::lms::from::BT709(1.0f)
-#define LMS_WHITE_BT2020 renodx::color::lms::from::BT2020(1.0f)
-
 #define FORZA_TONEMAP_GENERATOR(T)                                                           \
   T ForzaToneMap(T channel,                                                                  \
                  float peak_ratio,                                                           \

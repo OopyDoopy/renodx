@@ -752,6 +752,7 @@ float3 psychotm_test17_customized(
     float contrast = 1.f,
     float purity_scale = 1.f,
     float bleaching_intensity = 1.f,
+    float flare = 0.f,
     float clip_point = 100.f,
     float hue_restore = 1.f,
     float adaptation_contrast = 1.f,
@@ -796,7 +797,10 @@ float3 psychotm_test17_customized(
   if (grading_mode == 0) {
     if (highlights != 1.f) {
       if (highlights > 1.f) {
-        lms_graded = max(lms_graded, lerp(lms_graded, current_adaptive_state_lms * pow(lms_graded / current_adaptive_state_lms, highlights), min(lms_graded, 1.f)));
+        float3 normalized = lms_graded / current_adaptive_state_lms;
+        float3 curved = pow(normalized, highlights);
+        normalized = max(normalized, lerp(normalized, curved, saturate(normalized)));
+        lms_graded = normalized * current_adaptive_state_lms;
       } else {  // highlights < 1.f
         lms_graded /= current_adaptive_state_lms;
         lms_graded = lerp(lms_graded, pow(lms_graded, highlights), step(1.f, lms_graded)) * current_adaptive_state_lms;
@@ -809,8 +813,11 @@ float3 psychotm_test17_customized(
       float3 rescaled = lerped * current_adaptive_state_lms;
       lms_graded = rescaled;
     }
-    if (contrast != 1.f) {
-      lms_graded = renodx::math::SignPow(lms_graded / current_adaptive_state_lms, contrast) * current_adaptive_state_lms;
+    if (contrast != 1.f || flare > 0.f) {
+      float3 normalized = lms_graded / current_adaptive_state_lms;
+      float3 flare_multiplier = renodx::math::DivideSafe(normalized + flare, normalized, 1.f);
+      float3 exponent = contrast * flare_multiplier;
+      lms_graded = renodx::math::SignPow(normalized, exponent) * current_adaptive_state_lms;
     }
   } else {
     float yf_input = renodx::color::yf::from::LMS(lms_working);
@@ -830,8 +837,11 @@ float3 psychotm_test17_customized(
     if (shadows != 1.f) {
       yf_target = renodx::color::grade::Shadows(yf_target, shadows, yf_midgray, 1);
     }
-    if (contrast != 1.f) {
-      yf_target = renodx::color::grade::ContrastSafe(yf_target, contrast, yf_midgray);
+    if (contrast != 1.f || flare > 0.f) {
+      float normalized = yf_target / yf_midgray;
+      float flare_multiplier = renodx::math::DivideSafe(normalized + flare, normalized, 1.f);
+      float exponent = contrast * flare_multiplier;
+      yf_target = renodx::math::SignPow(normalized, exponent) * yf_midgray;
     }
 
     float yf_scale = renodx::math::DivideSafe(yf_target, yf_input, 1.f);
@@ -869,9 +879,16 @@ float3 psychotm_test17_customized(
     float3 lms_clip_unit = renodx::color::lms::from::BT2020(clip_point.xxx);
 
     float3 hue_shifted_color;
+  #if 1
     hue_shifted_color.x = renodx::tonemap::ReinhardPiecewiseExtended(lms_cones.x, lms_clip_unit.x, lms_peak.x, current_adaptive_state_lms.x);
     hue_shifted_color.y = renodx::tonemap::ReinhardPiecewiseExtended(lms_cones.y, lms_clip_unit.y, lms_peak.y, current_adaptive_state_lms.y);
     hue_shifted_color.z = renodx::tonemap::ReinhardPiecewiseExtended(lms_cones.z, lms_clip_unit.z, lms_peak.z, current_adaptive_state_lms.z);
+  #else
+    hue_shifted_color.x = renodx::tonemap::dice::internal::LuminanceCompress(lms_cones.x, lms_peak.x, current_adaptive_state_lms.x, true, lms_clip_unit.x);
+    hue_shifted_color.y = renodx::tonemap::dice::internal::LuminanceCompress(lms_cones.y, lms_peak.y, current_adaptive_state_lms.y, true, lms_clip_unit.y);
+    hue_shifted_color.z = renodx::tonemap::dice::internal::LuminanceCompress(lms_cones.z, lms_peak.z, current_adaptive_state_lms.z, true, lms_clip_unit.z);
+  #endif
+
     hue_shifted_color = renodx::color::correct::Luminance(hue_shifted_color, lms_cones);
     float3 display_scaled = hue_shifted_color; // Display Map by max channel later
 
@@ -976,11 +993,12 @@ float3 psychotm_test17_customized(
   return final_bt709;
 }
 
-float3 ApplyGradingLMS(float3 bt709_linear, float3 peak_value = 1.f, float current_adaptive_state_bt709 = 0.18f, float current_background_state_bt709 = 0.18f, renodx::draw::Config config = renodx::draw::BuildConfig()) {
+float3 ApplyGrading(float3 bt709_linear, float3 peak_value = 1.f, float current_adaptive_state_bt709 = 0.18f, float current_background_state_bt709 = 0.18f, int grading_mode = 0, renodx::draw::Config config = renodx::draw::BuildConfig()) {
   float exposure = config.tone_map_exposure;
   float highlights = config.tone_map_highlights;
   float shadows = config.tone_map_shadows;
   float contrast = config.tone_map_contrast;
+  float flare = config.tone_map_flare;
   float purity_scale = config.tone_map_saturation;
   float bleaching_intensity = config.tone_map_blowout;
 
@@ -992,30 +1010,56 @@ float3 ApplyGradingLMS(float3 bt709_linear, float3 peak_value = 1.f, float curre
   float3 desired_background_state_lms = renodx::color::lms::from::BT709(current_background_state_bt709);
   float3 lms_working = lms_in;
 
-  float yf_input = renodx::color::yf::from::LMS(lms_working);
-  // float yf_midgray = renodx::color::yf::from::BT709(0.18f);
-  float yf_midgray = renodx::color::yf::from::BT709(current_adaptive_state_bt709);
-  float yf_target = yf_input;
-
-  // Stage 1: apply UI highlight/shadow/contrast controls in luminosity space.
-  if (highlights != 1.f) {
-    if (highlights > 1.f) {
-      yf_target = max(yf_target, lerp(yf_target, yf_midgray * pow(yf_target / yf_midgray, highlights), min(yf_target, 1.f)));
-    } else {  // highlights < 1.f
-      yf_target /= yf_midgray;
-      yf_target = lerp(yf_target, pow(yf_target, highlights), step(1.f, yf_target)) * yf_midgray;
+  float3 lms_graded = lms_working;
+  if (grading_mode == 0) {
+    if (highlights != 1.f) {
+      if (highlights > 1.f) {
+        float3 normalized = lms_graded / current_adaptive_state_lms;
+        float3 curved = pow(normalized, highlights);
+        normalized = max(normalized, lerp(normalized, curved, saturate(normalized)));
+        lms_graded = normalized * current_adaptive_state_lms;
+      } else {  // highlights < 1.f
+        lms_graded /= current_adaptive_state_lms;
+        lms_graded = lerp(lms_graded, pow(lms_graded, highlights), step(1.f, lms_graded)) * current_adaptive_state_lms;
+      }
     }
-  }
-  if (shadows != 1.f) {
-    yf_target = renodx::color::grade::Shadows(yf_target, shadows, yf_midgray, 1);
-  }
-  if (contrast != 1.f) {
-    yf_target = renodx::color::grade::ContrastSafe(yf_target, contrast, yf_midgray);
-  }
+    if (shadows != 1.f) {
+      float3 scaled = lms_graded / current_adaptive_state_lms;
+      float3 shadowed = pow(scaled, -1.f * (shadows - 2.f));
+      lms_graded = lerp(shadowed, scaled, saturate(shadowed)) * current_adaptive_state_lms;
+    }
+    if (contrast != 1.f || flare > 0.f) {
+      float3 normalized = lms_graded / current_adaptive_state_lms;
+      float3 flare_multiplier = renodx::math::DivideSafe(normalized + flare, normalized, 1.f);
+      float3 exponent = contrast * flare_multiplier;
+      lms_graded = renodx::math::SignPow(normalized, exponent) * current_adaptive_state_lms;
+    }
+  } else {
+    float yf_input = renodx::color::yf::from::LMS(lms_working);
+    float yf_midgray = renodx::color::yf::from::BT709(current_adaptive_state_bt709);
+    float yf_target = yf_input;
 
-  float yf_scale = renodx::math::DivideSafe(yf_target, yf_input, 1.f);
+    if (highlights != 1.f) {
+      if (highlights > 1.f) {
+        yf_target = max(yf_target, lerp(yf_target, yf_midgray * pow(yf_target / yf_midgray, highlights), min(yf_target, 1.f)));
+      } else {  // highlights < 1.f
+        yf_target /= yf_midgray;
+        yf_target = lerp(yf_target, pow(yf_target, highlights), step(1.f, yf_target)) * yf_midgray;
+      }
+    }
+    if (shadows != 1.f) {
+      yf_target = renodx::color::grade::Shadows(yf_target, shadows, yf_midgray, 1);
+    }
+    if (contrast != 1.f || flare > 0.f) {
+      float normalized = yf_target / yf_midgray;
+      float flare_multiplier = renodx::math::DivideSafe(normalized + flare, normalized, 1.f);
+      float exponent = contrast * flare_multiplier;
+      yf_target = renodx::math::SignPow(normalized, exponent) * yf_midgray;
+    }
 
-  float3 lms_graded = lms_working * yf_scale;
+    float yf_scale = renodx::math::DivideSafe(yf_target, yf_input, 1.f);
+    lms_graded = lms_working * yf_scale;
+  }
   if (purity_scale != 1.f) {
     float3 lms_graded_relative = psycho17_ToAdaptiveRelativeLMS(
         lms_graded,
