@@ -1,0 +1,466 @@
+#include "../common.hlsl"
+
+Texture2D<float4> t0 : register(t0);
+
+Texture1D<float> t1 : register(t1);
+
+Texture3D<float4> t2 : register(t2);
+
+Texture3D<float4> t3 : register(t3);
+
+Texture2D<float> t4 : register(t4);
+
+Texture2D<float4> t5 : register(t5);
+
+cbuffer cb0 : register(b0) {
+  float4 ImageProcTexDimConstBuffer_000[23] : packoffset(c000.x);
+  float4 ImageProcTexDimConstBuffer_368 : packoffset(c023.x);
+  int ImageProcTexDimConstBuffer_384 : packoffset(c024.x);
+  float ImageProcTexDimConstBuffer_388 : packoffset(c024.y);
+  int2 ImageProcTexDimConstBuffer_392 : packoffset(c024.z);
+  int2 ImageProcTexDimConstBuffer_400 : packoffset(c025.x);
+  float2 ImageProcTexDimConstBuffer_408 : packoffset(c025.z);
+  int2 ImageProcTexDimConstBuffer_416 : packoffset(c026.x);
+  float2 ImageProcTexDimConstBuffer_424 : packoffset(c026.z);
+  float2 ImageProcTexDimConstBuffer_432 : packoffset(c027.x);
+  float2 ImageProcTexDimConstBuffer_440 : packoffset(c027.z);
+  float2 ImageProcTexDimConstBuffer_448 : packoffset(c028.x);
+  float2 ImageProcTexDimConstBuffer_456 : packoffset(c028.z);
+  float2 ImageProcTexDimConstBuffer_464 : packoffset(c029.x);
+  int ImageProcTexDimConstBuffer_472 : packoffset(c029.z);
+  int ImageProcTexDimConstBuffer_476 : packoffset(c029.w);
+};
+
+cbuffer cb1 : register(b1) {
+  float4 ImageProcPostProcessConstBuffer_000 : packoffset(c000.x);
+  float4 ImageProcPostProcessConstBuffer_016 : packoffset(c001.x);
+  float4 ImageProcPostProcessConstBuffer_032 : packoffset(c002.x);
+  float4 ImageProcPostProcessConstBuffer_048 : packoffset(c003.x);
+  float4 ImageProcPostProcessConstBuffer_064 : packoffset(c004.x);
+  float4 ImageProcPostProcessConstBuffer_080 : packoffset(c005.x);
+  float4 ImageProcPostProcessConstBuffer_096 : packoffset(c006.x);
+  float4 ImageProcPostProcessConstBuffer_112 : packoffset(c007.x);
+  float4 ImageProcPostProcessConstBuffer_128 : packoffset(c008.x);
+  float4 ImageProcPostProcessConstBuffer_144 : packoffset(c009.x);
+  float4 ImageProcPostProcessConstBuffer_160 : packoffset(c010.x);
+  float4 ImageProcPostProcessConstBuffer_176 : packoffset(c011.x);
+  float4 ImageProcPostProcessConstBuffer_192 : packoffset(c012.x);
+  float4 ImageProcPostProcessConstBuffer_208 : packoffset(c013.x);
+  float4 ImageProcPostProcessConstBuffer_224 : packoffset(c014.x);
+  float4 ImageProcPostProcessConstBuffer_240 : packoffset(c015.x);
+  float4 ImageProcPostProcessConstBuffer_256[4] : packoffset(c016.x);
+  float4 ImageProcPostProcessConstBuffer_320[4] : packoffset(c020.x);
+  float4 ImageProcPostProcessConstBuffer_384[4] : packoffset(c024.x);
+  float4 ImageProcPostProcessConstBuffer_448 : packoffset(c028.x);
+  float4 ImageProcPostProcessConstBuffer_464 : packoffset(c029.x);
+  float4 ImageProcPostProcessConstBuffer_480 : packoffset(c030.x);
+  float ImageProcPostProcessConstBuffer_496 : packoffset(c031.x);
+  float ImageProcPostProcessConstBuffer_500 : packoffset(c031.y);
+  int ImageProcPostProcessConstBuffer_504 : packoffset(c031.z);
+  int ImageProcPostProcessConstBuffer_508 : packoffset(c031.w);
+  float4 ImageProcPostProcessConstBuffer_512[4][1] : packoffset(c032.x);
+  float4 ImageProcPostProcessConstBuffer_576 : packoffset(c036.x);
+  int4 ImageProcPostProcessConstBuffer_592 : packoffset(c037.x);
+  float4 ImageProcPostProcessConstBuffer_608 : packoffset(c038.x);
+  float4 ImageProcPostProcessConstBuffer_624 : packoffset(c039.x);
+  float4 ImageProcPostProcessConstBuffer_640 : packoffset(c040.x);
+  float4 ImageProcPostProcessConstBuffer_656 : packoffset(c041.x);
+  float4 ImageProcPostProcessConstBuffer_672 : packoffset(c042.x);
+  float4 ImageProcPostProcessConstBuffer_688 : packoffset(c043.x);
+  float4 ImageProcPostProcessConstBuffer_704 : packoffset(c044.x);
+  float4 ImageProcPostProcessConstBuffer_720 : packoffset(c045.x);
+  float4 ImageProcPostProcessConstBuffer_736 : packoffset(c046.x);
+  float4 ImageProcPostProcessConstBuffer_752 : packoffset(c047.x);
+  float4 ImageProcPostProcessConstBuffer_768 : packoffset(c048.x);
+  float4 ImageProcPostProcessConstBuffer_784 : packoffset(c049.x);
+  float4 ImageProcPostProcessConstBuffer_800 : packoffset(c050.x);
+  int ImageProcPostProcessConstBuffer_816 : packoffset(c051.x);
+  float ImageProcPostProcessConstBuffer_820 : packoffset(c051.y);
+  int ImageProcPostProcessConstBuffer_824 : packoffset(c051.z);
+  float ImageProcPostProcessConstBuffer_828 : packoffset(c051.w);
+  float4 ImageProcPostProcessConstBuffer_832[8] : packoffset(c052.x);
+  float4 ImageProcPostProcessConstBuffer_960 : packoffset(c060.x);
+  float ImageProcPostProcessConstBuffer_976 : packoffset(c061.x);
+  float ImageProcPostProcessConstBuffer_980 : packoffset(c061.y);
+  int ImageProcPostProcessConstBuffer_984 : packoffset(c061.z);
+  int ImageProcPostProcessConstBuffer_988 : packoffset(c061.w);
+  float ImageProcPostProcessConstBuffer_992 : packoffset(c062.x);
+  float ImageProcPostProcessConstBuffer_996 : packoffset(c062.y);
+  float ImageProcPostProcessConstBuffer_1000 : packoffset(c062.z);
+  float ImageProcPostProcessConstBuffer_1004 : packoffset(c062.w);
+  float4 ImageProcPostProcessConstBuffer_1008 : packoffset(c063.x);
+  float4 ImageProcPostProcessConstBuffer_1024 : packoffset(c064.x);
+  float4 ImageProcPostProcessConstBuffer_1040 : packoffset(c065.x);
+  float4 ImageProcPostProcessConstBuffer_1056 : packoffset(c066.x);
+  float4 ImageProcPostProcessConstBuffer_1072 : packoffset(c067.x);
+  float4 ImageProcPostProcessConstBuffer_1088 : packoffset(c068.x);
+  float4 ImageProcPostProcessConstBuffer_1104 : packoffset(c069.x);
+  float4 ImageProcPostProcessConstBuffer_1120 : packoffset(c070.x);
+  float4 ImageProcPostProcessConstBuffer_1136 : packoffset(c071.x);
+  int ImageProcPostProcessConstBuffer_1152 : packoffset(c072.x);
+  int ImageProcPostProcessConstBuffer_1156 : packoffset(c072.y);
+  float ImageProcPostProcessConstBuffer_1160 : packoffset(c072.z);
+  float ImageProcPostProcessConstBuffer_1164 : packoffset(c072.w);
+  float ImageProcPostProcessConstBuffer_1168 : packoffset(c073.x);
+  float ImageProcPostProcessConstBuffer_1172 : packoffset(c073.y);
+  float ImageProcPostProcessConstBuffer_1176 : packoffset(c073.z);
+  float ImageProcPostProcessConstBuffer_1180 : packoffset(c073.w);
+  float4 ImageProcPostProcessConstBuffer_1184 : packoffset(c074.x);
+  float ImageProcPostProcessConstBuffer_1200 : packoffset(c075.x);
+  float ImageProcPostProcessConstBuffer_1204 : packoffset(c075.y);
+  float ImageProcPostProcessConstBuffer_1208 : packoffset(c075.z);
+  float ImageProcPostProcessConstBuffer_1212 : packoffset(c075.w);
+  float ImageProcPostProcessConstBuffer_1216 : packoffset(c076.x);
+  float ImageProcPostProcessConstBuffer_1220 : packoffset(c076.y);
+  float ImageProcPostProcessConstBuffer_1224 : packoffset(c076.z);
+  float ImageProcPostProcessConstBuffer_1228 : packoffset(c076.w);
+  float ImageProcPostProcessConstBuffer_1232 : packoffset(c077.x);
+  float ImageProcPostProcessConstBuffer_1236 : packoffset(c077.y);
+  float ImageProcPostProcessConstBuffer_1240 : packoffset(c077.z);
+  float ImageProcPostProcessConstBuffer_1244 : packoffset(c077.w);
+  float ImageProcPostProcessConstBuffer_1248 : packoffset(c078.x);
+  float ImageProcPostProcessConstBuffer_1252 : packoffset(c078.y);
+  float ImageProcPostProcessConstBuffer_1256 : packoffset(c078.z);
+  float ImageProcPostProcessConstBuffer_1260 : packoffset(c078.w);
+  float ImageProcPostProcessConstBuffer_1264 : packoffset(c079.x);
+  float ImageProcPostProcessConstBuffer_1268 : packoffset(c079.y);
+  float ImageProcPostProcessConstBuffer_1272 : packoffset(c079.z);
+  int ImageProcPostProcessConstBuffer_1276 : packoffset(c079.w);
+  float4 ImageProcPostProcessConstBuffer_1280 : packoffset(c080.x);
+  float ImageProcPostProcessConstBuffer_1296 : packoffset(c081.x);
+  float ImageProcPostProcessConstBuffer_1300 : packoffset(c081.y);
+  float ImageProcPostProcessConstBuffer_1304 : packoffset(c081.z);
+  float ImageProcPostProcessConstBuffer_1308 : packoffset(c081.w);
+  float ImageProcPostProcessConstBuffer_1312 : packoffset(c082.x);
+  float ImageProcPostProcessConstBuffer_1316 : packoffset(c082.y);
+  float ImageProcPostProcessConstBuffer_1320 : packoffset(c082.z);
+  float ImageProcPostProcessConstBuffer_1324 : packoffset(c082.w);
+  int ImageProcPostProcessConstBuffer_1328 : packoffset(c083.x);
+  int ImageProcPostProcessConstBuffer_1332 : packoffset(c083.y);
+  float ImageProcPostProcessConstBuffer_1336 : packoffset(c083.z);
+  float ImageProcPostProcessConstBuffer_1340 : packoffset(c083.w);
+  int ImageProcPostProcessConstBuffer_1344 : packoffset(c084.x);
+  float ImageProcPostProcessConstBuffer_1348 : packoffset(c084.y);
+  float ImageProcPostProcessConstBuffer_1352 : packoffset(c084.z);
+  float ImageProcPostProcessConstBuffer_1356 : packoffset(c084.w);
+  float ImageProcPostProcessConstBuffer_1360 : packoffset(c085.x);
+  float ImageProcPostProcessConstBuffer_1364 : packoffset(c085.y);
+  float ImageProcPostProcessConstBuffer_1368 : packoffset(c085.z);
+  float ImageProcPostProcessConstBuffer_1372 : packoffset(c085.w);
+  float ImageProcPostProcessConstBuffer_1376 : packoffset(c086.x);
+  int ImageProcPostProcessConstBuffer_1380 : packoffset(c086.y);
+  int ImageProcPostProcessConstBuffer_1384 : packoffset(c086.z);
+  int ImageProcPostProcessConstBuffer_1388 : packoffset(c086.w);
+};
+
+SamplerState s0 : register(s0);
+
+SamplerState s2 : register(s2);
+
+// DXIL FirstbitHi: returns bit position counting from MSB (leading zeros count)
+uint firstbithigh_msb(int value) { return (value == 0) ? 0xFFFFFFFF : (31u - firstbithigh(value)); }
+uint firstbithigh_msb(uint value) { return (value == 0) ? 0xFFFFFFFF : (31u - firstbithigh(value)); }
+
+float4 main(
+  precise noperspective float4 SV_Position : SV_Position,
+  linear float4 TexCoord : TexCoord,
+  linear float4 TexCoord_4 : TexCoord4,
+  linear float4 TexCoord_1 : TexCoord1,
+  linear float4 TexCoord_2 : TexCoord2,
+  linear float4 TexCoord_3 : TexCoord3
+) : SV_Target {
+  float4 SV_Target;
+  float4 _19;
+  float _27;
+  float _28;
+  float _29;
+  float _30;
+  float _39;
+  float _40;
+  float _52;
+  float _154;
+  float _155;
+  float _156;
+  float _217;
+  float _218;
+  float _219;
+  float _292;
+  float _293;
+  float _294;
+  float _295;
+  float _296;
+  float _297;
+  float _336;
+  float _337;
+  float _338;
+  float _352;
+  float _353;
+  float _354;
+  float _413;
+  float _414;
+  float _415;
+  float _504;
+  float _505;
+  float _506;
+  float _58;
+  float _60;
+  float _61;
+  float _62;
+  float _63;
+  float _64;
+  float _66;
+  float _67;
+  float _68;
+  float _70;
+  float _71;
+  float _72;
+  float _78;
+  float _79;
+  float _82;
+  float _83;
+  float4 _86;
+  float4 _90;
+  float _94;
+  float _95;
+  float4 _98;
+  float4 _102;
+  float _107;
+  float _109;
+  float _111;
+  float _113;
+  float _115;
+  float4 _118;
+  float4 _123;
+  float _127;
+  float _141;
+  float _142;
+  float _143;
+  uint2 _165;
+  float4 _181;
+  float _193;
+  float _198;
+  float _205;
+  float _206;
+  float _207;
+  bool _209;
+  float _222;
+  float _223;
+  float _238;
+  float _239;
+  float _240;
+  float _241;
+  bool _261;
+  float _280;
+  float _282;
+  float _284;
+  float4 _287;
+  float _316;
+  float _320;
+  float _324;
+  bool _327;
+  float4 _331;
+  float _358;
+  float _360;
+  float _362;
+  float _365;
+  float _366;
+  float _367;
+  float _373;
+  float _376;
+  float _379;
+  float _397;
+  float _402;
+  float _428;
+  float _429;
+  float _430;
+  _19 = t0.SampleLevel(s0, float2(TexCoord.x, TexCoord.y), 0.0f);
+  _27 = TexCoord.x + -0.5f;
+  _28 = TexCoord.y + -0.5f;
+  _29 = ImageProcPostProcessConstBuffer_1212 * _27;
+  _30 = ImageProcPostProcessConstBuffer_1216 * _28;
+  _39 = ImageProcPostProcessConstBuffer_1228 * _29;
+  _40 = _30 * ImageProcPostProcessConstBuffer_1228;
+  _52 = ((ImageProcPostProcessConstBuffer_1232 - ImageProcPostProcessConstBuffer_1236) * exp2(log2(saturate(ImageProcPostProcessConstBuffer_1220 - sqrt((_30 * _30) + (_29 * _29)))) * ImageProcPostProcessConstBuffer_1248)) + ImageProcPostProcessConstBuffer_1236;
+  [branch]
+  if (!(_52 < 0.0f)) {
+    _58 = _52 * ImageProcPostProcessConstBuffer_1244;
+    _60 = rsqrt(dot(float2(_39, _40), float2(_39, _40)));
+    _61 = _60 * _39;
+    _62 = _60 * _40;
+    _63 = 1.0f / ImageProcTexDimConstBuffer_368.x;
+    _64 = 1.0f / ImageProcTexDimConstBuffer_368.y;
+    _66 = (_63 * _58) * _61;
+    _67 = _62 * _58;
+    _68 = _67 * _64;
+    _70 = (_63 * _52) * _62;
+    _71 = _61 * _52;
+    _72 = _71 * _64;
+    _78 = TexCoord.x - ((_66 + _70) * 0.5f);
+    _79 = TexCoord.y - ((_64 * (_67 - _71)) * 0.5f);
+    _82 = _78 + _66;
+    _83 = _79 + _68;
+    _86 = t0.SampleLevel(s0, float2((_82 + _70), (_83 - _72)), 0.0f);
+    _90 = t0.SampleLevel(s0, float2(_82, _83), 0.0f);
+    _94 = _78 + (_66 * 0.5f);
+    _95 = _79 + (_68 * 0.5f);
+    _98 = t0.SampleLevel(s0, float2((_94 + _70), (_95 - _72)), 0.0f);
+    _102 = t0.SampleLevel(s0, float2(_94, _95), 0.0f);
+    _107 = (_102.x + _98.x) * 0.5f;
+    _109 = (_102.y + _98.y) * 0.5f;
+    _111 = (_102.z + _98.z) * 0.5f;
+    _113 = (_90.y + _86.y) + _109;
+    _115 = (_90.z + _86.z) + _111;
+    _118 = t0.SampleLevel(s0, float2((_78 + _70), (_79 - _72)), 0.0f);
+    _123 = t0.SampleLevel(s0, float2(_78, _79), 0.0f);
+    _127 = (_107 + _118.x) + _123.x;
+    _141 = (((_90.x + _86.x) + _107) + _127) * 0.1666666716337204f;
+    _142 = (((_109 + _118.y) + _123.y) + _113) * 0.1666666716337204f;
+    _143 = (((_111 + _118.z) + _123.z) + _115) * 0.1666666716337204f;
+    _154 = ((((_127 * 0.3333333432674408f) - _141) * ImageProcPostProcessConstBuffer_1240) + _141);
+    _155 = ((((_113 * 0.3333333432674408f) - _142) * ImageProcPostProcessConstBuffer_1240) + _142);
+    _156 = ((((_115 * 0.3333333432674408f) - _143) * ImageProcPostProcessConstBuffer_1240) + _143);
+
+    float3 chromatic_aberration = lerp(float3(_19.x, _19.y, _19.z), float3(_154, _155, _156), CUSTOM_CHROMATIC_ABERRATION);
+    _154 = chromatic_aberration.x;
+    _155 = chromatic_aberration.y;
+    _156 = chromatic_aberration.z;
+  } else {
+    _154 = _19.x;
+    _155 = _19.y;
+    _156 = _19.z;
+  }
+  if ((ImageProcPostProcessConstBuffer_1380 == 1) && (ImageProcPostProcessConstBuffer_1388 == 0)) {
+    if (CUSTOM_FILM_GRAIN_TYPE == 0) {
+      t5.GetDimensions(_165.x, _165.y);
+      _181 = t5.Sample(s2, float2(((ImageProcTexDimConstBuffer_368.x / (float((int)((int)(_165.x))) * ImageProcPostProcessConstBuffer_1376)) * TexCoord.x), ((ImageProcTexDimConstBuffer_368.y / (float((int)((int)(_165.y))) * ImageProcPostProcessConstBuffer_1376)) * TexCoord.y)));
+      _193 = dot(float3((_154 / (_154 + 1.0f)), (_155 / (_155 + 1.0f)), (_156 / (_156 + 1.0f))), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f));
+      _198 = (lerp(_193, 1.0f, ImageProcPostProcessConstBuffer_1372)) * ImageProcPostProcessConstBuffer_1368;
+      _205 = (_198 * (_181.x + -1.0f)) + 1.0f;
+      _206 = (_198 * (_181.y + -1.0f)) + 1.0f;
+      _207 = (_198 * (_181.z + -1.0f)) + 1.0f;
+      _209 = (ImageProcPostProcessConstBuffer_1384 == 1);
+      _217 = select(_209, _205, (_205 * _154));
+      _218 = select(_209, _206, (_206 * _155));
+      _219 = select(_209, _207, (_207 * _156));
+
+      float3 film_grain = lerp(float3(_154, _155, _156), float3(_217, _218, _219), CUSTOM_FILM_GRAIN_STRENGTH);
+      _217 = film_grain.x;
+      _218 = film_grain.y;
+      _219 = film_grain.z;
+    } else if (CUSTOM_FILM_GRAIN_TYPE == 1) {
+      float3 film_grain = ApplyPostProcessing(float3(_154, _155, _156), TexCoord.xy);
+      _217 = film_grain.x;
+      _218 = film_grain.y;
+      _219 = film_grain.z;
+    }
+  } else {
+    _217 = _154;
+    _218 = _155;
+    _219 = _156;
+
+    if (CUSTOM_FILM_GRAIN_TYPE == 2) {
+      float3 film_grain = ApplyPostProcessing(float3(_154, _155, _156), TexCoord.xy);
+      _217 = film_grain.x;
+      _218 = film_grain.y;
+      _219 = film_grain.z;
+    }
+  }
+  _222 = ImageProcPostProcessConstBuffer_1252 * _27;
+  _223 = ImageProcPostProcessConstBuffer_1256 * _28;
+  _238 = exp2(log2(saturate(ImageProcPostProcessConstBuffer_1268 + saturate(ImageProcPostProcessConstBuffer_1260 - sqrt((_223 * _223) + (_222 * _222))))) * ImageProcPostProcessConstBuffer_1264);
+
+  _238 = lerp(1.f, _238, CUSTOM_VIGNETTE);
+
+  _239 = _238 * _217;
+  _240 = _238 * _218;
+  _241 = _238 * _219;
+  _261 = (((t4.SampleLevel(s0, float2(min(max((ImageProcTexDimConstBuffer_456.x * TexCoord.x), 0.0f), ImageProcTexDimConstBuffer_464.x), min(max((ImageProcTexDimConstBuffer_456.y * TexCoord.y), 0.0f), ImageProcTexDimConstBuffer_464.y)), 0.0f)).x) > 0.5f) || (!(ImageProcPostProcessConstBuffer_1296 > 0.0f));
+  if (!_261) {
+    _280 = t1.SampleLevel(s0, float2(((sqrt(saturate(_239 / ImageProcPostProcessConstBuffer_1304)) * 0.999755859375f) + 0.0001220703125f), 0.0f), 0.0f);
+    _282 = t1.SampleLevel(s0, float2(((sqrt(saturate(_240 / ImageProcPostProcessConstBuffer_1304)) * 0.999755859375f) + 0.0001220703125f), 0.0f), 0.0f);
+    _284 = t1.SampleLevel(s0, float2(((sqrt(saturate(_241 / ImageProcPostProcessConstBuffer_1304)) * 0.999755859375f) + 0.0001220703125f), 0.0f), 0.0f);
+    _287 = t2.SampleLevel(s0, float3(_280.x, _282.x, _284.x), 0.0f);
+    _292 = _280.x;
+    _293 = _282.x;
+    _294 = _284.x;
+    _295 = _287.x;
+    _296 = _287.y;
+    _297 = _287.z;
+  } else {
+    _292 = _239;
+    _293 = _240;
+    _294 = _241;
+    _295 = _239;
+    _296 = _240;
+    _297 = _241;
+  }
+  _316 = mad(_297, (ImageProcPostProcessConstBuffer_256[0].z), mad(_296, (ImageProcPostProcessConstBuffer_256[0].y), ((ImageProcPostProcessConstBuffer_256[0].x) * _295))) + (ImageProcPostProcessConstBuffer_256[0].w);
+  _320 = mad(_297, (ImageProcPostProcessConstBuffer_256[1].z), mad(_296, (ImageProcPostProcessConstBuffer_256[1].y), ((ImageProcPostProcessConstBuffer_256[1].x) * _295))) + (ImageProcPostProcessConstBuffer_256[1].w);
+  _324 = mad(_297, (ImageProcPostProcessConstBuffer_256[2].z), mad(_296, (ImageProcPostProcessConstBuffer_256[2].y), ((ImageProcPostProcessConstBuffer_256[2].x) * _295))) + (ImageProcPostProcessConstBuffer_256[2].w);
+  _327 = (ImageProcPostProcessConstBuffer_752.y > 0.0f);
+  [branch]
+  if (_327) {
+    if (!_261) {
+      _331 = t3.SampleLevel(s0, float3(_292, _293, _294), 0.0f);
+      _336 = _331.x;
+      _337 = _331.y;
+      _338 = _331.z;
+    } else {
+      _336 = _292;
+      _337 = _293;
+      _338 = _294;
+    }
+    _352 = (mad(_338, (ImageProcPostProcessConstBuffer_256[0].z), mad(_337, (ImageProcPostProcessConstBuffer_256[0].y), (_336 * (ImageProcPostProcessConstBuffer_256[0].x)))) + (ImageProcPostProcessConstBuffer_256[0].w));
+    _353 = (mad(_338, (ImageProcPostProcessConstBuffer_256[1].z), mad(_337, (ImageProcPostProcessConstBuffer_256[1].y), (_336 * (ImageProcPostProcessConstBuffer_256[1].x)))) + (ImageProcPostProcessConstBuffer_256[1].w));
+    _354 = (mad(_338, (ImageProcPostProcessConstBuffer_256[2].z), mad(_337, (ImageProcPostProcessConstBuffer_256[2].y), (_336 * (ImageProcPostProcessConstBuffer_256[2].x)))) + (ImageProcPostProcessConstBuffer_256[2].w));
+  } else {
+    _352 = _292;
+    _353 = _293;
+    _354 = _294;
+  }
+  _358 = frac(frac(dot(float2(TexCoord.z, TexCoord.w), float2(0.0671105608344078f, 0.005837149918079376f))) * 52.98291778564453f);
+  _360 = (_358 * 0.003921568859368563f) + -0.0019607844296842813f;
+  _362 = (_358 * 0.0009775171056389809f) + -0.0004887585528194904f;
+  [branch]
+  if (_327 && RENODX_TONE_MAP_TYPE == 0) {
+    _365 = _352 * ImageProcPostProcessConstBuffer_752.x;
+    _366 = _353 * ImageProcPostProcessConstBuffer_752.x;
+    _367 = _354 * ImageProcPostProcessConstBuffer_752.x;
+    _373 = mad(0.04331360012292862f, _367, mad(0.3292819857597351f, _366, (_365 * 0.627403974533081f)));
+    _376 = mad(0.011361200362443924f, _367, mad(0.9195399880409241f, _366, (_365 * 0.06909699738025665f)));
+    _379 = mad(0.8955950140953064f, _367, mad(0.08801320195198059f, _366, (_365 * 0.01639159955084324f)));
+    [branch]
+    if (ImageProcPostProcessConstBuffer_784.x > 0.0f) {
+      _397 = saturate((max(max(_365, _366), _367) - ImageProcPostProcessConstBuffer_784.y) / (ImageProcPostProcessConstBuffer_784.z - ImageProcPostProcessConstBuffer_784.y));
+      _402 = 1.0f - ImageProcPostProcessConstBuffer_784.x;
+      _413 = (((((1.0f - _397) * _373) + (_397 * mad(0.047561999410390854f, _367, mad(0.19859300553798676f, _366, (_365 * 0.7538449764251709f))))) * ImageProcPostProcessConstBuffer_784.x) + (_373 * _402));
+      _414 = ((ImageProcPostProcessConstBuffer_784.x * mad(0.012477199546992779f, _367, mad(0.9417769908905029f, _366, (_365 * 0.045745600014925f)))) + (_376 * _402));
+      _415 = ((ImageProcPostProcessConstBuffer_784.x * mad(0.9836069941520691f, _367, mad(0.017604099586606026f, _366, (_365 * -0.0012105499627068639f)))) + (_379 * _402));
+    } else {
+      _413 = _373;
+      _414 = _376;
+      _415 = _379;
+    }
+    _428 = exp2(log2(saturate(_413 * 9.999999747378752e-05f)) * 0.1593017578125f);
+    _429 = exp2(log2(saturate(_414 * 9.999999747378752e-05f)) * 0.1593017578125f);
+    _430 = exp2(log2(saturate(_415 * 9.999999747378752e-05f)) * 0.1593017578125f);
+    _504 = (saturate(exp2(log2(((_428 * 18.8515625f) + 0.8359375f) / ((_428 * 18.6875f) + 1.0f)) * 78.84375f)) + _362);
+    _505 = (saturate(exp2(log2(((_429 * 18.8515625f) + 0.8359375f) / ((_429 * 18.6875f) + 1.0f)) * 78.84375f)) + _362);
+    _506 = (saturate(exp2(log2(((_430 * 18.8515625f) + 0.8359375f) / ((_430 * 18.6875f) + 1.0f)) * 78.84375f)) + _362);
+  } else if (_327 && RENODX_TONE_MAP_TYPE != 0) {
+    float3 bt2020_color = renodx::color::bt2020::from::BT709(float3(_352, _353, _354));
+    float3 pq_color = renodx::color::pq::EncodeSafe(bt2020_color, RENODX_DIFFUSE_WHITE_NITS);
+    SV_Target.xyz = pq_color;
+    SV_Target.w = 0.0f;
+    return SV_Target;
+  } else {
+    _504 = (exp2(log2(select((_316 <= 0.0031308000907301903f), (_316 * 12.920000076293945f), ((exp2(log2(abs(_316)) * 0.4166666567325592f) * 1.0549999475479126f) + -0.054999999701976776f))) * ImageProcPostProcessConstBuffer_768.x) + _360);
+    _505 = (exp2(log2(select((_320 <= 0.0031308000907301903f), (_320 * 12.920000076293945f), ((exp2(log2(abs(_320)) * 0.4166666567325592f) * 1.0549999475479126f) + -0.054999999701976776f))) * ImageProcPostProcessConstBuffer_768.x) + _360);
+    _506 = (exp2(log2(select((_324 <= 0.0031308000907301903f), (_324 * 12.920000076293945f), ((exp2(log2(abs(_324)) * 0.4166666567325592f) * 1.0549999475479126f) + -0.054999999701976776f))) * ImageProcPostProcessConstBuffer_768.x) + _360);
+  }
+  SV_Target.x = max(_504, 0.0f);
+  SV_Target.y = max(_505, 0.0f);
+  SV_Target.z = max(_506, 0.0f);
+  SV_Target.w = 0.0f;
+  return SV_Target;
+}
