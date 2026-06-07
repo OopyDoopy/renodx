@@ -15,9 +15,10 @@
 
 #include "../../mods/shader.hpp"
 #include "../../mods/swapchain.hpp"
-#include "../../utils/random.hpp"
 #include "../../templates/settings.hpp"
 #include "../../utils/platform.hpp"
+#include "../../utils/random.hpp"
+
 // #include "../../utils/random.hpp"
 #include "../../utils/settings.hpp"
 #include "../../utils/swapchain.hpp"
@@ -36,8 +37,12 @@ const std::string build_time = __TIME__;
 float current_settings_mode = 0;
 float r11g11b10_upgrade_enabled = 1.f;
 
-float tone_map_variant = 2.f;           // Setting binding (0=Vanilla SDR HDR, 1=Vanilla SDR Extended, 2=PsychoV)
-float current_tone_map_variant = -1.f;  // -1 forces first-frame update
+const std::unordered_map<std::string, float> CUSTOM_VALUES = {
+    {"ToneMapCurve", 1.f},
+    {"SceneGradeLUTScaling", 100.f},
+    {"ColorGradeHighlights", 58.f},
+    {"ColorGradeShadows", 42.f},
+};
 
 void OnInitDevice(reshade::api::device* device) {
   std::vector<renodx::utils::resource::ResourceUpgradeInfo> upgrade_infos = {};
@@ -63,177 +68,6 @@ void OnInitDevice(reshade::api::device* device) {
   }
 }
 
-// namespace shader_toggle {
-// namespace runtime {
-// float g_use_shaders = 1.f;          // Controlled by slider
-// float g_current_use_shaders = 1.f;  // Will be overridden on startup
-
-// void OnPresent(
-//     reshade::api::command_queue*,
-//     reshade::api::swapchain* swapchain,
-//     const reshade::api::rect*,
-//     const reshade::api::rect*,
-//     uint32_t,
-//     const reshade::api::rect*) {
-//   if (g_use_shaders != g_current_use_shaders) {
-//     reshade::log::message(
-//         reshade::log::level::info,
-//         (g_use_shaders != 0.f) ? "Enabling shaders (toggle)" : "Disabling shaders (toggle)");
-
-//     auto* device = swapchain->get_device();
-//     if (device == nullptr) {
-//       reshade::log::message(reshade::log::level::error, "Device is null in OnPresent");
-//       g_current_use_shaders = g_use_shaders;
-//       return;
-//     }
-
-//     if (g_use_shaders != 0.f) {
-//       for (const auto& [hash, shader] : custom_shaders) {
-//         renodx::utils::shader::AddRuntimeReplacement(device, hash, shader.code);
-//       }
-//       reshade::log::message(
-//           reshade::log::level::info,
-//           ("Injected " + std::to_string(custom_shaders.size()) + " shaders").c_str());
-//     } else {
-//       renodx::utils::shader::RemoveRuntimeReplacements(device);
-//       reshade::log::message(reshade::log::level::info, "Removed all shader replacements.");
-//     }
-
-//     g_current_use_shaders = g_use_shaders;
-//   }
-// }
-
-// void RegisterEvents() {
-//   g_current_use_shaders = -1.0f;
-//   reshade::register_event<reshade::addon_event::present>(OnPresent);
-// }
-
-// void UnregisterEvents() {
-//   reshade::unregister_event<reshade::addon_event::present>(OnPresent);
-// }
-
-// renodx::utils::settings::Setting* GetSetting() {
-//   return new renodx::utils::settings::Setting{
-//       .key = "",
-//       .binding = &g_use_shaders,
-//       .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
-//       .default_value = 1.f,
-//       .label = "Enable Mod",
-//       .section = "Options",
-//       .on_change = []() {
-//         g_current_use_shaders = -1.f;
-//       },
-//   };
-// }
-// }  // namespace runtime
-// }  // namespace shader_toggle
-
-// void OnVariantPresent(
-//     reshade::api::command_queue*,
-//     reshade::api::swapchain* swapchain,
-//     const reshade::api::rect*,
-//     const reshade::api::rect*,
-//     uint32_t,
-//     const reshade::api::rect*) {
-//   if (shader_toggle::runtime::g_use_shaders == 0.f) {
-//     current_tone_map_variant = -1.f;  // Force re-apply when toggled back on
-//     return;
-//   }
-//   if (tone_map_variant == current_tone_map_variant) return;
-//   auto* device = swapchain->get_device();
-//   if (device == nullptr) { return; }
-
-//   // Clamp each macro variable to its valid range, then compute flat combo index.
-//   // For multi-macro add further v_n terms and multiply by downstream label counts.
-//   const int v0 = std::clamp(
-//       static_cast<int>(tone_map_variant), 0,
-//       static_cast<int>(__SHADER_VARIANT_LABELS_0x2FE5A0BE_TONE_MAP_TYPE.size()) - 1);
-//   const int idx = v0;
-
-//   const std::span<const uint8_t> variants[] = {__SHADER_VARIANTS_0x2FE5A0BE};
-//   renodx::utils::shader::AddRuntimeReplacement(device, 0x2FE5A0BEu, variants[idx]);
-//   current_tone_map_variant = tone_map_variant;
-// }
-
-// // renodx::utils::settings::Setting* peak_white_nits_setting = nullptr;
-// // renodx::utils::settings::Setting* diffuse_white_nits_setting = nullptr;
-// renodx::utils::settings::Settings settings = {
-//     new renodx::utils::settings::Setting{
-//         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-//         .label = "HDR Calibration is handled via the in-game options!",
-//         .section = "Instructions",
-//     },
-//     shader_toggle::runtime::GetSetting(),
-//     new renodx::utils::settings::Setting{
-//         .key = "toneMapVariant",
-//         .binding = &tone_map_variant,
-//         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-//         .default_value = 1.f,
-//         .label = "Tone Map Mode",
-//         .section = "Options",
-//         .tooltip = "Vanilla uses the game's base HDR with gamma correction applied.\nVanilla+ uses the SDR tone curve extended into HDR range, with LMS primaries mapped onto a luminance tone map, full range luminance upgraded grading with gamma correction, and improved display mapping.\nCustom uses a custom tone curve run in LMS space, with color grading LUTs upgraded and scaled to be allowed to reach a 0.0001 nit black floor, and upgraded display mapping.",
-//         .labels = std::vector<std::string>(
-//             __SHADER_VARIANT_LABELS_0x2FE5A0BE_TONE_MAP_TYPE.begin(),
-//             __SHADER_VARIANT_LABELS_0x2FE5A0BE_TONE_MAP_TYPE.end()),
-//         .on_change = []() {
-//           current_tone_map_variant = -1.f;
-//         },
-//     },
-//     new renodx::utils::settings::Setting{
-//         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
-//         .label = "RenoDX Discord",
-//         .section = "Links",
-//         .group = "button-line-1",
-//         .tint = 0x5865F2,
-//         .on_change = []() {
-//           renodx::utils::platform::Launch("https://discord.gg/QgXDCfccRy");
-//         },
-//     },
-//     new renodx::utils::settings::Setting{
-//         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
-//         .label = "Github",
-//         .section = "Links",
-//         .group = "button-line-1",
-//         .on_change = []() {
-//           renodx::utils::platform::Launch("https://github.com/clshortfuse/renodx");
-//         },
-//     },
-//     new renodx::utils::settings::Setting{
-//         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
-//         .label = "More RenoDX Mods",
-//         .section = "Links",
-//         .group = "button-line-1",
-//         .on_change = []() {
-//           renodx::utils::platform::Launch("https://github.com/clshortfuse/renodx/wiki/Mods/");
-//         },
-//     },
-//     new renodx::utils::settings::Setting{
-//         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
-//         .label = "Jon's Ko-Fi",
-//         .section = "Links",
-//         .group = "button-line-1",
-//         .tint = 0xFF5F5F,
-//         .on_change = []() {
-//           renodx::utils::platform::LaunchURL("https://ko-fi.com/kickfister");
-//         },
-//     },
-//     new renodx::utils::settings::Setting{
-//         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-//         .label = "Game mod by Jon (OopyDoopy/Kickfister), RenoDX Framework by Shortfuse",
-//         .section = "About",
-//     },
-//     new renodx::utils::settings::Setting{
-//         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-//         .label = "Special thanks to Musa for his help with this.",
-//         .section = "About",
-//     },
-//     new renodx::utils::settings::Setting{
-//         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-//         .label = "This build was compiled on " + build_date + " at " + build_time + ".",
-//         .section = "About",
-//     },
-// };
-
 renodx::utils::settings::Setting* peak_white_nits_setting = nullptr;
 renodx::utils::settings::Setting* diffuse_white_nits_setting = nullptr;
 renodx::utils::settings::Settings settings = {
@@ -247,31 +81,66 @@ renodx::utils::settings::Settings settings = {
         .labels = {"Simple", "Advanced"},
         .is_global = true,
     },
-    // new renodx::utils::settings::Setting{
-    //     .value_type = renodx::utils::settings::SettingValueType::TEXT,
-    //     .label = "By default, this mod improves the game's tone mapping and uses the in-game calibration sliders.\nSwitch to Advanced mode to access more options.\n ",
-    //     .section = "Instructions",
-    //     .is_visible = []() { return current_settings_mode == 0.f;}
-    // },
-
-    //     new renodx::utils::settings::Setting{
-    //     .value_type = renodx::utils::settings::SettingValueType::TEXT,
-    //     .label = "Warning: Must use Vanilla+ for all color grading to be present.",
-    //     //.section = "Instructions",
-    //     .is_visible = []() { return RENODX_TONE_MAP_TYPE > 0.f;}
-    // },
+        new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Vanilla+",
+        .section = "Presets",
+        .group = "button-line-1",
+        .on_change = []() {
+          for (auto* setting : settings) {
+            if (setting->key.empty()) continue;
+            if (!setting->can_reset) continue;
+            if (setting->is_global) continue;
+            if (setting->section.starts_with("Effects")) continue;
+            if (setting->key == "ToneMapPeakNits" || setting->key == "ToneMapGameNits") continue;
+            renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+          }
+        },
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Custom",
+        .section = "Presets",
+        .group = "button-line-1",
+        .on_change = []() {
+          for (auto* setting : settings) {
+            if (setting->key.empty()) continue;
+            if (!setting->can_reset) continue;
+            if (setting->is_global) continue;
+            if (setting->section.starts_with("Effects")) continue;
+            if (setting->key == "ToneMapPeakNits" || setting->key == "ToneMapGameNits") continue;
+            if (CUSTOM_VALUES.contains(setting->key)) {
+              renodx::utils::settings::UpdateSetting(setting->key, CUSTOM_VALUES.at(setting->key));
+              continue;
+            }
+            renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+          }
+        },
+    },
     new renodx::utils::settings::Setting{
         .key = "ToneMapType",
         .binding = &RENODX_TONE_MAP_TYPE,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
+        .default_value = 1.f,
         .can_reset = true,
         .label = "Tone Mapper",
         .section = "Tone Mapping",
         .tooltip = "Sets the tone mapper type.\nVanilla+ uses the vanilla tone mapping with improved brightness scaling, unlocked luminance, and improved display mapping.\nPsychoV uses a version of Shortfuse's PsychoV tonemapper, customized with new features.\nRenoDX ACES replaces the game's tone mapper with our ACES implementation.",
-        .labels = {"Vanilla", "Vanilla+", "Custom"},
+        .labels = {"Vanilla", "RenoDX"},
         .parse = [](float value) { return value; },
         //.is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ToneMapCurve",
+        .binding = &CUSTOM_TONE_MAP_CURVE,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .label = "Tone Curve",
+        .section = "Tone Mapping",
+        .tooltip = "Select whether to use the SDR tone curve, extended into HDR range, or to tune your own custom curve.",
+        .labels = {"Vanilla+", "Custom"},
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     peak_white_nits_setting = new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",
@@ -283,7 +152,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Sets the value of peak white in nits",
         .min = 80.f,
         .max = 4000.f,
-        //.is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .is_visible = []() { return is_hdr_color_space; },
     },
     diffuse_white_nits_setting = new renodx::utils::settings::Setting{
@@ -296,7 +165,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Sets the value of 100% white in nits",
         .min = 80.f,
         .max = 500.f,
-        //.is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .is_visible = []() { return is_hdr_color_space; },
     },
     new renodx::utils::settings::Setting{
@@ -326,7 +195,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Tone Mapping",
         .tooltip = "Emulates the look of the game when viewed with SDR gamma.",
         .labels = {"Off", "2.2"},
-        //.is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .is_visible = []() { return is_hdr_color_space && current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
@@ -337,19 +206,19 @@ renodx::utils::settings::Settings settings = {
         .section = "Scene Grading",
         .tooltip = "Adjusts strenght of the color grading LUTs. Scene depedent behavior.",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 1.f || RENODX_TONE_MAP_TYPE == 2.f; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
         .key = "SceneGradeLUTScaling",
         .binding = &SCENE_GRADE_LUT_SCALING,
-        .default_value = 100.f,
+        .default_value = 0.f,
         .label = "LUT Scaling",
         .section = "Scene Grading",
         .tooltip = "Scales raised-black color grading LUTs toward full range. Scene dependent behavior.",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 1.f || RENODX_TONE_MAP_TYPE == 2.f; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
@@ -361,7 +230,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .max = 2.f,
         .format = "%.2f",
-        //.is_enabled = []() { return RENODX_TONE_MAP_TYPE < 2; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
@@ -371,7 +240,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Highlights",
         .section = "Color Grading",
         .max = 100.f,
-        //.is_enabled = []() { return RENODX_TONE_MAP_TYPE < 2; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.02f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
@@ -382,7 +251,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Shadows",
         .section = "Color Grading",
         .max = 100.f,
-        //.is_enabled = []() { return RENODX_TONE_MAP_TYPE < 2; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.02f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
@@ -393,7 +262,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Contrast",
         .section = "Color Grading",
         .max = 100.f,
-        //.is_enabled = []() { return RENODX_TONE_MAP_TYPE < 2; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.02f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
@@ -404,7 +273,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Saturation",
         .section = "Color Grading",
         .max = 100.f,
-        //.is_enabled = []() { return RENODX_TONE_MAP_TYPE < 2; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.02f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
@@ -416,7 +285,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .tooltip = "Adds highlight desaturation due to overexposure.",
         .max = 100.f,
-        //.is_enabled = []() { return RENODX_TONE_MAP_TYPE < 2; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return fmax(0.0001f, value * 0.01f); },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
@@ -429,8 +298,34 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .tooltip = "Flare/Glare Compensation",
         .max = 100.f,
-        //.is_enabled = []() { return RENODX_TONE_MAP_TYPE < 2; },
-        .parse = [](float value) { return value * 0.001f; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .parse = [](float value) { return value * 0.0001f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeMidGrayIn",
+        .binding = &RENODX_TONE_MAP_MID_GRAY_IN,
+        .default_value = 0.18f,
+        .label = "Mid Gray In",
+        .section = "Color Grading",
+        .tooltip = "Controls the pivot point used by grading sliders. When mismatched with Mid Gray Out, average brightness is scaled linearly.",
+        .max = 1.f,
+        .format = "%.2f",
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0 && CUSTOM_TONE_MAP_CURVE; },
+        .parse = [](float value) { return value; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeMidGrayOut",
+        .binding = &RENODX_TONE_MAP_MID_GRAY_OUT,
+        .default_value = 0.18f,
+        .label = "Mid Gray Out",
+        .section = "Color Grading",
+        .tooltip = "Controls the output level corresponding to Mid Gray In. When mismatched, average brightness is scaled linearly.",
+        .max = 1.f,
+        .format = "%.2f",
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0 && CUSTOM_TONE_MAP_CURVE; },
+        .parse = [](float value) { return value; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
@@ -492,20 +387,6 @@ renodx::utils::settings::Settings settings = {
           } },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
-    // new renodx::utils::settings::Setting{
-    //     .value_type = renodx::utils::settings::SettingValueType::BUTTON,
-    //     .label = "Vanilla+",
-    //     .section = "Presets",
-    //     .group = "button-line-1",
-    //     .on_change = []() {
-    //       for (auto* setting : settings) {
-    //         if (setting->key.empty()) continue;
-    //         if (!setting->can_reset) continue;
-    //         if (setting->is_global) continue;
-    //         renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
-    //       }
-    //     },
-    // },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "RenoDX Discord",
@@ -582,6 +463,7 @@ bool initialized = false;
 
 void OnInitSwapchain(reshade::api::swapchain* swapchain, bool /*resize*/) {
   is_hdr_color_space = renodx::utils::swapchain::IsHDRColorSpace(swapchain);
+  RENODX_IS_HDR_COLOR_SPACE = is_hdr_color_space ? 1.f : 0.f;
   if (initialized) return;
 
   auto peak = renodx::utils::swapchain::GetPeakNits(swapchain);

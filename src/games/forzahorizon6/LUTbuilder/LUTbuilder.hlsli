@@ -1,4 +1,3 @@
-#include "../psycho_test17_custom.hlsl"
 #include "../shared.h"
 
 #define FORZA_TONEMAP_GENERATOR(T)                                                           \
