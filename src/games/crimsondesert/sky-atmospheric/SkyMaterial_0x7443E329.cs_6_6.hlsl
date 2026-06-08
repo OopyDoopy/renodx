@@ -336,11 +336,15 @@ void main(
     float _296 = saturate((_282 + -0.9800000190734863f) * 50.00004959106445f) * 9.0f;
     int _303 = WaveReadLaneFirst(_materialIndex);
     float _311 = WaveReadLaneFirst(BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_303 < (uint)170000), _303, 0)) + 0u))]._milkyWayRatio);
+    // RenoDX: >>> [Patch: MilkyWayLightIntensity] [Version: 1.10-family]
+    // Description: Scales only the sampled Milky Way texture contribution in the visible sky material. Procedural stars still use the game's _starRatio, and moon, aurora, fog, and atmospheric inscatter keep their existing intensity paths.
+    float _rndx_milkyWayRatio = _311 * max(MILKY_WAY_LIGHT_INTENSITY, 0.0f) * 0.01f;
+    // RenoDX: <<< [Patch: MilkyWayLightIntensity]
     int _324 = WaveReadLaneFirst(_materialIndex);
     float _333 = WaveReadLaneFirst(BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_324 < (uint)170000), _324, 0)) + 0u))]._starRatio) * ((saturate((_282 + -0.9994999766349792f) * 1999.906494140625f) * 3.0f) + (saturate((_248 + -0.9990000128746033f) * 1000.0128784179688f) * 0.10000000149011612f));
-    float _334 = _333 + (_311 * ((_290 * _296) + _290));
-    float _335 = _333 + (_311 * ((_291 * _296) + _291));
-    float _336 = _333 + (_311 * ((_292 * _296) + _292));
+    float _334 = _333 + (_rndx_milkyWayRatio * ((_290 * _296) + _290));
+    float _335 = _333 + (_rndx_milkyWayRatio * ((_291 * _296) + _291));
+    float _336 = _333 + (_rndx_milkyWayRatio * ((_292 * _296) + _292));
     float _sunViewDot = dot(float3(_137, _138, _139), float3(_sunDirection.x, _sunDirection.y, _sunDirection.z));
     float _sunRadiusVanilla = _sunSizeAngle * 0.01745329238474369f;
     float _sunAngle = acos(clamp(_sunViewDot, -1.0f, 1.0f));

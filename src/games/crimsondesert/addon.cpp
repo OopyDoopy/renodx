@@ -172,6 +172,7 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
     {"AuroraBrightness", 50.f},
     {"AuroraChance", 40.f},
     {"NightSkyAttenuation", 0.f},
+    {"MilkyWayLightIntensity", 100.f},
     {"PurkinjeEffect", 0.f},
 };
 
@@ -1163,7 +1164,7 @@ renodx::utils::settings::Settings settings = {
                    "1 = vanilla size. 10 = 10x larger.",
         .tint = rendering,
         .min = 1.f,
-        .max = 10.f,
+        .max = 20.f,
         .format = "%.1fx",
         .is_enabled = []() { return MOON_ADJUSTMENTS == 1.f; },
         .is_visible = []() { return current_settings_mode == rendering_group; },
@@ -1195,6 +1196,21 @@ renodx::utils::settings::Settings settings = {
                    "Fixes the overly bright sky at 3-5am and after sunset.",
         .labels = {"Off", "On"},
         .tint = rendering,
+        .is_visible = []() { return current_settings_mode == rendering_group; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "MilkyWayLightIntensity",
+        .binding = &shader_injection.milky_way_light_intensity,
+        .default_value = 100.f,
+        .can_reset = true,
+        .label = "Milky Way Light Intensity",
+        .section = "Rendering",
+        .tooltip = "Scales the Milky Way texture contribution in the night sky.\n"
+                   "100 = vanilla intensity, 1000 = 10x. Stars, moon, aurora, and atmospheric scattering are unchanged.",
+        .tint = rendering,
+        .min = 0.f,
+        .max = 1000.f,
+        .format = "%.0f%%",
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
@@ -1563,6 +1579,7 @@ void OnPresetOff() {
       {"AuroraBrightness", 50.f},
       {"AuroraChance", 40.f},
       {"NightSkyAttenuation", 0.f},
+      {"MilkyWayLightIntensity", 100.f},
       {"PurkinjeEffect", 0.f},
 
       {"ImprovedAutoExposure", 0.f},

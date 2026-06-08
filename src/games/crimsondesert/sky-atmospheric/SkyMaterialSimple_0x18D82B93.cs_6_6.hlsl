@@ -302,9 +302,13 @@ void main(
     bool _164 = ((uint)_163 < (uint)170000);
     int _165 = select(_164, _163, 0);
     float _171 = WaveReadLaneFirst(BindlessParameters_PostProcessSky[((int)((uint)(_165) + 0u))]._milkyWayRatio);
-    float _172 = _171 * _159.x;
-    float _173 = _171 * _159.y;
-    float _174 = _171 * _159.z;
+    // RenoDX: >>> [Patch: MilkyWayLightIntensity] [Version: 1.10-family]
+    // Description: Scales only the sampled Milky Way texture contribution in the simple sky material used by sky/environment probe paths. Aurora and other night-sky lighting additions remain on their existing controls.
+    float _rndx_milkyWayRatio = _171 * max(MILKY_WAY_LIGHT_INTENSITY, 0.0f) * 0.01f;
+    // RenoDX: <<< [Patch: MilkyWayLightIntensity]
+    float _172 = _rndx_milkyWayRatio * _159.x;
+    float _173 = _rndx_milkyWayRatio * _159.y;
+    float _174 = _rndx_milkyWayRatio * _159.z;
 
     // --- Aurora borealis (sky probe variant) ---
     // This shader feeds the environment probe at night for specular/GI. We add aurora here

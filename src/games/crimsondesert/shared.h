@@ -199,6 +199,7 @@
 #define AURORA_BRIGHTNESS                      shader_injection.aurora_brightness
 #define AURORA_CHANCE                          shader_injection.aurora_chance
 #define AURORA_NIGHT_SEED                      shader_injection.aurora_night_seed
+#define MILKY_WAY_LIGHT_INTENSITY              shader_injection.milky_way_light_intensity
 #define NIGHT_SKY_ATTENUATION                  ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__NIGHT_SKY_ATTENUATION) != 0u ? 1.f : 0.f)
 #define PURKINJE_EFFECT                        ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__PURKINJE_EFFECT) != 0u) ? 1.f : 0.f)
 #define CUSTOM_WEATHER_EDITING                 ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__CUSTOM_WEATHER_EDITING) != 0u) ? 1.f : 0.f)
@@ -280,6 +281,7 @@ struct ShaderInjectData {
   float aurora_night_seed;
   float dawn_dusk_weather_seed;
   float dawn_dusk_weather_blend;
+  float milky_way_light_intensity;
 };
 
 #ifndef __cplusplus
