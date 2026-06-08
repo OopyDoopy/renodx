@@ -2889,7 +2889,7 @@ void main(
       _1028 = 0.0f;
     }
     // RenoDX: >>> [Patch: FoliageColorCorrect] [Version: 1.10-family]
-    // Description: RenderDiffuseTiledCS 0x25AC0607 applies RenoDX AO+ foliage color shaping to foliage stencil materials after vanilla resolves the direct diffuse base color, using scene shadow visibility to avoid brightening shadowed foliage.
+    // Description: RenderDiffuseTiledCS 0x25AC0607 applies AO+ foliage color shaping to foliage stencil materials after vanilla resolves the direct diffuse base color, using g_sceneShadowColor visibility so shadowed foliage does not receive the fully sunlit color-shaping path.
     if (FOLIAGE_COLOR_CORRECT > 0.0f && ((uint)(_117 - 12) < 7u)) {
       float3 _rndx_fcBaseColor = float3(float(_1024), float(_1025), float(_1026));
       half4 _rndx_fcShadow = __3__36__0__0__g_sceneShadowColor.Load(int3(_99, _101, 0));

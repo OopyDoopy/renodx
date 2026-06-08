@@ -3186,7 +3186,7 @@ void main(
       _1705 = _284;
     }
     // RenoDX: >>> [Patch: FoliageColorCorrect] [Version: 1.10-family]
-    // Description: RenderDiffuseTiledCS 0x973C3516 is a 1.10 direct diffuse sibling that reads scene AO and writes scene color like the covered RenderDiffuseTiled family. Apply RenoDX AO+ foliage color shaping to foliage stencil materials after vanilla resolves the direct diffuse base color, using scene shadow visibility to avoid brightening shadowed foliage.
+    // Description: RenderDiffuseTiledCS 0x973C3516 is an inferred 1.10 direct diffuse sibling that reads scene AO and writes scene color like the covered RenderDiffuseTiled family. Apply AO+ foliage color shaping with g_sceneShadowColor visibility so shadowed foliage does not receive the fully sunlit color-shaping path.
     if (FOLIAGE_COLOR_CORRECT > 0.0f && ((uint)(_116 - 12) < 7u)) {
       float3 _rndx_fcBaseColor = float3(float(_1703), float(_1704), float(_1705));
       half4 _rndx_fcShadow = __3__36__0__0__g_sceneShadowColor.Load(int3(_98, _100, 0));

@@ -621,7 +621,8 @@ void main(
       _430 = _275;
       _431 = _276;
     }
-    // RenoDX: AO+ foliage color shaping.
+    // RenoDX: >>> [Patch: FoliageColorCorrect] [Version: 1.10-family]
+    // Description: RenderDiffuseTiledCS 0x361DB36B applies AO+ foliage color shaping to foliage stencil materials after vanilla resolves the direct diffuse base color, using g_sceneShadowColor visibility so shadowed foliage does not receive the fully sunlit color-shaping path.
     if (FOLIAGE_COLOR_CORRECT > 0.0f && ((uint)(_108 - 12) < 7u)) {
       float3 _rndx_fcBaseColor = float3(float(_429), float(_430), float(_431));
       half4 _rndx_fcShadow = __3__36__0__0__g_sceneShadowColor.Load(int3(((int)((((uint)((_61 - (_62 << 2)) << 3)) + SV_GroupThreadID.x) + ((uint)(((int)((uint)(_84) << 5)) & 8160)))), ((int)((((uint)(_62 << 3)) + SV_GroupThreadID.y) + ((uint)(((uint)((uint)(_84)) >> 3) & 8160)))), 0));
@@ -632,6 +633,7 @@ void main(
       _430 = half(_rndx_fscColor.y);
       _431 = half(_rndx_fscColor.z);
     }
+    // RenoDX: <<< [Patch: FoliageColorCorrect]
     float _432 = float(_250);
     float _433 = float(_251);
     float _434 = float(_252);
@@ -1641,7 +1643,8 @@ void main(
     float _rndx_foliageTransR = 0.0f;
     float _rndx_foliageTransG = 0.0f;
     float _rndx_foliageTransB = 0.0f;
-    // Foliage Improvements: transmission is foliage-stencil only and off below AO+.
+    // RenoDX: >>> [Patch: FoliageTransmission] [Version: 1.10-family]
+    // Description: RenderDiffuseTiledCS 0x361DB36B adds AO+ foliage transmission for foliage stencil materials during direct diffuse lighting, injecting the helper's transmission contribution into the final diffuse color while preserving vanilla lighting for non-foliage pixels and lower foliage modes.
     if (FOLIAGE_TRANSMISSION > 0.0f && ((uint)(_108 - 12) < 7u)) {
       FoliageTransmissionResult _rndx_ftResult = FoliageTransmission(
           float3(_436, _438, _440),
@@ -1664,6 +1667,7 @@ void main(
         _2730 = max(0.0f, (_2675 + _rndx_wrap) / (1.0f + _rndx_wrap)) * 0.31830987334251404f * 0.75f;
       }
     }
+    // RenoDX: <<< [Patch: FoliageTransmission]
     if ((_2591) || ((_2731 == 6))) {
       _2865 = ((max(0.0f, (0.30000001192092896f - _2675)) * 0.23190687596797943f) + _2730);
     } else {
@@ -1792,7 +1796,8 @@ void main(
       _3200 = _3179;
       _3201 = _3180;
     }
-    // RenoDX: Apply foliage AO to direct-lit pixels at final output.
+    // RenoDX: >>> [Patch: FoliageFinalAO] [Version: 1.10-family]
+    // Description: RenderDiffuseTiledCS 0x361DB36B applies RenoDX foliage AO darkening to the final direct-lit scene color for foliage stencil materials, using vanilla scene AO and shadow visibility so direct light remains naturally occluded.
     if (FOLIAGE_AO_STRENGTH > 0.0f && ((uint)(_108 - 12) < 7u)) {
       half4 _rndx_shadow = __3__36__0__0__g_sceneShadowColor.Load(int3(((int)((((uint)((_61 - (_62 << 2)) << 3)) + SV_GroupThreadID.x) + ((uint)(((int)((uint)(_84) << 5)) & 8160)))), ((int)((((uint)(_62 << 3)) + SV_GroupThreadID.y) + ((uint)(((uint)((uint)(_84)) >> 3) & 8160)))), 0));
       float _rndx_directRatio = saturate(dot(float3(_rndx_shadow.xyz), float3(0.333f, 0.333f, 0.333f)));
@@ -1801,6 +1806,7 @@ void main(
       _3200 *= _rndx_ao;
       _3201 *= _rndx_ao;
     }
+    // RenoDX: <<< [Patch: FoliageFinalAO]
     __3__38__0__1__g_sceneColorUAV[int2(((int)((((uint)((_61 - (_62 << 2)) << 3)) + SV_GroupThreadID.x) + ((uint)(((int)((uint)(_84) << 5)) & 8160)))), ((int)((((uint)(_62 << 3)) + SV_GroupThreadID.y) + ((uint)(((uint)((uint)(_84)) >> 3) & 8160)))))] = float4(_3199, _3200, _3201, 1.0f);
   }
 }

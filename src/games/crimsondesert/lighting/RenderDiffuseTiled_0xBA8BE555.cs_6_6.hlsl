@@ -1385,6 +1385,19 @@ void main(
       _1071 = _274;
       _1072 = _275;
     }
+    // RenoDX: >>> [Patch: FoliageColorCorrect] [Version: 1.10-family]
+    // Description: RenderDiffuseTiledCS 0xBA8BE555 applies AO+ foliage color shaping to foliage stencil materials at the material base-color stage. This lower-lighting sibling also rebuilds a temporally blended diffuse-cache color later; correcting that cache directly caused blocky AO+ artifacts, so this block mirrors the stable base-color patch point and leaves g_diffuseResultUAV history untouched.
+    if (FOLIAGE_COLOR_CORRECT > 0.0f && ((uint)(_107 - 12) < 7u)) {
+      float3 _rndx_fcBaseColor = float3(float(_1070), float(_1071), float(_1072));
+      half4 _rndx_fcShadow = __3__36__0__0__g_sceneShadowColor.Load(int3(_89, _91, 0));
+      float _rndx_fcShadowVis = saturate(dot(float3(_rndx_fcShadow.xyz), float3(0.2126f, 0.7152f, 0.0722f)));
+      float3 _rndx_fcCorrected = FoliageColorCorrect(_rndx_fcBaseColor, _sunDirection.xyz, _rndx_fcShadowVis, float3(1.0f, 1.0f, 1.0f));
+      float3 _rndx_fscColor = FoliageSelectiveColor(_rndx_fcCorrected);
+      _1070 = half(_rndx_fscColor.x);
+      _1071 = half(_rndx_fscColor.y);
+      _1072 = half(_rndx_fscColor.z);
+    }
+    // RenoDX: <<< [Patch: FoliageColorCorrect]
     _1073 = _1038 * _1034;
     _1074 = -0.0f - _1073;
     _1075 = _1038 * _1035;
@@ -1652,19 +1665,6 @@ void main(
     _1843 = ((_943 - _1829) * _1828) + _1829;
     _1844 = ((_944 - _1830) * _1828) + _1830;
     _1845 = ((_945 - _1831) * _1828) + _1831;
-    // RenoDX: >>> [Patch: FoliageColorCorrect] [Version: 1.10-family]
-    // Description: RenderDiffuseTiledCS 0xBA8BE555 applies RenoDX AO+ foliage color shaping to foliage stencil materials after vanilla resolves the direct diffuse base color, using scene shadow visibility to avoid brightening shadowed foliage.
-    if (FOLIAGE_COLOR_CORRECT > 0.0f && ((uint)(_107 - 12) < 7u)) {
-      float3 _rndx_fcBaseColor = float3(float(_1843), float(_1844), float(_1845));
-      half4 _rndx_fcShadow = __3__36__0__0__g_sceneShadowColor.Load(int3(_89, _91, 0));
-      float _rndx_fcShadowVis = saturate(dot(float3(_rndx_fcShadow.xyz), float3(0.2126f, 0.7152f, 0.0722f)));
-      float3 _rndx_fcCorrected = FoliageColorCorrect(_rndx_fcBaseColor, _sunDirection.xyz, _rndx_fcShadowVis, float3(1.0f, 1.0f, 1.0f));
-      float3 _rndx_fscColor = FoliageSelectiveColor(_rndx_fcCorrected);
-      _1843 = _rndx_fscColor.x;
-      _1844 = _rndx_fscColor.y;
-      _1845 = _rndx_fscColor.z;
-    }
-    // RenoDX: <<< [Patch: FoliageColorCorrect]
     __3__38__0__1__g_diffuseResultUAV[int2(_89, _91)] = float4((half)(half(_1843)), (half)(half(_1844)), (half)(half(_1845)), (half)(half(_1836)));
     _1852 = float(_1070);
     _1853 = float(_1071);
