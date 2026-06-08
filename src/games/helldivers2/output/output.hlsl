@@ -16,7 +16,6 @@ float3 ScaleGameColorUI(float3 game_color) {
 
 
 bool HandleUICompositing(float4 ui_color, float3 scene_color, inout float4 output_color, float2 uv, Texture2D<float4> t1, SamplerState s1) {
-  if (RENODX_TONE_MAP_TYPE == 0.f) return false;
 
   ui_color.rgb = max(0, ui_color.rgb);
   const float ui_alpha = saturate(ui_color.a);
@@ -61,7 +60,7 @@ bool HandleUICompositing(float4 ui_color, float3 scene_color, inout float4 outpu
   composited_color_linear *= RENODX_PEAK_WHITE_NITS / max_channel;  // Clamp UI or Videos
 
   float3 pq_color = renodx::color::pq::EncodeSafe(composited_color_linear, 1.f);
-  output_color = float4(pq_color, 1.f);
+  output_color.xyz = pq_color;
 
   return true;
 }
