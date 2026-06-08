@@ -1328,7 +1328,9 @@ renodx::utils::settings::Settings settings = {
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 0.f,
-        .packed_values = {0u, CUSTOM_FLAGS__RT_QUALITY_BIT0, CUSTOM_FLAGS__RT_QUALITY_BIT1},
+        // SPMIS is disabled for 1.10 until active RT replacement shaders are restored.
+        // Keep this UI breadcrumb visible, but force all choices to Off so saved values do not set RT_QUALITY.
+        .packed_values = {0u, 0u, 0u},
         .can_reset = true,
         .label = "Raytracing Improvements (WIP)",
         .section = "Rendering",
@@ -1338,7 +1340,7 @@ renodx::utils::settings::Settings settings = {
                    "Debug Noise = visualizes the raw noise texture sample as colour output.",
         .labels = {"Off", "SPMIS", "Debug Noise"},
         .tint = wiprendering,
-        .is_enabled = []() { return RR_ENABLED; },
+        .is_enabled = []() { return false; },
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
