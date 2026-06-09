@@ -33,6 +33,8 @@ const std::string build_time = __TIME__;
 
 float current_settings_mode = 0;
 
+renodx::utils::settings::Setting* peak_white_nits_setting = nullptr;
+renodx::utils::settings::Setting* diffuse_white_nits_setting = nullptr;
 renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "SettingsMode",
@@ -57,7 +59,19 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
-    new renodx::utils::settings::Setting{
+        new renodx::utils::settings::Setting{
+        .key = "ToneMapCurve",
+        .binding = &CUSTOM_CURVE,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .label = "Tone Curve",
+        .section = "Tone Mapping",
+        .tooltip = "Select whether to use the SDR tone curve, extended into HDR range, or to tune your own custom curve.",
+        .labels = {"Vanilla+", "Custom"},
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 2; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+    peak_white_nits_setting = new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",
         .binding = &shader_injection.peak_white_nits,
         .default_value = 1000.f,
@@ -69,7 +83,7 @@ renodx::utils::settings::Settings settings = {
         .max = 4000.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
     },
-    new renodx::utils::settings::Setting{
+    diffuse_white_nits_setting = new renodx::utils::settings::Setting{
         .key = "ToneMapGameNits",
         .binding = &shader_injection.diffuse_white_nits,
         .default_value = 203.f,
@@ -209,7 +223,32 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.0001f; },
         .is_visible = []() { return current_settings_mode >= 1; },
     },
-
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeMidGrayIn",
+        .binding = &RENODX_TONE_MAP_MID_GRAY_IN,
+        .default_value = 0.18f,
+        .label = "Mid Gray In",
+        .section = "Color Grading",
+        .tooltip = "Controls the pivot point used by grading sliders. When mismatched with Mid Gray Out, average brightness is scaled linearly.",
+        .max = 1.f,
+        .format = "%.2f",
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 2 && CUSTOM_CURVE; },
+        .parse = [](float value) { return value; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeMidGrayOut",
+        .binding = &RENODX_TONE_MAP_MID_GRAY_OUT,
+        .default_value = 0.18f,
+        .label = "Mid Gray Out",
+        .section = "Color Grading",
+        .tooltip = "Controls the output level corresponding to Mid Gray In. When mismatched, average brightness is scaled linearly.",
+        .max = 1.f,
+        .format = "%.2f",
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 2 && CUSTOM_CURVE; },
+        .parse = [](float value) { return value; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
     new renodx::utils::settings::Setting{
         .key = "FxFilmGrain",
         .binding = &shader_injection.custom_film_grain,
@@ -244,6 +283,18 @@ renodx::utils::settings::Settings settings = {
     //     .parse = [](float value) { return value; },
     //     .is_visible = []() { return current_settings_mode >= 1.f; },
     // },
+
+    #ifdef DEBUG_MODE
+    new renodx::utils::settings::Setting{
+        .key = "DebugSlider1",
+        .binding = &shader_injection.debug_slider_1,
+        .default_value = 100.f,
+        .label = "Debug Slider 1",
+        .section = "Debug",
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.01f; },
+    },
+    #endif
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Reset All",
@@ -359,12 +410,14 @@ void OnPresetOff() {
 bool fired_on_init_swapchain = false;
 
 void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
+  if (fired_on_init_swapchain) return;
   auto peak = renodx::utils::swapchain::GetPeakNits(swapchain);
   if (peak.has_value()) {
-    settings[2]->default_value = roundf(peak.value());
+    peak_white_nits_setting->default_value = roundf(peak.value());
   } else {
-    settings[2]->default_value = 1000.f;
+    peak_white_nits_setting->default_value = 1000.f;
   }
+  fired_on_init_swapchain = true;
 
   // settings[3]->default_value = fmin(renodx::utils::swapchain::ComputeReferenceWhite(settings[2]->default_value), 203.f);
 }

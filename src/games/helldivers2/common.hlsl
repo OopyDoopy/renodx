@@ -15,8 +15,14 @@ float3 CustomTonemap(
   if (RENODX_TONE_MAP_TYPE == 1.f) {
     return helldivers2::tonemap::ApplyACES(untonemapped_bt709, aces_parameters);
   } else if (RENODX_TONE_MAP_TYPE == 2.f) {
-    helldivers2::tonemap::ACESCurveComponents aces_curve =
-        helldivers2::tonemap::FindACESCurveComponents(aces_parameters);
+    helldivers2::tonemap::ACESCurveComponents aces_curve;
+    if (CUSTOM_CURVE == 0) {
+      aces_curve = helldivers2::tonemap::FindACESCurveComponents(aces_parameters);
+    } else {
+      aces_curve.midgray_in = RENODX_TONE_MAP_MID_GRAY_IN;
+      aces_curve.midgray_out = RENODX_TONE_MAP_MID_GRAY_OUT;
+      aces_curve.relative_slope = 1.f;
+    }
 
     float3 tonemapped_bt709 = renodx::tonemap::psycho::psychotm_customized(
         untonemapped_bt709,
@@ -35,7 +41,8 @@ float3 CustomTonemap(
         0,
         1.f,
         aces_curve.midgray_in,
-        aces_curve.midgray_out);
+        aces_curve.midgray_out
+      );
     return renodx::color::pq::EncodeSafe(
         renodx::color::bt2020::from::BT709(tonemapped_bt709),
         RENODX_DIFFUSE_WHITE_NITS);
