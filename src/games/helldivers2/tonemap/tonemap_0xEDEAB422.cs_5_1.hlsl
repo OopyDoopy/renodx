@@ -587,7 +587,7 @@ void comp_main()
 
     if (RENODX_TONE_MAP_TYPE != 0.f) {
          if (_758) {
-            float3 scene_color = float3(_1477, _1476, _1475);
+            float3 scene_color = mul(renodx::color::XYZ_TO_BT709_MAT, mul(renodx::color::D60_TO_D65_MAT, mul(renodx::color::AP0_TO_XYZ_MAT, float3(_1477, _1476, _1475))));
             float3 output_color = CustomTonemap(scene_color, aces_parameters);
             u0[uint2(_470, _471)] = float4(output_color, 1.f);
         }
