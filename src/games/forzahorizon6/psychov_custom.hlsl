@@ -908,9 +908,9 @@ float3 psychotm_customized(
       desired_background_state_lms,
       current_adaptive_state_lms,
       1.f.xxx);
-    hue_shifted_color = renodx::color::correct::Luminance(
-      hue_shifted_color,
-      adaptation_scaled_lms);
+    // hue_shifted_color = renodx::color::correct::Luminance(
+    //   hue_shifted_color,
+    //   adaptation_scaled_lms);
     float3 display_scaled = hue_shifted_color;
 
     display_adaptive_state_lms = desired_background_state_lms;
@@ -1001,10 +1001,10 @@ float3 psychotm_customized(
       float3 final_bt709;
       if (white_curve_mode == 0) {
         float3 final_bt2020 = renodx::color::bt2020::from::LMS(final_lms);
-        final_bt2020 = renodx::tonemap::neutwo::MaxChannel(
-            final_bt2020,
-            peak_value.x,
-            clip_point);
+        // final_bt2020 = renodx::tonemap::neutwo::MaxChannel(
+        //     final_bt2020,
+        //     peak_value.x,
+        //     clip_point);
         final_bt709 = renodx::color::bt709::from::BT2020(final_bt2020);
       } else {
         final_bt709 = renodx::color::bt709::from::LMS(final_lms);

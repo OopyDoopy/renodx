@@ -125,7 +125,7 @@ renodx::utils::settings::Settings settings = {
         .can_reset = true,
         .label = "Tone Mapper",
         .section = "Tone Mapping",
-        .tooltip = "Sets the tone mapper type.\nVanilla+ uses the vanilla tone mapping with improved brightness scaling, unlocked luminance, and improved display mapping.\nPsychoV uses a version of Shortfuse's PsychoV tonemapper, customized with new features.\nRenoDX ACES replaces the game's tone mapper with our ACES implementation.",
+        .tooltip = "Sets the tone mapper type.",
         .labels = {"Vanilla", "RenoDX"},
         .parse = [](float value) { return value; },
         //.is_visible = []() { return current_settings_mode >= 1.f; },
