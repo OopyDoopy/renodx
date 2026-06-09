@@ -56,8 +56,8 @@ bool HandleUICompositing(float4 ui_color, float3 scene_color, inout float4 outpu
   float3 composited_color_linear = renodx::color::gamma::DecodeSafe(composited_color_gamma);
 
   composited_color_linear *= RENODX_GRAPHICS_WHITE_NITS;
-  float max_channel = max(max(max(composited_color_linear.r, composited_color_linear.g), composited_color_linear.b), RENODX_PEAK_WHITE_NITS);
-  composited_color_linear *= RENODX_PEAK_WHITE_NITS / max_channel;  // Clamp UI or Videos
+
+  composited_color_linear = min(composited_color_linear, RENODX_PEAK_WHITE_NITS); // Clamp to peak
 
   float3 pq_color = renodx::color::pq::EncodeSafe(composited_color_linear, 1.f);
   output_color.xyz = pq_color;
