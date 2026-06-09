@@ -23,6 +23,7 @@
 #define CUSTOM_RCAS                           shader_injection.custom_rcas
 #define TONEMAP_UNDER_UI                      shader_injection.tonemap_under_ui
 #define UNDER_UI_DESATURATION                shader_injection.under_ui_desaturation
+#define SHOW_HUD                            shader_injection.show_hud
 
 #ifdef DEBUG_MODE
 #define DEBUG_SLIDER_1  shader_injection.debug_slider_1
@@ -51,6 +52,8 @@ struct ShaderInjectData {
   float tonemap_under_ui;
   float under_ui_desaturation;
   float custom_rcas;
+
+  float show_hud;
 
   #ifdef DEBUG_MODE
   float debug_slider_1;

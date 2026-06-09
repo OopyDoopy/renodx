@@ -36,7 +36,7 @@ bool HandleUICompositing(float4 ui_color, float3 scene_color, inout float4 outpu
 #if 1  // apply Neutwo under UI
   if (TONEMAP_UNDER_UI != 0.f) {
   //if (true) {
-    float y_in = renodx::color::y::from::BT2020(scene_color_linear);
+    float y_in = renodx::color::yf::from::BT2020(scene_color_linear);
 
     const float peak = 1.f;  // UI white
     float y_tonemapped = lerp(y_in, renodx::tonemap::Neutwo(y_in, peak), saturate(y_in));
@@ -47,13 +47,15 @@ bool HandleUICompositing(float4 ui_color, float3 scene_color, inout float4 outpu
   }
 #endif
 
-  // blend in gamma
-  float3 ui_color_gamma = renodx::color::gamma::EncodeSafe(ui_color_linear);
-  float3 scene_color_gamma = renodx::color::gamma::EncodeSafe(scene_color_linear);
-  float3 composited_color_gamma = ui_color_gamma.rgb + (scene_color_gamma * one_minus_ui_alpha);
-
-  // linearize and scale up brightness
-  float3 composited_color_linear = renodx::color::gamma::DecodeSafe(composited_color_gamma);
+  float3 composited_color_linear = scene_color_linear;
+  if (SHOW_HUD != 0) {
+    // blend in gamma
+    float3 ui_color_gamma = renodx::color::gamma::EncodeSafe(ui_color_linear);
+    float3 scene_color_gamma = renodx::color::gamma::EncodeSafe(scene_color_linear);
+    float3 composited_color_gamma = ui_color_gamma.rgb + (scene_color_gamma * one_minus_ui_alpha);
+    // linearize and scale up brightness
+    composited_color_linear = renodx::color::gamma::DecodeSafe(composited_color_gamma);
+  }
 
   composited_color_linear *= RENODX_GRAPHICS_WHITE_NITS;
 
