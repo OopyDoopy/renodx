@@ -73,12 +73,14 @@ function Get-SingleMatch {
         [string]$FileName
     )
 
-    $matches = [regex]::Matches($Content, $Pattern, [System.Text.RegularExpressions.RegexOptions]::Multiline)
-    if ($matches.Count -ne 1) {
-        throw "${FileName}: expected one $Description match, found $($matches.Count)."
+    $expression = [regex]::new($Pattern, [System.Text.RegularExpressions.RegexOptions]::Multiline)
+    $result = $expression.Match($Content)
+    $resultCount = if (-not $result.Success) { 0 } elseif ($result.NextMatch().Success) { 2 } else { 1 }
+    if ($resultCount -ne 1) {
+        throw "${FileName}: expected one $Description match, found $resultCount."
     }
 
-    return $matches[0]
+    return $result
 }
 
 if (-not (Test-Path -LiteralPath $SourceFolder -PathType Container)) {
@@ -137,8 +139,12 @@ foreach ($file in $candidateFiles) {
         $sceneMatch = $directSceneMatches[0]
         $sceneColor = $sceneMatch.Groups[1].Value
     } elseif ($directSceneMatches.Count -eq 0 -and $splitSceneMatches.Count -eq 1) {
+        # Split exposure follows the game's AP0-space analytic color grade. Keep
+        # that grade, then return its result to linear BT.709/D65 so every
+        # CustomTonemap invocation receives the same input color space.
         $sceneMatch = $splitSceneMatches[0]
-        $sceneColor = "float3($($sceneMatch.Groups[1].Value), $($sceneMatch.Groups[2].Value), $($sceneMatch.Groups[3].Value))"
+        $gradedAP0 = "float3($($sceneMatch.Groups[1].Value), $($sceneMatch.Groups[2].Value), $($sceneMatch.Groups[3].Value))"
+        $sceneColor = "mul(renodx::color::XYZ_TO_BT709_MAT, mul(renodx::color::D60_TO_D65_MAT, mul(renodx::color::AP0_TO_XYZ_MAT, $gradedAP0)))"
     } else {
         throw "$($file.Name): expected exactly one direct or split tonemap exposure block; found $($directSceneMatches.Count) direct and $($splitSceneMatches.Count) split."
     }
