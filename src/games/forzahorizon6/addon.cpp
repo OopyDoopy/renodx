@@ -81,7 +81,7 @@ renodx::utils::settings::Settings settings = {
         .labels = {"Simple", "Advanced"},
         .is_global = true,
     },
-        new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Vanilla+",
         .section = "Presets",
@@ -490,56 +490,23 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       // renodx::utils::resource::upgrade::Use(fdw_reason);  // fp11 upgrades, not working :(
       // reshade::register_event<reshade::addon_event::init_device>(OnInitDevice);
 
-      // shader_toggle::runtime::g_current_use_shaders = -1.0f;
-      // reshade::register_event<reshade::addon_event::present>(shader_toggle::runtime::OnPresent);
-      // reshade::register_event<reshade::addon_event::present>(OnVariantPresent);
-
-      // renodx::utils::shader::use_replace_async = true;
-      // renodx::utils::settings::use_presets = false;
-
       renodx::utils::random::binds.push_back(&shader_injection.custom_random);
-
-      renodx::utils::random::Use(fdw_reason);
 
       renodx::mods::shader::expected_constant_buffer_index = 13;
       renodx::mods::shader::expected_constant_buffer_space = 50;
       // renodx::mods::shader::allow_multiple_push_constants = true;
       renodx::mods::shader::force_pipeline_cloning = true;
 
-      //   renodx::mods::swapchain::set_color_space = false;
-      //   renodx::mods::swapchain::expected_constant_buffer_index = 13;
-      //   renodx::mods::swapchain::expected_constant_buffer_space = 50;
-      //   renodx::mods::swapchain::use_resource_cloning = true;
-      //   renodx::mods::swapchain::swap_chain_proxy_shaders = {
-      //       {
-      //           reshade::api::device_api::d3d11,
-      //           {
-      //               .vertex_shader = __swap_chain_proxy_vertex_shader_dx11,
-      //               .pixel_shader = __swap_chain_proxy_pixel_shader_dx11,
-      //           },
-      //       },
-      //       {
-      //           reshade::api::device_api::d3d12,
-      //           {
-      //               .vertex_shader = __swap_chain_proxy_vertex_shader_dx12,
-      //               .pixel_shader = __swap_chain_proxy_pixel_shader_dx12,
-      //           },
-      //       },
-      //   };
-
       break;
     case DLL_PROCESS_DETACH:
-      // reshade::unregister_event<reshade::addon_event::present>(shader_toggle::runtime::OnPresent);
-      // reshade::unregister_event<reshade::addon_event::present>(OnVariantPresent);
       reshade::unregister_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
       reshade::unregister_addon(h_module);
       break;
   }
 
-  // No cbuffers allowed
   renodx::utils::settings::Use(fdw_reason, &settings, &OnPresetOff);
   renodx::mods::shader::Use(fdw_reason, custom_shaders, &shader_injection);
-  // renodx::mods::swapchain::Use(fdw_reason, &shader_injection);
+  renodx::utils::random::Use(fdw_reason);
 
   return TRUE;
 }

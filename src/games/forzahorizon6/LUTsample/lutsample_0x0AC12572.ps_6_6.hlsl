@@ -421,6 +421,7 @@ float4 main(
   _358 = frac(frac(dot(float2(TexCoord.z, TexCoord.w), float2(0.0671105608344078f, 0.005837149918079376f))) * 52.98291778564453f);
   _360 = (_358 * 0.003921568859368563f) + -0.0019607844296842813f;
   _362 = (_358 * 0.0009775171056389809f) + -0.0004887585528194904f;
+
   [branch]
   if (_327 && RENODX_TONE_MAP_TYPE == 0) {
     _365 = _352 * ImageProcPostProcessConstBuffer_752.x;
@@ -448,9 +449,7 @@ float4 main(
     _505 = (saturate(exp2(log2(((_429 * 18.8515625f) + 0.8359375f) / ((_429 * 18.6875f) + 1.0f)) * 78.84375f)) + _362);
     _506 = (saturate(exp2(log2(((_430 * 18.8515625f) + 0.8359375f) / ((_430 * 18.6875f) + 1.0f)) * 78.84375f)) + _362);
   } else if (_327 && RENODX_TONE_MAP_TYPE != 0) {
-    float3 bt2020_color = renodx::color::bt2020::from::BT709(float3(_352, _353, _354));
-    float3 pq_color = renodx::color::pq::EncodeSafe(bt2020_color, RENODX_DIFFUSE_WHITE_NITS);
-    SV_Target.xyz = pq_color;
+    SV_Target.xyz = HDREncodePQ(float3(_352, _353, _354));
     SV_Target.w = 0.0f;
     return SV_Target;
   } else {
