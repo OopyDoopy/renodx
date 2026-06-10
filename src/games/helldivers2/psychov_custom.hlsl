@@ -743,22 +743,24 @@ float3 psycho17_AdaptationContrast(float3 x, float anchor_in = 0.18f, float anch
       contrast);
 }
 
-float psycho17_ReinhardPiecewiseExtendedAnchored(
+float psycho17_ReinhardPiecewisePeakAnchored(
     float x,
-    float white_max,
-    float x_max,
+    float peak,
     float anchor_in,
     float anchor_out) {
-  float anchor_in_safe = max(anchor_in, 1e-6f);
-  float linear_output = x * (anchor_out / anchor_in_safe);
-  float extended = renodx::tonemap::ReinhardScalableExtended(
-      x,
-      white_max,
-      x_max,
-      0.f,
-      anchor_in_safe,
-      anchor_out);
-  return lerp(linear_output, extended, step(anchor_in_safe, x));
+  const float kEps = 1e-6f;
+
+  float anchor_in_safe = max(anchor_in, kEps);
+  float peak_safe = max(peak, anchor_out + kEps);
+  float slope = anchor_out / anchor_in_safe;
+  float linear_output = x * slope;
+
+  float peak_headroom = peak_safe - anchor_out;
+  float shoulder_input = max(x - anchor_in_safe, 0.f);
+  float shoulder = peak_safe - peak_headroom / (
+      1.f + shoulder_input * slope / peak_headroom);
+
+  return lerp(linear_output, shoulder, step(anchor_in_safe, x));
 }
 
 float3 psychotm_customized(
@@ -774,15 +776,14 @@ float3 psychotm_customized(
     float clip_point = 100.f,
     float hue_restore = 1.f,
     float adaptation_contrast = 1.f,
-    int grading_mode = 0, // 0 = LMS Per Channel, 1 = Yf
+    int grading_mode = 0,  // 0 = LMS Per Channel, 1 = Yf
     int white_curve_mode = 0,
     float cone_response_exponent = 1.f,
     float3 current_adaptive_state_bt709 = 0.18f,
     float3 current_background_state_bt709 = 0.18f,
     float gamut_compression = 1.f,
     int gamut_compression_mode = 1,
-    float adaptive_normalization = 1.f
-  ) {
+    float adaptive_normalization = 1.f) {
   float3 bt709_scene = bt709_linear_input * exposure;
 
   float3 lms_in = renodx::color::lms::from::BT709(bt709_scene);
@@ -896,18 +897,13 @@ float3 psychotm_customized(
   float3 display_scaled_relative_weighted;
   float3 display_adaptive_state_lms = current_adaptive_state_lms;
   if (white_curve_mode == 0) {
-    float3 lms_clip_unit = renodx::color::lms::from::BT2020(clip_point.xxx);
-
     float3 hue_shifted_color;
 
-    hue_shifted_color.x = psycho17_ReinhardPiecewiseExtendedAnchored(lms_cones.x, lms_clip_unit.x, lms_peak.x, current_adaptive_state_lms.x, desired_background_state_lms.x);
-    hue_shifted_color.y = psycho17_ReinhardPiecewiseExtendedAnchored(lms_cones.y, lms_clip_unit.y, lms_peak.y, current_adaptive_state_lms.y, desired_background_state_lms.y);
-    hue_shifted_color.z = psycho17_ReinhardPiecewiseExtendedAnchored(lms_cones.z, lms_clip_unit.z, lms_peak.z, current_adaptive_state_lms.z, desired_background_state_lms.z);
+    hue_shifted_color.x = psycho17_ReinhardPiecewisePeakAnchored(lms_cones.x, lms_peak.x, current_adaptive_state_lms.x, desired_background_state_lms.x);
+    hue_shifted_color.y = psycho17_ReinhardPiecewisePeakAnchored(lms_cones.y, lms_peak.y, current_adaptive_state_lms.y, desired_background_state_lms.y);
+    hue_shifted_color.z = psycho17_ReinhardPiecewisePeakAnchored(lms_cones.z, lms_peak.z, current_adaptive_state_lms.z, desired_background_state_lms.z);
 
-    float3 adaptation_scaled_lms = lms_cones * renodx::math::DivideSafe(
-      desired_background_state_lms,
-      current_adaptive_state_lms,
-      1.f.xxx);
+    float3 adaptation_scaled_lms = lms_cones * renodx::math::DivideSafe(desired_background_state_lms, current_adaptive_state_lms, 1.f.xxx);
     // hue_shifted_color = renodx::color::correct::Luminance(
     //   hue_shifted_color,
     //   adaptation_scaled_lms);
@@ -993,27 +989,17 @@ float3 psychotm_customized(
     }
   }
 
-      float3 final_lms = renodx::color::macleod_boynton::UnweighLMS(
-          psycho17_FromAdaptiveRelativeWeightedLMS(
-              display_scaled_relative_weighted,
-              display_adaptive_state_lms));
+  float3 final_lms = renodx::color::macleod_boynton::UnweighLMS(
+      psycho17_FromAdaptiveRelativeWeightedLMS(
+          display_scaled_relative_weighted,
+          display_adaptive_state_lms));
 
-      float3 final_bt709;
-      if (white_curve_mode == 0) {
-        float3 final_bt2020 = renodx::color::bt2020::from::LMS(final_lms);
-        // final_bt2020 = renodx::tonemap::neutwo::MaxChannel(
-        //     final_bt2020,
-        //     peak_value.x,
-        //     clip_point);
-        final_bt709 = renodx::color::bt709::from::BT2020(final_bt2020);
-      } else {
-        final_bt709 = renodx::color::bt709::from::LMS(final_lms);
-      }
+  float3 final_bt709 = renodx::color::bt709::from::LMS(final_lms);
 
   return final_bt709;
 }
 
-// float3 ApplyGrading(float3 bt709_linear, float3 peak_value = 1.f, float mid_gray = 0.18f, int grading_mode = 0, renodx::draw::Config config = renodx::draw::BuildConfig()) {
+// float3 ApplyGrading(float3 bt709_linear, float3 peak_value = 1.f, float current_adaptive_state_bt709 = 0.18f, float current_background_state_bt709 = 0.18f, int grading_mode = 0, renodx::draw::Config config = renodx::draw::BuildConfig()) {
 //   float exposure = config.tone_map_exposure;
 //   float highlights = config.tone_map_highlights;
 //   float shadows = config.tone_map_shadows;
@@ -1025,35 +1011,38 @@ float3 psychotm_customized(
 //   float3 bt709_scene = bt709_linear * exposure;
 
 //   float3 lms_in = renodx::color::lms::from::BT709(bt709_scene);
+//   float3 lms_peak = renodx::color::lms::from::BT709(peak_value);
+//   float3 current_adaptive_state_lms = renodx::color::lms::from::BT709(current_adaptive_state_bt709);
+//   float3 desired_background_state_lms = renodx::color::lms::from::BT709(current_background_state_bt709);
 //   float3 lms_working = lms_in;
 
 //   float3 lms_graded = lms_working;
 //   if (grading_mode == 0) {
 //     if (highlights != 1.f) {
 //       if (highlights > 1.f) {
-//         float3 normalized = lms_graded / mid_gray;
+//         float3 normalized = lms_graded / current_adaptive_state_lms;
 //         float3 curved = pow(normalized, highlights);
 //         normalized = max(normalized, lerp(normalized, curved, saturate(normalized)));
-//         lms_graded = normalized * mid_gray;
+//         lms_graded = normalized * current_adaptive_state_lms;
 //       } else {  // highlights < 1.f
-//         lms_graded /= mid_gray;
-//         lms_graded = lerp(lms_graded, pow(lms_graded, highlights), step(1.f, lms_graded)) * mid_gray;
+//         lms_graded /= current_adaptive_state_lms;
+//         lms_graded = lerp(lms_graded, pow(lms_graded, highlights), step(1.f, lms_graded)) * current_adaptive_state_lms;
 //       }
 //     }
 //     if (shadows != 1.f) {
-//       float3 scaled = lms_graded / mid_gray;
+//       float3 scaled = lms_graded / current_adaptive_state_lms;
 //       float3 shadowed = pow(scaled, -1.f * (shadows - 2.f));
-//       lms_graded = lerp(shadowed, scaled, saturate(shadowed)) * mid_gray;
+//       lms_graded = lerp(shadowed, scaled, saturate(shadowed)) * current_adaptive_state_lms;
 //     }
 //     if (contrast != 1.f || flare > 0.f) {
-//       float3 normalized = lms_graded / mid_gray;
+//       float3 normalized = lms_graded / current_adaptive_state_lms;
 //       float3 flare_multiplier = renodx::math::DivideSafe(normalized + flare, normalized, 1.f);
 //       float3 exponent = contrast * flare_multiplier;
-//       lms_graded = renodx::math::SignPow(normalized, exponent) * mid_gray;
+//       lms_graded = renodx::math::SignPow(normalized, exponent) * current_adaptive_state_lms;
 //     }
 //   } else {
 //     float yf_input = renodx::color::yf::from::LMS(lms_working);
-//     float yf_midgray = renodx::color::yf::from::BT709(mid_gray);
+//     float yf_midgray = renodx::color::yf::from::BT709(current_adaptive_state_bt709);
 //     float yf_target = yf_input;
 
 //     if (highlights != 1.f) {
@@ -1078,24 +1067,32 @@ float3 psychotm_customized(
 //     lms_graded = lms_working * yf_scale;
 //   }
 //   if (purity_scale != 1.f) {
-//     float3 mb = renodx::color::macleod_boynton::from::LMS(lms_graded);
+//     float3 lms_graded_relative = psycho17_ToAdaptiveRelativeLMS(
+//         lms_graded,
+//         current_adaptive_state_lms);
+//     float3 mb = renodx::color::macleod_boynton::from::LMS(lms_graded_relative);
 //     float2 mb_white = renodx::color::macleod_boynton::from::LMS(1.f.xxx).xy;
 //     float2 mb_scaled = lerp(mb_white, mb.xy, purity_scale);
-//     lms_graded = renodx::color::lms::from::MacLeodBoynton(float3(mb_scaled, mb.z));
+//     lms_graded = psycho17_FromAdaptiveRelativeLMS(
+//         renodx::color::lms::from::MacLeodBoynton(float3(mb_scaled, mb.z)),
+//         current_adaptive_state_lms);
 //   }
 
 //   float3 lms_cones = lms_graded;
 
 //   if (bleaching_intensity != 0.f) {
-//     float3 availability = 1.f.xxx / (1.f.xxx + (peak_value / mid_gray));
+//     float3 availability = 1.f.xxx / (1.f.xxx + (peak_value / current_adaptive_state_lms));
 //     availability = lerp(1.f.xxx, availability, bleaching_intensity);
 
 //     float input_energy = lms_cones.x + lms_cones.y + lms_cones.z;
-//     float3 white_at_y = (input_energy / 3.f).xxx;
+//     float white_y = current_adaptive_state_lms.x + current_adaptive_state_lms.y + current_adaptive_state_lms.z;
+//     float3 white_at_y = current_adaptive_state_lms * (input_energy / white_y);
 //     float3 delta = (lms_cones - white_at_y) * availability;
 //     lms_cones = max(0, white_at_y + delta);
 //   }
 
+//   // Scale back from first-site adaptation;
+//   // psycho17_GamutCompressLMSBoundAdaptive
 //   float3 final_bt709 = renodx::color::bt709::from::LMS(lms_cones);
 //   return final_bt709;
 // }
