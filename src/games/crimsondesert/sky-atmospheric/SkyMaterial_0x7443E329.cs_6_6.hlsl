@@ -253,6 +253,7 @@ void main(
   float _435;
   float _436;
   float _437;
+  float3 _rndx_moonDiskRgb;
   float _590;
   float _591;
   float _592;
@@ -318,7 +319,8 @@ void main(
     bool _183 = (_175 < 0.0f);
     int _196 = WaveReadLaneFirst(_materialIndex);
     int _204 = WaveReadLaneFirst(BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_196 < (uint)170000), _196, 0)) + 0u))]._milkyWayTexture);
-    float4 _211 = __0__7__0__0__g_bindlessTextures[((int)((uint)(select(((uint)_204 < (uint)65000), _204, 0)) + 0u))].SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(select(((_181) && (_182)), 0.75f, select(((_181) && (_183)), 0.25f, ((select(((_180) && (_183)), (_177 + -3.1415927410125732f), select(((_180) && (_182)), (_177 + 3.1415927410125732f), _177)) * 0.15915493667125702f) + 0.5f))), (acos(_172) * 0.31830987334251404f)), 0.0f);
+    float2 _rndx_skyUv = float2(select(((_181) && (_182)), 0.75f, select(((_181) && (_183)), 0.25f, ((select(((_180) && (_183)), (_177 + -3.1415927410125732f), select(((_180) && (_182)), (_177 + 3.1415927410125732f), _177)) * 0.15915493667125702f) + 0.5f))), (acos(_172) * 0.31830987334251404f));
+    float4 _211 = __0__7__0__0__g_bindlessTextures[((int)((uint)(select(((uint)_204 < (uint)65000), _204, 0)) + 0u))].SampleLevel(__0__4__0__0__g_staticBilinearClamp, _rndx_skyUv, 0.0f);
     float _221 = float((int)(int(_168 * 2000.0f)));
     float _222 = float((int)(int(_172 * 2000.0f)));
     float _223 = float((int)(int(_175 * 2000.0f)));
@@ -341,10 +343,12 @@ void main(
     float _rndx_milkyWayRatio = _311 * max(MILKY_WAY_LIGHT_INTENSITY, 0.0f) * 0.01f;
     // RenoDX: <<< [Patch: MilkyWayLightIntensity]
     int _324 = WaveReadLaneFirst(_materialIndex);
-    float _333 = WaveReadLaneFirst(BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_324 < (uint)170000), _324, 0)) + 0u))]._starRatio) * ((saturate((_282 + -0.9994999766349792f) * 1999.906494140625f) * 3.0f) + (saturate((_248 + -0.9990000128746033f) * 1000.0128784179688f) * 0.10000000149011612f));
-    float _334 = _333 + (_rndx_milkyWayRatio * ((_290 * _296) + _290));
-    float _335 = _333 + (_rndx_milkyWayRatio * ((_291 * _296) + _291));
-    float _336 = _333 + (_rndx_milkyWayRatio * ((_292 * _296) + _292));
+    float _rndx_starRatio = WaveReadLaneFirst(BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_324 < (uint)170000), _324, 0)) + 0u))]._starRatio);
+    float _333 = _rndx_starRatio * ((saturate((_282 + -0.9994999766349792f) * 1999.906494140625f) * 3.0f) + (saturate((_248 + -0.9990000128746033f) * 1000.0128784179688f) * 0.10000000149011612f));
+    float3 _rndx_milkyWayRgb = _rndx_milkyWayRatio * float3(((_290 * _296) + _290), ((_291 * _296) + _291), ((_292 * _296) + _292));
+    float _334 = _333 + _rndx_milkyWayRgb.x;
+    float _335 = _333 + _rndx_milkyWayRgb.y;
+    float _336 = _333 + _rndx_milkyWayRgb.z;
     float _sunViewDot = dot(float3(_137, _138, _139), float3(_sunDirection.x, _sunDirection.y, _sunDirection.z));
     float _sunRadiusVanilla = _sunSizeAngle * 0.01745329238474369f;
     float _sunAngle = acos(clamp(_sunViewDot, -1.0f, 1.0f));
@@ -423,6 +427,7 @@ void main(
       _404 = 0.0f;
     }
     float _406 = rsqrt(dot(float3(_moonDirection.x, _moonDirection.y, _moonDirection.z), float3(_moonDirection.x, _moonDirection.y, _moonDirection.z)));
+    _rndx_moonDiskRgb = float3(0.0f, 0.0f, 0.0f);
     if (dot(float3(_137, _138, _139), float3((_406 * _moonDirection.x), (_406 * _moonDirection.y), (_406 * _moonDirection.z))) > cos(_moonSizeAngleAdjusted * 0.01745329238474369f)) {
       float3 _sphereN = float3(_402, _403, _404);
       float3 _sunDir = float3(_sunDirection.x, _sunDirection.y, _sunDirection.z);
@@ -431,7 +436,8 @@ void main(
       if (MOON_ADJUSTMENTS == 1.f) {
         _moonLum *= 0.01f;
       }
-      float _moonNdotL = saturate(dot(_sphereN, _sunDir));
+      float _moonNdotLRaw = dot(_sphereN, _sunDir);
+      float _moonNdotL = saturate(_moonNdotLRaw);
       float _moonShading;
       if (MOON_ADJUSTMENTS == 1.f) {
         static const float MOON_ROUGHNESS = 0.9f;
@@ -442,15 +448,27 @@ void main(
         float _eonShading = _moonNdotL * _eonScalar * 1.3f;
         float3 _moonFwd = float3(_406 * _moonDirection.x, _406 * _moonDirection.y, _406 * _moonDirection.z);
         float _NdotV_moon = saturate(dot(_sphereN, _moonFwd));
+        float _phaseViewNdot = saturate(dot(_sphereN, -_moonFwd));
         float _limbDark = MoonLimbDarkening(_NdotV_moon, MOON_LIMB_DARKENING);
         float _innerGlow = MoonInnerGlow(_NdotV_moon, MOON_GLOW_STRENGTH);
         float _brightMul = MoonBrightnessMultiplier(AE_DYNAMISM_HIGH, MOON_BRIGHTNESS);
         _moonShading = (_eonShading * _limbDark + _innerGlow) * _brightMul;
+        float _moonDiskLight = _moonShading * _moonLum * 0.35f;
+        float _moonFullReferenceLight = _moonLum * _brightMul * 0.35f;
+        float3 _moonRightDir = normalize(float3(_moonRight.x, _moonRight.y, _moonRight.z));
+        float3 _moonUpDir = normalize(float3(_moonUp.x, _moonUp.y, _moonUp.z));
+        float _moonPhaseSide = (dot(_sunDir, _moonRightDir) < 0.0f) ? -1.0f : 1.0f;
+        float2 _moonLocalPhase = float2(dot(_sphereN, _moonRightDir) * _moonPhaseSide, dot(_sphereN, _moonUpDir));
+        // RenoDX: >>> [Patch: FantasyMoonPhases] [Version: 1.10-family]
+        // Description: Uses the existing sun/moon directions plus the moon's local right/up axes to render soft, phase-aware moon lighting. If Crimson Desert's lighting vectors collapse to an always-full moon, the helper falls back to an art-directed crescent mask so the visible disk still reads as a fantasy moon phase instead of a uniformly lit texture.
+        _rndx_moonDiskRgb = RenoDXApplyFantasyMoonPhase(_sunDir, _moonFwd, _moonLocalPhase, _moonNdotLRaw, _phaseViewNdot, _moonDiskLight, _moonFullReferenceLight, MOON_PHASE_DRAMA);
+        // RenoDX: <<< [Patch: FantasyMoonPhases]
       } else {
         _moonShading = _moonNdotL;
+        float _moonDiskLight = _moonShading * _moonLum;
+        _rndx_moonDiskRgb = float3(_moonDiskLight, _moonDiskLight, _moonDiskLight);
       }
-      float _moonDiskLight = _moonShading * _moonLum;
-      _434 = renodx::math::Select(MOON_ADJUSTMENTS == 1.f, _moonDiskLight * 0.35f, _moonDiskLight);
+      _434 = max(max(_rndx_moonDiskRgb.x, _rndx_moonDiskRgb.y), _rndx_moonDiskRgb.z);
       _435 = 1.0f;
       _436 = ((dot(float3(_402, _403, _404), float3(_moonRight.x, _moonRight.y, _moonRight.z)) * 0.5f) + 0.5f);
       _437 = ((dot(float3(_402, _403, _404), float3(_moonUp.x, _moonUp.y, _moonUp.z)) * 0.5f) + 0.5f);
@@ -459,13 +477,47 @@ void main(
       _435 = 0.0f;
       _436 = 0.0f;
       _437 = 0.0f;
+      _rndx_moonDiskRgb = float3(0.0f, 0.0f, 0.0f);
     }
+    // RenoDX: >>> [Patch: FantasyMoonEclipseCorona] [Version: 1.10-family]
+    // Description: Adds a fantasy-eclipse corona for the final Moon Eclipse Phase range. The visible moon disk is already darkened into a blood-copper silhouette by the moon phase helper; this block adds the external pearly halo, warmer inner rim, wispy horizontal streamers, and tiny crimson prominence glints that make the 180..200 range read as a mythic eclipse instead of just a dark moon texture.
+    if (MOON_ADJUSTMENTS == 1.f && MOON_PHASE_DRAMA > 180.f) {
+      float _eclipseSilhouette = smoothstep(180.0f, 200.0f, MOON_PHASE_DRAMA);
+      float3 _moonFwdHalo = float3(_406 * _moonDirection.x, _406 * _moonDirection.y, _406 * _moonDirection.z);
+      float3 _moonRightHalo = normalize(float3(_moonRight.x, _moonRight.y, _moonRight.z));
+      float3 _moonUpHalo = normalize(float3(_moonUp.x, _moonUp.y, _moonUp.z));
+      float3 _viewDirHalo = float3(_137, _138, _139);
+      float _moonEdgeCos = cos(_moonSizeAngleAdjusted * 0.01745329238474369f);
+      float _moonConeWidth = max(1e-6f, 1.0f - _moonEdgeCos);
+      float _moonRadial = sqrt(max(0.0f, (1.0f - dot(_viewDirHalo, _moonFwdHalo)) / _moonConeWidth));
+      float _outsideDisk = max(_moonRadial - 1.0f, 0.0f);
+      float _outsideMask = smoothstep(1.0f, 1.035f, _moonRadial);
+      float _moonAngularScale = max(0.0001f, sin(_moonSizeAngleAdjusted * 0.01745329238474369f));
+      float2 _skyMoonLocal = float2(dot(_viewDirHalo, _moonRightHalo), dot(_viewDirHalo, _moonUpHalo)) / _moonAngularScale;
+      float _skyMoonRadial = max(0.0001f, length(_skyMoonLocal));
+      float _streamerAxis = pow(saturate(abs(_skyMoonLocal.x) / _skyMoonRadial), 2.0f);
+      float _streamerShape = lerp(0.72f, 1.30f, _streamerAxis);
+      float _nearCorona = exp2(-_outsideDisk * 9.0f) * _outsideMask;
+      float _farCorona = exp2(-_outsideDisk * 2.15f) * _outsideMask * (1.0f - smoothstep(5.4f, 7.2f, _moonRadial));
+      float2 _prominenceDeltaA = _skyMoonLocal - float2(1.08f, 0.18f);
+      float2 _prominenceDeltaB = _skyMoonLocal - float2(-0.96f, -0.30f);
+      float _prominences = (exp2(-48.0f * dot(_prominenceDeltaA, _prominenceDeltaA)) + (0.55f * exp2(-56.0f * dot(_prominenceDeltaB, _prominenceDeltaB)))) * _outsideMask;
+      float _eclipseMoonLight = min(1e+06f, _precomputedAmbient7.z) * 0.01f * MoonBrightnessMultiplier(AE_DYNAMISM_HIGH, MOON_BRIGHTNESS) * 0.35f;
+      float3 _eclipseCoronaRgb = _eclipseMoonLight * _eclipseSilhouette * (
+          (_nearCorona * 0.070f * float3(0.88f, 0.56f, 0.94f)) +
+          (_farCorona * 0.026f * _streamerShape * float3(0.62f, 0.73f, 1.12f)) +
+          (_prominences * 0.055f * float3(1.18f, 0.14f, 0.20f)));
+      _355 += _eclipseCoronaRgb.x;
+      _356 += _eclipseCoronaRgb.y;
+      _357 += _eclipseCoronaRgb.z;
+    }
+    // RenoDX: <<< [Patch: FantasyMoonEclipseCorona]
     int _438 = WaveReadLaneFirst(_materialIndex);
     int _446 = WaveReadLaneFirst(BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_438 < (uint)170000), _438, 0)) + 0u))]._moonTexture);
     float4 _453 = __0__7__0__0__g_bindlessTextures[((int)((uint)(select(((uint)_446 < (uint)65000), _446, 0)) + 0u))].Sample(__0__4__0__0__g_staticBilinearClamp, float2(_436, _437));
-    float _466 = (((_453.x * _434) - _355) * _435) + _355;
-    float _467 = (((_453.y * _434) - _356) * _435) + _356;
-    float _468 = (((_453.z * _434) - _357) * _435) + _357;
+    float _466 = (((_453.x * _rndx_moonDiskRgb.x) - _355) * _435) + _355;
+    float _467 = (((_453.y * _rndx_moonDiskRgb.y) - _356) * _435) + _356;
+    float _468 = (((_453.z * _rndx_moonDiskRgb.z) - _357) * _435) + _357;
     float _471 = floor(_time.x);
     if (frac(sqrt(abs(_471 * 0.36841699481010437f)) * 3734.421875f) < 0.10000000149011612f) {
       float _479 = _471 + 60.0f;
