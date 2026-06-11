@@ -58,7 +58,7 @@ void main(
   float _398;
   float _399;
 
-#if 1
+#ifndef VANILLA_LUTBUILDER
   // Replace ACEScct decode with PQ decode
 
   float3 input_color_ap1 = renodx::color::pq::DecodeSafe(float3(_14, _15, _16), 100.f);
@@ -276,6 +276,13 @@ void main(
     _398 = _331;
     _399 = _332;
   }
+  // float3 pq_color = float3(_397, _398, _399);
+  // float3 linear_bt709 = renodx::color::bt709::from::BT2020(renodx::color::pq::DecodeSafe(pq_color, 100.f));
+  // linear_bt709 = renodx::color::correct::GammaSafe(linear_bt709);
+  // pq_color = renodx::color::pq::EncodeSafe(renodx::color::bt2020::from::BT709(linear_bt709), 100.f);
+  // _397 = pq_color.x;
+  // _398 = pq_color.y;
+  // _399 = pq_color.z;
   OutLUT[int3((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y), (uint)(SV_DispatchThreadID.z))] = float4(_397, _398, _399, 1.0f);
 #endif
 }
