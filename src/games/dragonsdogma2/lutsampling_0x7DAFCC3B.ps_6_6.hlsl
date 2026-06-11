@@ -8,92 +8,68 @@ SamplerState PointBorder : register(s2, space32);
 
 SamplerState TrilinearClamp : register(s9, space32);
 
-// #define LUT_EXTENSION_SAMPLE(color) SampleSDRLUT((color), TrilinearClamp, SrcLUT)
-// #include "./lut_extension.hlsl"
-// #undef LUT_EXTENSION_SAMPLE
-
 float4 main(
-  noperspective float4 SV_Position : SV_Position,
-  linear float2 TEXCOORD : TEXCOORD
-) : SV_Target {
+    noperspective float4 SV_Position: SV_Position,
+    linear float2 TEXCOORD: TEXCOORD) : SV_Target {
   float4 SV_Target;
   float4 _9 = SrcTexture.SampleLevel(PointBorder, float2(TEXCOORD.x, TEXCOORD.y), 0.0f);
-  float _27;
-  float _42;
-  float _57;
 
-#if 1
+  float4 ungraded_ap1 = _9;
+  float3 ungraded_bt709 = renodx::color::bt709::from::AP1(ungraded_ap1.xyz);
 
-    const float mid_gray_ap1 = 0.18f;  // double mid_gray since the first LUT halves brightness, finding the real mid gray value for the second LUT
-    const float mid_gray_bt709 = renodx::color::bt709::from::AP1(float3(mid_gray_ap1, mid_gray_ap1, mid_gray_ap1)).x;
-    const float mid_gray_pq = renodx::color::pq::Encode(mid_gray_ap1, 100.f).x;
-    float out_mid_gray_pq = SrcLUT.SampleLevel(TrilinearClamp, ((mid_gray_pq * 0.984375f) + 0.0078125f), 0.0f).x;
-    float out_mid_gray = renodx::color::bt709::from::BT2020(renodx::color::pq::Decode(out_mid_gray_pq, 100.f)).x;
+  float calculated_peak = RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS;
 
-    float4 ungraded_ap1 = _9;
-    float3 ungraded_bt709 = renodx::color::bt709::from::AP1(ungraded_ap1.xyz);
-    ungraded_bt709 = PreTonemapSliders(ungraded_bt709, out_mid_gray);
-    ungraded_bt709 = PostTonemapSliders(ungraded_bt709);
-    ungraded_ap1.xyz = renodx::color::ap1::from::BT709(ungraded_bt709);
-
-    // Replace ACEScct encode with PQ encode
-    float3 pq_encode = renodx::color::pq::EncodeSafe(ungraded_ap1.xyz, 100.f);
-
-    float4 graded_bt2020_pq_ch = SrcLUT.SampleLevel(TrilinearClamp, float3(((pq_encode.x * 0.984375f) + 0.0078125f), ((pq_encode.y * 0.984375f) + 0.0078125f), ((pq_encode.z * 0.984375f) + 0.0078125f)), 0.0f);
-    float3 graded_bt709_ch = renodx::color::bt709::from::BT2020(renodx::color::pq::DecodeSafe(graded_bt2020_pq_ch.xyz, 100.f));
-
-    // float lumin_in = LuminosityFromAP1(ungraded_ap1.xyz);
-    // float lumin_in_pq = renodx::color::pq::Encode(lumin_in, 100.f);
-    // float lumin_out_bt2020_pq = SrcLUT.SampleLevel(TrilinearClamp, ((lumin_in_pq * 0.984375f) + 0.0078125f), 0.0f).x;
-    // float lumin_out = renodx::color::ap1::from::BT2020(renodx::color::pq::Decode(lumin_out_bt2020_pq, 100.f)).x;
-    // float3 graded_ap1_lumin = renodx::color::correct::Luminance(ungraded_ap1.xyz, lumin_in, lumin_out);
-    // float3 graded_bt709_lumin = renodx::color::bt709::from::AP1(graded_ap1_lumin);
-
-    float lumin_ungraded = LuminosityFromBT709(ungraded_bt709.xyz);
-    float lumin_graded_bt709_ch = LuminosityFromBT709(graded_bt709_ch);
-    float3 graded_bt709_lumin = renodx::color::correct::Luminance(ungraded_bt709.xyz, lumin_ungraded, lumin_graded_bt709_ch);
-
-    float3 graded_bt709 = renodx::color::correct::Chrominance(graded_bt709_lumin, graded_bt709_ch, 1.f - SCENE_GRADE_SATURATION_CORRECTION, SCENE_GRADE_BLOWOUT_RESTORATION, 1);
-
-    float3 ungraded_bt709_scaled = ungraded_bt709 * (out_mid_gray / mid_gray_bt709);
-    //float3 ungraded_bt709_scaled = ungraded_bt709 * 0.66f;
-
-    SV_Target.xyz = CustomTonemap(ungraded_bt709_scaled, graded_bt709, out_mid_gray, TEXCOORD);
-    SV_Target.w = 1.0f;
+  float3 output_color = ungraded_bt709;
+  if (RENODX_TONE_MAP_TYPE == 0.f) {
+    // The unmodified LUT builder expects ACEScct and returns BT.2020 PQ.
+    float3 acescct = renodx::color::acescct::EncodeSafe(ungraded_ap1.xyz);
+    SV_Target.xyz = SrcLUT.SampleLevel(
+        TrilinearClamp,
+        acescct * 0.984375f + 0.0078125f,
+        0.f).xyz;
+    SV_Target.w = 1.f;
     return SV_Target;
-#else
-  if (!(_9.x <= 0.0f)) {
-    if (_9.x < 3.0517578125e-05f) {
-      _27 = ((log2((_9.x * 0.5f) + 1.52587890625e-05f) * 0.05707760155200958f) + 0.5547950267791748f);
-    } else {
-      _27 = ((log2(_9.x) * 0.05707760155200958f) + 0.5547950267791748f);
+  } else if (RENODX_TONE_MAP_TYPE == 2.f) {  // RenoDX Custom
+    float3 psycho_peak = calculated_peak;
+    if (RENODX_GAMMA_CORRECTION > 0.f) {
+      psycho_peak = GammaCorrectionLMS(calculated_peak, true);
     }
-  } else {
-    _27 = -0.35844698548316956f;
-  }
-  if (!(_9.y <= 0.0f)) {
-    if (_9.y < 3.0517578125e-05f) {
-      _42 = ((log2((_9.y * 0.5f) + 1.52587890625e-05f) * 0.05707760155200958f) + 0.5547950267791748f);
-    } else {
-      _42 = ((log2(_9.y) * 0.05707760155200958f) + 0.5547950267791748f);
+    renodx::tonemap::psycho::config::Config psycho_config =
+      renodx::tonemap::psycho::config::BuildConfig();
+    psycho_config.peak_value = psycho_peak;
+
+    if (VANILLA_CURVE_MATCH == 1) {
+      // Approximate the former 1.6 shadow and 1.12 highlight contrast slopes
+      // using a single continuous contrast curve biased toward the shadows.
+      psycho_config.shadow_biased_contrast = 1.32f;
+      psycho_config.contrast_shadow_bias = 0.450f;
+      psycho_config.current_adaptive_state_bt709 = 0.18f;
+      psycho_config.current_background_state_bt709 = 0.17f;
     }
-  } else {
-    _42 = -0.35844698548316956f;
+
+    output_color = renodx::tonemap::psycho::psychotm_customized(
+        ungraded_bt709,
+      psycho_config);
+    output_color = min(output_color, psycho_peak); // clamp overshoot
+  } else if (RENODX_TONE_MAP_TYPE == 1.f) {  // ACES
+    SV_Target.xyz = ApplyCustomACESToneMapEncodePQ(
+        _9.rgb,
+        RENODX_PEAK_WHITE_NITS,
+        RENODX_DIFFUSE_WHITE_NITS * 1.5f,  // Matches vanilla ACES at 1.f exposure scale.
+        TEXCOORD);
+    SV_Target.w = 1.f;
+    return SV_Target;
   }
-  if (!(_9.z <= 0.0f)) {
-    if (_9.z < 3.0517578125e-05f) {
-      _57 = ((log2((_9.z * 0.5f) + 1.52587890625e-05f) * 0.05707760155200958f) + 0.5547950267791748f);
-    } else {
-      _57 = ((log2(_9.z) * 0.05707760155200958f) + 0.5547950267791748f);
-    }
-  } else {
-    _57 = -0.35844698548316956f;
+
+  output_color = CustomPostProcessing(output_color, TEXCOORD);
+
+  if (RENODX_GAMMA_CORRECTION > 0.f) {
+    output_color = RENODX_GAMMA_CORRECTION == 1.f ? renodx::color::correct::GammaSafe(output_color) : GammaCorrectionLMS(output_color);
   }
-  float4 _66 = SrcLUT.SampleLevel(TrilinearClamp, float3(((_27 * 0.984375f) + 0.0078125f), ((_42 * 0.984375f) + 0.0078125f), ((_57 * 0.984375f) + 0.0078125f)), 0.0f);
-  SV_Target.x = _66.x;
-  SV_Target.y = _66.y;
-  SV_Target.z = _66.z;
+  output_color = renodx::color::bt2020::from::BT709(output_color);
+  output_color = renodx::color::pq::EncodeSafe(output_color, RENODX_DIFFUSE_WHITE_NITS);
+  SV_Target.xyz = output_color;
+
   SV_Target.w = 1.0f;
   return SV_Target;
-  #endif
 }
