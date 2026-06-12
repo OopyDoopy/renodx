@@ -21,7 +21,6 @@
 #define RENODX_TONE_MAP_CONTRAST               shader_injection.tone_map_contrast
 #define RENODX_TONE_MAP_SATURATION             shader_injection.tone_map_saturation
 #define RENODX_TONE_MAP_BLOWOUT                shader_injection.tone_map_blowout
-#define RENODX_TONE_MAP_CONE_RESPONSE          shader_injection.tone_map_cone_response
 #define CUSTOM_LUT_SCALING                     shader_injection.custom_lut_scaling
 //#define CUSTOM_LUT_SCALING_BRIGHTNESS          shader_injection.custom_lut_scaling_brightness
 #define CUSTOM_LUT_RECOLOR                     shader_injection.custom_lut_recolor
