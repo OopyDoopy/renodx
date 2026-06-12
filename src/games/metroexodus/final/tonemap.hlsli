@@ -1,5 +1,5 @@
 #include "../shared.h"
-#include "../psycho_test17_custom.hlsl"
+#include "../psychov_custom.hlsl"
 #include "../common.hlsl"
 
 #ifdef USE_LOW
@@ -452,9 +452,10 @@ float4 RenoDX(float3 input_color, float2 uv, float ui_blend2) {
   float ui_blend1 = 0.0f;
   float3 untonemapped_linear = ImprovedBloom(input_color, uv, ui_blend1);
 
-  const float mid_gray = 0.1225084847f;
-  const float mid_gray_adjusted = MetroSDRToeAdjustedLinearExtended(mid_gray);
-  const float mid_gray_scale = mid_gray_adjusted / mid_gray;
+  static const float mid_gray = 0.1225084847f;
+  static const float mid_gray_adjusted = MetroSDRToeAdjustedLinearExtended(mid_gray);
+  static const float3 mid_gray_adjusted_lms = renodx::color::lms::from::BT709(mid_gray_adjusted);
+  static const float mid_gray_scale = mid_gray_adjusted / mid_gray;
 
   float3 calculated_peak = RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS;
   calculated_peak = ProcessGammaCorrection(calculated_peak, true);
@@ -463,13 +464,19 @@ float4 RenoDX(float3 input_color, float2 uv, float ui_blend2) {
   if (RENODX_TONE_MAP_TYPE == 1) {
     tonemapped_linear = MetroSDRToeAdjustedLinearExtended(untonemapped_linear);
   } else {
-    
-    float3 untonemapped_linear_adjusted = untonemapped_linear * mid_gray_scale;
-    float3 untonemapped_linear_adjusted_lms = renodx::color::lms::from::BT709(untonemapped_linear_adjusted);
-    float3 untonemapped_linear_contrasted_lms = renodx::tonemap::NakaRushton(untonemapped_linear_adjusted_lms / LMS_WHITE, 100.f / LMS_WHITE, mid_gray_adjusted, mid_gray_adjusted, 1.48f) * LMS_WHITE;
-    float3 untonemapped_linear_contrasted = renodx::color::bt709::from::LMS(untonemapped_linear_contrasted_lms);
+    float3 untonemapped_linear_lms = renodx::color::lms::from::BT709(untonemapped_linear);
+    float3 tonemapped_linear_lms = MetroSDRToeAdjustedLinearExtended(untonemapped_linear_lms / LMS_WHITE) * LMS_WHITE;
+    tonemapped_linear = renodx::color::bt709::from::LMS(tonemapped_linear_lms);
 
-    tonemapped_linear = untonemapped_linear_contrasted;
+    // float3 untonemapped_linear_adjusted = untonemapped_linear * mid_gray_scale;
+    // float3 untonemapped_linear_adjusted_lms = renodx::color::lms::from::BT709(untonemapped_linear_adjusted);
+    // float3 untonemapped_linear_contrasted_lms;
+    // untonemapped_linear_contrasted_lms.x = renodx::color::grade::ContrastSafe(untonemapped_linear_adjusted_lms.x / LMS_WHITE.x, 1.48f, mid_gray_adjusted_lms.x / LMS_WHITE.x) * LMS_WHITE.x;
+    // untonemapped_linear_contrasted_lms.y = renodx::color::grade::ContrastSafe(untonemapped_linear_adjusted_lms.y / LMS_WHITE.y, 1.48f, mid_gray_adjusted_lms.y / LMS_WHITE.y) * LMS_WHITE.y;
+    // untonemapped_linear_contrasted_lms.z = renodx::color::grade::ContrastSafe(untonemapped_linear_adjusted_lms.z / LMS_WHITE.z, 1.48f, mid_gray_adjusted_lms.z / LMS_WHITE.z) * LMS_WHITE.z;
+    // float3 untonemapped_linear_contrasted = renodx::color::bt709::from::LMS(untonemapped_linear_contrasted_lms);
+
+    // tonemapped_linear = untonemapped_linear_contrasted;
   }
 
 #ifdef USE_GASMASK
@@ -490,8 +497,19 @@ float4 RenoDX(float3 input_color, float2 uv, float ui_blend2) {
   tonemapped_linear = renodx::color::srgb::DecodeSafe(nvg_dual_applied);
 #endif
 
-  float scale = ComputeReinhardSmoothClampScale(tonemapped_linear, mid_gray_adjusted, 1.f);
-  float3 tonemapped_linear_scaled = tonemapped_linear * scale;
+  float gamut_compression_scale =
+      renodx::color::gamut::ComputeGamutCompressionScaleBT709AdaptiveD65(
+          tonemapped_linear,
+          mid_gray_adjusted_lms,
+          1.f);
+  float3 tonemapped_linear_gamut_compressed =
+      renodx::color::gamut::GamutCompressBT709AdaptiveD65(
+          tonemapped_linear,
+          mid_gray_adjusted_lms,
+          gamut_compression_scale);
+
+  float scale = ComputeReinhardSmoothClampScale(tonemapped_linear_gamut_compressed, mid_gray_adjusted, 1.f);
+  float3 tonemapped_linear_scaled = tonemapped_linear_gamut_compressed * scale;
 
   float mid_gray_lut_adjusted = renodx::color::srgb::DecodeSafe(VanillaLUTSample(renodx::color::srgb::Encode(mid_gray_adjusted)).x);
 
@@ -499,33 +517,32 @@ float4 RenoDX(float3 input_color, float2 uv, float ui_blend2) {
   float3 lut_output = ImprovedLUTSample(lut_input, mid_gray_adjusted);
   lut_output = renodx::color::srgb::DecodeSafe(lut_output);
   lut_output = renodx::math::SafeDivision(lut_output, scale, renodx::math::FLT_MAX);
+  lut_output = renodx::color::gamut::GamutDecompressBT709AdaptiveD65(
+      lut_output,
+      mid_gray_adjusted_lms,
+      gamut_compression_scale);
   //lut_output = lerp(tonemapped_linear, lut_output, 0.f);
 
   float3 display_mapped_bt709 = lut_output;
   if (RENODX_TONE_MAP_TYPE == 1) {
-    lut_output = renodx::tonemap::psycho::ApplyGradingLMS(lut_output, calculated_peak, mid_gray_lut_adjusted, mid_gray_lut_adjusted);
+    lut_output = renodx::tonemap::psycho::ApplyGrading(lut_output, calculated_peak, mid_gray_lut_adjusted, mid_gray_lut_adjusted);
     float3 unmapped_bt2020 = renodx::color::bt2020::from::BT709(lut_output);
     float3 mapped_bt2020 = renodx::tonemap::neutwo::PerChannel(unmapped_bt2020, calculated_peak);
     display_mapped_bt709 = renodx::color::bt709::from::BT2020(mapped_bt2020);
   } 
   else if (RENODX_TONE_MAP_TYPE == 2) {
-    display_mapped_bt709 = renodx::tonemap::psycho::psychotm_test17_customized(
-        lut_output,
-        calculated_peak,
-        RENODX_TONE_MAP_EXPOSURE,
-        RENODX_TONE_MAP_HIGHLIGHTS,
-        RENODX_TONE_MAP_SHADOWS,
-        RENODX_TONE_MAP_CONTRAST,
-        RENODX_TONE_MAP_SATURATION,
-        RENODX_TONE_MAP_BLOWOUT,
-        100.f,
-        0.1f,
-        1.f,
-        1,
-        RENODX_TONE_MAP_CONE_RESPONSE,
-        mid_gray_lut_adjusted,
-        mid_gray_lut_adjusted
-          );
+    renodx::tonemap::psycho::config::Config psycho_config =
+      renodx::tonemap::psycho::config::BuildConfig();
+    psycho_config.peak_value = calculated_peak;
+    psycho_config.current_adaptive_state_bt709 = mid_gray_lut_adjusted;
+    psycho_config.current_background_state_bt709 = mid_gray_lut_adjusted;
+    psycho_config.white_curve_mode = 0;
+    psycho_config.grading_mode = 0;
+    psycho_config.hue_restore = 0;
+
+    display_mapped_bt709 = renodx::tonemap::psycho::psychotm_customized(
+      lut_output,
+      psycho_config);
   }
 
   // TEST OUTPUT
