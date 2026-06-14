@@ -360,9 +360,7 @@ static bool OnCreatePipelineLayout(
         }
       }
     } else if (param.type == reshade::api::pipeline_layout_param_type::push_constants) {
-      if (device_api != reshade::api::device_api::d3d12) {
-        dword_count += param.push_constants.count;
-      }
+      dword_count += param.push_constants.count;
       pc_count++;
       if (is_dx
           && param.push_constants.dx_register_space == data->expected_constant_buffer_space
