@@ -237,11 +237,21 @@ void MarkShaderDraw(renodx::mods::shader::CustomShader& shader, bool* marker) {
 renodx::mods::shader::CustomShaders custom_shaders = [] {
   auto shaders = renodx::mods::shader::CustomShaders{__ALL_CUSTOM_SHADERS};
 
-  // 1.10 RR detector: PrepareDlssRRCS. This only drives RR_ENABLED; it does not replace migrated RR HLSL.
-  shaders[0xA0F15389] = CreateDetectionShader(0xA0F15389, [](reshade::api::command_list*) {
-    rr_draw = true;
-    return false;
-  });
+  // 1.11 Ray Reconstruction/Regeneration detectors:
+  // - kDlssRayReconstructionDetectorHash: DLSS RR prep signal, observed in NVIDIA RR-on lanes.
+  // - kSpecularRayRegenerationDetectorHash: older specular RR lineage, expected AMD Ray Regeneration signal.
+  constexpr uint32_t kDlssRayReconstructionDetectorHash = 0xA0F15389u;      // PrepareDlssRRCS
+  constexpr uint32_t kSpecularRayRegenerationDetectorHash = 0x35077EDFu;    // EvaluateSpecularRadianceCS
+  for (uint32_t hash : {kDlssRayReconstructionDetectorHash, kSpecularRayRegenerationDetectorHash}) {
+    if (auto it = shaders.find(hash); it != shaders.end()) {
+      MarkShaderDraw(it->second, &rr_draw);
+    } else {
+      shaders[hash] = CreateDetectionShader(hash, [](reshade::api::command_list*) {
+        rr_draw = true;
+        return false;
+      });
+    }
+  }
 
   for (uint32_t hash : {0x1E61F5E3u, 0x6D2F2634u}) {
     if (auto it = shaders.find(hash); it != shaders.end()) {
