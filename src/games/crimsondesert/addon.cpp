@@ -38,6 +38,7 @@ bool debug = false;
 // with missing or transparent shaders like foliage
 
 float disable_vrs = 1.f;
+float disable_ui_shaders = 0.f;
 
 // --- VRS override via pre-draw injection ---
 // The game uses Tier 2 VRS (per primitive via SV_ShadingRate in vertex shaders),
@@ -175,6 +176,7 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
     {"NightSkyAttenuation", 0.f},
     {"MilkyWayLightIntensity", 100.f},
     {"PurkinjeEffect", 0.f},
+    {"DisableUIShaders", 0.f},
 };
 
 const std::unordered_map<std::string, float> NEUTRAL_VALUES = {
@@ -234,6 +236,16 @@ void MarkShaderDraw(renodx::mods::shader::CustomShader& shader, bool* marker) {
   };
 }
 
+void AttachUIShaderDrawGate(renodx::mods::shader::CustomShaders& shaders, uint32_t hash) {
+  auto [it, inserted] = shaders.try_emplace(hash);
+  if (inserted) it->second.crc32 = hash;
+
+  auto previous_on_draw = std::move(it->second.on_draw);
+  it->second.on_draw = [previous_on_draw = std::move(previous_on_draw)](reshade::api::command_list* cmd_list) {
+    if (disable_ui_shaders != 0.f) return false;
+    return previous_on_draw == nullptr || previous_on_draw(cmd_list);
+  };
+}
 renodx::mods::shader::CustomShaders custom_shaders = [] {
   auto shaders = renodx::mods::shader::CustomShaders{__ALL_CUSTOM_SHADERS};
 
@@ -284,6 +296,14 @@ renodx::mods::shader::CustomShaders custom_shaders = [] {
     }
   }
 
+  // 1.11 UI/HUD draw gates from SDR/HDR DevKit snapshots.
+  // These VSMain families cover the observed UI pixel shader variants
+  for (uint32_t hash : {
+           0x00C65E31u,
+           0x0ADCC304u,
+       }) {
+    AttachUIShaderDrawGate(shaders, hash);
+  }
   return shaders;
 }();
 
@@ -1461,6 +1481,19 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
+        .key = "DisableUIShaders",
+        .binding = &disable_ui_shaders,
+        .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+        .default_value = 0.f,
+        .can_reset = true,
+        .label = "Disable UI Shaders",
+        .section = "Rendering",
+        .tooltip = "Skips known UI vertex shader draw families for gameplay captures.\n"
+                   "Off = normal UI/HUD rendering.",
+        .labels = {"Off", "On"},
+        .tint = wiprendering,
+        .is_visible = []() { return current_settings_mode == rendering_group; },
+    },    new renodx::utils::settings::Setting{
         .key = "TonemapDebugMode",
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -1609,6 +1642,7 @@ void OnPresetOff() {
       {"NightSkyAttenuation", 0.f},
       {"MilkyWayLightIntensity", 100.f},
       {"PurkinjeEffect", 0.f},
+      {"DisableUIShaders", 0.f},
 
       {"ImprovedAutoExposure", 0.f},
       {"AE_PerceptualMinBrightness", 0.f},
