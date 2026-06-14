@@ -466,10 +466,10 @@ void main(
         float3 _moonUpDir = normalize(float3(_moonUp.x, _moonUp.y, _moonUp.z));
         float _moonPhaseSide = (dot(_sunDir, _moonRightDir) < 0.0f) ? -1.0f : 1.0f;
         float2 _moonLocalPhase = float2(dot(_sphereN, _moonRightDir) * _moonPhaseSide, dot(_sphereN, _moonUpDir));
-        // RenoDX: >>> [Patch: FantasyMoonPhases] [Version: 1.10-family]
-        // Description: Uses the existing sun/moon directions plus the moon's local right/up axes to render soft, phase-aware moon lighting. If Crimson Desert's lighting vectors collapse to an always-full moon, the helper falls back to an art-directed crescent mask so the visible disk still reads as a fantasy moon phase instead of a uniformly lit texture.
-        _rndx_moonDiskRgb = RenoDXApplyFantasyMoonPhase(_sunDir, _moonFwd, _moonLocalPhase, _moonNdotLRaw, _phaseViewNdot, _moonDiskLight, _moonFullReferenceLight, MOON_PHASE_DRAMA);
-        // RenoDX: <<< [Patch: FantasyMoonPhases]
+        // RenoDX: >>> [Patch: StylizedMoonPhase] [Version: 1.10-family]
+        // Description: Uses the existing sun/moon directions plus the moon's local right/up axes to render soft, stylized moon phase/eclipsing. If Crimson Desert's lighting vectors collapse to an always-full moon, the helper falls back to an art-directed crescent mask so the visible disk still reads as a stylized moon phase instead of a uniformly lit texture.
+        _rndx_moonDiskRgb = RenoDXApplyStylizedMoonPhase(_sunDir, _moonFwd, _moonLocalPhase, _moonNdotLRaw, _phaseViewNdot, _moonDiskLight, _moonFullReferenceLight, STYLIZED_LUNAR_PHASE);
+        // RenoDX: <<< [Patch: StylizedMoonPhase]
       } else {
         _moonShading = _moonNdotL;
         float _moonDiskLight = _moonShading * _moonLum;
@@ -486,10 +486,10 @@ void main(
       _437 = 0.0f;
       _rndx_moonDiskRgb = float3(0.0f, 0.0f, 0.0f);
     }
-    // RenoDX: >>> [Patch: FantasyMoonEclipseCorona] [Version: 1.10-family]
-    // Description: Adds a fantasy-eclipse corona for the final Moon Eclipse Phase range. The visible moon disk is already darkened into a blood-copper silhouette by the moon phase helper; this block adds the external pearly halo, warmer inner rim, wispy horizontal streamers, and tiny crimson prominence glints that make the 180..200 range read as a mythic eclipse instead of just a dark moon texture.
-    if (MOON_ADJUSTMENTS == 1.f && MOON_PHASE_DRAMA > 180.f) {
-      float _eclipseSilhouette = smoothstep(180.0f, 200.0f, MOON_PHASE_DRAMA);
+    // RenoDX: >>> [Patch: StylizedMoonEclipseCorona] [Version: 1.10-family]
+    // Description: Adds a stylized eclipse corona for the final Stylized Lunar Phase / Eclipse range. The visible moon disk is already darkened into a blood-copper silhouette by the moon phase helper; this block adds the external pearly halo, warmer inner rim, wispy horizontal streamers, and tiny crimson prominence glints that make the 180..200 range read as an intentionally unrealistic eclipse instead of just a dark moon texture.
+    if (MOON_ADJUSTMENTS == 1.f && STYLIZED_LUNAR_PHASE > 180.f) {
+      float _eclipseSilhouette = smoothstep(180.0f, 200.0f, STYLIZED_LUNAR_PHASE);
       float3 _moonFwdHalo = float3(_406 * _moonDirection.x, _406 * _moonDirection.y, _406 * _moonDirection.z);
       float3 _moonRightHalo = normalize(float3(_moonRight.x, _moonRight.y, _moonRight.z));
       float3 _moonUpHalo = normalize(float3(_moonUp.x, _moonUp.y, _moonUp.z));
@@ -518,7 +518,7 @@ void main(
       _356 += _eclipseCoronaRgb.y;
       _357 += _eclipseCoronaRgb.z;
     }
-    // RenoDX: <<< [Patch: FantasyMoonEclipseCorona]
+    // RenoDX: <<< [Patch: StylizedMoonEclipseCorona]
     int _438 = WaveReadLaneFirst(_materialIndex);
     int _446 = WaveReadLaneFirst(BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_438 < (uint)170000), _438, 0)) + 0u))]._moonTexture);
     float4 _453 = __0__7__0__0__g_bindlessTextures[((int)((uint)(select(((uint)_446 < (uint)65000), _446, 0)) + 0u))].Sample(__0__4__0__0__g_staticBilinearClamp, float2(_436, _437));

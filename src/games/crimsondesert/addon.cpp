@@ -160,7 +160,7 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
     {"SunImprovements", 0.f},
     {"MoonAdjustments", 0.f},
     {"MoonDiskSize", 1.f},
-    {"MoonPhaseDrama", 0.f},
+    {"StylizedLunarPhase", 0.f},
     {"ContactShadowQuality", 0.f},
     {"FoliageImprovements", 0.f},
     {"MaterialImprovements", 0.f},
@@ -185,7 +185,7 @@ const std::unordered_map<std::string, float> EXPERIMENTAL_RECOMMENDED_VALUES = {
     {"AuroraBorealis", 0.f},
     {"AuroraBrightness", 25.f},
     {"AuroraChance", 40.f},
-    {"MoonPhaseDrama", 100.f},
+    {"StylizedLunarPhase", 100.f},
     {"MilkyWayAlphaOcclusion", 0.f},
     {"DisableUIShaders", 0.f},
 };
@@ -1219,7 +1219,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Sky / Celestial",
         .tooltip = "Improves moon disk rendering.\n"
                    "Off = vanilla moon size, luminance, and simple shading.\n"
-                   "On = Moon Disk Size slider, reduced luminance, limb darkening, inner glow, EON diffuse shading, and fantasy phase styling.",
+                   "On = Moon Disk Size slider, reduced luminance, limb darkening, inner glow, EON diffuse shading, and stylized phase styling.",
         .labels = {"Off", "On"},
         .tint = rendering,
         .is_visible = []() { return current_settings_mode == rendering_group; },
@@ -1588,15 +1588,15 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == experimental_group; },
     },
     new renodx::utils::settings::Setting{
-        .key = "MoonPhaseDrama",
-        .binding = &shader_injection.moon_phase_drama,
+        .key = "StylizedLunarPhase",
+        .binding = &shader_injection.stylized_lunar_phase,
         .default_value = 0.f,
         .can_reset = true,
-        .label = "Dramatized Lunar Phase / Eclipse",
+        .label = "Stylized Lunar Phase / Eclipse",
         .section = "Sky / Celestial",
         .tooltip = "Controls a stylized lunar phase/eclipse effect with a curved eclipsing shadow, violet earthshine, and warm terminator glow.\n"
                    "This is not a realistic lunar phase or eclipse simulation.\n"
-                   "0 = vanilla/no dramatized eclipse. 100 = recommended dramatized crescent. 200 = full dramatized eclipse.",
+                   "0 = vanilla/no stylized eclipse. 100 = recommended stylized crescent. 200 = full stylized eclipse.",
         .min = 0.f,
         .max = 200.f,
         .format = "%.0f%%",
@@ -1625,7 +1625,7 @@ renodx::utils::settings::Settings settings = {
         .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
         .default_value = 0.f,
         .can_reset = true,
-        .label = "Disable UI Shaders",
+        .label = "Disable UI/HUD",
         .section = "Capture Tools",
         .tooltip = "Skips known UI vertex shader draw families for gameplay captures.\n"
                    "Off = normal UI/HUD rendering.",
@@ -1764,7 +1764,7 @@ void OnPresetOff() {
       {"SunImprovements", 0.f},
       {"MoonAdjustments", 0.f},
       {"MoonDiskSize", 1.f},
-      {"MoonPhaseDrama", 0.f},
+      {"StylizedLunarPhase", 0.f},
       {"ContactShadowQuality", 0.f},
       {"FoliageImprovements", 0.f},
       {"RaytracingQuality", 0.f},

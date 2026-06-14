@@ -33,9 +33,9 @@ float MoonBrightnessMultiplier(float aeDynamismHigh, float moonBrightness) {
   return moonBrightness * aeCompensation;
 }
 
-// RenoDX: >>> [Patch: FantasyMoonPhases] [Version: 1.10-family]
-// Description: Adds an art-directed phase treatment for the visible moon disk. The game provides sun/moon directions for physical shading, but those vectors can collapse to an always-full moon for lighting; this block maps the Moon Eclipse Phase slider from 0 = no crescent to 200 = full eclipse by sweeping a curved overlapping-disc shadow across the moon. It softens the curved terminator, adds restrained violet earthshine on the shadowed side, and turns the final 180..200 range into a fantasy eclipse silhouette with a blood-copper lunar tint, pearly rim, faint chromosphere color, and brief edge beads.
-float3 RenoDXApplyFantasyMoonPhase(
+// RenoDX: >>> [Patch: StylizedMoonPhase] [Version: 1.10-family]
+// Description: Adds a stylized, entirely unrealistic phase/eclipse treatment for the visible moon disk. The game provides sun/moon directions for physical shading, but those vectors can collapse to an always-full moon for lighting; this block maps the Stylized Lunar Phase / Eclipse slider from 0 = no crescent to 200 = full eclipse by sweeping a curved overlapping-disc shadow across the moon. It softens the curved terminator, adds restrained violet earthshine on the shadowed side, and turns the final 180..200 range into a stylized eclipse silhouette with a blood-copper lunar tint, pearly rim, faint chromosphere color, and brief edge beads.
+float3 RenoDXApplyStylizedMoonPhase(
     float3 sunDir,
     float3 moonDir,
     float2 moonLocal,
@@ -43,8 +43,8 @@ float3 RenoDXApplyFantasyMoonPhase(
     float viewNdot,
     float litLight,
     float fullReferenceLight,
-    float phaseDramaPercent) {
-  float coverage = saturate(max(phaseDramaPercent, 0.0f) * 0.005f);
+    float stylizedPhasePercent) {
+  float coverage = saturate(max(stylizedPhasePercent, 0.0f) * 0.005f);
   if (coverage <= 0.0f) return float3(litLight, litLight, litLight);
 
   float phaseStrength = smoothstep(0.0f, 0.22f, coverage);
@@ -98,7 +98,7 @@ float3 RenoDXApplyFantasyMoonPhase(
   float3 shadowRgb = (fullReferenceLight * earthshine * shadowTint * boost * moonExposure) + (earlyShadowFill * float3(0.45f, 0.50f, 0.78f));
   float3 terminatorRgb = fullReferenceLight * terminatorGlow * terminatorTint * glowExposure;
   float3 rimRgb = fullReferenceLight * rim * 0.018f * float3(0.74f, 0.88f, 1.20f) * boost * glowExposure;
-  float3 fantasyRgb = max(litRgb, shadowRgb) + terminatorRgb + rimRgb;
+  float3 stylizedRgb = max(litRgb, shadowRgb) + terminatorRgb + rimRgb;
 
   float diskRadius = saturate(length(moonLocal));
   float bloodMoonCore = (1.0f - smoothstep(0.18f, 0.95f, diskRadius)) * silhouettePhase;
@@ -118,10 +118,10 @@ float3 RenoDXApplyFantasyMoonPhase(
       (fullReferenceLight * eclipseInnerRim * 0.036f * float3(0.92f, 0.64f, 1.04f)) +
       (fullReferenceLight * eclipseChromosphere * 0.012f * float3(1.10f, 0.16f, 0.24f)) +
       (fullReferenceLight * eclipseBeads * 0.18f * float3(1.20f, 0.92f, 0.56f));
-  fantasyRgb = lerp(fantasyRgb, eclipseSilhouetteRgb, silhouettePhase);
+  stylizedRgb = lerp(stylizedRgb, eclipseSilhouetteRgb, silhouettePhase);
 
-  return lerp(float3(litLight, litLight, litLight), fantasyRgb, phaseStrength);
+  return lerp(float3(litLight, litLight, litLight), stylizedRgb, phaseStrength);
 }
-// RenoDX: <<< [Patch: FantasyMoonPhases]
+// RenoDX: <<< [Patch: StylizedMoonPhase]
 
 #endif  // SRC_CRIMSONDESERT_SKY_ATMOSPHERIC_MOON_COMMON_HLSLI_

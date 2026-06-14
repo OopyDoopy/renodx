@@ -186,7 +186,7 @@
 #define MOON_ADJUSTMENTS                       ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__MOON_ADJUSTMENTS) != 0u ? 1.f : 0.f)
 #define SUN_MOON_ADJUSTMENTS                   (((SUN_IMPROVEMENTS == 1.f) || (MOON_ADJUSTMENTS == 1.f)) ? 1.f : 0.f)
 #define MOON_DISK_SIZE                         shader_injection.moon_disk_size
-#define MOON_PHASE_DRAMA                       shader_injection.moon_phase_drama
+#define STYLIZED_LUNAR_PHASE                   shader_injection.stylized_lunar_phase
 #define MOON_BRIGHTNESS                        3.50f
 #define MOON_GLOW_STRENGTH                     1.00f
 #define MOON_LIMB_DARKENING                    1.00f
@@ -283,7 +283,7 @@ struct ShaderInjectData {
   float ae_target_smoothing_time;
 
   float moon_disk_size;
-  float moon_phase_drama;
+  float stylized_lunar_phase;
   float lens_flare_strength;
   float bloom_strength;
   float aurora_brightness;
