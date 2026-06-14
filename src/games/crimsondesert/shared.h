@@ -42,6 +42,10 @@
 // Description: Adds the Shadow Edge Noise Fix flag. The contact-shadow pass clamps X samples but not Y samples; the UI toggle can disable the X clamp so left/right edges do not reuse the last depth column.
 #define CUSTOM_FLAGS__SHADOW_EDGE_NOISE_FIX             0x20000000u
 // RenoDX: <<< [Patch: ShadowEdgeNoiseFix]
+// RenoDX: >>> [Patch: MilkyWayAlphaOcclusion] [Version: experimental-20260614]
+// Description: Adds an experimental flag for replacement Milky Way textures that intentionally use alpha as sky coverage. When enabled in supported sky shaders, authored alpha attenuates procedural stars and Milky Way sparkle boosts behind opaque custom texture content.
+#define CUSTOM_FLAGS__MILKY_WAY_ALPHA_OCCLUSION         0x40000000u
+// RenoDX: <<< [Patch: MilkyWayAlphaOcclusion]
 
 #define CUSTOM_FLAGS                               shader_injection.custom_flags
 
@@ -201,6 +205,10 @@
 #define AURORA_CHANCE                          shader_injection.aurora_chance
 #define AURORA_NIGHT_SEED                      shader_injection.aurora_night_seed
 #define MILKY_WAY_LIGHT_INTENSITY              shader_injection.milky_way_light_intensity
+// RenoDX: >>> [Patch: MilkyWayAlphaOcclusion] [Version: experimental-20260614]
+// Description: Exposes the experimental Milky Way alpha coverage toggle to shaders. Supported sky shaders use this flag to decide whether authored alpha in replacement Milky Way textures should attenuate procedural stars and sparkle boosts.
+#define MILKY_WAY_ALPHA_OCCLUSION              ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__MILKY_WAY_ALPHA_OCCLUSION) != 0u ? 1.f : 0.f)
+// RenoDX: <<< [Patch: MilkyWayAlphaOcclusion]
 #define NIGHT_SKY_ATTENUATION                  ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__NIGHT_SKY_ATTENUATION) != 0u ? 1.f : 0.f)
 #define PURKINJE_EFFECT                        ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__PURKINJE_EFFECT) != 0u) ? 1.f : 0.f)
 #define CUSTOM_WEATHER_EDITING                 ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__CUSTOM_WEATHER_EDITING) != 0u) ? 1.f : 0.f)

@@ -175,6 +175,7 @@ const std::unordered_map<std::string, float> VANILLA_VALUES = {
     {"AuroraChance", 40.f},
     {"NightSkyAttenuation", 0.f},
     {"MilkyWayLightIntensity", 1.f},
+    {"MilkyWayAlphaOcclusion", 0.f},
     {"PurkinjeEffect", 0.f},
     {"DisableUIShaders", 0.f},
 };
@@ -185,6 +186,7 @@ const std::unordered_map<std::string, float> EXPERIMENTAL_RECOMMENDED_VALUES = {
     {"AuroraBrightness", 25.f},
     {"AuroraChance", 40.f},
     {"MoonPhaseDrama", 100.f},
+    {"MilkyWayAlphaOcclusion", 0.f},
     {"DisableUIShaders", 0.f},
 };
 
@@ -1599,6 +1601,22 @@ renodx::utils::settings::Settings settings = {
         .max = 200.f,
         .format = "%.0f%%",
         .is_enabled = []() { return MOON_ADJUSTMENTS == 1.f; },
+        .is_visible = []() { return current_settings_mode == experimental_group; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "MilkyWayAlphaOcclusion",
+        .binding = &shader_injection.custom_flags,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .packed_values = {0u, CUSTOM_FLAGS__MILKY_WAY_ALPHA_OCCLUSION},
+        .can_reset = true,
+        .label = "Milky Way Alpha Occlusion",
+        .section = "Sky / Celestial",
+        .tooltip = "Experimental support for CrimsonWeather Milky Way replacement textures with authored alpha coverage.\n"
+                   "Off = current addon behavior; Milky Way texture alpha is ignored.\n"
+                   "On = alpha controls procedural star and sparkle visibility in the visible sky. Alpha 0 leaves stars visible; alpha 1 fully occludes them behind custom texture content.\n"
+                   "Do not use with the game's vanilla Milky Way texture or replacement textures without authored alpha coverage; no-alpha/full-alpha textures can make stars and sparkle highlights disappear.",
+        .labels = {"Off", "On"},
         .is_visible = []() { return current_settings_mode == experimental_group; },
     },
     new renodx::utils::settings::Setting{

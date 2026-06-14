@@ -331,11 +331,15 @@ void main(
     float _257 = float((int)(int(_175 * 1500.0f)));
     float _270 = frac((sin((_256 * 6.666666740784422e-05f) + (_255 * 0.01133333332836628f)) * 10000.0f) * (abs(sin((_256 * 0.008666666224598885f) + (_255 * 0.0006666666595265269f))) + 0.10000000149011612f));
     float _282 = frac((sin((_270 * 17.0f) + (_257 * 6.666666740784422e-05f)) * 10000.0f) * (abs(sin(_270 + (_257 * 0.008666666224598885f))) + 0.10000000149011612f));
-    float _286 = saturate((_248 + -0.699999988079071f) * 3.3333332538604736f) * 1.5f;
+    // RenoDX: >>> [Patch: MilkyWayAlphaOcclusion] [Version: experimental-20260614]
+    // Description: Lets replacement Milky Way textures with authored alpha coverage hide the visible sky shader's procedural stars and texture sparkle boosts. Off preserves the existing addon behavior. When enabled, sampled Milky Way alpha is interpreted as coverage: alpha 0 keeps procedural stars/sparkles visible and alpha 1 fully occludes them behind custom texture content such as authored planets or dense galaxy artwork.
+    float _rndx_milkyWayStarVisibility = 1.0f - (MILKY_WAY_ALPHA_OCCLUSION * saturate(_211.w));
+    float _286 = _rndx_milkyWayStarVisibility * saturate((_248 + -0.699999988079071f) * 3.3333332538604736f) * 1.5f;
     float _290 = (_286 * _211.x) + _211.x;
     float _291 = (_286 * _211.y) + _211.y;
     float _292 = (_286 * _211.z) + _211.z;
-    float _296 = saturate((_282 + -0.9800000190734863f) * 50.00004959106445f) * 9.0f;
+    float _296 = _rndx_milkyWayStarVisibility * saturate((_282 + -0.9800000190734863f) * 50.00004959106445f) * 9.0f;
+    // RenoDX: <<< [Patch: MilkyWayAlphaOcclusion]
     int _303 = WaveReadLaneFirst(_materialIndex);
     float _311 = WaveReadLaneFirst(BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_303 < (uint)170000), _303, 0)) + 0u))]._milkyWayRatio);
     // RenoDX: >>> [Patch: MilkyWayLightIntensity] [Version: 1.10-family]
@@ -344,7 +348,10 @@ void main(
     // RenoDX: <<< [Patch: MilkyWayLightIntensity]
     int _324 = WaveReadLaneFirst(_materialIndex);
     float _rndx_starRatio = WaveReadLaneFirst(BindlessParameters_PostProcessSky[((int)((uint)(select(((uint)_324 < (uint)170000), _324, 0)) + 0u))]._starRatio);
-    float _333 = _rndx_starRatio * ((saturate((_282 + -0.9994999766349792f) * 1999.906494140625f) * 3.0f) + (saturate((_248 + -0.9990000128746033f) * 1000.0128784179688f) * 0.10000000149011612f));
+    // RenoDX: >>> [Patch: MilkyWayAlphaOcclusion] [Version: experimental-20260614]
+    // Description: Applies the same authored Milky Way alpha coverage to the separate procedural star scalar. This keeps the star field from showing through opaque custom Milky Way texture content when the experimental alpha occlusion toggle is enabled.
+    float _333 = _rndx_milkyWayStarVisibility * _rndx_starRatio * ((saturate((_282 + -0.9994999766349792f) * 1999.906494140625f) * 3.0f) + (saturate((_248 + -0.9990000128746033f) * 1000.0128784179688f) * 0.10000000149011612f));
+    // RenoDX: <<< [Patch: MilkyWayAlphaOcclusion]
     float3 _rndx_milkyWayRgb = _rndx_milkyWayRatio * float3(((_290 * _296) + _290), ((_291 * _296) + _291), ((_292 * _296) + _292));
     float _334 = _333 + _rndx_milkyWayRgb.x;
     float _335 = _333 + _rndx_milkyWayRgb.y;
