@@ -1406,10 +1406,10 @@ renodx::utils::settings::Settings settings = {
         .can_reset = true,
         .label = "Material Improvements",
         .section = "World / Materials",
-        .tooltip = "Enables the 1.09-validated material/lighting improvements:\n"
+        .tooltip = "Enables material/lighting improvements:\n"
                    "- Smooth terminator for direct lighting\n"
                    "- Geometric specular anti aliasing\n"
-                   "EON diffuse BRDF and spectral diffraction hooks remain present but disabled until revalidated.\n"
+                   "Currently disabled: EON diffuse BRDF, spectral diffraction.\n"
                    "Disabled until Ray Reconstruction / Ray Regeneration is detected.",
         .labels = {"Off", "On"},
         .tint = wiprendering,
@@ -1498,12 +1498,6 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == experimental_group; },
     },
     new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "WARNING: The following setting is very noisy and is not recommended for general use.\n",
-        .section = "Experimental Raytracing",
-        .is_visible = []() { return current_settings_mode == experimental_group; },
-    },
-    new renodx::utils::settings::Setting{
         .key = "RaytracingQuality",
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -1512,13 +1506,14 @@ renodx::utils::settings::Settings settings = {
         // Keep this UI breadcrumb visible, but force all choices to Off so saved values do not set RT_QUALITY.
         .packed_values = {0u, 0u, 0u},
         .can_reset = true,
-        .label = "Raytracing Improvements (WIP)",
+        .label = "Raytracing Improvements (Temporarily Disabled)",
         .section = "Experimental Raytracing",
         .tooltip = "Toggles RenoDX raytracing noise improvements.\n"
                    "Off = vanilla white noise (TEA+MCG) for all RT sampling.\n"
                    "SPMIS = R2 blue noise + Stochastic Pairwise MIS spatial resampling.\n"
                    "Debug Noise = visualizes the raw noise texture sample as colour output.",
         .labels = {"Off", "SPMIS", "Debug Noise"},
+        .tint = wiprendering,
         .is_enabled = []() { return false; },
         .is_visible = []() { return current_settings_mode == experimental_group; },
     },
@@ -1538,6 +1533,7 @@ renodx::utils::settings::Settings settings = {
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
         .label = "Not detected: controls below require Ray Reconstruction / Ray Regeneration.\n",
         .section = "Aurora",
+        .tint = 0xaa0000,
         .is_visible = []() { return current_settings_mode == experimental_group && !RR_ENABLED; },
     },
     new renodx::utils::settings::Setting{
@@ -1553,6 +1549,7 @@ renodx::utils::settings::Settings settings = {
                    "Off = no aurora. On = aurora enabled.\n"
                    "Disabled until Ray Reconstruction / Ray Regeneration is detected.",
         .labels = {"Off", "On"},
+        .tint = wiprendering,
         .is_enabled = []() { return RR_ENABLED; },
         .is_visible = []() { return current_settings_mode == experimental_group; },
     },
@@ -1564,6 +1561,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Aurora",
         .tooltip = "Controls the overall brightness of the aurora borealis effect.\n"
                    "Disabled until Ray Reconstruction / Ray Regeneration is detected and Aurora Borealis is enabled.",
+        .tint = wiprendering,
         .max = 100.f,
         .is_enabled = []() { return RR_ENABLED && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__AURORA_BOREALIS) != 0u; },
         .is_visible = []() { return current_settings_mode == experimental_group; },
@@ -1577,14 +1575,9 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Percentage chance for the aurora to appear each night.\n"
                    "0 = never appears, 100 = always appears.\n"
                    "Disabled until Ray Reconstruction / Ray Regeneration is detected and Aurora Borealis is enabled.",
+        .tint = wiprendering,
         .max = 100.f,
         .is_enabled = []() { return RR_ENABLED && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__AURORA_BOREALIS) != 0u; },
-        .is_visible = []() { return current_settings_mode == experimental_group; },
-    },
-    new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "Stylized visual effect only: not a realistic lunar phase or eclipse simulation.\n",
-        .section = "Sky / Celestial",
         .is_visible = []() { return current_settings_mode == experimental_group; },
     },
     new renodx::utils::settings::Setting{
@@ -1594,7 +1587,7 @@ renodx::utils::settings::Settings settings = {
         .can_reset = true,
         .label = "Stylized Lunar Phase / Eclipse",
         .section = "Sky / Celestial",
-        .tooltip = "Controls a stylized lunar phase/eclipse effect with a curved eclipsing shadow, violet earthshine, and warm terminator glow.\n"
+        .tooltip = "Controls a stylized lunar phase/eclipse effect with eclipsing shadow, shadow-side fill, and red terminator glow.\n"
                    "This is not a realistic lunar phase or eclipse simulation.\n"
                    "0 = vanilla/no stylized eclipse. 100 = recommended stylized crescent. 200 = full stylized eclipse.",
         .min = 0.f,
