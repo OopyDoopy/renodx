@@ -71,6 +71,7 @@ struct Setting {
   std::optional<uint32_t> tint;  // HEX notation
   float min = 0.f;
   float max = 100.f;
+  std::optional<float> slider_max = std::nullopt;
   std::string format = "%.0f";
 
   std::function<bool()> is_enabled = [] {
@@ -139,6 +140,11 @@ struct Setting {
     this->value = value;
     this->value_as_int = static_cast<int>(value);
     return this;
+  }
+
+  [[nodiscard]]
+  float GetSliderMax() const {
+    return this->slider_max.value_or(this->GetMax());
   }
 
   Setting* Write() {
@@ -554,7 +560,7 @@ static void OnRegisterOverlay(reshade::api::effect_runtime* runtime) {
               setting->label.c_str(),
               &setting->value,
               setting->min,
-              setting->max,
+              setting->GetSliderMax(),
               setting->format.c_str(),
               slider_flags);
           break;
