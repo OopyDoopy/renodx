@@ -14,9 +14,51 @@ RWTexture3D<float4> HDR_Output : register(u1, space0);
 SamplerState LUT_Sampler : register(s0, space0);
 
 static uint3 gl_GlobalInvocationID;
+groupshared float3 vanilla_curve_parameters;
+
 struct SPIRV_Cross_Input {
   uint3 gl_GlobalInvocationID : SV_DispatchThreadID;
+  uint gl_LocalInvocationIndex : SV_GroupIndex;
 };
+
+void InitializeVanillaCurveParameters(uint group_index) {
+  if (RENODX_TONE_MAP_TYPE != 1.f || CUSTOM_TONE_MAP_CURVE != 0) return;
+
+  if (group_index == 0u) {
+    const float vanilla_mid_gray = 0.18f;
+    const float vanilla_search_radius_stops = 4.f;
+    const float vanilla_slope_half_width_stops = 0.1f;
+    const float vanilla_contrast_half_width_stops = 0.25f;
+    const float vanilla_log_search_min = log2(vanilla_mid_gray) - vanilla_search_radius_stops;
+    const float vanilla_log_search_max = log2(vanilla_mid_gray) + vanilla_search_radius_stops;
+
+    lutbuilder::TonemapLUTInflection sdr_lut_curve = lutbuilder::FindTonemapLUTInflection(
+        SDR_LUT,
+        LUT_Sampler,
+        vanilla_mid_gray,
+        _24_m0[20u].y,
+        _24_m0[20u].z,
+        vanilla_search_radius_stops,
+        vanilla_slope_half_width_stops,
+        6u);
+    lutbuilder::TonemapLUTInflection sdr_lut_contrast = lutbuilder::EvaluateTonemapLUTInflectionPoint(
+        SDR_LUT,
+        LUT_Sampler,
+        log2(sdr_lut_curve.midgray_in),
+        vanilla_log_search_min,
+        vanilla_log_search_max,
+        vanilla_contrast_half_width_stops,
+        _24_m0[20u].y,
+        _24_m0[20u].z);
+
+    vanilla_curve_parameters = float3(
+        sdr_lut_curve.midgray_in,
+        sdr_lut_curve.midgray_out,
+        sdr_lut_contrast.relative_slope);
+  }
+
+  GroupMemoryBarrierWithGroupSync();
+}
 
 float3 ColorGradingLUTs(float3 input_color) {
   float3 working_color = input_color;
@@ -143,16 +185,11 @@ void comp_main() {
     float mid_gray_out = RENODX_TONE_MAP_MID_GRAY_OUT;
 
     if (CUSTOM_TONE_MAP_CURVE == 0) {
-      lutbuilder::TonemapLUTInflection sdr_lut_curve = lutbuilder::FindTonemapLUTInflection(
-          SDR_LUT,
-          LUT_Sampler,
-          0.18f,
-          _24_m0[20u].y,
-          _24_m0[20u].z,
-          0.1f, 100u);
-      mid_gray_in = sdr_lut_curve.midgray_in;
-      mid_gray_out = sdr_lut_curve.midgray_out;
-      tone_map_contrast = sdr_lut_curve.output_slope * RENODX_TONE_MAP_CONTRAST;
+      // The inflection is the lower-spline pivot: its input is the hypothetical
+      // pivot before the LUT and its output is that same pivot after the LUT.
+      mid_gray_in = vanilla_curve_parameters.x;
+      mid_gray_out = vanilla_curve_parameters.y;
+      tone_map_contrast = vanilla_curve_parameters.z * RENODX_TONE_MAP_CONTRAST;
     }
 
     float3 display_peak_scale = RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS;
@@ -259,5 +296,6 @@ void comp_main() {
 [numthreads(8, 8, 8)]
 void main(SPIRV_Cross_Input stage_input) {
   gl_GlobalInvocationID = stage_input.gl_GlobalInvocationID;
+  InitializeVanillaCurveParameters(stage_input.gl_LocalInvocationIndex);
   comp_main();
 }
