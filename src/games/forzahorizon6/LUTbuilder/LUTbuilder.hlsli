@@ -68,8 +68,8 @@ namespace lutbuilder {
 struct TonemapLUTInflection {
   float midgray_in;
   float midgray_out;
-  float output_slope;    // linear BT.709 dy / dx at the strongest part of the LUT curve
-  float relative_slope;  // log/relative slope, suitable for anchored pow contrast
+  float output_slope;    // linear BT.709 dy / dx at the selected point
+  float relative_slope;  // d(log y) / d(log x), suitable for anchored pow contrast
 };
 
 float3 SamplePQTonemapLUTLinearBT709(
@@ -138,7 +138,7 @@ TonemapLUTInflection EvaluateTonemapLUTInflectionPoint(
 }
 
 void SelectBetterTonemapLUTInflection(inout TonemapLUTInflection best, TonemapLUTInflection candidate) {
-  if (candidate.output_slope > best.output_slope) {
+  if (candidate.relative_slope > best.relative_slope) {
     best = candidate;
   }
 }
@@ -186,7 +186,7 @@ TonemapLUTInflection FindTonemapLUTInflection(
         lut_size,
         pq_peak);
 
-    if (candidate.output_slope > best.output_slope) {
+    if (candidate.relative_slope > best.relative_slope) {
       best = candidate;
       best_log_input = sample_log_input;
     }
@@ -222,10 +222,10 @@ TonemapLUTInflection FindTonemapLUTInflection(
     SelectBetterTonemapLUTInflection(best, center);
     SelectBetterTonemapLUTInflection(best, right);
 
-    if (center.output_slope >= left.output_slope && center.output_slope >= right.output_slope) {
+    if (center.relative_slope >= left.relative_slope && center.relative_slope >= right.relative_slope) {
       interval_min = left_log_input;
       interval_max = right_log_input;
-    } else if (left.output_slope > right.output_slope) {
+    } else if (left.relative_slope > right.relative_slope) {
       interval_max = center_log_input;
     } else {
       interval_min = center_log_input;
