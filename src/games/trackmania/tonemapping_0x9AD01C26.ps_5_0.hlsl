@@ -1,4 +1,6 @@
-#include "./shared.h"
+#include "./common.hlsl"
+#include "./uncharted2extended.hlsli"
+#include "./psychov_custom.hlsl"
 
 // ---- Created with 3Dmigoto v1.4.1 on Fri Apr 11 13:17:40 2025
 
@@ -128,13 +130,12 @@ void main(
 
   r0.xy = v0.xy * GbxP_RasterPos_SxyTwz_TexCoord.xy + GbxP_RasterPos_SxyTwz_TexCoord.wz;
   r1.xyzw = TMapCopy.Sample(SGbxClamp_Point_s, r0.xy).xyzw;
+  r1.w = saturate(r1.w);
   r1.xyzw = min(float4(50000,50000,50000,50000), r1.xyzw);
   r0.z = cmp(LoadFx_CB.Base.TcAutoScale.x >= 0);
   if (r0.z != 0) {
     r0.z = TMapAvgLumi_KeyValue.Sample(SGbxClamp_Point_s, LoadFx_CB.Base.TcAutoScale.xy).z;
-    // r1.xyz = r1.xyz * r0.zzz;
-    // r1.xyz = r1.xyz * (r0.zzz * CUSTOM_AUTO_EXPOSURE);
-    r1.xyz = r1.xyz * lerp(1.f, r0.zzz, CUSTOM_AUTO_EXPOSURE);
+    r1.xyz = r1.xyz * r0.zzz;
   }
 
   float3 untonemapped = r1.rgb;
@@ -155,27 +156,70 @@ void main(
   r2.y = r0.x * r0.y + LoadFx_CB.DE_DF_EoverF_GrayScale.w;
   r0.x = LoadFx_CB.A_B_BC_OutScale.w;
   r0.y = LoadFx_CB.DE_DF_EoverF_GrayScale.w;
-  r0.xy = r0.zz ? r2.xy : r0.xy;
-  r2.xyz = LoadFx_CB.A_B_BC_OutScale.xxx * r1.xyz + LoadFx_CB.A_B_BC_OutScale.zzz;
-  r2.xyz = r1.xyz * r2.xyz + LoadFx_CB.DE_DF_EoverF_GrayScale.xxx;
-  r3.xyz = LoadFx_CB.A_B_BC_OutScale.xxx * r1.xyz + LoadFx_CB.A_B_BC_OutScale.yyy;
-  r1.xyz = r1.xyz * r3.xyz + LoadFx_CB.DE_DF_EoverF_GrayScale.yyy;
-  r1.xyz = r2.xyz / r1.xyz;
-  r1.xyz = -LoadFx_CB.DE_DF_EoverF_GrayScale.zzz + r1.xyz;
-  r0.y = dot(r1.xyz, r0.yyy);
-  o0.xyz = r1.xyz * r0.xxx + r0.yyy;
-  o0.w = r1.w;
-
-  float3 tonemapped_bt709 = o0.rgb;
-
-  float3 outputColor;
-  if (RENODX_TONE_MAP_TYPE == 0.f) {
-    outputColor = tonemapped_bt709;
-  } 
-  else {
-    outputColor = renodx::draw::ToneMapPass(untonemapped, tonemapped_bt709);
+  if (r0.z != 0) {
+    r0.xy = r2.xy;
   }
-  o0.rgb = renodx::draw::RenderIntermediatePass(outputColor);
+  o0.w = saturate(r1.w);
+
+  float3 outputColor = untonemapped;
+  if (RENODX_TONE_MAP_TYPE == 0.f) {
+    r2.xyz = LoadFx_CB.A_B_BC_OutScale.xxx * r1.xyz + LoadFx_CB.A_B_BC_OutScale.zzz;
+    r2.xyz = r1.xyz * r2.xyz + LoadFx_CB.DE_DF_EoverF_GrayScale.xxx;
+    r3.xyz = LoadFx_CB.A_B_BC_OutScale.xxx * r1.xyz + LoadFx_CB.A_B_BC_OutScale.yyy;
+    r1.xyz = r1.xyz * r3.xyz + LoadFx_CB.DE_DF_EoverF_GrayScale.yyy;
+    r1.xyz = r2.xyz / r1.xyz;
+    r1.xyz = -LoadFx_CB.DE_DF_EoverF_GrayScale.zzz + r1.xyz;
+    r0.y = dot(r1.xyz, r0.yyy);
+    outputColor = r1.xyz * r0.xxx + r0.yyy;
+
+    outputColor = saturate(outputColor); // Added to simulate resource clamp
+  } else {
+    float A = LoadFx_CB.A_B_BC_OutScale.x;
+    float B = LoadFx_CB.A_B_BC_OutScale.y;
+    float C = LoadFx_CB.A_B_BC_OutScale.z / B;
+    float D = 1.f;
+    float E = LoadFx_CB.DE_DF_EoverF_GrayScale.x;
+    float F = LoadFx_CB.DE_DF_EoverF_GrayScale.y;
+    renodx::tonemap::psycho::config::Config psycho_config =
+      renodx::tonemap::psycho::config::BuildConfig();
+
+    // IntermediatePass converts this value back to linear, scales by
+    // diffuse / graphics, and FinalPass scales by graphics.
+    float3 normalized_peak = GammaCorrectionLMS(
+      (RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS).xxx,
+      true);
+
+    // For neutral white, the post-tone-map operation below has a gain of
+    // r0.x + 3 * r0.y. Compensate the tone-map target so its result reaches
+    // normalized_peak after that operation rather than overshooting it.
+    float post_tonemap_gain = max(r0.x + 3.f * r0.y, 1e-6f);
+    float3 tonemap_peak = normalized_peak / post_tonemap_gain;
+    psycho_config.peak_value = tonemap_peak;
+
+    psycho_config.uc2_a = A;
+    psycho_config.uc2_b = B;
+    psycho_config.uc2_c = C;
+    psycho_config.uc2_d = D;
+    psycho_config.uc2_e = E;
+    psycho_config.uc2_f = F;
+    float uc2_inflection = Uncharted2::FindSecondDerivativeRoot(A, B, C, D, E, F);
+    float uc2_pivot = Uncharted2::FindThirdDerivativeRootSM5(A, B, C, D, E, F);
+    psycho_config.current_adaptive_state_bt709 = uc2_inflection.xxx;
+    psycho_config.current_background_state_bt709 = uc2_inflection.xxx;
+    psycho_config.uc2_pivot = uc2_pivot;
+    psycho_config.uc2_white_precompute = 1.f;
+    float3 extended = renodx::tonemap::psycho::psychotm_customized(
+      untonemapped,
+      psycho_config);
+
+    //extended = renodx::tonemap::neutwo::PerChannel(untonemapped, tonemap_peak);
+
+    // Preserve the game's spatial output scale and grayscale/vignette offset.
+    float3 tonemapped_bt709 = extended * r0.xxx + dot(extended, r0.yyy);
+    outputColor = tonemapped_bt709;
+  }
+  // o0.rgb = renodx::draw::RenderIntermediatePass(outputColor);
+  o0.rgb = IntermediatePass(outputColor);
   //o0.rgb = renodx::draw::RenderIntermediatePass(untonemapped);
   return;
 }
