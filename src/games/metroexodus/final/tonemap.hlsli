@@ -271,6 +271,11 @@ float3 ImprovedLUTSample(float3 color, float mid_gray = 0.18f) {
   float3 lut_corrected = VanillaLUTSample(color);
 
   if (CUSTOM_LUT_SCALING != 0.f && mid_gray > black_floor) {
+    float3 lutWhite = saturate(VanillaLUTSample(1.f));
+    float lutWhiteY = renodx::color::y::from::BT709(renodx::color::srgb::DecodeSafe(lutWhite));
+    if (lutWhiteY < mid_gray) {
+      return lut_corrected;
+    }
 
     // float3 black_floor_corrected = ProcessGammaCorrection(black_floor);
     // float3 mid_gray_corrected = ProcessGammaCorrection(mid_gray);
@@ -497,16 +502,16 @@ float4 RenoDX(float3 input_color, float2 uv, float ui_blend2) {
   tonemapped_linear = renodx::color::srgb::DecodeSafe(nvg_dual_applied);
 #endif
 
-  float gamut_compression_scale =
+    float gamut_compression_scale =
       renodx::color::gamut::ComputeGamutCompressionScaleBT709AdaptiveD65(
-          tonemapped_linear,
-          mid_gray_adjusted_lms,
-          1.f);
-  float3 tonemapped_linear_gamut_compressed =
+        tonemapped_linear,
+        mid_gray_adjusted_lms,
+        1.f);
+    float3 tonemapped_linear_gamut_compressed =
       renodx::color::gamut::GamutCompressBT709AdaptiveD65(
-          tonemapped_linear,
-          mid_gray_adjusted_lms,
-          gamut_compression_scale);
+        tonemapped_linear,
+        mid_gray_adjusted_lms,
+        gamut_compression_scale);
 
   float scale = ComputeReinhardSmoothClampScale(tonemapped_linear_gamut_compressed, mid_gray_adjusted, 1.f);
   float3 tonemapped_linear_scaled = tonemapped_linear_gamut_compressed * scale;
