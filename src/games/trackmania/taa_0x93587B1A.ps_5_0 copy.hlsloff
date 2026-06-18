@@ -1,0 +1,1330 @@
+// ---- Created with 3Dmigoto v1.4.1 on Wed Jun 17 01:47:23 2026
+
+cbuffer SceneP : register(b13)
+{
+  float4 GbxP_Fog_LinearRGB : packoffset(c0);
+  float4x3 GbxP_WorldToCamera : packoffset(c1);
+  float4 GbxP_EyeInWorld : packoffset(c4);
+  float4 GbxP_CameraPrRangeW : packoffset(c5);
+  float4 GbxP_RasterPos_SxyTwz_TexCoord : packoffset(c6);
+  float4 GbxP_RasterPos_SxyTzw_HPos : packoffset(c7);
+  float4 GbxP_iPixelFull_SxyTzw_Render01 : packoffset(c8);
+  float4 GbxP_RasterFaceSign_Alpha01Ref : packoffset(c9);
+  float4 GbxP_Fog_ZNearFar : packoffset(c10);
+  float4 GbxP_DisplaysActivation[2] : packoffset(c11);
+  float4x4 GbxP_Pssm_WorldPw01Shadow[7] : packoffset(c13);
+  float4 GbxP_Pssm_SplitZcMax4s[2] : packoffset(c41);
+  int4 GbxP_Pssm_cShadow : packoffset(c43);
+  float4 GbxP_Pssm_SplitTcMins[8] : packoffset(c44);
+  float4 GbxP_Pssm_SplitTcMaxs[8] : packoffset(c52);
+  float4 GbxP_LightAmbientLinear : packoffset(c60);
+  float4 GbxP_LightDirRgbLinear0 : packoffset(c61);
+  float4 GbxP_LightDirDirInWorld0 : packoffset(c62);
+  float4 GbxP_LightGenPHdrScale_SelfIllumScale_SpecMaxExp_SpecScale : packoffset(c63);
+  float4 GbxP_LightGenP_HBasisHdrScales3_Bumpiness : packoffset(c64);
+  float4 GbxP_LightGenP_LocalDirectScale01_00 : packoffset(c65);
+  float4 GbxP_LocalSpecularScale_ScaleExp : packoffset(c66);
+  float4 GbxP_TmFilmCurve_A_B_BC_OutScale : packoffset(c67);
+  float4 GbxP_TmFilmCurve_DE_DF_EoverF : packoffset(c68);
+  float4 GbxP_TmAutoExposureUV : packoffset(c69);
+  float4 GbxP_T3HdrScales_Block_Particle_Player : packoffset(c70);
+  float4 GbxP_CloudsX2minRGB_Half : packoffset(c71);
+  float4 GbxP_CloudsX2maxRGB_FREE : packoffset(c72);
+  float4 GbxP_LmComputeScaleNoAcc : packoffset(c73);
+  float4x3 GbxP_Projector_EyePz01 : packoffset(c74);
+  float4 GbxP_Projector_PosInEye : packoffset(c77);
+  float4 GbxP_Projector_Rgb : packoffset(c78);
+  float4 GbxP_TexelSxyTwzUV_LightPosIRad : packoffset(c79);
+  float4 GbxP_TexelSizeUVW_Half_LightList : packoffset(c80);
+  float4 GbxP_DayTime : packoffset(c81);
+  int4 GbxP__cTileX_cMaxIdxPerTile : packoffset(c82);
+  float4 GbxP_WorldXZ_ST_MapTc : packoffset(c83);
+  float4 GbxP_FrustumCluster_cBitTile_L2zST : packoffset(c84);
+  float4x3 GbxP_ShadowLDir0_Texture0To1 : packoffset(c85);
+  float4 GbxP_CubeFake_Scale0_Scale1_Id0_Id1 : packoffset(c88);
+  float4 GbxP_DayTime_Id0_Id1_Weight1_IllumScale : packoffset(c89);
+  float4 GbxP_NightOnlySI_GlobalScale_Free3 : packoffset(c90);
+  float4 GbxP_LM1_HBasisHdrScales4 : packoffset(c91);
+  float4 GbxP_MSAA_SamplePositions[4] : packoffset(c92);
+  float4 GbxP_GridProbe_WorldPos_ST_I3VMap_SxTx_SyTy : packoffset(c96);
+  float4 GbxP_GridProbe_WorldPos_ST_I3VMap_SzTz_HdrScale_SH1y : packoffset(c97);
+  float4 GbxP_GridProbe_VirtualScaleTc : packoffset(c98);
+  float4x3 GbxP_WorldTo01ShadowLDir0 : packoffset(c99);
+
+  struct
+  {
+    float TcFullRange_Scale_TcClipSlice0;
+    float TcClipRadiusSubLen_Scale_Intens;
+    float2 TcClipMap0_Eye;
+    uint cSlice;
+    float3 Pad0;
+    float4 Slices_TcClip0Radius;
+  } GbxP_ClipMapShadowLDir0 : packoffset(c102);
+
+  float4 GbxP_VoxelKillMesh_WorldTransVoxelMin : packoffset(c105);
+  int4 GbxP_DebugValue : packoffset(c106);
+  int GbxP_ForwardAO : packoffset(c107);
+  int GbxP_EyeUnderWater : packoffset(c107.y);
+  float GbxP_WaterTopLDir0_ToAddFromMap : packoffset(c107.z);
+  float GbxP_WaterFogMaxDepthInverse : packoffset(c107.w);
+  float GbxP_VoxelKillMesh_WorldScaleVoxelMin : packoffset(c108);
+  float GbxP_PbrSpecAttExpAtR0 : packoffset(c108.y);
+  float GbxP_LM1_LDirectScale : packoffset(c108.z);
+  bool GbxP_LM1_LDirectTcInvertY : packoffset(c108.w);
+  bool GbxP_OutputIsLinear : packoffset(c109);
+  bool GbxP_ToneMapInShader : packoffset(c109.y);
+  int GbxP_LmBumpTxTyTz : packoffset(c109.z);
+  int GbxP_LmLocals : packoffset(c109.w);
+  bool GbxP_LmHBasis_IsFloat : packoffset(c110);
+  int GbxP_ShadingModel : packoffset(c110.y);
+  int GbxP_DeferSpecularAmbient : packoffset(c110.z);
+  int GbxP_DynaAmbient : packoffset(c110.w);
+  int GbxP_VehicleEnvLayer : packoffset(c111);
+  int GbxP_Fog_SlicesCount : packoffset(c111.y);
+  int GbxP_Deferred_IsEnabled : packoffset(c111.z);
+  float GbxP_LmLightId_FramePos : packoffset(c111.w);
+  int GbxP_MsaaSampleCount : packoffset(c112);
+}
+
+cbuffer ShaderP : register(b0)
+{
+
+  struct
+  {
+    float4x4 ReprojectionMatrix;
+    uint4 IsolationVars;
+    float2 FullResSize;
+    float2 FullResSizeInv;
+    float2 LowResSize;
+    float2 LowResSizeInv;
+    float2 SubPixelJitter;
+    float RejectionAvoidanceMax;
+    float RejectionAvoidanceMaxInv;
+    float3 NoiseOffsetScale;
+    float MinLiveColorNear;
+    float MinLiveColorFar;
+    float MinLiveColorNearDistance;
+    float MinLiveColorFarDistance;
+    float MinLiveColorBlendDistanceInv;
+    float4 MaxViewDepthParams;
+    uint HdrEnabled;
+    float HdrNormalizeSrgb;
+    float HdrDenormalizeSrgb;
+    uint NoMotionVector;
+    uint DisableOnInternalEdges;
+  } g_TemporalAA_Constants : packoffset(c0);
+
+}
+
+SamplerState SGbxClamp_Point_s : register(s0);
+SamplerState SGbxClamp_Bilinear_s : register(s1);
+Texture2D<float4> TMapTemporalAA_Color : register(t0);
+Texture2D<float4> TMapTemporalAA_Motion : register(t1);
+Texture2D<float4> TMapTemporalAA_Depth : register(t2);
+Texture2D<float4> TMapTemporalAA_ResponsiveAA : register(t3);
+Texture2D<float4> TMapTemporalAA_ColorAccumulation : register(t4);
+Texture2D<float4> TMapTemporalAA_ColorAccumulationAlpha : register(t5);
+
+
+// 3Dmigoto declarations
+#define cmp -
+
+
+void main(
+  float4 v0 : SV_Position0,
+  float2 v1 : TEXCOORD0,
+  out float4 o0 : SV_Target0,
+  out float4 o1 : SV_Target1,
+  out float o2 : SV_Target2)
+{
+  float4 r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13,r14,r15,r16,r17;
+  uint4 bitmask, uiDest;
+  float4 fDest;
+
+  r0.xy = g_TemporalAA_Constants.FullResSizeInv.xy * v0.xy;
+  r0.xy = g_TemporalAA_Constants.LowResSize.xy * r0.xy;
+  r1.xy = (int2)r0.xy;
+  r2.xyzw = frac(r0.xxxy);
+  r3.xyzw = float4(-0.5,0.5,1.5,0.5) + g_TemporalAA_Constants.SubPixelJitter.xxxy;
+  r0.zw = cmp(r2.wz < r3.wy);
+  r0.xy = trunc(r0.xy);
+  r4.xy = g_TemporalAA_Constants.FullResSizeInv.xy * r0.xy;
+  r5.xyz = TMapTemporalAA_Depth.Gather(SGbxClamp_Point_s, r4.xy).xyw;
+  r5.w = GbxP_Fog_ZNearFar.w + -GbxP_Fog_ZNearFar.z;
+  r5.xyz = r5.www * r5.zxy + GbxP_Fog_ZNearFar.zzz;
+  r6.zw = cmp(r5.xz < r5.zx);
+  r6.xy = r6.zw ? r5.xx : r5.zz;
+  r7.x = cmp(r5.y < r6.x);
+  r8.x = r5.y;
+  r8.yz = asfloat(uint2(0xffffffff,0));
+  r7.xyz = r7.xxx ? r8.xyz : r6.xzz;
+  r6.x = cmp(r6.y < r5.y);
+  r6.xyw = r6.xxx ? r8.xyz : r6.yww;
+  r4.zw = r0.yx * g_TemporalAA_Constants.FullResSizeInv.yx + g_TemporalAA_Constants.FullResSizeInv.yx;
+  r0.xy = TMapTemporalAA_Depth.Gather(SGbxClamp_Point_s, r4.xz).xy;
+  r9.xy = r5.ww * r0.xy + GbxP_Fog_ZNearFar.zz;
+  r0.x = cmp(r9.x < r7.x);
+  r9.zw = asfloat(uint2(0xffffffff,1));
+  r7.xyz = r0.xxx ? r9.xzw : r7.xyz;
+  r0.x = cmp(r6.x < r9.x);
+  r6.xyw = r0.xxx ? r9.xzw : r6.xyw;
+  r0.x = cmp(r9.y < r7.x);
+  r10.xz = r9.yw;
+  r10.y = 0;
+  r7.xyz = r0.xxx ? r10.xyz : r7.xyz;
+  r0.x = cmp(r6.x < r9.y);
+  r6.xyw = r0.xxx ? r10.xyz : r6.xyw;
+  r0.xy = TMapTemporalAA_Depth.Gather(SGbxClamp_Point_s, r4.wz).yz;
+  r11.xy = r5.ww * r0.yx + GbxP_Fog_ZNearFar.zz;
+  r0.x = cmp(r11.y < r7.x);
+  r11.zw = asfloat(uint2(1,0));
+  r7.xyz = r0.xxx ? r11.yzz : r7.xyz;
+  r0.x = cmp(r6.x < r11.y);
+  r6.xyw = r0.xxx ? r11.yzz : r6.xyw;
+  r0.x = cmp(r11.x < r7.x);
+  r7.xyz = r0.xxx ? r11.xzw : r7.xyz;
+  r0.x = cmp(r6.x < r11.x);
+  r6.xyw = r0.xxx ? r11.xzw : r6.xyw;
+  r0.xy = TMapTemporalAA_Depth.Gather(SGbxClamp_Point_s, r4.wy).zw;
+  r4.xy = r5.ww * r0.yx + GbxP_Fog_ZNearFar.zz;
+  r0.x = cmp(r4.y < r7.x);
+  r4.zw = asfloat(uint2(1,0xffffffff));
+  r7.xyz = r0.xxx ? r4.yzw : r7.xyz;
+  r0.x = cmp(r6.x < r4.y);
+  r6.xyw = r0.xxx ? r4.yzw : r6.xyw;
+  r0.x = cmp(r4.x < r7.x);
+  r12.xz = r4.xw;
+  r12.y = 0;
+  r7.xyz = r0.xxx ? r12.xyz : r7.xyz;
+  r0.x = cmp(r6.x < r12.x);
+  r6.xyw = r0.xxx ? r12.xyz : r6.xyw;
+  r0.x = -g_TemporalAA_Constants.MinLiveColorNearDistance + r7.x;
+  r0.x = saturate(g_TemporalAA_Constants.MinLiveColorBlendDistanceInv * r0.x);
+  r0.y = g_TemporalAA_Constants.MinLiveColorFar + -g_TemporalAA_Constants.MinLiveColorNear;
+  r0.y = r0.x * r0.y + g_TemporalAA_Constants.MinLiveColorNear;
+  r4.x = r6.x + -r7.x;
+  r4.x = 10 * r4.x;
+  r5.w = max(0.00100000005, r6.x);
+  r4.x = saturate(r4.x / r5.w);
+  r5.w = -g_TemporalAA_Constants.MaxViewDepthParams.x / g_TemporalAA_Constants.MaxViewDepthParams.z;
+  r7.x = cmp(r7.x >= r5.w);
+  if (r7.x != 0) {
+    r7.xw = float2(0,0);
+    r8.w = 0;
+  } else {
+    r13.xyzw = cmp((int4)r0.wzzw == int4(-1,-1,0,0));
+    r14.xyzw = r13.yzzy ? r13.xxww : 0;
+    r15.yz = r6.zz ? r14.xx : 0;
+    r15.x = r15.z ? r5.x : r5.z;
+    r5.x = cmp(r5.y < r15.x);
+    r5.x = r5.x ? r13.x : 0;
+    r5.xyz = r5.xxx ? r8.xyz : r15.xyz;
+    r6.z = cmp(r9.x < r5.x);
+    r6.z = r6.z ? r14.y : 0;
+    r5.xyz = r6.zzz ? r9.xzw : r5.xyz;
+    r6.z = cmp(r9.y < r5.x);
+    r6.z = r6.z ? r13.z : 0;
+    r5.xyz = r6.zzz ? r10.xyz : r5.xyz;
+    r6.z = cmp(r11.y < r5.x);
+    r6.z = r6.z ? r14.z : 0;
+    r5.xyz = r6.zzz ? r11.yzz : r5.xyz;
+    r6.z = cmp(r11.x < r5.x);
+    r6.z = r6.z ? r13.w : 0;
+    r5.xyz = r6.zzz ? r11.xzw : r5.xyz;
+    r6.z = cmp(r4.y < r5.x);
+    r6.z = r6.z ? r14.w : 0;
+    r4.yzw = r6.zzz ? r4.yzw : r5.xyz;
+    r4.y = cmp(r12.x < r4.y);
+    r4.y = r4.y ? r13.y : 0;
+    r4.yz = r4.yy ? asfloat(uint2(0,0xffffffff)) : r4.zw;
+    r4.w = cmp(r6.x >= r5.w);
+    r5.xy = (int2)r1.xy + asint(r7.yz);
+    r5.xy = max(int2(0,0), (int2)r5.xy);
+    r5.zw = (int2)g_TemporalAA_Constants.LowResSize.xy;
+    r5.zw = (int2)r5.zw + int2(-1,-1);
+    r9.xy = min((int2)r5.xy, (int2)r5.zw);
+    r9.zw = float2(0,0);
+    r5.xy = TMapTemporalAA_Motion.Load(r9.xyz).xy;
+    if (r4.w != 0) {
+      r6.xz = r5.xy;
+    } else {
+      r6.yw = (int2)r1.xy + asint(r6.yw);
+      r6.yw = max(int2(0,0), (int2)r6.yw);
+      r9.xy = min((int2)r6.yw, (int2)r5.zw);
+      r9.zw = float2(0,0);
+      r6.xz = TMapTemporalAA_Motion.Load(r9.xyz).xy;
+    }
+    r6.xy = r6.xz + -r5.xy;
+    r6.xy = g_TemporalAA_Constants.FullResSize.xy * r6.xy;
+    r4.w = dot(r6.xy, r6.xy);
+    r8.w = cmp(4 < r4.w);
+    r4.yz = (int2)r1.xy + asint(r4.yz);
+    r4.yz = max(int2(0,0), (int2)r4.yz);
+    r6.xy = min((int2)r4.yz, (int2)r5.zw);
+    r6.zw = float2(0,0);
+    r4.yz = TMapTemporalAA_Motion.Load(r6.xyz).xy;
+    r4.yz = r8.ww ? r4.yz : r5.xy;
+    r7.xw = g_TemporalAA_Constants.NoMotionVector ? float2(0,0) : r4.yz;
+  }
+  r4.yz = g_TemporalAA_Constants.FullResSize.xy * r7.xw;
+  r4.y = dot(r4.yz, r4.yz);
+  r4.y = sqrt(r4.y);
+  if (g_TemporalAA_Constants.IsolationVars.x != 0) {
+    r4.zw = v0.xy * g_TemporalAA_Constants.FullResSizeInv.xy + r7.xw;
+    r5.xy = r4.zw * g_TemporalAA_Constants.FullResSize.xy + float2(-0.5,-0.5);
+    r5.xy = floor(r5.xy);
+    r6.xyzw = float4(0.5,0.5,-0.5,-0.5) + r5.xyxy;
+    r4.zw = r4.zw * g_TemporalAA_Constants.FullResSize.xy + -r6.xy;
+    r7.xyzw = r4.zwzw * r4.zwzw;
+    r9.xyzw = r7.zwzw * r4.zwzw;
+    r10.xyzw = float4(6,6,15,15) * r7.zwzw;
+    r5.zw = r9.zw * float2(-3,-3) + r10.xy;
+    r5.zw = -r4.zw * float2(3,3) + r5.zw;
+    r5.zw = float2(0.166666672,0.166666672) * r5.zw;
+    r8.xy = r9.zw * float2(9,9) + -r10.zw;
+    r8.xy = float2(6,6) + r8.xy;
+    r7.xyzw = float4(12,12,3,3) * r7.xyzw;
+    r7.xy = r9.xy * float2(-9,-9) + r7.xy;
+    r4.zw = r4.zw * float2(3,3) + r7.xy;
+    r4.zw = float2(0.166666672,0.166666672) * r4.zw;
+    r7.xy = r9.zw * float2(3,3) + -r7.zw;
+    r7.xy = float2(0.166666672,0.166666672) * r7.xy;
+    r7.zw = r8.xy * float2(0.166666672,0.166666672) + r4.zw;
+    r4.zw = r4.zw / r7.zw;
+    r5.xy = float2(2.5,2.5) + r5.xy;
+    r4.zw = r6.xy + r4.zw;
+    r6.zw = r6.zw / g_TemporalAA_Constants.FullResSize.xy;
+    r9.xy = r5.xy / g_TemporalAA_Constants.FullResSize.xy;
+    r6.xy = r4.zw / g_TemporalAA_Constants.FullResSize.xy;
+    r8.xyz = TMapTemporalAA_ColorAccumulation.SampleLevel(SGbxClamp_Bilinear_s, r6.zw, 0).xyz;
+    r8.xyz = r8.xyz * r5.zzz;
+    r10.xyz = TMapTemporalAA_ColorAccumulation.SampleLevel(SGbxClamp_Bilinear_s, r6.xw, 0).xyz;
+    r10.xyz = r10.xyz * r7.zzz;
+    r10.xyz = r10.xyz * r5.www;
+    r8.xyz = r8.xyz * r5.www + r10.xyz;
+    r9.zw = r6.wy;
+    r10.xyz = TMapTemporalAA_ColorAccumulation.SampleLevel(SGbxClamp_Bilinear_s, r9.xz, 0).xyz;
+    r10.xyz = r10.xyz * r7.xxx;
+    r8.xyz = r10.xyz * r5.www + r8.xyz;
+    r10.xyz = TMapTemporalAA_ColorAccumulation.SampleLevel(SGbxClamp_Bilinear_s, r6.zy, 0).xyz;
+    r10.xyz = r10.xyz * r5.zzz;
+    r8.xyz = r10.xyz * r7.www + r8.xyz;
+    r10.xyz = TMapTemporalAA_ColorAccumulation.SampleLevel(SGbxClamp_Bilinear_s, r6.xy, 0).xyz;
+    r10.xyz = r10.xyz * r7.zzz;
+    r8.xyz = r10.xyz * r7.www + r8.xyz;
+    r10.xyz = TMapTemporalAA_ColorAccumulation.SampleLevel(SGbxClamp_Bilinear_s, r9.xw, 0).xyz;
+    r10.xyz = r10.xyz * r7.xxx;
+    r8.xyz = r10.xyz * r7.www + r8.xyz;
+    r10.xz = r6.zx;
+    r10.y = r9.y;
+    r11.xyz = TMapTemporalAA_ColorAccumulation.SampleLevel(SGbxClamp_Bilinear_s, r10.xy, 0).xyz;
+    r11.xyz = r11.xyz * r5.zzz;
+    r8.xyz = r11.xyz * r7.yyy + r8.xyz;
+    r11.xyz = TMapTemporalAA_ColorAccumulation.SampleLevel(SGbxClamp_Bilinear_s, r10.zy, 0).xyz;
+    r11.xyz = r11.xyz * r7.zzz;
+    r8.xyz = r11.xyz * r7.yyy + r8.xyz;
+    r11.xyz = TMapTemporalAA_ColorAccumulation.SampleLevel(SGbxClamp_Bilinear_s, r9.xy, 0).xyz;
+    r11.xyz = r11.xyz * r7.xxx;
+    r8.xyz = r11.xyz * r7.yyy + r8.xyz;
+    r4.z = TMapTemporalAA_ColorAccumulationAlpha.SampleLevel(SGbxClamp_Bilinear_s, r6.zw, 0).x;
+    r4.z = r4.z * r5.z;
+    r4.w = TMapTemporalAA_ColorAccumulationAlpha.SampleLevel(SGbxClamp_Bilinear_s, r6.xw, 0).x;
+    r4.w = r4.w * r7.z;
+    r4.w = r4.w * r5.w;
+    r4.z = r4.z * r5.w + r4.w;
+    r4.w = TMapTemporalAA_ColorAccumulationAlpha.SampleLevel(SGbxClamp_Bilinear_s, r9.xz, 0).x;
+    r4.w = r4.w * r7.x;
+    r4.z = r4.w * r5.w + r4.z;
+    r4.w = TMapTemporalAA_ColorAccumulationAlpha.SampleLevel(SGbxClamp_Bilinear_s, r6.zy, 0).x;
+    r4.w = r4.w * r5.z;
+    r4.z = r4.w * r7.w + r4.z;
+    r4.w = TMapTemporalAA_ColorAccumulationAlpha.SampleLevel(SGbxClamp_Bilinear_s, r6.xy, 0).x;
+    r4.w = r4.w * r7.z;
+    r4.z = r4.w * r7.w + r4.z;
+    r4.w = TMapTemporalAA_ColorAccumulationAlpha.SampleLevel(SGbxClamp_Bilinear_s, r9.xw, 0).x;
+    r4.w = r4.w * r7.x;
+    r4.z = r4.w * r7.w + r4.z;
+    r4.w = TMapTemporalAA_ColorAccumulationAlpha.SampleLevel(SGbxClamp_Bilinear_s, r10.xy, 0).x;
+    r4.w = r4.w * r5.z;
+    r4.z = r4.w * r7.y + r4.z;
+    r4.w = TMapTemporalAA_ColorAccumulationAlpha.SampleLevel(SGbxClamp_Bilinear_s, r10.zy, 0).x;
+    r4.w = r4.w * r7.z;
+    r4.z = r4.w * r7.y + r4.z;
+    r4.w = TMapTemporalAA_ColorAccumulationAlpha.SampleLevel(SGbxClamp_Bilinear_s, r9.xy, 0).x;
+    r4.w = r4.w * r7.x;
+    r4.z = r4.w * r7.y + r4.z;
+  } else {
+    r8.xyz = float3(0,0,0);
+    r4.z = 0;
+  }
+  r0.x = max(g_TemporalAA_Constants.RejectionAvoidanceMax, r4.z);
+  r1.zw = float2(0,0);
+  r1.z = TMapTemporalAA_ResponsiveAA.Load(r1.xyz).x;
+  r1.w = max(0.200000003, r0.x);
+  r1.w = max(r1.w, r0.y);
+  r1.w = r1.z * r1.w;
+  r1.z = max(r1.z, r1.w);
+  r1.w = 0.00499999989 * r4.y;
+  r1.w = min(1, r1.w);
+  r1.w = log2(r1.w);
+  r1.w = 0.800000012 * r1.w;
+  r1.w = exp2(r1.w);
+  r4.w = 1 + -r4.x;
+  r4.w = r4.w * r1.w;
+  r5.xy = float2(1,1) + -r0.xy;
+  r5.x = saturate(r4.w * r5.x + r0.x);
+  r5.x = max(r5.x, r1.w);
+  r5.x = max(r5.x, r0.y);
+  r5.z = log2(abs(r1.z));
+  r5.z = 0.25 * r5.z;
+  r5.z = exp2(r5.z);
+  r5.w = max(r5.x, r5.z);
+  r6.xyzw = (int4)r1.xyxy + int4(-1,-1,0,-1);
+  r7.xyzw = (int4)g_TemporalAA_Constants.LowResSize.xyxy;
+  r7.xyzw = (int4)r7.xyzw + int4(-1,-1,-1,-1);
+  r6.xyzw = max(int4(0,0,0,0), (int4)r6.xyzw);
+  r6.xyzw = min((int4)r6.zwxy, (int4)r7.zwxy);
+  r9.xy = r6.zw;
+  r9.zw = float2(0,0);
+  r9.xyz = TMapTemporalAA_Color.Load(r9.xyz).xyz;
+  r6.zw = float2(0,0);
+  r6.xyz = TMapTemporalAA_Color.Load(r6.xyz).xyz;
+  r10.xyzw = (int4)r1.xyxy + int4(1,-1,-1,0);
+  r10.xyzw = max(int4(0,0,0,0), (int4)r10.xyzw);
+  r10.xyzw = min((int4)r10.zwxy, (int4)r7.zwxy);
+  r11.xy = r10.zw;
+  r11.zw = float2(0,0);
+  r11.xyz = TMapTemporalAA_Color.Load(r11.xyz).xyz;
+  r10.zw = float2(0,0);
+  r10.xyz = TMapTemporalAA_Color.Load(r10.xyz).xyz;
+  r12.xy = max(int2(0,0), (int2)r1.xy);
+  r12.xy = min((int2)r12.xy, (int2)r7.xy);
+  r12.zw = float2(0,0);
+  r12.xyzw = TMapTemporalAA_Color.Load(r12.xyz).xyzw;
+  r13.xyzw = (int4)r1.xyxy + int4(1,0,-1,1);
+  r13.xyzw = max(int4(0,0,0,0), (int4)r13.xyzw);
+  r13.xyzw = min((int4)r13.zwxy, (int4)r7.zwxy);
+  r14.xy = r13.zw;
+  r14.zw = float2(0,0);
+  r14.xyz = TMapTemporalAA_Color.Load(r14.xyz).xyz;
+  r13.zw = float2(0,0);
+  r13.xyz = TMapTemporalAA_Color.Load(r13.xyz).xyz;
+  r15.xyzw = (int4)r1.xyxy + int4(0,1,1,1);
+  r15.xyzw = max(int4(0,0,0,0), (int4)r15.xyzw);
+  r7.xyzw = min((int4)r15.zwxy, (int4)r7.zwxy);
+  r15.xy = r7.zw;
+  r15.zw = float2(0,0);
+  r15.xyz = TMapTemporalAA_Color.Load(r15.xyz).xyz;
+  r7.zw = float2(0,0);
+  r7.xyz = TMapTemporalAA_Color.Load(r7.xyz).xyz;
+  if (g_TemporalAA_Constants.HdrEnabled != 0) {
+    r9.xyz = g_TemporalAA_Constants.HdrDenormalizeSrgb * r9.xyz;
+    r6.xyz = g_TemporalAA_Constants.HdrDenormalizeSrgb * r6.xyz;
+    r11.xyz = g_TemporalAA_Constants.HdrDenormalizeSrgb * r11.xyz;
+    r10.xyz = g_TemporalAA_Constants.HdrDenormalizeSrgb * r10.xyz;
+    r12.xyz = g_TemporalAA_Constants.HdrDenormalizeSrgb * r12.xyz;
+    r14.xyz = g_TemporalAA_Constants.HdrDenormalizeSrgb * r14.xyz;
+    r13.xyz = g_TemporalAA_Constants.HdrDenormalizeSrgb * r13.xyz;
+    r15.xyz = g_TemporalAA_Constants.HdrDenormalizeSrgb * r15.xyz;
+    r7.xyz = g_TemporalAA_Constants.HdrDenormalizeSrgb * r7.xyz;
+  }
+  r1.x = r5.w + -r0.y;
+  r1.y = max(0.00100000005, r5.y);
+  r1.x = saturate(r1.x / r1.y);
+  r1.x = rsqrt(r1.x);
+  r1.x = 1 / r1.x;
+  r1.x = r1.x * 0.300000012 + 0.159999996;
+  r1.y = r1.x * r1.x;
+  r1.y = -0.5 / r1.y;
+  r1.y = 1.44269502 * r1.y;
+  r3.xyzw = -r3.xyzw + r2.xyzw;
+  r3.xyzw = r3.xyzw * r3.xyzw;
+  r3.xyzw = r3.xyzw * r1.yyyy;
+  r16.xyzw = float4(-0.5,-0.5,-0.5,1.5) + g_TemporalAA_Constants.SubPixelJitter.yyyy;
+  r2.xyzw = -r16.xyzw + r2.wwww;
+  r2.xyzw = r2.xyzw * r2.xyzw;
+  r2.xyzw = r2.xyzw * r1.yyyy;
+  r3.xyzw = exp2(r3.xyzw);
+  r2.xyzw = exp2(r2.xyzw);
+  r16.xyzw = r3.xyzx * r2.xyzw;
+  r1.y = r16.x + r16.y;
+  r17.xyz = r16.yyy * r6.xyz;
+  r17.xyz = r16.xxx * r9.xyz + r17.xyz;
+  r1.y = r3.z * r2.z + r1.y;
+  r2.xyz = r16.zzz * r11.xyz + r17.xyz;
+  r16.xyz = r3.xyz * r3.www;
+  r1.y = r3.x * r3.w + r1.y;
+  r2.xyz = r16.xxx * r10.xyz + r2.xyz;
+  r1.y = r3.y * r3.w + r1.y;
+  r2.xyz = r16.yyy * r12.xyz + r2.xyz;
+  r1.y = r3.z * r3.w + r1.y;
+  r2.xyz = r16.zzz * r14.xyz + r2.xyz;
+  r1.y = r3.x * r2.w + r1.y;
+  r2.xyz = r16.www * r13.xyz + r2.xyz;
+  r3.xw = r3.yz * r2.ww;
+  r1.y = r3.y * r2.w + r1.y;
+  r2.xyz = r3.xxx * r15.xyz + r2.xyz;
+  r1.y = r3.z * r2.w + r1.y;
+  r2.xyz = r3.www * r7.xyz + r2.xyz;
+  r2.xyz = r2.xyz / r1.yyy;
+  if (g_TemporalAA_Constants.DisableOnInternalEdges != 0) {
+    r3.xyzw = GbxP_RasterPos_SxyTwz_TexCoord.xyxy * v0.xyxy + GbxP_RasterPos_SxyTwz_TexCoord.wzwz;
+    r2.w = TMapTemporalAA_Depth.Sample(SGbxClamp_Bilinear_s, r3.zw).x;
+    r16.xyzw = GbxP_RasterPos_SxyTwz_TexCoord.xyxy * float4(0,-1,1,0) + r3.zwzw;
+    r5.y = TMapTemporalAA_Depth.Sample(SGbxClamp_Bilinear_s, r16.xy).x;
+    r5.w = TMapTemporalAA_Depth.Sample(SGbxClamp_Bilinear_s, r16.zw).x;
+    r3.xyzw = GbxP_RasterPos_SxyTwz_TexCoord.xyxy * float4(0,1,-1,0) + r3.xyzw;
+    r3.x = TMapTemporalAA_Depth.Sample(SGbxClamp_Bilinear_s, r3.xy).x;
+    r3.y = TMapTemporalAA_Depth.Sample(SGbxClamp_Bilinear_s, r3.zw).x;
+    r3.z = r5.y + -r2.w;
+    r16.x = abs(r3.z);
+    r3.z = r5.w + -r2.w;
+    r16.y = abs(r3.z);
+    r3.z = r3.x + -r2.w;
+    r17.x = abs(r3.z);
+    r3.z = r3.y + -r2.w;
+    r17.y = abs(r3.z);
+    r3.zw = min(r17.xy, r16.xy);
+    r3.zw = max(float2(1.00000001e-07,1.00000001e-07), r3.zw);
+    r16.xy = r5.yw + r3.xy;
+    r3.xy = r2.ww * float2(2,2) + -r16.xy;
+    r5.y = saturate(40 * r2.w);
+    r5.y = r5.y * 0.00150000001 + 0.000500000024;
+    r5.y = r5.y * r2.w;
+    r3.zw = float2(0.5,0.5) * r3.zw;
+    r3.zw = max(r3.zw, r5.yy);
+    r3.xy = cmp(r3.zw < abs(r3.xy));
+    r3.xy = r3.xy ? float2(1,1) : 0;
+    r3.x = dot(r3.xy, float2(1,1));
+    r2.w = cmp(0.999899983 < r2.w);
+    r3.x = cmp(r3.x < 0.00200000009);
+    r2.w = cmp((int)r2.w == 0);
+    r2.w = r2.w ? r3.x : 0;
+    if (r2.w != 0) {
+      o0.xyz = r2.xyz;
+      o0.w = 0;
+      o1.xyz = r2.xyz;
+      o1.w = 0;
+      o2.x = 0;
+      return;
+    }
+  }
+  r3.xyz = g_TemporalAA_Constants.HdrDenormalizeSrgb * r8.xyz;
+  r3.xyz = g_TemporalAA_Constants.HdrEnabled ? r3.xyz : r8.xyz;
+  r2.w = saturate(g_TemporalAA_Constants.RejectionAvoidanceMaxInv * r4.z);
+  r3.w = saturate(-0.5 + r4.y);
+  r4.y = cmp(0.100000001 < r5.z);
+  r4.y = (int)r4.y | (int)r8.w;
+  r1.x = 0.398999989 / r1.x;
+  r1.x = r1.y * r1.x;
+  r8.x = dot(r9.xzy, float3(0.25,0.25,0.5));
+  r1.y = dot(r9.xz, float2(0.5,-0.5));
+  r8.y = 0.501960814 + r1.y;
+  r1.y = dot(r9.xzy, float3(-0.25,-0.25,0.5));
+  r8.z = 0.501960814 + r1.y;
+  r9.x = dot(r6.xzy, float3(0.25,0.25,0.5));
+  r1.y = dot(r6.xz, float2(0.5,-0.5));
+  r9.y = 0.501960814 + r1.y;
+  r1.y = dot(r6.xzy, float3(-0.25,-0.25,0.5));
+  r9.z = 0.501960814 + r1.y;
+  r6.x = dot(r11.xzy, float3(0.25,0.25,0.5));
+  r1.y = dot(r11.xz, float2(0.5,-0.5));
+  r6.y = 0.501960814 + r1.y;
+  r1.y = dot(r11.xzy, float3(-0.25,-0.25,0.5));
+  r6.z = 0.501960814 + r1.y;
+  r11.x = dot(r10.xzy, float3(0.25,0.25,0.5));
+  r1.y = dot(r10.xz, float2(0.5,-0.5));
+  r11.y = 0.501960814 + r1.y;
+  r1.y = dot(r10.xzy, float3(-0.25,-0.25,0.5));
+  r11.z = 0.501960814 + r1.y;
+  r10.x = dot(r12.xzy, float3(0.25,0.25,0.5));
+  r1.y = dot(r12.xz, float2(0.5,-0.5));
+  r10.y = 0.501960814 + r1.y;
+  r1.y = dot(r12.xzy, float3(-0.25,-0.25,0.5));
+  r10.z = 0.501960814 + r1.y;
+  r12.x = dot(r14.xzy, float3(0.25,0.25,0.5));
+  r1.y = dot(r14.xz, float2(0.5,-0.5));
+  r12.y = 0.501960814 + r1.y;
+  r1.y = dot(r14.xzy, float3(-0.25,-0.25,0.5));
+  r12.z = 0.501960814 + r1.y;
+  r14.x = dot(r13.xzy, float3(0.25,0.25,0.5));
+  r1.y = dot(r13.xz, float2(0.5,-0.5));
+  r14.y = 0.501960814 + r1.y;
+  r1.y = dot(r13.xzy, float3(-0.25,-0.25,0.5));
+  r14.z = 0.501960814 + r1.y;
+  r13.x = dot(r15.xzy, float3(0.25,0.25,0.5));
+  r1.y = dot(r15.xz, float2(0.5,-0.5));
+  r13.y = 0.501960814 + r1.y;
+  r1.y = dot(r15.xzy, float3(-0.25,-0.25,0.5));
+  r13.z = 0.501960814 + r1.y;
+  r15.x = dot(r7.xzy, float3(0.25,0.25,0.5));
+  r1.y = dot(r7.xz, float2(0.5,-0.5));
+  r15.y = 0.501960814 + r1.y;
+  r1.y = dot(r7.xzy, float3(-0.25,-0.25,0.5));
+  r15.z = 0.501960814 + r1.y;
+  r1.y = ~(int)r4.y;
+  r4.yz = ~(int2)r0.wz;
+  r0.zw = (int2)r0.zw | (int2)r1.yy;
+  r4.yz = (int2)r1.yy | (int2)r4.yz;
+  r5.yzw = r0.zzz ? r9.xyz : r10.xyz;
+  r7.xyz = r4.zzz ? r13.xyz : r10.xyz;
+  r9.xyz = r0.www ? r11.xyz : r10.xyz;
+  r11.xyz = r4.yyy ? r12.xyz : r10.xyz;
+  r0.zw = r0.zw ? float2(0,0) : 0;
+  r1.y = (int)r0.z * (int)r0.w;
+  r8.xyz = r1.yyy ? r8.xyz : r10.xyz;
+  r4.yz = r4.yz ? float2(0,0) : 0;
+  r0.zw = (int2)r0.zw * (int2)r4.yz;
+  r6.xyz = r0.zzz ? r6.xyz : r10.xyz;
+  r12.xyz = r0.www ? r14.xyz : r10.xyz;
+  r0.z = (int)r4.z * (int)r4.y;
+  r13.xyz = r0.zzz ? r15.xyz : r10.xyz;
+  r14.xyz = min(r6.xyz, r5.yzw);
+  r14.xyz = min(r14.xyz, r8.xyz);
+  r15.xyz = min(r11.xyz, r10.xyz);
+  r15.xyz = min(r15.xyz, r9.xyz);
+  r16.xyz = min(r13.xyz, r7.xyz);
+  r16.xyz = min(r16.xyz, r12.xyz);
+  r15.xyz = min(r16.xyz, r15.xyz);
+  r14.xyz = min(r15.xyz, r14.xyz);
+  r5.yzw = max(r6.xyz, r5.yzw);
+  r5.yzw = max(r8.xyz, r5.yzw);
+  r6.xyz = max(r11.xyz, r10.xyz);
+  r6.xyz = max(r9.xyz, r6.xyz);
+  r7.xyz = max(r13.xyz, r7.xyz);
+  r7.xyz = max(r12.xyz, r7.xyz);
+  r6.xyz = max(r7.xyz, r6.xyz);
+  r5.yzw = max(r6.xyz, r5.yzw);
+  r6.x = dot(r3.xzy, float3(0.25,0.25,0.5));
+  r0.z = dot(r3.xz, float2(0.5,-0.5));
+  r6.y = 0.501960814 + r0.z;
+  r0.z = dot(r3.xzy, float3(-0.25,-0.25,0.5));
+  r6.z = 0.501960814 + r0.z;
+  r3.xyz = max(r6.xyz, r14.xyz);
+  r3.xyz = min(r5.yzw, r3.xyz);
+  r0.zw = float2(-0.501960814,-0.501960814) + r3.zy;
+  r6.yz = r3.xx + r0.wz;
+  r6.x = r6.y + -r0.z;
+  r0.w = r3.x + -r0.w;
+  r6.w = r0.w + -r0.z;
+  r0.z = cmp(r0.y < 0.5);
+  r0.w = max(r3.w, r2.w);
+  r0.w = max(r0.w, r4.x);
+  r3.xy = r0.ww * float2(0.300000012,15) + float2(0.200000003,5);
+  r0.w = r3.y * r1.x;
+  r0.w = min(1, r0.w);
+  r1.xy = r3.xx * r0.yx;
+  r3.xy = -r0.yx * r3.xx + r0.yx;
+  r1.xy = r0.ww * r3.yx + r1.yx;
+  r0.xy = r0.zz ? r1.xy : r0.xy;
+  r0.z = 1 + -r0.x;
+  r0.x = saturate(r4.w * r0.z + r0.x);
+  r0.x = max(r0.x, r1.w);
+  r0.x = max(r0.x, r0.y);
+  r0.x = max(r0.x, r1.z);
+  r0.y = max(r5.x, r1.z);
+  r0.z = 1 + r0.y;
+  r0.y = r0.y / r0.z;
+  r0.y = min(1, r0.y);
+  r0.z = cmp(g_TemporalAA_Constants.RejectionAvoidanceMax >= r0.y);
+  r0.w = g_TemporalAA_Constants.RejectionAvoidanceMax * r3.w;
+  r1.w = r0.z ? r0.w : r0.y;
+  r0.y = cmp(r0.x < 1);
+  r0.z = 1 + -r0.x;
+  r3.xyz = r6.xzw * r0.zzz;
+  r0.xzw = r2.xyz * r0.xxx + r3.xyz;
+  r1.xyz = r0.yyy ? r0.xzw : r2.xyz;
+  r0.xyzw = g_TemporalAA_Constants.HdrNormalizeSrgb * r1.xyzw;
+  o1.xyzw = saturate(g_TemporalAA_Constants.HdrEnabled ? r0.xyzw : r1.xyzw);
+  o2.x = saturate(r1.w);
+  r0.xyz = max(float3(0,0,0), r1.xyz);
+  r0.xyz = log2(r0.xyz);
+  r0.xyz = float3(2.20000005,2.20000005,2.20000005) * r0.xyz;
+  r0.xyz = exp2(r0.xyz);
+  o0.xyz = g_TemporalAA_Constants.HdrEnabled ? r0.xyz : r1.xyz;
+  o0.w = r12.w;
+  return;
+}
+
+//
+// Generated by Microsoft (R) HLSL Shader Compiler 10.1
+//
+//
+// Buffer Definitions:
+//
+// cbuffer SceneP
+// {
+//
+//   float4 GbxP_Fog_LinearRGB;         // Offset:    0 Size:    16 [unused]
+//   float4x3 GbxP_WorldToCamera;       // Offset:   16 Size:    48 [unused]
+//   float4 GbxP_EyeInWorld;            // Offset:   64 Size:    16 [unused]
+//   float4 GbxP_CameraPrRangeW;        // Offset:   80 Size:    16 [unused]
+//   float4 GbxP_RasterPos_SxyTwz_TexCoord;// Offset:   96 Size:    16
+//   float4 GbxP_RasterPos_SxyTzw_HPos; // Offset:  112 Size:    16 [unused]
+//   float4 GbxP_iPixelFull_SxyTzw_Render01;// Offset:  128 Size:    16 [unused]
+//   float4 GbxP_RasterFaceSign_Alpha01Ref;// Offset:  144 Size:    16 [unused]
+//   float4 GbxP_Fog_ZNearFar;          // Offset:  160 Size:    16
+//   float4 GbxP_DisplaysActivation[2]; // Offset:  176 Size:    32 [unused]
+//   float4x4 GbxP_Pssm_WorldPw01Shadow[7];// Offset:  208 Size:   448 [unused]
+//   float4 GbxP_Pssm_SplitZcMax4s[2];  // Offset:  656 Size:    32 [unused]
+//   int4 GbxP_Pssm_cShadow;            // Offset:  688 Size:    16 [unused]
+//   float4 GbxP_Pssm_SplitTcMins[8];   // Offset:  704 Size:   128 [unused]
+//   float4 GbxP_Pssm_SplitTcMaxs[8];   // Offset:  832 Size:   128 [unused]
+//   float4 GbxP_LightAmbientLinear;    // Offset:  960 Size:    16 [unused]
+//   float4 GbxP_LightDirRgbLinear0;    // Offset:  976 Size:    16 [unused]
+//   float4 GbxP_LightDirDirInWorld0;   // Offset:  992 Size:    16 [unused]
+//   float4 GbxP_LightGenPHdrScale_SelfIllumScale_SpecMaxExp_SpecScale;// Offset: 1008 Size:    16 [unused]
+//   float4 GbxP_LightGenP_HBasisHdrScales3_Bumpiness;// Offset: 1024 Size:    16 [unused]
+//   float4 GbxP_LightGenP_LocalDirectScale01_00;// Offset: 1040 Size:    16 [unused]
+//   float4 GbxP_LocalSpecularScale_ScaleExp;// Offset: 1056 Size:    16 [unused]
+//   float4 GbxP_TmFilmCurve_A_B_BC_OutScale;// Offset: 1072 Size:    16 [unused]
+//   float4 GbxP_TmFilmCurve_DE_DF_EoverF;// Offset: 1088 Size:    16 [unused]
+//   float4 GbxP_TmAutoExposureUV;      // Offset: 1104 Size:    16 [unused]
+//   float4 GbxP_T3HdrScales_Block_Particle_Player;// Offset: 1120 Size:    16 [unused]
+//   float4 GbxP_CloudsX2minRGB_Half;   // Offset: 1136 Size:    16 [unused]
+//   float4 GbxP_CloudsX2maxRGB_FREE;   // Offset: 1152 Size:    16 [unused]
+//   float4 GbxP_LmComputeScaleNoAcc;   // Offset: 1168 Size:    16 [unused]
+//   float4x3 GbxP_Projector_EyePz01;   // Offset: 1184 Size:    48 [unused]
+//   float4 GbxP_Projector_PosInEye;    // Offset: 1232 Size:    16 [unused]
+//   float4 GbxP_Projector_Rgb;         // Offset: 1248 Size:    16 [unused]
+//   float4 GbxP_TexelSxyTwzUV_LightPosIRad;// Offset: 1264 Size:    16 [unused]
+//   float4 GbxP_TexelSizeUVW_Half_LightList;// Offset: 1280 Size:    16 [unused]
+//   float4 GbxP_DayTime;               // Offset: 1296 Size:    16 [unused]
+//   int4 GbxP__cTileX_cMaxIdxPerTile;  // Offset: 1312 Size:    16 [unused]
+//   float4 GbxP_WorldXZ_ST_MapTc;      // Offset: 1328 Size:    16 [unused]
+//   float4 GbxP_FrustumCluster_cBitTile_L2zST;// Offset: 1344 Size:    16 [unused]
+//   float4x3 GbxP_ShadowLDir0_Texture0To1;// Offset: 1360 Size:    48 [unused]
+//   float4 GbxP_CubeFake_Scale0_Scale1_Id0_Id1;// Offset: 1408 Size:    16 [unused]
+//   float4 GbxP_DayTime_Id0_Id1_Weight1_IllumScale;// Offset: 1424 Size:    16 [unused]
+//   float4 GbxP_NightOnlySI_GlobalScale_Free3;// Offset: 1440 Size:    16 [unused]
+//   float4 GbxP_LM1_HBasisHdrScales4;  // Offset: 1456 Size:    16 [unused]
+//   float4 GbxP_MSAA_SamplePositions[4];// Offset: 1472 Size:    64 [unused]
+//   float4 GbxP_GridProbe_WorldPos_ST_I3VMap_SxTx_SyTy;// Offset: 1536 Size:    16 [unused]
+//   float4 GbxP_GridProbe_WorldPos_ST_I3VMap_SzTz_HdrScale_SH1y;// Offset: 1552 Size:    16 [unused]
+//   float4 GbxP_GridProbe_VirtualScaleTc;// Offset: 1568 Size:    16 [unused]
+//   float4x3 GbxP_WorldTo01ShadowLDir0;// Offset: 1584 Size:    48 [unused]
+//
+//   struct SCBufferClipMapShadow
+//   {
+//
+//       float TcFullRange_Scale_TcClipSlice0;// Offset: 1632
+//       float TcClipRadiusSubLen_Scale_Intens;// Offset: 1636
+//       float2 TcClipMap0_Eye;         // Offset: 1640
+//       uint cSlice;                   // Offset: 1648
+//       float3 Pad0;                   // Offset: 1652
+//       float4 Slices_TcClip0Radius;   // Offset: 1664
+//
+//   } GbxP_ClipMapShadowLDir0;         // Offset: 1632 Size:    48 [unused]
+//   float4 GbxP_VoxelKillMesh_WorldTransVoxelMin;// Offset: 1680 Size:    16 [unused]
+//   int4 GbxP_DebugValue;              // Offset: 1696 Size:    16 [unused]
+//   int GbxP_ForwardAO;                // Offset: 1712 Size:     4 [unused]
+//   int GbxP_EyeUnderWater;            // Offset: 1716 Size:     4 [unused]
+//   float GbxP_WaterTopLDir0_ToAddFromMap;// Offset: 1720 Size:     4 [unused]
+//   float GbxP_WaterFogMaxDepthInverse;// Offset: 1724 Size:     4 [unused]
+//   float GbxP_VoxelKillMesh_WorldScaleVoxelMin;// Offset: 1728 Size:     4 [unused]
+//   float GbxP_PbrSpecAttExpAtR0;      // Offset: 1732 Size:     4 [unused]
+//   float GbxP_LM1_LDirectScale;       // Offset: 1736 Size:     4 [unused]
+//   bool GbxP_LM1_LDirectTcInvertY;    // Offset: 1740 Size:     4 [unused]
+//   bool GbxP_OutputIsLinear;          // Offset: 1744 Size:     4 [unused]
+//   bool GbxP_ToneMapInShader;         // Offset: 1748 Size:     4 [unused]
+//   int GbxP_LmBumpTxTyTz;             // Offset: 1752 Size:     4 [unused]
+//   int GbxP_LmLocals;                 // Offset: 1756 Size:     4 [unused]
+//   bool GbxP_LmHBasis_IsFloat;        // Offset: 1760 Size:     4 [unused]
+//   int GbxP_ShadingModel;             // Offset: 1764 Size:     4 [unused]
+//   int GbxP_DeferSpecularAmbient;     // Offset: 1768 Size:     4 [unused]
+//   int GbxP_DynaAmbient;              // Offset: 1772 Size:     4 [unused]
+//   int GbxP_VehicleEnvLayer;          // Offset: 1776 Size:     4 [unused]
+//   int GbxP_Fog_SlicesCount;          // Offset: 1780 Size:     4 [unused]
+//   int GbxP_Deferred_IsEnabled;       // Offset: 1784 Size:     4 [unused]
+//   float GbxP_LmLightId_FramePos;     // Offset: 1788 Size:     4 [unused]
+//   int GbxP_MsaaSampleCount;          // Offset: 1792 Size:     4 [unused]
+//
+// }
+//
+// cbuffer ShaderP
+// {
+//
+//   struct TemporalAA_Constants
+//   {
+//
+//       float4x4 ReprojectionMatrix;   // Offset:    0
+//       uint4 IsolationVars;           // Offset:   64
+//       float2 FullResSize;            // Offset:   80
+//       float2 FullResSizeInv;         // Offset:   88
+//       float2 LowResSize;             // Offset:   96
+//       float2 LowResSizeInv;          // Offset:  104
+//       float2 SubPixelJitter;         // Offset:  112
+//       float RejectionAvoidanceMax;   // Offset:  120
+//       float RejectionAvoidanceMaxInv;// Offset:  124
+//       float3 NoiseOffsetScale;       // Offset:  128
+//       float MinLiveColorNear;        // Offset:  140
+//       float MinLiveColorFar;         // Offset:  144
+//       float MinLiveColorNearDistance;// Offset:  148
+//       float MinLiveColorFarDistance; // Offset:  152
+//       float MinLiveColorBlendDistanceInv;// Offset:  156
+//       float4 MaxViewDepthParams;     // Offset:  160
+//       uint HdrEnabled;               // Offset:  176
+//       float HdrNormalizeSrgb;        // Offset:  180
+//       float HdrDenormalizeSrgb;      // Offset:  184
+//       uint NoMotionVector;           // Offset:  188
+//       uint DisableOnInternalEdges;   // Offset:  192
+//
+//   } g_TemporalAA_Constants;          // Offset:    0 Size:   196
+//
+// }
+//
+//
+// Resource Bindings:
+//
+// Name                                 Type  Format         Dim      HLSL Bind  Count
+// ------------------------------ ---------- ------- ----------- -------------- ------
+// SGbxClamp_Point                   sampler      NA          NA             s0      1
+// SGbxClamp_Bilinear                sampler      NA          NA             s1      1
+// TMapTemporalAA_Color              texture  float4          2d             t0      1
+// TMapTemporalAA_Motion             texture  float4          2d             t1      1
+// TMapTemporalAA_Depth              texture  float4          2d             t2      1
+// TMapTemporalAA_ResponsiveAA       texture  float4          2d             t3      1
+// TMapTemporalAA_ColorAccumulation    texture  float4          2d             t4      1
+// TMapTemporalAA_ColorAccumulationAlpha    texture  float4          2d             t5      1
+// ShaderP                           cbuffer      NA          NA            cb0      1
+// SceneP                            cbuffer      NA          NA           cb13      1
+//
+//
+//
+// Input signature:
+//
+// Name                 Index   Mask Register SysValue  Format   Used
+// -------------------- ----- ------ -------- -------- ------- ------
+// SV_Position              0   xyzw        0      POS   float   xy
+// TEXCOORD                 0   xy          1     NONE   float
+//
+//
+// Output signature:
+//
+// Name                 Index   Mask Register SysValue  Format   Used
+// -------------------- ----- ------ -------- -------- ------- ------
+// SV_Target                0   xyzw        0   TARGET   float   xyzw
+// SV_Target                1   xyzw        1   TARGET   float   xyzw
+// SV_Target                2   x           2   TARGET   float   x
+//
+// 0x00000000 : ps_5_0
+//       0x00000008 : dcl_globalFlags refactoringAllowed
+//       0x0000000C : dcl_constantbuffer CB13[11], immediateIndexed
+//       0x0000001C : dcl_constantbuffer CB0[13], immediateIndexed
+//       0x0000002C : dcl_sampler s0, mode_default
+//       0x00000038 : dcl_sampler s1, mode_default
+//       0x00000044 : dcl_resource_texture2d(float, float, float, float) t0
+//       0x00000054 : dcl_resource_texture2d(float, float, float, float) t1
+//       0x00000064 : dcl_resource_texture2d(float, float, float, float) t2
+//       0x00000074 : dcl_resource_texture2d(float, float, float, float) t3
+//       0x00000084 : dcl_resource_texture2d(float, float, float, float) t4
+//       0x00000094 : dcl_resource_texture2d(float, float, float, float) t5
+//       0x000000A4 : dcl_input_ps_siv linear noperspective v0.xy, position
+//       0x000000B4 : dcl_output o0.xyzw
+//       0x000000C0 : dcl_output o1.xyzw
+//       0x000000CC : dcl_output o2.x
+//       0x000000D8 : dcl_temps 18
+//    0 0x000000E0 : mul r0.xy, v0.xyxx, cb0[5].zwzz
+//    1 0x00000100 : mul r0.xy, r0.xyxx, cb0[6].xyxx
+//    2 0x00000120 : ftoi r1.xy, r0.xyxx
+//    3 0x00000134 : frc r2.xyzw, r0.xxxy
+//    4 0x00000148 : add r3.xyzw, cb0[7].xxxy, l(-0.500000, 0.500000, 1.500000, 0.500000)
+//    5 0x00000174 : lt r0.zw, r2.wwwz, r3.wwwy
+//    6 0x00000190 : round_z r0.xy, r0.xyxx
+//    7 0x000001A4 : mul r4.xy, r0.xyxx, cb0[5].zwzz
+//    8 0x000001C4 : gather4_indexable(texture2d)(float, float, float, float) r5.xyz, r4.xyxx, t2.xywz, s0.x
+//    9 0x000001F0 : add r5.w, -cb13[10].z, cb13[10].w
+//   10 0x00000218 : mad r5.xyz, r5.wwww, r5.zxyz, cb13[10].zzzz
+//   11 0x00000240 : lt r6.zw, r5.xxxz, r5.zzzx
+//   12 0x0000025C : movc r6.xy, r6.zwzz, r5.xxxx, r5.zzzz
+//   13 0x00000280 : lt r7.x, r5.y, r6.x
+//   14 0x0000029C : mov r8.x, r5.y
+//   15 0x000002B0 : mov r8.yz, l(0, -1, 0, 0)
+//   16 0x000002D0 : movc r7.xyz, r7.xxxx, r8.xyzx, r6.xzzx
+//   17 0x000002F4 : lt r6.x, r6.y, r5.y
+//   18 0x00000310 : movc r6.xyw, r6.xxxx, r8.xyxz, r6.ywyw
+//   19 0x00000334 : mad r4.zw, r0.yyyx, cb0[5].wwwz, cb0[5].wwwz
+//   20 0x00000360 : gather4_indexable(texture2d)(float, float, float, float) r0.xy, r4.xzxx, t2.xyzw, s0.x
+//   21 0x0000038C : mad r9.xy, r5.wwww, r0.xyxx, cb13[10].zzzz
+//   22 0x000003B4 : lt r0.x, r9.x, r7.x
+//   23 0x000003D0 : mov r9.zw, l(0, 0, -1, 1)
+//   24 0x000003F0 : movc r7.xyz, r0.xxxx, r9.xzwx, r7.xyzx
+//   25 0x00000414 : lt r0.x, r6.x, r9.x
+//   26 0x00000430 : movc r6.xyw, r0.xxxx, r9.xzxw, r6.xyxw
+//   27 0x00000454 : lt r0.x, r9.y, r7.x
+//   28 0x00000470 : mov r10.xz, r9.yywy
+//   29 0x00000484 : mov r10.y, l(0)
+//   30 0x00000498 : movc r7.xyz, r0.xxxx, r10.xyzx, r7.xyzx
+//   31 0x000004BC : lt r0.x, r6.x, r9.y
+//   32 0x000004D8 : movc r6.xyw, r0.xxxx, r10.xyxz, r6.xyxw
+//   33 0x000004FC : gather4_indexable(texture2d)(float, float, float, float) r0.xy, r4.wzww, t2.yzxw, s0.x
+//   34 0x00000528 : mad r11.xy, r5.wwww, r0.yxyy, cb13[10].zzzz
+//   35 0x00000550 : lt r0.x, r11.y, r7.x
+//   36 0x0000056C : mov r11.zw, l(0, 0, 1, 0)
+//   37 0x0000058C : movc r7.xyz, r0.xxxx, r11.yzzy, r7.xyzx
+//   38 0x000005B0 : lt r0.x, r6.x, r11.y
+//   39 0x000005CC : movc r6.xyw, r0.xxxx, r11.yzyz, r6.xyxw
+//   40 0x000005F0 : lt r0.x, r11.x, r7.x
+//   41 0x0000060C : movc r7.xyz, r0.xxxx, r11.xzwx, r7.xyzx
+//   42 0x00000630 : lt r0.x, r6.x, r11.x
+//   43 0x0000064C : movc r6.xyw, r0.xxxx, r11.xzxw, r6.xyxw
+//   44 0x00000670 : gather4_indexable(texture2d)(float, float, float, float) r0.xy, r4.wyww, t2.zwxy, s0.x
+//   45 0x0000069C : mad r4.xy, r5.wwww, r0.yxyy, cb13[10].zzzz
+//   46 0x000006C4 : lt r0.x, r4.y, r7.x
+//   47 0x000006E0 : mov r4.zw, l(0, 0, 1, -1)
+//   48 0x00000700 : movc r7.xyz, r0.xxxx, r4.yzwy, r7.xyzx
+//   49 0x00000724 : lt r0.x, r6.x, r4.y
+//   50 0x00000740 : movc r6.xyw, r0.xxxx, r4.yzyw, r6.xyxw
+//   51 0x00000764 : lt r0.x, r4.x, r7.x
+//   52 0x00000780 : mov r12.xz, r4.xxwx
+//   53 0x00000794 : mov r12.y, l(0)
+//   54 0x000007A8 : movc r7.xyz, r0.xxxx, r12.xyzx, r7.xyzx
+//   55 0x000007CC : lt r0.x, r6.x, r12.x
+//   56 0x000007E8 : movc r6.xyw, r0.xxxx, r12.xyxz, r6.xyxw
+//   57 0x0000080C : add r0.x, r7.x, -cb0[9].y
+//   58 0x00000830 : mul_sat r0.x, r0.x, cb0[9].w
+//   59 0x00000850 : add r0.y, -cb0[8].w, cb0[9].x
+//   60 0x00000878 : mad r0.y, r0.x, r0.y, cb0[8].w
+//   61 0x000008A0 : add r4.x, -r7.x, r6.x
+//   62 0x000008C0 : mul r4.x, r4.x, l(10.000000)
+//   63 0x000008DC : max r5.w, r6.x, l(0.001000)
+//   64 0x000008F8 : div_sat r4.x, r4.x, r5.w
+//   65 0x00000914 : div r5.w, -cb0[10].x, cb0[10].z
+//   66 0x0000093C : ge r7.x, r7.x, r5.w
+//   67 0x00000958 : if_nz r7.x
+//   68 0x00000964 : mov r7.xw, l(0, 0, 0, 0)
+//   69 0x00000984 : mov r8.w, l(0)
+//   70 0x00000998 : else 
+//   71 0x0000099C : ieq r13.xyzw, r0.wzzw, l(-1, -1, 0, 0)
+//   72 0x000009C4 : and r14.xyzw, r13.yzzy, r13.xxww
+//   73 0x000009E0 : and r15.yz, r6.zzzz, r14.xxxx
+//   74 0x000009FC : movc r15.x, r15.z, r5.x, r5.z
+//   75 0x00000A20 : lt r5.x, r5.y, r15.x
+//   76 0x00000A3C : and r5.x, r5.x, r13.x
+//   77 0x00000A58 : movc r5.xyz, r5.xxxx, r8.xyzx, r15.xyzx
+//   78 0x00000A7C : lt r6.z, r9.x, r5.x
+//   79 0x00000A98 : and r6.z, r6.z, r14.y
+//   80 0x00000AB4 : movc r5.xyz, r6.zzzz, r9.xzwx, r5.xyzx
+//   81 0x00000AD8 : lt r6.z, r9.y, r5.x
+//   82 0x00000AF4 : and r6.z, r6.z, r13.z
+//   83 0x00000B10 : movc r5.xyz, r6.zzzz, r10.xyzx, r5.xyzx
+//   84 0x00000B34 : lt r6.z, r11.y, r5.x
+//   85 0x00000B50 : and r6.z, r6.z, r14.z
+//   86 0x00000B6C : movc r5.xyz, r6.zzzz, r11.yzzy, r5.xyzx
+//   87 0x00000B90 : lt r6.z, r11.x, r5.x
+//   88 0x00000BAC : and r6.z, r6.z, r13.w
+//   89 0x00000BC8 : movc r5.xyz, r6.zzzz, r11.xzwx, r5.xyzx
+//   90 0x00000BEC : lt r6.z, r4.y, r5.x
+//   91 0x00000C08 : and r6.z, r6.z, r14.w
+//   92 0x00000C24 : movc r4.yzw, r6.zzzz, r4.yyzw, r5.xxyz
+//   93 0x00000C48 : lt r4.y, r12.x, r4.y
+//   94 0x00000C64 : and r4.y, r4.y, r13.y
+//   95 0x00000C80 : movc r4.yz, r4.yyyy, l(0, 0, -1, 0), r4.zzwz
+//   96 0x00000CB0 : ge r4.w, r6.x, r5.w
+//   97 0x00000CCC : iadd r5.xy, r1.xyxx, r7.yzyy
+//   98 0x00000CE8 : imax r5.xy, r5.xyxx, l(0, 0, 0, 0)
+//   99 0x00000D10 : ftoi r5.zw, cb0[6].xxxy
+//  100 0x00000D28 : iadd r5.zw, r5.zzzw, l(0, 0, -1, -1)
+//  101 0x00000D50 : imin r9.xy, r5.zwzz, r5.xyxx
+//  102 0x00000D6C : mov r9.zw, l(0, 0, 0, 0)
+//  103 0x00000D8C : ld_indexable(texture2d)(float, float, float, float) r5.xy, r9.xyzw, t1.xyzw
+//  104 0x00000DB0 : if_nz r4.w
+//  105 0x00000DBC : mov r6.xz, r5.xxyx
+//  106 0x00000DD0 : else 
+//  107 0x00000DD4 : iadd r6.yw, r1.xxxy, r6.yyyw
+//  108 0x00000DF0 : imax r6.yw, r6.yyyw, l(0, 0, 0, 0)
+//  109 0x00000E18 : imin r9.xy, r5.zwzz, r6.ywyy
+//  110 0x00000E34 : mov r9.zw, l(0, 0, 0, 0)
+//  111 0x00000E54 : ld_indexable(texture2d)(float, float, float, float) r6.xz, r9.xyzw, t1.xzyw
+//  112 0x00000E78 : endif 
+//  113 0x00000E7C : add r6.xy, -r5.xyxx, r6.xzxx
+//  114 0x00000E9C : mul r6.xy, r6.xyxx, cb0[5].xyxx
+//  115 0x00000EBC : dp2 r4.w, r6.xyxx, r6.xyxx
+//  116 0x00000ED8 : lt r8.w, l(4.000000), r4.w
+//  117 0x00000EF4 : iadd r4.yz, r1.xxyx, r4.yyzy
+//  118 0x00000F10 : imax r4.yz, r4.yyzy, l(0, 0, 0, 0)
+//  119 0x00000F38 : imin r6.xy, r5.zwzz, r4.yzyy
+//  120 0x00000F54 : mov r6.zw, l(0, 0, 0, 0)
+//  121 0x00000F74 : ld_indexable(texture2d)(float, float, float, float) r4.yz, r6.xyzw, t1.zxyw
+//  122 0x00000F98 : movc r4.yz, r8.wwww, r4.yyzy, r5.xxyx
+//  123 0x00000FBC : movc r7.xw, cb0[11].wwww, l(0, 0, 0, 0), r4.yyyz
+//  124 0x00000FF0 : endif 
+//  125 0x00000FF4 : mul r4.yz, r7.xxwx, cb0[5].xxyx
+//  126 0x00001014 : dp2 r4.y, r4.yzyy, r4.yzyy
+//  127 0x00001030 : sqrt r4.y, r4.y
+//  128 0x00001044 : if_nz cb0[4].x
+//  129 0x00001054 : mad r4.zw, v0.xxxy, cb0[5].zzzw, r7.xxxw
+//  130 0x0000107C : mad r5.xy, r4.zwzz, cb0[5].xyxx, l(-0.500000, -0.500000, 0.000000, 0.000000)
+//  131 0x000010B0 : round_ni r5.xy, r5.xyxx
+//  132 0x000010C4 : add r6.xyzw, r5.xyxy, l(0.500000, 0.500000, -0.500000, -0.500000)
+//  133 0x000010EC : mad r4.zw, r4.zzzw, cb0[5].xxxy, -r6.xxxy
+//  134 0x00001118 : mul r7.xyzw, r4.zwzw, r4.zwzw
+//  135 0x00001134 : mul r9.xyzw, r4.zwzw, r7.zwzw
+//  136 0x00001150 : mul r10.xyzw, r7.zwzw, l(6.000000, 6.000000, 15.000000, 15.000000)
+//  137 0x00001178 : mad r5.zw, r9.zzzw, l(0.000000, 0.000000, -3.000000, -3.000000), r10.xxxy
+//  138 0x000011A8 : mad r5.zw, -r4.zzzw, l(0.000000, 0.000000, 3.000000, 3.000000), r5.zzzw
+//  139 0x000011DC : mul r5.zw, r5.zzzw, l(0.000000, 0.000000, 0.166667, 0.166667)
+//  140 0x00001204 : mad r8.xy, r9.zwzz, l(9.000000, 9.000000, 0.000000, 0.000000), -r10.zwzz
+//  141 0x00001238 : add r8.xy, r8.xyxx, l(6.000000, 6.000000, 0.000000, 0.000000)
+//  142 0x00001260 : mul r7.xyzw, r7.xyzw, l(12.000000, 12.000000, 3.000000, 3.000000)
+//  143 0x00001288 : mad r7.xy, r9.xyxx, l(-9.000000, -9.000000, 0.000000, 0.000000), r7.xyxx
+//  144 0x000012B8 : mad r4.zw, r4.zzzw, l(0.000000, 0.000000, 3.000000, 3.000000), r7.xxxy
+//  145 0x000012E8 : mul r4.zw, r4.zzzw, l(0.000000, 0.000000, 0.166667, 0.166667)
+//  146 0x00001310 : mad r7.xy, r9.zwzz, l(3.000000, 3.000000, 0.000000, 0.000000), -r7.zwzz
+//  147 0x00001344 : mul r7.xy, r7.xyxx, l(0.166667, 0.166667, 0.000000, 0.000000)
+//  148 0x0000136C : mad r7.zw, r8.xxxy, l(0.000000, 0.000000, 0.166667, 0.166667), r4.zzzw
+//  149 0x0000139C : div r4.zw, r4.zzzw, r7.zzzw
+//  150 0x000013B8 : add r5.xy, r5.xyxx, l(2.500000, 2.500000, 0.000000, 0.000000)
+//  151 0x000013E0 : add r4.zw, r4.zzzw, r6.xxxy
+//  152 0x000013FC : div r6.zw, r6.zzzw, cb0[5].xxxy
+//  153 0x0000141C : div r9.xy, r5.xyxx, cb0[5].xyxx
+//  154 0x0000143C : div r6.xy, r4.zwzz, cb0[5].xyxx
+//  155 0x0000145C : sample_l_indexable(texture2d)(float, float, float, float) r8.xyz, r6.zwzz, t4.xyzw, s1, l(0.000000)
+//  156 0x00001490 : mul r8.xyz, r5.zzzz, r8.xyzx
+//  157 0x000014AC : sample_l_indexable(texture2d)(float, float, float, float) r10.xyz, r6.xwxx, t4.xyzw, s1, l(0.000000)
+//  158 0x000014E0 : mul r10.xyz, r7.zzzz, r10.xyzx
+//  159 0x000014FC : mul r10.xyz, r5.wwww, r10.xyzx
+//  160 0x00001518 : mad r8.xyz, r8.xyzx, r5.wwww, r10.xyzx
+//  161 0x0000153C : mov r9.zw, r6.wwwy
+//  162 0x00001550 : sample_l_indexable(texture2d)(float, float, float, float) r10.xyz, r9.xzxx, t4.xyzw, s1, l(0.000000)
+//  163 0x00001584 : mul r10.xyz, r7.xxxx, r10.xyzx
+//  164 0x000015A0 : mad r8.xyz, r10.xyzx, r5.wwww, r8.xyzx
+//  165 0x000015C4 : sample_l_indexable(texture2d)(float, float, float, float) r10.xyz, r6.zyzz, t4.xyzw, s1, l(0.000000)
+//  166 0x000015F8 : mul r10.xyz, r5.zzzz, r10.xyzx
+//  167 0x00001614 : mad r8.xyz, r10.xyzx, r7.wwww, r8.xyzx
+//  168 0x00001638 : sample_l_indexable(texture2d)(float, float, float, float) r10.xyz, r6.xyxx, t4.xyzw, s1, l(0.000000)
+//  169 0x0000166C : mul r10.xyz, r7.zzzz, r10.xyzx
+//  170 0x00001688 : mad r8.xyz, r10.xyzx, r7.wwww, r8.xyzx
+//  171 0x000016AC : sample_l_indexable(texture2d)(float, float, float, float) r10.xyz, r9.xwxx, t4.xyzw, s1, l(0.000000)
+//  172 0x000016E0 : mul r10.xyz, r7.xxxx, r10.xyzx
+//  173 0x000016FC : mad r8.xyz, r10.xyzx, r7.wwww, r8.xyzx
+//  174 0x00001720 : mov r10.xz, r6.zzxz
+//  175 0x00001734 : mov r10.y, r9.y
+//  176 0x00001748 : sample_l_indexable(texture2d)(float, float, float, float) r11.xyz, r10.xyxx, t4.xyzw, s1, l(0.000000)
+//  177 0x0000177C : mul r11.xyz, r5.zzzz, r11.xyzx
+//  178 0x00001798 : mad r8.xyz, r11.xyzx, r7.yyyy, r8.xyzx
+//  179 0x000017BC : sample_l_indexable(texture2d)(float, float, float, float) r11.xyz, r10.zyzz, t4.xyzw, s1, l(0.000000)
+//  180 0x000017F0 : mul r11.xyz, r7.zzzz, r11.xyzx
+//  181 0x0000180C : mad r8.xyz, r11.xyzx, r7.yyyy, r8.xyzx
+//  182 0x00001830 : sample_l_indexable(texture2d)(float, float, float, float) r11.xyz, r9.xyxx, t4.xyzw, s1, l(0.000000)
+//  183 0x00001864 : mul r11.xyz, r7.xxxx, r11.xyzx
+//  184 0x00001880 : mad r8.xyz, r11.xyzx, r7.yyyy, r8.xyzx
+//  185 0x000018A4 : sample_l_indexable(texture2d)(float, float, float, float) r4.z, r6.zwzz, t5.yzxw, s1, l(0.000000)
+//  186 0x000018D8 : mul r4.z, r5.z, r4.z
+//  187 0x000018F4 : sample_l_indexable(texture2d)(float, float, float, float) r4.w, r6.xwxx, t5.yzwx, s1, l(0.000000)
+//  188 0x00001928 : mul r4.w, r7.z, r4.w
+//  189 0x00001944 : mul r4.w, r5.w, r4.w
+//  190 0x00001960 : mad r4.z, r4.z, r5.w, r4.w
+//  191 0x00001984 : sample_l_indexable(texture2d)(float, float, float, float) r4.w, r9.xzxx, t5.yzwx, s1, l(0.000000)
+//  192 0x000019B8 : mul r4.w, r7.x, r4.w
+//  193 0x000019D4 : mad r4.z, r4.w, r5.w, r4.z
+//  194 0x000019F8 : sample_l_indexable(texture2d)(float, float, float, float) r4.w, r6.zyzz, t5.yzwx, s1, l(0.000000)
+//  195 0x00001A2C : mul r4.w, r5.z, r4.w
+//  196 0x00001A48 : mad r4.z, r4.w, r7.w, r4.z
+//  197 0x00001A6C : sample_l_indexable(texture2d)(float, float, float, float) r4.w, r6.xyxx, t5.yzwx, s1, l(0.000000)
+//  198 0x00001AA0 : mul r4.w, r7.z, r4.w
+//  199 0x00001ABC : mad r4.z, r4.w, r7.w, r4.z
+//  200 0x00001AE0 : sample_l_indexable(texture2d)(float, float, float, float) r4.w, r9.xwxx, t5.yzwx, s1, l(0.000000)
+//  201 0x00001B14 : mul r4.w, r7.x, r4.w
+//  202 0x00001B30 : mad r4.z, r4.w, r7.w, r4.z
+//  203 0x00001B54 : sample_l_indexable(texture2d)(float, float, float, float) r4.w, r10.xyxx, t5.yzwx, s1, l(0.000000)
+//  204 0x00001B88 : mul r4.w, r5.z, r4.w
+//  205 0x00001BA4 : mad r4.z, r4.w, r7.y, r4.z
+//  206 0x00001BC8 : sample_l_indexable(texture2d)(float, float, float, float) r4.w, r10.zyzz, t5.yzwx, s1, l(0.000000)
+//  207 0x00001BFC : mul r4.w, r7.z, r4.w
+//  208 0x00001C18 : mad r4.z, r4.w, r7.y, r4.z
+//  209 0x00001C3C : sample_l_indexable(texture2d)(float, float, float, float) r4.w, r9.xyxx, t5.yzwx, s1, l(0.000000)
+//  210 0x00001C70 : mul r4.w, r7.x, r4.w
+//  211 0x00001C8C : mad r4.z, r4.w, r7.y, r4.z
+//  212 0x00001CB0 : else 
+//  213 0x00001CB4 : mov r8.xyz, l(0, 0, 0, 0)
+//  214 0x00001CD4 : mov r4.z, l(0)
+//  215 0x00001CE8 : endif 
+//  216 0x00001CEC : max r0.x, r4.z, cb0[7].z
+//  217 0x00001D0C : mov r1.zw, l(0, 0, 0, 0)
+//  218 0x00001D2C : ld_indexable(texture2d)(float, float, float, float) r1.z, r1.xyzw, t3.yzxw
+//  219 0x00001D50 : max r1.w, r0.x, l(0.200000)
+//  220 0x00001D6C : max r1.w, r0.y, r1.w
+//  221 0x00001D88 : mul r1.w, r1.w, r1.z
+//  222 0x00001DA4 : max r1.z, r1.w, r1.z
+//  223 0x00001DC0 : mul r1.w, r4.y, l(0.005000)
+//  224 0x00001DDC : min r1.w, r1.w, l(1.000000)
+//  225 0x00001DF8 : log r1.w, r1.w
+//  226 0x00001E0C : mul r1.w, r1.w, l(0.800000)
+//  227 0x00001E28 : exp r1.w, r1.w
+//  228 0x00001E3C : add r4.w, -r4.x, l(1.000000)
+//  229 0x00001E5C : mul r4.w, r1.w, r4.w
+//  230 0x00001E78 : add r5.xy, -r0.xyxx, l(1.000000, 1.000000, 0.000000, 0.000000)
+//  231 0x00001EA4 : mad_sat r5.x, r4.w, r5.x, r0.x
+//  232 0x00001EC8 : max r5.x, r1.w, r5.x
+//  233 0x00001EE4 : max r5.x, r0.y, r5.x
+//  234 0x00001F00 : log r5.z, | r1.z |
+//  235 0x00001F18 : mul r5.z, r5.z, l(0.250000)
+//  236 0x00001F34 : exp r5.z, r5.z
+//  237 0x00001F48 : max r5.w, r5.z, r5.x
+//  238 0x00001F64 : iadd r6.xyzw, r1.xyxy, l(-1, -1, 0, -1)
+//  239 0x00001F8C : ftoi r7.xyzw, cb0[6].xyxy
+//  240 0x00001FA4 : iadd r7.xyzw, r7.xyzw, l(-1, -1, -1, -1)
+//  241 0x00001FCC : imax r6.xyzw, r6.xyzw, l(0, 0, 0, 0)
+//  242 0x00001FF4 : imin r6.xyzw, r7.zwxy, r6.zwxy
+//  243 0x00002010 : mov r9.xy, r6.zwzz
+//  244 0x00002024 : mov r9.zw, l(0, 0, 0, 0)
+//  245 0x00002044 : ld_indexable(texture2d)(float, float, float, float) r9.xyz, r9.xyzw, t0.xyzw
+//  246 0x00002068 : mov r6.zw, l(0, 0, 0, 0)
+//  247 0x00002088 : ld_indexable(texture2d)(float, float, float, float) r6.xyz, r6.xyzw, t0.xyzw
+//  248 0x000020AC : iadd r10.xyzw, r1.xyxy, l(1, -1, -1, 0)
+//  249 0x000020D4 : imax r10.xyzw, r10.xyzw, l(0, 0, 0, 0)
+//  250 0x000020FC : imin r10.xyzw, r7.zwxy, r10.zwxy
+//  251 0x00002118 : mov r11.xy, r10.zwzz
+//  252 0x0000212C : mov r11.zw, l(0, 0, 0, 0)
+//  253 0x0000214C : ld_indexable(texture2d)(float, float, float, float) r11.xyz, r11.xyzw, t0.xyzw
+//  254 0x00002170 : mov r10.zw, l(0, 0, 0, 0)
+//  255 0x00002190 : ld_indexable(texture2d)(float, float, float, float) r10.xyz, r10.xyzw, t0.xyzw
+//  256 0x000021B4 : imax r12.xy, r1.xyxx, l(0, 0, 0, 0)
+//  257 0x000021DC : imin r12.xy, r7.xyxx, r12.xyxx
+//  258 0x000021F8 : mov r12.zw, l(0, 0, 0, 0)
+//  259 0x00002218 : ld_indexable(texture2d)(float, float, float, float) r12.xyzw, r12.xyzw, t0.xyzw
+//  260 0x0000223C : iadd r13.xyzw, r1.xyxy, l(1, 0, -1, 1)
+//  261 0x00002264 : imax r13.xyzw, r13.xyzw, l(0, 0, 0, 0)
+//  262 0x0000228C : imin r13.xyzw, r7.zwxy, r13.zwxy
+//  263 0x000022A8 : mov r14.xy, r13.zwzz
+//  264 0x000022BC : mov r14.zw, l(0, 0, 0, 0)
+//  265 0x000022DC : ld_indexable(texture2d)(float, float, float, float) r14.xyz, r14.xyzw, t0.xyzw
+//  266 0x00002300 : mov r13.zw, l(0, 0, 0, 0)
+//  267 0x00002320 : ld_indexable(texture2d)(float, float, float, float) r13.xyz, r13.xyzw, t0.xyzw
+//  268 0x00002344 : iadd r15.xyzw, r1.xyxy, l(0, 1, 1, 1)
+//  269 0x0000236C : imax r15.xyzw, r15.xyzw, l(0, 0, 0, 0)
+//  270 0x00002394 : imin r7.xyzw, r7.zwxy, r15.zwxy
+//  271 0x000023B0 : mov r15.xy, r7.zwzz
+//  272 0x000023C4 : mov r15.zw, l(0, 0, 0, 0)
+//  273 0x000023E4 : ld_indexable(texture2d)(float, float, float, float) r15.xyz, r15.xyzw, t0.xyzw
+//  274 0x00002408 : mov r7.zw, l(0, 0, 0, 0)
+//  275 0x00002428 : ld_indexable(texture2d)(float, float, float, float) r7.xyz, r7.xyzw, t0.xyzw
+//  276 0x0000244C : if_nz cb0[11].x
+//  277 0x0000245C : mul r9.xyz, r9.xyzx, cb0[11].zzzz
+//  278 0x0000247C : mul r6.xyz, r6.xyzx, cb0[11].zzzz
+//  279 0x0000249C : mul r11.xyz, r11.xyzx, cb0[11].zzzz
+//  280 0x000024BC : mul r10.xyz, r10.xyzx, cb0[11].zzzz
+//  281 0x000024DC : mul r12.xyz, r12.xyzx, cb0[11].zzzz
+//  282 0x000024FC : mul r14.xyz, r14.xyzx, cb0[11].zzzz
+//  283 0x0000251C : mul r13.xyz, r13.xyzx, cb0[11].zzzz
+//  284 0x0000253C : mul r15.xyz, r15.xyzx, cb0[11].zzzz
+//  285 0x0000255C : mul r7.xyz, r7.xyzx, cb0[11].zzzz
+//  286 0x0000257C : endif 
+//  287 0x00002580 : add r1.x, -r0.y, r5.w
+//  288 0x000025A0 : max r1.y, r5.y, l(0.001000)
+//  289 0x000025BC : div_sat r1.x, r1.x, r1.y
+//  290 0x000025D8 : rsq r1.x, r1.x
+//  291 0x000025EC : div r1.x, l(1.000000, 1.000000, 1.000000, 1.000000), r1.x
+//  292 0x00002614 : mad r1.x, r1.x, l(0.300000), l(0.160000)
+//  293 0x00002638 : mul r1.y, r1.x, r1.x
+//  294 0x00002654 : div r1.y, l(-0.500000), r1.y
+//  295 0x00002670 : mul r1.y, r1.y, l(1.442695)
+//  296 0x0000268C : add r3.xyzw, r2.xyzw, -r3.xyzw
+//  297 0x000026AC : mul r3.xyzw, r3.xyzw, r3.xyzw
+//  298 0x000026C8 : mul r3.xyzw, r1.yyyy, r3.xyzw
+//  299 0x000026E4 : add r16.xyzw, cb0[7].yyyy, l(-0.500000, -0.500000, -0.500000, 1.500000)
+//  300 0x00002710 : add r2.xyzw, r2.wwww, -r16.xyzw
+//  301 0x00002730 : mul r2.xyzw, r2.xyzw, r2.xyzw
+//  302 0x0000274C : mul r2.xyzw, r1.yyyy, r2.xyzw
+//  303 0x00002768 : exp r3.xyzw, r3.xyzw
+//  304 0x0000277C : exp r2.xyzw, r2.xyzw
+//  305 0x00002790 : mul r16.xyzw, r2.xyzw, r3.xyzx
+//  306 0x000027AC : add r1.y, r16.y, r16.x
+//  307 0x000027C8 : mul r17.xyz, r6.xyzx, r16.yyyy
+//  308 0x000027E4 : mad r17.xyz, r16.xxxx, r9.xyzx, r17.xyzx
+//  309 0x00002808 : mad r1.y, r3.z, r2.z, r1.y
+//  310 0x0000282C : mad r2.xyz, r16.zzzz, r11.xyzx, r17.xyzx
+//  311 0x00002850 : mul r16.xyz, r3.wwww, r3.xyzx
+//  312 0x0000286C : mad r1.y, r3.x, r3.w, r1.y
+//  313 0x00002890 : mad r2.xyz, r16.xxxx, r10.xyzx, r2.xyzx
+//  314 0x000028B4 : mad r1.y, r3.y, r3.w, r1.y
+//  315 0x000028D8 : mad r2.xyz, r16.yyyy, r12.xyzx, r2.xyzx
+//  316 0x000028FC : mad r1.y, r3.z, r3.w, r1.y
+//  317 0x00002920 : mad r2.xyz, r16.zzzz, r14.xyzx, r2.xyzx
+//  318 0x00002944 : mad r1.y, r3.x, r2.w, r1.y
+//  319 0x00002968 : mad r2.xyz, r16.wwww, r13.xyzx, r2.xyzx
+//  320 0x0000298C : mul r3.xw, r2.wwww, r3.yyyz
+//  321 0x000029A8 : mad r1.y, r3.y, r2.w, r1.y
+//  322 0x000029CC : mad r2.xyz, r3.xxxx, r15.xyzx, r2.xyzx
+//  323 0x000029F0 : mad r1.y, r3.z, r2.w, r1.y
+//  324 0x00002A14 : mad r2.xyz, r3.wwww, r7.xyzx, r2.xyzx
+//  325 0x00002A38 : div r2.xyz, r2.xyzx, r1.yyyy
+//  326 0x00002A54 : if_nz cb0[12].x
+//  327 0x00002A64 : mad r3.xyzw, cb13[6].xyxy, v0.xyxy, cb13[6].wzwz
+//  328 0x00002A90 : sample_indexable(texture2d)(float, float, float, float) r2.w, r3.zwzz, t2.yzwx, s1
+//  329 0x00002ABC : mad r16.xyzw, cb13[6].xyxy, l(0.000000, -1.000000, 1.000000, 0.000000), r3.zwzw
+//  330 0x00002AF0 : sample_indexable(texture2d)(float, float, float, float) r5.y, r16.xyxx, t2.yxzw, s1
+//  331 0x00002B1C : sample_indexable(texture2d)(float, float, float, float) r5.w, r16.zwzz, t2.yzwx, s1
+//  332 0x00002B48 : mad r3.xyzw, cb13[6].xyxy, l(0.000000, 1.000000, -1.000000, 0.000000), r3.xyzw
+//  333 0x00002B7C : sample_indexable(texture2d)(float, float, float, float) r3.x, r3.xyxx, t2.xyzw, s1
+//  334 0x00002BA8 : sample_indexable(texture2d)(float, float, float, float) r3.y, r3.zwzz, t2.yxzw, s1
+//  335 0x00002BD4 : add r3.z, -r2.w, r5.y
+//  336 0x00002BF4 : mov r16.x, | r3.z |
+//  337 0x00002C0C : add r3.z, -r2.w, r5.w
+//  338 0x00002C2C : mov r16.y, | r3.z |
+//  339 0x00002C44 : add r3.z, -r2.w, r3.x
+//  340 0x00002C64 : mov r17.x, | r3.z |
+//  341 0x00002C7C : add r3.z, -r2.w, r3.y
+//  342 0x00002C9C : mov r17.y, | r3.z |
+//  343 0x00002CB4 : min r3.zw, r16.xxxy, r17.xxxy
+//  344 0x00002CD0 : max r3.zw, r3.zzzw, l(0.000000, 0.000000, 0.000000, 0.000000)
+//  345 0x00002CF8 : add r16.xy, r3.xyxx, r5.ywyy
+//  346 0x00002D14 : mad r3.xy, r2.wwww, l(2.000000, 2.000000, 0.000000, 0.000000), -r16.xyxx
+//  347 0x00002D48 : mul_sat r5.y, r2.w, l(40.000000)
+//  348 0x00002D64 : mad r5.y, r5.y, l(0.001500), l(0.000500)
+//  349 0x00002D88 : mul r5.y, r2.w, r5.y
+//  350 0x00002DA4 : mul r3.zw, r3.zzzw, l(0.000000, 0.000000, 0.500000, 0.500000)
+//  351 0x00002DCC : max r3.zw, r5.yyyy, r3.zzzw
+//  352 0x00002DE8 : lt r3.xy, r3.zwzz, | r3.xyxx |
+//  353 0x00002E08 : and r3.xy, r3.xyxx, l(0x3f800000, 0x3f800000, 0, 0)
+//  354 0x00002E30 : dp2 r3.x, r3.xyxx, l(1.000000, 1.000000, 0.000000, 0.000000)
+//  355 0x00002E58 : lt r2.w, l(0.999900), r2.w
+//  356 0x00002E74 : lt r3.x, r3.x, l(0.002000)
+//  357 0x00002E90 : ieq r2.w, r2.w, l(0)
+//  358 0x00002EAC : and r2.w, r2.w, r3.x
+//  359 0x00002EC8 : if_nz r2.w
+//  360 0x00002ED4 : mov o0.xyz, r2.xyzx
+//  361 0x00002EE8 : mov o0.w, l(0)
+//  362 0x00002EFC : mov o1.xyz, r2.xyzx
+//  363 0x00002F10 : mov o1.w, l(0)
+//  364 0x00002F24 : mov o2.x, l(0)
+//  365 0x00002F38 : ret 
+//  366 0x00002F3C : endif 
+//  367 0x00002F40 : endif 
+//  368 0x00002F44 : mul r3.xyz, r8.xyzx, cb0[11].zzzz
+//  369 0x00002F64 : movc r3.xyz, cb0[11].xxxx, r3.xyzx, r8.xyzx
+//  370 0x00002F8C : mul_sat r2.w, r4.z, cb0[7].w
+//  371 0x00002FAC : add_sat r3.w, r4.y, l(-0.500000)
+//  372 0x00002FC8 : lt r4.y, l(0.100000), r5.z
+//  373 0x00002FE4 : or r4.y, r4.y, r8.w
+//  374 0x00003000 : div r1.x, l(0.399000), r1.x
+//  375 0x0000301C : mul r1.x, r1.x, r1.y
+//  376 0x00003038 : dp3 r8.x, r9.xzyx, l(0.250000, 0.250000, 0.500000, 0.000000)
+//  377 0x00003060 : dp2 r1.y, r9.xzxx, l(0.500000, -0.500000, 0.000000, 0.000000)
+//  378 0x00003088 : add r8.y, r1.y, l(0.501961)
+//  379 0x000030A4 : dp3 r1.y, r9.xzyx, l(-0.250000, -0.250000, 0.500000, 0.000000)
+//  380 0x000030CC : add r8.z, r1.y, l(0.501961)
+//  381 0x000030E8 : dp3 r9.x, r6.xzyx, l(0.250000, 0.250000, 0.500000, 0.000000)
+//  382 0x00003110 : dp2 r1.y, r6.xzxx, l(0.500000, -0.500000, 0.000000, 0.000000)
+//  383 0x00003138 : add r9.y, r1.y, l(0.501961)
+//  384 0x00003154 : dp3 r1.y, r6.xzyx, l(-0.250000, -0.250000, 0.500000, 0.000000)
+//  385 0x0000317C : add r9.z, r1.y, l(0.501961)
+//  386 0x00003198 : dp3 r6.x, r11.xzyx, l(0.250000, 0.250000, 0.500000, 0.000000)
+//  387 0x000031C0 : dp2 r1.y, r11.xzxx, l(0.500000, -0.500000, 0.000000, 0.000000)
+//  388 0x000031E8 : add r6.y, r1.y, l(0.501961)
+//  389 0x00003204 : dp3 r1.y, r11.xzyx, l(-0.250000, -0.250000, 0.500000, 0.000000)
+//  390 0x0000322C : add r6.z, r1.y, l(0.501961)
+//  391 0x00003248 : dp3 r11.x, r10.xzyx, l(0.250000, 0.250000, 0.500000, 0.000000)
+//  392 0x00003270 : dp2 r1.y, r10.xzxx, l(0.500000, -0.500000, 0.000000, 0.000000)
+//  393 0x00003298 : add r11.y, r1.y, l(0.501961)
+//  394 0x000032B4 : dp3 r1.y, r10.xzyx, l(-0.250000, -0.250000, 0.500000, 0.000000)
+//  395 0x000032DC : add r11.z, r1.y, l(0.501961)
+//  396 0x000032F8 : dp3 r10.x, r12.xzyx, l(0.250000, 0.250000, 0.500000, 0.000000)
+//  397 0x00003320 : dp2 r1.y, r12.xzxx, l(0.500000, -0.500000, 0.000000, 0.000000)
+//  398 0x00003348 : add r10.y, r1.y, l(0.501961)
+//  399 0x00003364 : dp3 r1.y, r12.xzyx, l(-0.250000, -0.250000, 0.500000, 0.000000)
+//  400 0x0000338C : add r10.z, r1.y, l(0.501961)
+//  401 0x000033A8 : dp3 r12.x, r14.xzyx, l(0.250000, 0.250000, 0.500000, 0.000000)
+//  402 0x000033D0 : dp2 r1.y, r14.xzxx, l(0.500000, -0.500000, 0.000000, 0.000000)
+//  403 0x000033F8 : add r12.y, r1.y, l(0.501961)
+//  404 0x00003414 : dp3 r1.y, r14.xzyx, l(-0.250000, -0.250000, 0.500000, 0.000000)
+//  405 0x0000343C : add r12.z, r1.y, l(0.501961)
+//  406 0x00003458 : dp3 r14.x, r13.xzyx, l(0.250000, 0.250000, 0.500000, 0.000000)
+//  407 0x00003480 : dp2 r1.y, r13.xzxx, l(0.500000, -0.500000, 0.000000, 0.000000)
+//  408 0x000034A8 : add r14.y, r1.y, l(0.501961)
+//  409 0x000034C4 : dp3 r1.y, r13.xzyx, l(-0.250000, -0.250000, 0.500000, 0.000000)
+//  410 0x000034EC : add r14.z, r1.y, l(0.501961)
+//  411 0x00003508 : dp3 r13.x, r15.xzyx, l(0.250000, 0.250000, 0.500000, 0.000000)
+//  412 0x00003530 : dp2 r1.y, r15.xzxx, l(0.500000, -0.500000, 0.000000, 0.000000)
+//  413 0x00003558 : add r13.y, r1.y, l(0.501961)
+//  414 0x00003574 : dp3 r1.y, r15.xzyx, l(-0.250000, -0.250000, 0.500000, 0.000000)
+//  415 0x0000359C : add r13.z, r1.y, l(0.501961)
+//  416 0x000035B8 : dp3 r15.x, r7.xzyx, l(0.250000, 0.250000, 0.500000, 0.000000)
+//  417 0x000035E0 : dp2 r1.y, r7.xzxx, l(0.500000, -0.500000, 0.000000, 0.000000)
+//  418 0x00003608 : add r15.y, r1.y, l(0.501961)
+//  419 0x00003624 : dp3 r1.y, r7.xzyx, l(-0.250000, -0.250000, 0.500000, 0.000000)
+//  420 0x0000364C : add r15.z, r1.y, l(0.501961)
+//  421 0x00003668 : not r1.y, r4.y
+//  422 0x0000367C : not r4.yz, r0.wwzw
+//  423 0x00003690 : or r0.zw, r0.zzzw, r1.yyyy
+//  424 0x000036AC : or r4.yz, r1.yyyy, r4.yyzy
+//  425 0x000036C8 : movc r5.yzw, r0.zzzz, r9.xxyz, r10.xxyz
+//  426 0x000036EC : movc r7.xyz, r4.zzzz, r13.xyzx, r10.xyzx
+//  427 0x00003710 : movc r9.xyz, r0.wwww, r11.xyzx, r10.xyzx
+//  428 0x00003734 : movc r11.xyz, r4.yyyy, r12.xyzx, r10.xyzx
+//  429 0x00003758 : and r0.zw, r0.zzzw, l(0, 0, 1, 1)
+//  430 0x00003780 : imul null, r1.y, r0.z, r0.w
+//  431 0x000037A0 : movc r8.xyz, r1.yyyy, r8.xyzx, r10.xyzx
+//  432 0x000037C4 : and r4.yz, r4.yyzy, l(0, 1, 1, 0)
+//  433 0x000037EC : imul null, r0.zw, r0.zzzw, r4.yyyz
+//  434 0x0000380C : movc r6.xyz, r0.zzzz, r6.xyzx, r10.xyzx
+//  435 0x00003830 : movc r12.xyz, r0.wwww, r14.xyzx, r10.xyzx
+//  436 0x00003854 : imul null, r0.z, r4.z, r4.y
+//  437 0x00003874 : movc r13.xyz, r0.zzzz, r15.xyzx, r10.xyzx
+//  438 0x00003898 : min r14.xyz, r5.yzwy, r6.xyzx
+//  439 0x000038B4 : min r14.xyz, r8.xyzx, r14.xyzx
+//  440 0x000038D0 : min r15.xyz, r10.xyzx, r11.xyzx
+//  441 0x000038EC : min r15.xyz, r9.xyzx, r15.xyzx
+//  442 0x00003908 : min r16.xyz, r7.xyzx, r13.xyzx
+//  443 0x00003924 : min r16.xyz, r12.xyzx, r16.xyzx
+//  444 0x00003940 : min r15.xyz, r15.xyzx, r16.xyzx
+//  445 0x0000395C : min r14.xyz, r14.xyzx, r15.xyzx
+//  446 0x00003978 : max r5.yzw, r5.yyzw, r6.xxyz
+//  447 0x00003994 : max r5.yzw, r5.yyzw, r8.xxyz
+//  448 0x000039B0 : max r6.xyz, r10.xyzx, r11.xyzx
+//  449 0x000039CC : max r6.xyz, r6.xyzx, r9.xyzx
+//  450 0x000039E8 : max r7.xyz, r7.xyzx, r13.xyzx
+//  451 0x00003A04 : max r7.xyz, r7.xyzx, r12.xyzx
+//  452 0x00003A20 : max r6.xyz, r6.xyzx, r7.xyzx
+//  453 0x00003A3C : max r5.yzw, r5.yyzw, r6.xxyz
+//  454 0x00003A58 : dp3 r6.x, r3.xzyx, l(0.250000, 0.250000, 0.500000, 0.000000)
+//  455 0x00003A80 : dp2 r0.z, r3.xzxx, l(0.500000, -0.500000, 0.000000, 0.000000)
+//  456 0x00003AA8 : add r6.y, r0.z, l(0.501961)
+//  457 0x00003AC4 : dp3 r0.z, r3.xzyx, l(-0.250000, -0.250000, 0.500000, 0.000000)
+//  458 0x00003AEC : add r6.z, r0.z, l(0.501961)
+//  459 0x00003B08 : max r3.xyz, r14.xyzx, r6.xyzx
+//  460 0x00003B24 : min r3.xyz, r3.xyzx, r5.yzwy
+//  461 0x00003B40 : add r0.zw, r3.zzzy, l(0.000000, 0.000000, -0.501961, -0.501961)
+//  462 0x00003B68 : add r6.yz, r0.wwzw, r3.xxxx
+//  463 0x00003B84 : add r6.x, -r0.z, r6.y
+//  464 0x00003BA4 : add r0.w, -r0.w, r3.x
+//  465 0x00003BC4 : add r6.w, -r0.z, r0.w
+//  466 0x00003BE4 : lt r0.z, r0.y, l(0.500000)
+//  467 0x00003C00 : max r0.w, r2.w, r3.w
+//  468 0x00003C1C : max r0.w, r4.x, r0.w
+//  469 0x00003C38 : mad r3.xy, r0.wwww, l(0.300000, 15.000000, 0.000000, 0.000000), l(0.200000, 5.000000, 0.000000, 0.000000)
+//  470 0x00003C74 : mul r0.w, r1.x, r3.y
+//  471 0x00003C90 : min r0.w, r0.w, l(1.000000)
+//  472 0x00003CAC : mul r1.xy, r0.yxyy, r3.xxxx
+//  473 0x00003CC8 : mad r3.xy, -r0.yxyy, r3.xxxx, r0.yxyy
+//  474 0x00003CF0 : mad r1.xy, r0.wwww, r3.yxyy, r1.yxyy
+//  475 0x00003D14 : movc r0.xy, r0.zzzz, r1.xyxx, r0.xyxx
+//  476 0x00003D38 : add r0.z, -r0.x, l(1.000000)
+//  477 0x00003D58 : mad_sat r0.x, r4.w, r0.z, r0.x
+//  478 0x00003D7C : max r0.x, r1.w, r0.x
+//  479 0x00003D98 : max r0.x, r0.y, r0.x
+//  480 0x00003DB4 : max r0.x, r1.z, r0.x
+//  481 0x00003DD0 : max r0.y, r1.z, r5.x
+//  482 0x00003DEC : add r0.z, r0.y, l(1.000000)
+//  483 0x00003E08 : div r0.y, r0.y, r0.z
+//  484 0x00003E24 : min r0.y, r0.y, l(1.000000)
+//  485 0x00003E40 : ge r0.z, cb0[7].z, r0.y
+//  486 0x00003E60 : mul r0.w, r3.w, cb0[7].z
+//  487 0x00003E80 : movc r1.w, r0.z, r0.w, r0.y
+//  488 0x00003EA4 : lt r0.y, r0.x, l(1.000000)
+//  489 0x00003EC0 : add r0.z, -r0.x, l(1.000000)
+//  490 0x00003EE0 : mul r3.xyz, r0.zzzz, r6.xzwx
+//  491 0x00003EFC : mad r0.xzw, r2.xxyz, r0.xxxx, r3.xxyz
+//  492 0x00003F20 : movc r1.xyz, r0.yyyy, r0.xzwx, r2.xyzx
+//  493 0x00003F44 : mul r0.xyzw, r1.xyzw, cb0[11].yyyy
+//  494 0x00003F64 : movc_sat o1.xyzw, cb0[11].xxxx, r0.xyzw, r1.xyzw
+//  495 0x00003F8C : mov_sat o2.x, r1.w
+//  496 0x00003FA0 : max r0.xyz, r1.xyzx, l(0.000000, 0.000000, 0.000000, 0.000000)
+//  497 0x00003FC8 : log r0.xyz, r0.xyzx
+//  498 0x00003FDC : mul r0.xyz, r0.xyzx, l(2.200000, 2.200000, 2.200000, 0.000000)
+//  499 0x00004004 : exp r0.xyz, r0.xyzx
+//  500 0x00004018 : movc o0.xyz, cb0[11].xxxx, r0.xyzx, r1.xyzx
+//  501 0x00004040 : mov o0.w, r12.w
+//  502 0x00004054 : ret
+//                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             // Approximately 503 instruction slots used
