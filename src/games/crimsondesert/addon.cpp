@@ -218,8 +218,8 @@ int rr_draw_counter = 0;
 bool is_nvidia = true;
 
 // --- Aurora night detection ---
-// SceneShadowTiledNight shaders only dispatch during night. 
-// We track when they start/stop firing to detect night transitions.
+// SceneShadowTiledNight replacements only dispatch during night. OnPresent samples this
+// marker every 30 frames to detect night transitions for aurora and dawn/dusk weather seeds.
 bool night_shader_active = false;     
 bool night_shader_was_active = false;  
 int night_check_counter = 0;
@@ -261,11 +261,11 @@ void AttachUIShaderDrawGate(renodx::mods::shader::CustomShaders& shaders, uint32
 renodx::mods::shader::CustomShaders custom_shaders = [] {
   auto shaders = renodx::mods::shader::CustomShaders{__ALL_CUSTOM_SHADERS};
 
-  // 1.11 Ray Reconstruction/Regeneration detectors:
+  // 1.12 Ray Reconstruction/Regeneration detectors:
   // - kDlssRayReconstructionDetectorHash: DLSS RR prep signal, observed in NVIDIA RR-on lanes.
-  // - kSpecularRayRegenerationDetectorHash: older specular RR lineage, expected AMD Ray Regeneration signal.
-  constexpr uint32_t kDlssRayReconstructionDetectorHash = 0xA0F15389u;      // PrepareDlssRRCS
-  constexpr uint32_t kSpecularRayRegenerationDetectorHash = 0x35077EDFu;    // EvaluateSpecularRadianceCS
+  // - kSpecularRayRegenerationDetectorHash: specular Ray Regeneration signal from EvaluateSpecularRadianceCS.
+  constexpr uint32_t kDlssRayReconstructionDetectorHash = 0x3E2E5981u;      // PrepareDlssRRCS
+  constexpr uint32_t kSpecularRayRegenerationDetectorHash = 0x542B9F0Au;    // EvaluateSpecularRadianceCS
   for (uint32_t hash : {kDlssRayReconstructionDetectorHash, kSpecularRayRegenerationDetectorHash}) {
     if (auto it = shaders.find(hash); it != shaders.end()) {
       MarkShaderDraw(it->second, &rr_draw);
@@ -277,7 +277,12 @@ renodx::mods::shader::CustomShaders custom_shaders = [] {
     }
   }
 
-  for (uint32_t hash : {0x1E61F5E3u, 0x6D2F2634u}) {
+  // 1.12 night-only shadow tiled compute replacements.
+  // These are draw detectors for SceneShadowTiledNight variants; they do not change
+  // rendering by themselves, but mark night_shader_active for transition timing.
+  constexpr uint32_t kSceneShadowTiledNightHashA = 0xAD47167Fu;  // SceneShadowTiledNightCS
+  constexpr uint32_t kSceneShadowTiledNightHashB = 0x8254FE23u;  // SceneShadowTiledNightCS
+  for (uint32_t hash : {kSceneShadowTiledNightHashA, kSceneShadowTiledNightHashB}) {
     if (auto it = shaders.find(hash); it != shaders.end()) {
       MarkShaderDraw(it->second, &night_shader_active);
     } else {
@@ -288,31 +293,41 @@ renodx::mods::shader::CustomShaders custom_shaders = [] {
     }
   }
 
-  // SDR material/postprocess paths that can become BASIC_POSTPROCESS_FINAL.
-  // 0x2F574E45: retained 1.09 SDR Composite Material Tonemap / psPostProcessCompositeMaterial.
-  // 0x712041B2: 1.10 SDR Material Tonemap / psPostProcessMaterial.
-  // 0x6938EE6F: 1.10 SDR Composite Material Tonemap / psPostProcessCompositeMaterial.
-  for (uint32_t hash : {0x2F574E45u, 0x712041B2u, 0x6938EE6Fu}) {
+  // SDR material/postprocess draw gates. These paths can be the final visible SDR
+  // postprocess output even though they are not the standalone final-pass shaders.
+  // When one runs without a standalone SDR final in the same present window,
+  // OnPresent sets BASIC_POSTPROCESS_FINAL so shared helpers use the basic SDR path.
+  // 0x9884336C: psPostProcessMaterial SDR tonemap.
+  // 0x21212A93: psPostProcessCompositeMaterial SDR tonemap.
+  for (uint32_t hash : {0x9884336Cu, 0x21212A93u}) {
     if (auto it = shaders.find(hash); it != shaders.end()) {
       MarkShaderDraw(it->second, &postprocess_material_draw);
     }
   }
 
-  // SDR standalone finals that need BASIC_POSTPROCESS_FINAL finalization. HDR finals call FinalizeHDR directly.
-  // 0xB91769A4 / 0x3CF16709: retained 1.09 SDR Standalone Final / RenderPostProcessPS variants.
-  // 0xD49AC7D1 / 0xF1CD8E87: retained 1.09 SDR FSR Standalone Final variants.
-  // 0x39CC4AC5: 1.10 SDR Standalone Final / RenderPostProcessPS.
-  for (uint32_t hash : {0xB91769A4u, 0x3CF16709u, 0xD49AC7D1u, 0xF1CD8E87u, 0x39CC4AC5u}) {
+  // SDR standalone final-pass draw gates. These replacements already run the
+  // standalone SDR finalization path, so their presence suppresses the material
+  // fallback gate above. HDR finals call FinalizeHDR directly and are not listed here.
+  // 0xE5C29C6A: RenderPostProcessPS SDR final.
+  // 0x96C827AE / 0xF6FF6DB9: postprocessing_final SDR variants.
+  // 0xA9F53F51 / 0xDFBDBD09: postprocessing_final_fsr SDR variants.
+  for (uint32_t hash : {
+           0xE5C29C6Au,
+           0x96C827AEu,
+           0xF6FF6DB9u,
+           0xA9F53F51u,
+           0xDFBDBD09u,
+       }) {
     if (auto it = shaders.find(hash); it != shaders.end()) {
       MarkShaderDraw(it->second, &final_sdr_draw);
     }
   }
 
-  // 1.11 UI/HUD draw gates from SDR/HDR DevKit snapshots.
+  // 1.12 UI/HUD draw gates from SDR/HDR DevKit snapshots.
   // These VSMain families cover the observed UI pixel shader variants
   for (uint32_t hash : {
-           0x00C65E31u,
-           0x0ADCC304u,
+           0x8D440999u,
+           0xC6582593u,
        }) {
     AttachUIShaderDrawGate(shaders, hash);
   }
@@ -1385,19 +1400,6 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "Detected: Ray Reconstruction / Ray Regeneration is active.\n",
-        .section = "World / Materials",
-        .is_visible = []() { return current_settings_mode == rendering_group && RR_ENABLED; },
-    },
-    new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "Not detected: controls below require Ray Reconstruction / Ray Regeneration.\n",
-        .section = "World / Materials",
-        .tint = 0xaa0000,
-        .is_visible = []() { return current_settings_mode == rendering_group && !RR_ENABLED; },
-    },
-    new renodx::utils::settings::Setting{
         .key = "MaterialImprovements",
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -1407,13 +1409,12 @@ renodx::utils::settings::Settings settings = {
         .label = "Material Improvements",
         .section = "World / Materials",
         .tooltip = "Enables material/lighting improvements:\n"
-                   "- Smooth terminator for direct lighting\n"
-                   "- Geometric specular anti aliasing\n"
-                   "Currently disabled: EON diffuse BRDF, spectral diffraction.\n"
-                   "Disabled until Ray Reconstruction / Ray Regeneration is detected.",
+                   "- Applies in all renderer modes: glass/refraction fixes\n"
+                   "- Requires Ray Reconstruction / Ray Regeneration: smooth terminator for direct lighting\n"
+                   "- Requires Ray Reconstruction / Ray Regeneration: geometric specular anti aliasing\n"
+                   "Currently disabled: EON diffuse BRDF, spectral diffraction.",
         .labels = {"Off", "On"},
         .tint = wiprendering,
-        .is_enabled = []() { return RR_ENABLED; },
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
@@ -1502,7 +1503,7 @@ renodx::utils::settings::Settings settings = {
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 0.f,
-        // SPMIS is disabled for 1.10 until active RT replacement shaders are restored.
+        // SPMIS is disabled for 1.12 until active RT replacement shaders are restored.
         // Keep this UI breadcrumb visible, but force all choices to Off so saved values do not set RT_QUALITY.
         .packed_values = {0u, 0u, 0u},
         .can_reset = true,
