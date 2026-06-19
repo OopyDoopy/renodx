@@ -154,8 +154,9 @@
 #define RT_GI_KNEE                             2.0f
 #define RT_GI_STRENGTH                         0.07f
 #define MATERIAL_IMPROVEMENTS                  ((RR_ENABLED == 1.f && (CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__MATERIAL_IMPROVEMENTS) != 0u) ? 1.f : 0.f)
+#define REFRACTION_FIXES                       ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__MATERIAL_IMPROVEMENTS) != 0u ? 1.f : 0.f)
 // RenoDX: >>> [Patch: MaterialImprovementFeatureGates] [Version: 1.09]
-// Description: Keeps the Material Improvements UI mapped only to shader paths that survived 1.09 live validation. EON diffuse BRDF and spectral diffraction remain parked because enabling them together caused blocky direct/local-light mismatches across tiled lighting regions; smooth terminator and specular anti-aliasing stay RR-gated behind the UI toggle.
+// Description: Keeps broad Material Improvements mapped only to shader paths that survived live validation. EON diffuse BRDF and spectral diffraction remain parked because enabling them together caused blocky direct/local-light mismatches across tiled lighting regions; smooth terminator and specular anti-aliasing stay RR-gated behind the UI toggle, while targeted refraction fixes can read the same user toggle without requiring RR.
 #define DIFFUSE_BRDF_MODE                      0.0f
 #define SMOOTH_TERMINATOR                      (MATERIAL_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
 #define SPECULAR_AA                            (MATERIAL_IMPROVEMENTS == 1.f ? 1.0f : 0.0f)
