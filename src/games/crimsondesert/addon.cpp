@@ -678,7 +678,7 @@ renodx::utils::settings::Settings settings = {
         .tint = color_grading,
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f; },
-        .parse = [](float value) { return value * 0.01f; },
+        .parse = [](float value) { return value * 0.0005f; },
         .is_visible = []() { return current_settings_mode == color_grading_group; },
     },
     new renodx::utils::settings::Setting{
