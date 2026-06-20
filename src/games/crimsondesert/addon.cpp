@@ -10,12 +10,13 @@
 
 #include <embed/shaders.h>
 
-#include <chrono>
 #include <d3d12.h>
 #include <deps/imgui/imgui.h>
 #include <atomic>
+#include <chrono>
 #include <include/reshade.hpp>
 #include <mutex>
+
 
 #include "../../mods/shader.hpp"
 #include "../../templates/settings.hpp"
@@ -203,14 +204,17 @@ const std::unordered_map<std::string, float> NEUTRAL_VALUES = {
 };
 
 const std::unordered_map<std::string, float> HDR_LOOK_VALUES = {
-    {"ColorGradeExposure", 0.9f},
+    {"ColorGradeExposure", 1.f},
     {"ColorGradeShadows", 50.f},
-    {"ToneMapFlare", 0.f},
+    {"ToneMapFlare", 5.f},
     {"ColorGradeContrast", 60.f},
-    {"ColorGradeSaturation", 60.f},
-    {"ColorGradeHighlightSaturation", 50.f},
+    {"ColorGradeSaturation", 55.f},
+    {"ColorGradeHighlightSaturation", 60.f},
     {"ColorGradeHighlights", 60.f},
-    {"CustomToneMapMidgrayAdjust", 100.f},
+    {"ToneMapHueRestore", 100.f},
+    {"ToneMapBlowout", 5.f},
+    {"CustomToneMapMidgrayAdjust", 50.f},
+    {"ColorGradeWhitePointKelvin", 65.f},
 };
 
 bool rr_draw = false;
@@ -218,12 +222,12 @@ int rr_draw_counter = 0;
 bool is_nvidia = true;
 
 // --- Aurora night detection ---
-// SceneShadowTiledNight shaders only dispatch during night. 
+// SceneShadowTiledNight shaders only dispatch during night.
 // We track when they start/stop firing to detect night transitions.
-bool night_shader_active = false;     
-bool night_shader_was_active = false;  
+bool night_shader_active = false;
+bool night_shader_was_active = false;
 int night_check_counter = 0;
-uint32_t aurora_night_counter = 0;     
+uint32_t aurora_night_counter = 0;
 uint32_t dawn_dusk_day_counter = 0;
 std::chrono::steady_clock::time_point dawn_dusk_blend_start{};
 float dawn_dusk_blend_duration = 60.f;  // seconds to crossfade between presets
@@ -264,8 +268,8 @@ renodx::mods::shader::CustomShaders custom_shaders = [] {
   // 1.12 Ray Reconstruction/Regeneration detectors:
   // - kDlssRayReconstructionDetectorHash: DLSS RR prep signal, observed in NVIDIA RR-on lanes.
   // - kSpecularRayRegenerationDetectorHash: specular Ray Regeneration signal from EvaluateSpecularRadianceCS.
-  constexpr uint32_t kDlssRayReconstructionDetectorHash = 0x3E2E5981u;      // PrepareDlssRRCS
-  constexpr uint32_t kSpecularRayRegenerationDetectorHash = 0x542B9F0Au;    // EvaluateSpecularRadianceCS
+  constexpr uint32_t kDlssRayReconstructionDetectorHash = 0x3E2E5981u;    // PrepareDlssRRCS
+  constexpr uint32_t kSpecularRayRegenerationDetectorHash = 0x542B9F0Au;  // EvaluateSpecularRadianceCS
   for (uint32_t hash : {kDlssRayReconstructionDetectorHash, kSpecularRayRegenerationDetectorHash}) {
     if (auto it = shaders.find(hash); it != shaders.end()) {
       MarkShaderDraw(it->second, &rr_draw);
@@ -487,7 +491,7 @@ renodx::utils::settings::Settings settings = {
           } },
         .is_visible = []() { return current_settings_mode == color_grading_group; },
     },
-        new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "HDR Look",
         .section = "Grading Presets",
@@ -721,7 +725,7 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode == color_grading_group; },
     },
-        new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
         .key = "ColorGradeWhitePointKelvin",
         .binding = &shader_injection.color_temp_kelvin,
         .default_value = 65.f,
@@ -733,7 +737,7 @@ renodx::utils::settings::Settings settings = {
         .tint = color_grading,
         .min = 40.f,
         .max = 93.f,
-        .format = "%.0f00K", // Written this way to increment by 100s
+        .format = "%.0f00K",  // Written this way to increment by 100s
         .is_visible = []() { return current_settings_mode == color_grading_group; },
     },
     new renodx::utils::settings::Setting{
@@ -1718,8 +1722,7 @@ renodx::utils::settings::Settings settings = {
           ImGui::TextLinkOpenURL("Jon's Ko-Fi", "https://ko-fi.com/kickfister");
           ImGui::SameLine();
           ImGui::TextLinkOpenURL("ShortFuse's Ko-Fi", "https://ko-fi.com/shortfuse");
-          return false;
-        },
+          return false; },
         .is_visible = []() { return current_settings_mode == basic_group; },
     },
     new renodx::utils::settings::Setting{
@@ -1752,7 +1755,7 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSettings({
       {"ToneMapType", 0.f},
       {"ToneMapPeakNits", 1000.f},
-      {"ToneMapGameNits", 203.f},      
+      {"ToneMapGameNits", 203.f},
       {"SDRBlackCrushFix", 0.f},
 
       {"ToneMapHueRestore", 10.f},
@@ -1843,7 +1846,7 @@ void OnPresent(reshade::api::command_queue* /*queue*/,
   }
 
   // --- Aurora night seed: detect night transitions via SceneShadowTiledNight ---
-  // SceneShadowTiledNight shaders only run during night, this allows us to use 
+  // SceneShadowTiledNight shaders only run during night, this allows us to use
   // them as a proxy to re roll the aurora seed
   night_check_counter++;
   if (night_check_counter >= 30) {
@@ -1912,7 +1915,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       if (!reshade::register_addon(h_module)) return FALSE;
       // while (IsDebuggerPresent() == 0) Sleep(100);
 
-      reshade::register_event<reshade::addon_event::init_device>(OnInitDevice); // Vendor detection
+      reshade::register_event<reshade::addon_event::init_device>(OnInitDevice);  // Vendor detection
 
       reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
       reshade::register_event<reshade::addon_event::present>(OnPresent);
