@@ -72,10 +72,10 @@ cbuffer __3__35__0__0__SceneConstantBuffer : register(b15, space35) {
   float4 _debugNormal;
   float4 _debugMaterial;
   float4 _debugMultiplier;
-  min16float4 _debugBaseColor16;
-  min16float4 _debugNormal16;
-  min16float4 _debugMaterial16;
-  min16float4 _debugMultiplier16;
+  half4 _debugBaseColor16;
+  half4 _debugNormal16;
+  half4 _debugMaterial16;
+  half4 _debugMultiplier16;
   float4 _debugCursorWorldPos;
   uint4 _debugRenderToggle01;
   uint4 _debugTreeShapeVariation;
@@ -108,9 +108,14 @@ cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _slopeParams : packoffset(c009.x);
   float4 _offsetParams : packoffset(c010.x);
   float4 _powerParams : packoffset(c011.x);
-  int _colorBlindParam : packoffset(c012.x);
-  int _nightToneParm : packoffset(c012.y);
-  int2 _padding : packoffset(c012.z);
+  int _nightToneParm : packoffset(c012.x);
+  int3 _padding : packoffset(c012.y);
+};
+
+cbuffer __3__35__0__0__ColorBlindConstantBuffer : register(b46, space35) {
+  float4 _colorBlind0 : packoffset(c000.x);
+  float4 _colorBlind1 : packoffset(c001.x);
+  float4 _colorBlind2 : packoffset(c002.x);
 };
 
 SamplerState __0__4__0__0__g_staticBilinearClamp : register(s3, space4);
@@ -172,7 +177,6 @@ float4 main(
   float _243;
   float _244;
   float _245;
-  int _249;
   float _288;
   float _299;
   float _300;
@@ -275,29 +279,9 @@ float4 main(
   _243 = (_238 * (_229 + -0.5f)) + _242;
   _244 = (_238 * (_230 + -0.5f)) + _242;
   _245 = (_238 * (_231 + -0.5f)) + _242;
-  _249 = min((int)(max((int)(_colorBlindParam), (int)(0))), (int)(3));
-  [branch]
-  if (_249 == 1) {
-    _277 = mad(0.20000000298023224f, _244, (_243 * 0.800000011920929f));
-    _278 = mad(0.7416700124740601f, _244, (_243 * 0.25832998752593994f));
-    _279 = mad(0.8583300113677979f, _245, mad(0.14167000353336334f, _244, 0.0f));
-  } else {
-    if (_249 == 2) {
-      _277 = mad(0.1833299994468689f, _244, (_243 * 0.8166700005531311f));
-      _278 = mad(0.666670024394989f, _244, (_243 * 0.3333300054073334f));
-      _279 = mad(0.875f, _245, mad(0.125f, _244, 0.0f));
-    } else {
-      if (_249 == 3) {
-        _277 = mad(0.033330000936985016f, _244, (_243 * 0.9666699767112732f));
-        _278 = mad(0.26666998863220215f, _245, mad(0.7333300113677979f, _244, 0.0f));
-        _279 = mad(0.8166700005531311f, _245, mad(0.1833299994468689f, _244, 0.0f));
-      } else {
-        _277 = _243;
-        _278 = _244;
-        _279 = _245;
-      }
-    }
-  }
+  _277 = mad(_colorBlind0.z, _245, mad(_colorBlind0.y, _244, (_243 * _colorBlind0.x)));
+  _278 = mad(_colorBlind1.z, _245, mad(_colorBlind1.y, _244, (_243 * _colorBlind1.x)));
+  _279 = mad(_colorBlind2.z, _245, mad(_colorBlind2.y, _244, (_243 * _colorBlind2.x)));
   _288 = 2.200000047683716f / ((min(max(_userImageAdjust.w, -1.0f), 1.0f) * 0.800000011920929f) + 2.200000047683716f);
   _299 = (TEXCOORD.x * 2.0f) + -1.0f;
   _300 = TEXCOORD.y * 2.0f;

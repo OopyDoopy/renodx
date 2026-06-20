@@ -200,9 +200,14 @@ cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _slopeParams : packoffset(c009.x);
   float4 _offsetParams : packoffset(c010.x);
   float4 _powerParams : packoffset(c011.x);
-  int _colorBlindParam : packoffset(c012.x);
-  int _nightToneParm : packoffset(c012.y);
-  int2 _padding : packoffset(c012.z);
+  int _nightToneParm : packoffset(c012.x);
+  int3 _padding : packoffset(c012.y);
+};
+
+cbuffer __3__35__0__0__ColorBlindConstantBuffer : register(b46, space35) {
+  float4 _colorBlind0 : packoffset(c000.x);
+  float4 _colorBlind1 : packoffset(c001.x);
+  float4 _colorBlind2 : packoffset(c002.x);
 };
 #endif
 
@@ -1917,29 +1922,9 @@ float4 main(
       _3228 = ((_3215 + -0.5f) * _3223) + _3227;
       _3229 = ((_3216 + -0.5f) * _3223) + _3227;
       _3230 = ((_3217 + -0.5f) * _3223) + _3227;
-      _3233 = min((int)(max((int)(_colorBlindParam), (int)(0))), (int)(3));
-      [branch]
-      if (_3233 == 1) {
-        _3261 = mad(0.20000000298023224f, _3229, (_3228 * 0.800000011920929f));
-        _3262 = mad(0.7416700124740601f, _3229, (_3228 * 0.25832998752593994f));
-        _3263 = mad(0.8583300113677979f, _3230, mad(0.14167000353336334f, _3229, 0.0f));
-      } else {
-        if (_3233 == 2) {
-          _3261 = mad(0.1833299994468689f, _3229, (_3228 * 0.8166700005531311f));
-          _3262 = mad(0.666670024394989f, _3229, (_3228 * 0.3333300054073334f));
-          _3263 = mad(0.875f, _3230, mad(0.125f, _3229, 0.0f));
-        } else {
-          if (_3233 == 3) {
-            _3261 = mad(0.033330000936985016f, _3229, (_3228 * 0.9666699767112732f));
-            _3262 = mad(0.26666998863220215f, _3230, mad(0.7333300113677979f, _3229, 0.0f));
-            _3263 = mad(0.8166700005531311f, _3230, mad(0.1833299994468689f, _3229, 0.0f));
-          } else {
-            _3261 = _3228;
-            _3262 = _3229;
-            _3263 = _3230;
-          }
-        }
-      }
+      _3261 = mad(_colorBlind0.z, _3230, mad(_colorBlind0.y, _3229, (_colorBlind0.x * _3228)));
+      _3262 = mad(_colorBlind1.z, _3230, mad(_colorBlind1.y, _3229, (_colorBlind1.x * _3228)));
+      _3263 = mad(_colorBlind2.z, _3230, mad(_colorBlind2.y, _3229, (_colorBlind2.x * _3228)));
       _3272 = 2.200000047683716f / ((min(max(_userImageAdjust.w, -1.0f), 1.0f) * 0.800000011920929f) + 2.200000047683716f);
       _3283 = exp2(log2(saturate(_3261)) * _3272);
       _3284 = exp2(log2(saturate(_3262)) * _3272);

@@ -192,24 +192,24 @@ const std::unordered_map<std::string, float> EXPERIMENTAL_RECOMMENDED_VALUES = {
 
 const std::unordered_map<std::string, float> NEUTRAL_VALUES = {
     {"ColorGradeShadows", 50.f},
-    {"ColorGradeConeResponse", 50.f},
+    {"ToneMapFlare", 0.f},
     {"ColorGradeContrast", 50.f},
     {"ColorGradeSaturation", 50.f},
+    {"ColorGradeHighlightSaturation", 50.f},
     {"ColorGradeHighlights", 50.f},
-    {"ToneMapBlowout", 0.f},
     {"CustomToneMapMidgrayAdjust", 0.f},
-    {"LocalLightHueCorrection", 25.f},
-    {"LocalLightSaturation", 43.f},
+    //{"LocalLightHueCorrection", 15.f},
+    //{"LocalLightSaturation", 50.f},
 };
 
 const std::unordered_map<std::string, float> HDR_LOOK_VALUES = {
     {"ColorGradeExposure", 0.9f},
-    {"ColorGradeShadows", 54.f},
-    {"ColorGradeConeResponse", 65.f},
-    {"ColorGradeContrast", 50.f},
-    {"ColorGradeSaturation", 56.f},
-    {"ColorGradeHighlights", 41.f},
-    {"ToneMapBlowout", 5.f},
+    {"ColorGradeShadows", 50.f},
+    {"ToneMapFlare", 0.f},
+    {"ColorGradeContrast", 60.f},
+    {"ColorGradeSaturation", 60.f},
+    {"ColorGradeHighlightSaturation", 50.f},
+    {"ColorGradeHighlights", 60.f},
     {"CustomToneMapMidgrayAdjust", 100.f},
 };
 
@@ -218,8 +218,8 @@ int rr_draw_counter = 0;
 bool is_nvidia = true;
 
 // --- Aurora night detection ---
-// SceneShadowTiledNight replacements only dispatch during night. OnPresent samples this
-// marker every 30 frames to detect night transitions for aurora and dawn/dusk weather seeds.
+// SceneShadowTiledNight shaders only dispatch during night. 
+// We track when they start/stop firing to detect night transitions.
 bool night_shader_active = false;     
 bool night_shader_was_active = false;  
 int night_check_counter = 0;
@@ -396,6 +396,10 @@ bool IsExperimentalPresetSection(const std::string& section) {
          || section.starts_with("Capture Tools");
 }
 
+bool IsPresetBrightnessSetting(const std::string& key) {
+  return key == "ToneMapPeakNits" || key == "ToneMapGameNits";
+}
+
 renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "SettingsMode",
@@ -418,6 +422,7 @@ renodx::utils::settings::Settings settings = {
           for (auto setting : settings) {
             if (setting->key.empty()) continue;
             if (!setting->can_reset) continue;
+            if (IsPresetBrightnessSetting(setting->key)) continue;
             renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
           } },
         .is_visible = []() { return current_settings_mode == basic_group; },
@@ -432,6 +437,7 @@ renodx::utils::settings::Settings settings = {
           for (auto* setting : settings) {
             if (setting->key.empty()) continue;
             if (!setting->can_reset) continue;
+            if (IsPresetBrightnessSetting(setting->key)) continue;
             if (VANILLA_VALUES.contains(setting->key)) {
               renodx::utils::settings::UpdateSetting(setting->key, VANILLA_VALUES.at(setting->key));
               continue;
@@ -451,6 +457,7 @@ renodx::utils::settings::Settings settings = {
           for (auto setting : settings) {
             if (setting->key.empty()) continue;
             if (!setting->can_reset) continue;
+            if (IsPresetBrightnessSetting(setting->key)) continue;
             if (!setting->section.starts_with("Tone Mapping")
                 && !setting->section.starts_with("Color Grading")
                 && !setting->section.starts_with("Local Lighting")) continue;
@@ -468,6 +475,7 @@ renodx::utils::settings::Settings settings = {
           for (auto* setting : settings) {
             if (setting->key.empty()) continue;
             if (!setting->can_reset) continue;
+            if (IsPresetBrightnessSetting(setting->key)) continue;
             if (!setting->section.starts_with("Tone Mapping")
                 && !setting->section.starts_with("Color Grading")
                 && !setting->section.starts_with("Local Lighting")) continue;
@@ -489,6 +497,7 @@ renodx::utils::settings::Settings settings = {
           for (auto* setting : settings) {
             if (setting->key.empty()) continue;
             if (!setting->can_reset) continue;
+            if (IsPresetBrightnessSetting(setting->key)) continue;
             if (!setting->section.starts_with("Tone Mapping")
                 && !setting->section.starts_with("Color Grading")
                 && !setting->section.starts_with("Local Lighting")) continue;
@@ -513,7 +522,7 @@ renodx::utils::settings::Settings settings = {
                    "\nVanilla SDR uses a per channel BT.709 curve"
                    "\nVanilla HDR uses an unmodified ACESv2 tone mapper with in-game sliders."
                    "\nPsychoV uses a custom psychovisual tone mapping system.",
-        .labels = {"Vanilla (Per-Channel SDR/ACESv2 HDR)", "PsychoV-17"},
+        .labels = {"Vanilla (Per-Channel SDR/ACESv2 HDR)", "PsychoV Custom"},
         .tint = tone_mapping,
         .parse = [](float value) { return value; },
         .is_visible = []() { return current_settings_mode == tone_mapping_group; },
@@ -601,7 +610,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ColorGradeHighlights",
         .binding = &shader_injection.tone_map_highlights,
-        .default_value = 41.f,
+        .default_value = 50.f,
         .label = "Highlights",
         .section = "Color Grading",
         .tint = color_grading,
@@ -625,7 +634,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ColorGradeContrast",
         .binding = &shader_injection.tone_map_contrast,
-        .default_value = 55.f,
+        .default_value = 60.f,
         .label = "Contrast",
         .section = "Color Grading",
         .tint = color_grading,
@@ -637,7 +646,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ColorGradeSaturation",
         .binding = &shader_injection.tone_map_saturation,
-        .default_value = 60.f,
+        .default_value = 55.f,
         .label = "Saturation",
         .section = "Color Grading",
         .tint = color_grading,
@@ -647,16 +656,29 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == color_grading_group; },
     },
     new renodx::utils::settings::Setting{
-        .key = "ColorGradeConeResponse",
-        .binding = &shader_injection.tone_map_cone_response,
+        .key = "ColorGradeHighlightSaturation",
+        .binding = &shader_injection.tone_map_highlight_saturation,
         .default_value = 50.f,
-        .label = "Cone Response",
+        .label = "Highlight Saturation",
         .section = "Color Grading",
-        .tooltip = "Controls the PsychoV cone response shaping.",
+        .tooltip = "Adds or removes color from highlights.",
+        .tint = color_grading,
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .parse = [](float value) { return value * 0.02f; },
+        .is_visible = []() { return current_settings_mode == color_grading_group; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ToneMapFlare",
+        .binding = &shader_injection.tone_map_flare,
+        .default_value = 0.f,
+        .label = "Flare",
+        .section = "Color Grading",
+        .tooltip = "Raises shadow contrast response in the PsychoV tone mapper.",
         .tint = color_grading,
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f; },
-        .parse = [](float value) { return value * 0.02f; },
+        .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode == color_grading_group; },
     },
     new renodx::utils::settings::Setting{
@@ -676,7 +698,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ToneMapBlowout",
         .binding = &shader_injection.tone_map_blowout,
-        .default_value = 5.f,
+        .default_value = 0.f,
         .label = "Blowout",
         .section = "Color Grading",
         .tooltip = "Desaturates the brightest portions of the image, also relative to peak brightness.",
@@ -725,6 +747,7 @@ renodx::utils::settings::Settings settings = {
           for (auto* setting : settings) {
             if (setting->key.empty()) continue;
             if (!setting->can_reset) continue;
+            if (IsPresetBrightnessSetting(setting->key)) continue;
             if (setting->is_global) continue;
             if (!IsGraphicsRecommendedPresetSection(setting->section)) continue;
             if (!setting->section.starts_with("Local Lighting")
@@ -744,6 +767,7 @@ renodx::utils::settings::Settings settings = {
           for (auto* setting : settings) {
             if (setting->key.empty()) continue;
             if (!setting->can_reset) continue;
+            if (IsPresetBrightnessSetting(setting->key)) continue;
             if (setting->is_global) continue;
             if (!IsGraphicsVanillaPresetSection(setting->section)) continue;
             if (setting->is_visible != nullptr && !setting->is_visible()) continue;
@@ -773,7 +797,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "LocalLightSaturation",
         .binding = &shader_injection.local_light_saturation,
-        .default_value = 36.f,
+        .default_value = 50.f,
         .can_reset = true,
         .label = "Flame Saturation",
         .section = "Local Lighting",
@@ -1466,6 +1490,7 @@ renodx::utils::settings::Settings settings = {
           for (auto* setting : settings) {
             if (setting->key.empty()) continue;
             if (!setting->can_reset) continue;
+            if (IsPresetBrightnessSetting(setting->key)) continue;
             if (setting->is_global) continue;
             if (!IsExperimentalPresetSection(setting->section)) continue;
             if (setting->is_visible != nullptr && !setting->is_visible()) continue;
@@ -1487,6 +1512,7 @@ renodx::utils::settings::Settings settings = {
           for (auto* setting : settings) {
             if (setting->key.empty()) continue;
             if (!setting->can_reset) continue;
+            if (IsPresetBrightnessSetting(setting->key)) continue;
             if (setting->is_global) continue;
             if (!IsExperimentalPresetSection(setting->section)) continue;
             if (setting->is_visible != nullptr && !setting->is_visible()) continue;
@@ -1726,7 +1752,7 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSettings({
       {"ToneMapType", 0.f},
       {"ToneMapPeakNits", 1000.f},
-      {"ToneMapGameNits", 203.f},
+      {"ToneMapGameNits", 203.f},      
       {"SDRBlackCrushFix", 0.f},
 
       {"ToneMapHueRestore", 10.f},
@@ -1737,7 +1763,8 @@ void OnPresetOff() {
       {"ColorGradeShadows", 50.f},
       {"ColorGradeContrast", 50.f},
       {"ColorGradeSaturation", 50.f},
-      {"ColorGradeConeResponse", 50.f},
+      {"ColorGradeHighlightSaturation", 50.f},
+      {"ToneMapFlare", 0.f},
       {"ColorGradeWhitePointKelvin", 65.f},
       {"CustomToneMapMidgrayAdjust", 100.f},
 

@@ -1,6 +1,5 @@
 #include "./lilium_rcas.hlsl"
-#include "./macleod_boynton.hlsli"
-#include "./psycho_test17_custom.hlsl"
+#include "./psychov_custom.hlsl"
 #include "./shared.h"
 #include "./lighting/purkinje_common.hlsli"
 
@@ -221,14 +220,7 @@ float ComputeReinhardSmoothClampScale(float3 untonemapped, float rolloff_start =
   return scale;
 }
 
-float3 GammaCorrectionByLuminosity(float3 color, bool pow_to_srgb = false, float gamma = 2.2f) {
-  float lumin_in = LuminosityFromBT709(color);
-  float lumin_out = renodx::color::correct::GammaSafe(lumin_in, pow_to_srgb, gamma);
-  float3 color_out = renodx::color::correct::Luminance(color, lumin_in, lumin_out);
-  return color_out;
-}
-
-float3 CustomPsychoV17Peak(
+float3 CustomPsychoVPeak(
     float3 untonemapped_bt709,
     float current_average,
     float target_average,
@@ -242,10 +234,10 @@ float3 CustomPsychoV17Peak(
     current_average = target_average;
   }
 
-  float3 bt709_scene = untonemapped_bt709 * RENODX_TONE_MAP_EXPOSURE;
+  float3 bt709_scene = untonemapped_bt709;
 
   if (target_average >= peak_value) {
-    return min(bt709_scene, peak_value);
+    return min(bt709_scene * RENODX_TONE_MAP_EXPOSURE, peak_value);
   }
 
   float boost = 1.f;
@@ -257,52 +249,19 @@ float3 CustomPsychoV17Peak(
 
   bt709_scene *= boost;
 
-  float3 lms_in = renodx::color::lms::from::BT709(bt709_scene);
-  float yf_input = renodx::color::yf::from::LMS(lms_in);
-  float yf_midgray = renodx::color::yf::from::BT709(0.18f);
-  float yf_target = yf_input;
-
-  if (RENODX_TONE_MAP_HIGHLIGHTS != 1.f) {
-    // yf_target = renodx::color::grade::Highlights(yf_target, RENODX_TONE_MAP_HIGHLIGHTS, yf_midgray);
-    yf_target = Highlights(yf_target, RENODX_TONE_MAP_HIGHLIGHTS, yf_midgray);
-  }
-  if (RENODX_TONE_MAP_SHADOWS != 1.f) {
-    yf_target = renodx::color::grade::Shadows(yf_target, RENODX_TONE_MAP_SHADOWS, yf_midgray, 1.f);
-  }
-  if (RENODX_TONE_MAP_CONTRAST != 1.f) {
-    yf_target = renodx::color::grade::ContrastSafe(yf_target, RENODX_TONE_MAP_CONTRAST, yf_midgray);
-  }
-
-  float yf_scale = renodx::math::DivideSafe(yf_target, yf_input, 1.f);
-  bt709_scene *= yf_scale;
-
   bt709_scene /= boost;
 
-  float anchor_in = current_average;
-  float anchor_out = target_average;
+  renodx::tonemap::psycho::config::Config psycho_config = renodx::tonemap::psycho::config::BuildConfig();
+  psycho_config.peak_value = peak_value.xxx;
+  psycho_config.current_adaptive_state_bt709 = current_average.xxx;
+  psycho_config.current_background_state_bt709 = target_average.xxx;
+  psycho_config.gamut_compression_mode = gamut_compression_mode;
 
-  return renodx::tonemap::psycho::psychotm_test17(
-      bt709_scene,
-      peak_value,
-      1.0,
-      1.0,
-      1.0,
-      1.0,
-      RENODX_TONE_MAP_SATURATION,
-      RENODX_TONE_MAP_BLOWOUT,
-      100.f,
-      RENODX_TONE_MAP_HUE_RESTORE,
-      1.0,
-      1,
-      CUSTOM_CONE_RESPONSE,
-      anchor_in,
-      anchor_out,
-      1.f,
-      gamut_compression_mode);
+  return renodx::tonemap::psycho::psychotm_customized(bt709_scene, psycho_config);
 }
 
-float3 CustomPsychoV17AutoExposure(float3 untonemapped_bt709, float peak, float current_average, float target_average, bool is_sdr = false) {
-  return CustomPsychoV17Peak(
+float3 CustomPsychoVAutoExposure(float3 untonemapped_bt709, float peak, float current_average, float target_average, bool is_sdr = false) {
+  return CustomPsychoVPeak(
       untonemapped_bt709,
       current_average,
       target_average,
@@ -315,7 +274,7 @@ float3 ProcessTonemap(float3 untonemapped_bt709, float calculated_peak, float cu
     return untonemapped_bt709;
   }
 
-  float3 output_color = CustomPsychoV17AutoExposure(
+  float3 output_color = CustomPsychoVAutoExposure(
       untonemapped_bt709,
       calculated_peak,
       current_average,
@@ -343,13 +302,13 @@ float3 CustomTonemap(float3 untonemapped_bt709, float current_average = 0.18f, f
   float calculated_peak = RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS;
 
   if (RENODX_GAMMA_CORRECTION > 0.f) {
-    calculated_peak = RENODX_GAMMA_CORRECTION == 1.f ? renodx::color::correct::GammaSafe(calculated_peak, true) : GammaCorrectionByLuminosity(calculated_peak, true).x;
+    calculated_peak = renodx::color::correct::GammaSafe(calculated_peak, true);
   }
 
   float3 output_color = ProcessTonemap(untonemapped_bt709, calculated_peak, current_average, target_average, false);
 
   if (RENODX_GAMMA_CORRECTION > 0.f) {
-    output_color = RENODX_GAMMA_CORRECTION == 1.f ? renodx::color::correct::GammaSafe(output_color) : GammaCorrectionByLuminosity(output_color);
+    output_color = renodx::color::correct::GammaSafe(output_color);
   }
 
   return output_color;
@@ -415,9 +374,9 @@ float3 ProcessGameOutput(float3 color, bool is_sdr) {
   return color;
 }
 
-float3 NakaRushton(float3 x, float3 peak = 1.0f, float3 anchor_in = 0.18f, float3 anchor_out = 0.18f, float cone_response_exponent = 1.f) {
+float3 NakaRushton(float3 x, float3 peak = 1.0f, float3 anchor_in = 0.18f, float3 anchor_out = 0.18f, float response_exponent = 1.f) {
   float3 peak_minus_anchor_out = peak - anchor_out;
-  float3 n = cone_response_exponent * peak / peak_minus_anchor_out;
+  float3 n = response_exponent * peak / peak_minus_anchor_out;
   float3 a_n = pow(anchor_in, n);
   float3 x_n = pow(x, n);
   float3 x_n_anchor_out = x_n * anchor_out;

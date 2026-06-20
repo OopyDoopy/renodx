@@ -44,9 +44,14 @@ cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _slopeParams : packoffset(c009.x);
   float4 _offsetParams : packoffset(c010.x);
   float4 _powerParams : packoffset(c011.x);
-  int _colorBlindParam : packoffset(c012.x);
-  int _nightToneParm : packoffset(c012.y);
-  int2 _padding : packoffset(c012.z);
+  int _nightToneParm : packoffset(c012.x);
+  int3 _padding : packoffset(c012.y);
+};
+
+cbuffer __3__35__0__0__ColorBlindConstantBuffer : register(b46, space35) {
+  float4 _colorBlind0 : packoffset(c000.x);
+  float4 _colorBlind1 : packoffset(c001.x);
+  float4 _colorBlind2 : packoffset(c002.x);
 };
 
 float GetPerceptualAdaptedFieldYf() {
@@ -153,44 +158,6 @@ float3 VanillaCurves(float3 color) {
 float3 SDRToneMap(float3 color, bool use_color_blind = false, bool use_etc_params = true) {
   float _1675, _1676, _1677;
   float _1797, _1798, _1799;
-  float _25[36];
-
-  _25[0] = 1.0f;
-  _25[1] = 0.0f;
-  _25[2] = 0.0f;
-  _25[3] = 0.0f;
-  _25[4] = 1.0f;
-  _25[5] = 0.0f;
-  _25[6] = 0.0f;
-  _25[7] = 0.0f;
-  _25[8] = 1.0f;
-  _25[9] = 0.800000011920929f;
-  _25[10] = 0.25832998752593994f;
-  _25[11] = 0.0f;
-  _25[12] = 0.20000000298023224f;
-  _25[13] = 0.7416700124740601f;
-  _25[14] = 0.14167000353336334f;
-  _25[15] = 0.0f;
-  _25[16] = 0.0f;
-  _25[17] = 0.8583300113677979f;
-  _25[18] = 0.8166700005531311f;
-  _25[19] = 0.3333300054073334f;
-  _25[20] = 0.0f;
-  _25[21] = 0.1833299994468689f;
-  _25[22] = 0.666670024394989f;
-  _25[23] = 0.125f;
-  _25[24] = 0.0f;
-  _25[25] = 0.0f;
-  _25[26] = 0.875f;
-  _25[27] = 0.9666699767112732f;
-  _25[28] = 0.0f;
-  _25[29] = 0.0f;
-  _25[30] = 0.033330000936985016f;
-  _25[31] = 0.7333300113677979f;
-  _25[32] = 0.1833299994468689f;
-  _25[33] = 0.0f;
-  _25[34] = 0.26666998863220215f;
-  _25[35] = 0.8166700005531311f;
 
   float _1519 = min(max(log2(mad(color.z, 0.07922374457120895f, mad(color.y, 0.07843360304832458f, (color.x * 0.8424790501594543f)))), -12.473930358886719f), 4.026069164276123f) + 12.473930358886719f;
   float _1520 = min(max(log2(mad(color.z, 0.07916612923145294f, mad(color.y, 0.8784686326980591f, (color.x * 0.04232824221253395f)))), -12.473930358886719f), 4.026069164276123f) + 12.473930358886719f;
@@ -258,12 +225,14 @@ float3 SDRToneMap(float3 color, bool use_color_blind = false, bool use_etc_param
     float _1689 = ((_1676 + -0.5f) * _1683) + _1687;
     float _1690 = ((_1677 + -0.5f) * _1683) + _1687;
 
-    int _1731 = min(max(_colorBlindParam, 0), 3) * (int)use_color_blind; // Override in case we call this to get mid gray in HDR
-    
+    float3 color_blind0 = use_color_blind ? _colorBlind0.xyz : float3(1.0f, 0.0f, 0.0f);
+    float3 color_blind1 = use_color_blind ? _colorBlind1.xyz : float3(0.0f, 1.0f, 0.0f);
+    float3 color_blind2 = use_color_blind ? _colorBlind2.xyz : float3(0.0f, 0.0f, 1.0f);
+
     float _1786 = 2.200000047683716f / ((min(max(_userImageAdjust.w, -1.0f), 1.0f) * 0.800000011920929f) + 2.200000047683716f);
-    _1797 = exp2(log2(saturate(mad((_25[((int)(6u + (_1731 * 9)))]), _1690, mad((_25[((int)(3u + (_1731 * 9)))]), _1689, ((_25[((int)(0u + (_1731 * 9)))]) * _1688))))) * _1786);
-    _1798 = exp2(log2(saturate(mad((_25[((int)(7u + (_1731 * 9)))]), _1690, mad((_25[((int)(4u + (_1731 * 9)))]), _1689, ((_25[((int)(1u + (_1731 * 9)))]) * _1688))))) * _1786);
-    _1799 = exp2(log2(saturate(mad((_25[((int)(8u + (_1731 * 9)))]), _1690, mad((_25[((int)(5u + (_1731 * 9)))]), _1689, ((_25[((int)(2u + (_1731 * 9)))]) * _1688))))) * _1786);
+    _1797 = exp2(log2(saturate(mad(color_blind0.z, _1690, mad(color_blind0.y, _1689, (color_blind0.x * _1688))))) * _1786);
+    _1798 = exp2(log2(saturate(mad(color_blind1.z, _1690, mad(color_blind1.y, _1689, (color_blind1.x * _1688))))) * _1786);
+    _1799 = exp2(log2(saturate(mad(color_blind2.z, _1690, mad(color_blind2.y, _1689, (color_blind2.x * _1688))))) * _1786);
   } else {
     _1797 = _1638;
     _1798 = _1639;

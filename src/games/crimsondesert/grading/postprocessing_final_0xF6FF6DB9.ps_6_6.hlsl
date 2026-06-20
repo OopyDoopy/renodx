@@ -21,9 +21,14 @@ cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   float4 _slopeParams : packoffset(c009.x);
   float4 _offsetParams : packoffset(c010.x);
   float4 _powerParams : packoffset(c011.x);
-  int _colorBlindParam : packoffset(c012.x);
-  int _nightToneParm : packoffset(c012.y);
-  int2 _padding : packoffset(c012.z);
+  int _nightToneParm : packoffset(c012.x);
+  int3 _padding : packoffset(c012.y);
+};
+
+cbuffer __3__35__0__0__ColorBlindConstantBuffer : register(b46, space35) {
+  float4 _colorBlind0 : packoffset(c000.x);
+  float4 _colorBlind1 : packoffset(c001.x);
+  float4 _colorBlind2 : packoffset(c002.x);
 };
 
 SamplerState __0__4__0__0__g_staticBilinearClamp : register(s3, space4);

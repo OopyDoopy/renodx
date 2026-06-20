@@ -87,6 +87,55 @@ float3 psycho17_FromAdaptiveRelativeWeightedLMS(
   return lms_weighted_relative * max(current_adaptive_state_lms, 1e-6f.xxx);
 }
 
+float3 psycho17_ScaleAdaptiveRelativeOkLabChroma(
+    float3 lms_input,
+    float3 current_adaptive_state_lms,
+    float chroma_scale) {
+  float3 lms_relative = psycho17_ToAdaptiveRelativeLMS(
+      lms_input,
+      current_adaptive_state_lms);
+  float3 bt709_relative = renodx::color::bt709::from::LMS(lms_relative);
+  float3 bt709_relative_white = renodx::color::bt709::from::LMS(1.f.xxx);
+  float3 bt709_white_normalized = renodx::math::DivideSafe(
+      bt709_relative,
+      bt709_relative_white,
+      0.f.xxx);
+
+  float3 perceptual = renodx::color::oklab::from::BT709(bt709_white_normalized);
+  perceptual.yz *= chroma_scale;
+
+  float3 bt709_relative_out =
+      renodx::color::bt709::from::OkLab(perceptual) * bt709_relative_white;
+  return psycho17_FromAdaptiveRelativeLMS(
+      renodx::color::lms::from::BT709(bt709_relative_out),
+      current_adaptive_state_lms);
+}
+
+float3 psycho17_ScaleAdaptiveRelativeMBChroma(
+    float3 lms_input,
+    float3 current_adaptive_state_lms,
+    float chroma_scale) {
+  float3 lms_relative = psycho17_ToAdaptiveRelativeLMS(
+      lms_input,
+      current_adaptive_state_lms);
+  float3 mb = renodx::color::macleod_boynton::from::LMS(lms_relative);
+  float2 mb_white = renodx::color::macleod_boynton::from::LMS(1.f.xxx).xy;
+  mb.xy = lerp(mb_white, mb.xy, chroma_scale);
+  return psycho17_FromAdaptiveRelativeLMS(
+      renodx::color::lms::from::MacLeodBoynton(mb),
+      current_adaptive_state_lms);
+}
+
+float psycho17_HighlightPurityWeight(float yf_relative, float yf_peak_relative) {
+  // Weight in adaptive-relative luminance space.  The display peak can be far
+  // above diffuse white, so using it directly makes the slider nearly inert
+  // until extreme highlights.  Cap the shoulder range so normal HDR highlights
+  // get useful control while preserving a smooth roll-in from diffuse white.
+  float highlight_end = max(2.f, min(yf_peak_relative, 8.f));
+  float shoulder = smoothstep(1.f, highlight_end, yf_relative);
+  return sqrt(shoulder);
+}
+
 float3 psycho17_GamutCompressLMSBoundAdaptive(
     float3 lms_input,
     float3 current_adaptive_state_lms,
@@ -590,11 +639,11 @@ float3 psychotm_test17(
     float3 lms_graded_relative = psycho17_ToAdaptiveRelativeLMS(
         lms_graded,
         current_adaptive_state_lms);
-    float3 mb = renodx::color::macleod_boynton::from::LMS(lms_graded_relative);
-    float2 mb_white = renodx::color::macleod_boynton::from::LMS(1.f.xxx).xy;
-    float2 mb_scaled = lerp(mb_white, mb.xy, purity_scale);
+    float3 bt709_graded_relative = renodx::color::bt709::from::LMS(lms_graded_relative);
+    float3 perceptual_graded = renodx::color::oklab::from::BT709(bt709_graded_relative);
+    perceptual_graded.yz *= purity_scale;
     lms_graded = psycho17_FromAdaptiveRelativeLMS(
-        renodx::color::lms::from::MacLeodBoynton(float3(mb_scaled, mb.z)),
+      renodx::color::lms::from::BT709(renodx::color::bt709::from::OkLab(perceptual_graded)),
         current_adaptive_state_lms);
   }
 
@@ -690,6 +739,630 @@ float3 psychotm_test17(
           psycho17_FromAdaptiveRelativeWeightedLMS(
               display_scaled_relative_weighted,
               current_adaptive_state_lms)));
+  return final_bt709;
+}
+
+float ContrastSafeShadowBias(float x, float contrast, float mid_gray = 0.18f, float shadow_bias = 0.35f) {
+  if (contrast == 1.f) return x;
+
+  shadow_bias = saturate(shadow_bias);
+
+  // Start from the standard contrast curve, then shape its strength like an
+  // asymmetric S-curve so the toe gets more adjustment than the shoulder.
+  float contrasted = renodx::color::grade::ContrastSafe(x, contrast, mid_gray);
+  float shoulder = smoothstep(0.25f, 2.0f, renodx::math::DivideSafe(max(x, 0.f), mid_gray, 0.f));
+  float effect = lerp(1.f + shadow_bias, 1.f - shadow_bias, shoulder);
+
+  return max(0.f, x + (contrasted - x) * effect);
+}
+
+float3 ContrastSafeShadowBias(float3 x, float contrast, float3 mid_gray = 0.18f, float shadow_bias = 0.35f) {
+  if (contrast == 1.f) return x;
+
+  float3 contrasted = renodx::math::SignPow(x / mid_gray, contrast) * mid_gray;
+  float3 shoulder = smoothstep(
+      0.25f.xxx,
+      2.f.xxx,
+      renodx::math::DivideSafe(max(x, 0.f), mid_gray, 0.f.xxx));
+  float3 effect = lerp((1.f + shadow_bias).xxx, (1.f - shadow_bias).xxx, shoulder);
+
+  return max(0.f, x + (contrasted - x) * effect);
+}
+
+float psycho17_AdaptationContrast(float x, float anchor_in = 0.18f, float anchor_out = 0.18f, float contrast = 1.f) {
+  const float kEps = 1e-7f;
+  float ax = abs(x);
+  float anchor_in_safe = max(anchor_in, kEps);
+  float exponent = max(contrast, kEps);
+  float ax_n = pow(ax, exponent);
+  float s_n = pow(anchor_in_safe, exponent);
+  float response_target = ax_n / max(ax_n + s_n, kEps);
+  float response_baseline = ax / max(ax + anchor_in_safe, kEps);
+  float gain = response_target / max(response_baseline, kEps);
+  float contrasted = anchor_out * (ax / anchor_in_safe) * gain;
+  return renodx::math::CopySign(contrasted, x);
+}
+
+float3 psycho17_AdaptationContrast(float3 x, float3 anchor_in = 0.18f, float3 anchor_out = 0.18f, float contrast = 1.f) {
+  const float kEps = 1e-7f;
+  float3 ax = abs(x);
+  float3 anchor_in_safe = max(anchor_in, kEps.xxx);
+  float exponent = max(contrast, kEps);
+  float3 ax_n = pow(ax, exponent);
+  float3 s_n = pow(anchor_in_safe, exponent);
+  float3 response_target = ax_n / max(ax_n + s_n, kEps.xxx);
+  float3 response_baseline = ax / max(ax + anchor_in_safe, kEps.xxx);
+  float3 gain = response_target / max(response_baseline, kEps.xxx);
+  float3 contrasted = anchor_out * (ax / anchor_in_safe) * gain;
+  return renodx::math::CopySign(contrasted, x);
+}
+
+float3 psycho17_AdaptationContrast(float3 x, float anchor_in = 0.18f, float anchor_out = 0.18f, float contrast = 1.f) {
+  return psycho17_AdaptationContrast(
+      x,
+      float3(anchor_in, anchor_in, anchor_in),
+      float3(anchor_out, anchor_out, anchor_out),
+      contrast);
+}
+
+float psycho17_ReinhardPiecewisePeakAnchored(
+    float x,
+    float peak,
+    float anchor_in,
+    float anchor_out) {
+  const float kEps = 1e-6f;
+
+  float anchor_in_safe = max(anchor_in, kEps);
+  float peak_safe = max(peak, anchor_out + kEps);
+  float slope = anchor_out / anchor_in_safe;
+  float linear_output = x * slope;
+
+  float peak_headroom = peak_safe - anchor_out;
+  float shoulder_input = max(x - anchor_in_safe, 0.f);
+  float shoulder = peak_safe - peak_headroom / (
+      1.f + shoulder_input * slope / peak_headroom);
+
+  return lerp(linear_output, shoulder, step(anchor_in_safe, x));
+}
+
+namespace config {
+
+struct Config {
+  float3 peak_value;
+  float exposure;
+  float highlights;
+  float shadows;
+  float contrast;
+  float shadow_biased_contrast;
+  float contrast_shadow_bias;
+  float purity_scale;
+  float highlight_purity;
+  float bleaching_intensity;
+  float flare;
+  float clip_point;
+  float hue_restore;
+  float adaptation_contrast;
+  int grading_mode;
+  int white_curve_mode;
+  float cone_response_exponent;
+  float3 current_adaptive_state_bt709;
+  float3 current_background_state_bt709;
+  float gamut_compression;
+  int gamut_compression_mode;
+  float adaptive_normalization;
+};
+
+Config Create() {
+  Config config;
+  config.peak_value = (1000.f / 203.f).xxx;
+  config.exposure = 1.f;
+  config.highlights = 1.f;
+  config.shadows = 1.f;
+  config.contrast = 1.f;
+  config.shadow_biased_contrast = 1.f;
+  config.contrast_shadow_bias = 0.35f;
+  config.purity_scale = 1.f;
+  config.highlight_purity = 1.f;
+  config.bleaching_intensity = 1.f;
+  config.flare = 0.f;
+  config.clip_point = 100.f;
+  config.hue_restore = 1.f;
+  config.adaptation_contrast = 1.f;
+  config.grading_mode = 0;
+  config.white_curve_mode = 0;
+  config.cone_response_exponent = 1.f;
+  config.current_adaptive_state_bt709 = 0.18f.xxx;
+  config.current_background_state_bt709 = 0.18f.xxx;
+  config.gamut_compression = 1.f;
+  config.gamut_compression_mode = 1;
+  config.adaptive_normalization = 1.f;
+  return config;
+}
+
+Config BuildConfig() {
+  Config config = Create();
+
+#if !defined(RENODX_PEAK_WHITE_NITS)
+#define RENODX_PEAK_WHITE_NITS 1000.f
+#endif
+
+#if !defined(RENODX_DIFFUSE_WHITE_NITS)
+#define RENODX_DIFFUSE_WHITE_NITS 203.f
+#endif
+  config.peak_value = RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS;
+
+#if !defined(RENODX_TONE_MAP_EXPOSURE)
+#define RENODX_TONE_MAP_EXPOSURE 1.f
+#endif
+  config.exposure = RENODX_TONE_MAP_EXPOSURE;
+
+#if !defined(RENODX_TONE_MAP_HIGHLIGHTS)
+#define RENODX_TONE_MAP_HIGHLIGHTS 1.f
+#endif
+  config.highlights = RENODX_TONE_MAP_HIGHLIGHTS;
+
+#if !defined(RENODX_TONE_MAP_SHADOWS)
+#define RENODX_TONE_MAP_SHADOWS 1.f
+#endif
+  config.shadows = RENODX_TONE_MAP_SHADOWS;
+
+#if !defined(RENODX_TONE_MAP_CONTRAST)
+#define RENODX_TONE_MAP_CONTRAST 1.f
+#endif
+  config.contrast = RENODX_TONE_MAP_CONTRAST;
+
+#if !defined(RENODX_TONE_MAP_SATURATION)
+#define RENODX_TONE_MAP_SATURATION 1.f
+#endif
+  config.purity_scale = RENODX_TONE_MAP_SATURATION;
+
+#if !defined(RENODX_TONE_MAP_HIGHLIGHT_SATURATION)
+#define RENODX_TONE_MAP_HIGHLIGHT_SATURATION 1.f
+#endif
+  config.highlight_purity = RENODX_TONE_MAP_HIGHLIGHT_SATURATION;
+
+#if !defined(RENODX_TONE_MAP_BLOWOUT)
+#define RENODX_TONE_MAP_BLOWOUT 0.f
+#endif
+  config.bleaching_intensity = RENODX_TONE_MAP_BLOWOUT;
+
+#if !defined(RENODX_TONE_MAP_FLARE)
+#define RENODX_TONE_MAP_FLARE 0.f
+#endif
+  config.flare = RENODX_TONE_MAP_FLARE;
+
+#if !defined(RENODX_PSYCHOV_CLIP_POINT)
+#define RENODX_TONE_MAP_CLIP_POINT 100.f
+#endif
+  config.clip_point = RENODX_TONE_MAP_CLIP_POINT;
+
+#if !defined(RENODX_TONE_MAP_HUE_RESTORE)
+#define RENODX_TONE_MAP_HUE_RESTORE 1.f
+#endif
+  config.hue_restore = RENODX_TONE_MAP_HUE_RESTORE;
+
+#if !defined(RENODX_TONE_MAP_ADAPTATION_CONTRAST)
+#define RENODX_TONE_MAP_ADAPTATION_CONTRAST 1.f
+#endif
+  config.adaptation_contrast = RENODX_TONE_MAP_ADAPTATION_CONTRAST;
+
+#if !defined(RENODX_TONE_MAP_GRADING_MODE)
+#define RENODX_TONE_MAP_GRADING_MODE 0
+#endif
+  config.grading_mode = RENODX_TONE_MAP_GRADING_MODE;
+
+#if !defined(RENODX_TONE_MAP_WHITE_CURVE_MODE)
+#define RENODX_TONE_MAP_WHITE_CURVE_MODE 0
+#endif
+  config.white_curve_mode = RENODX_TONE_MAP_WHITE_CURVE_MODE;
+
+#if !defined(RENODX_TONE_MAP_CONE_RESPONSE_EXPONENT)
+#define RENODX_TONE_MAP_CONE_RESPONSE_EXPONENT 1.f
+#endif
+  config.cone_response_exponent = RENODX_TONE_MAP_CONE_RESPONSE_EXPONENT;
+
+#if !defined(RENODX_TONE_MAP_CURRENT_ADAPTIVE_STATE_BT709)
+#if defined(RENODX_TONE_MAP_MID_GRAY_IN)
+#define RENODX_TONE_MAP_CURRENT_ADAPTIVE_STATE_BT709 RENODX_TONE_MAP_MID_GRAY_IN
+#else
+#define RENODX_TONE_MAP_CURRENT_ADAPTIVE_STATE_BT709 0.18f
+#endif
+#endif
+  config.current_adaptive_state_bt709 = RENODX_TONE_MAP_CURRENT_ADAPTIVE_STATE_BT709;
+
+#if !defined(RENODX_TONE_MAP_CURRENT_BACKGROUND_STATE_BT709)
+#if defined(RENODX_TONE_MAP_MID_GRAY_OUT)
+#define RENODX_TONE_MAP_CURRENT_BACKGROUND_STATE_BT709 RENODX_TONE_MAP_MID_GRAY_OUT
+#else
+#define RENODX_TONE_MAP_CURRENT_BACKGROUND_STATE_BT709 0.18f
+#endif
+#endif
+  config.current_background_state_bt709 = RENODX_TONE_MAP_CURRENT_BACKGROUND_STATE_BT709;
+
+#if !defined(RENODX_TONE_MAP_GAMUT_COMPRESSION)
+#define RENODX_TONE_MAP_GAMUT_COMPRESSION 1.f
+#endif
+  config.gamut_compression = RENODX_TONE_MAP_GAMUT_COMPRESSION;
+
+#if !defined(RENODX_TONE_MAP_GAMUT_COMPRESSION_MODE)
+#define RENODX_TONE_MAP_GAMUT_COMPRESSION_MODE 1
+#endif
+  config.gamut_compression_mode = RENODX_TONE_MAP_GAMUT_COMPRESSION_MODE;
+
+#if !defined(RENODX_TONE_MAP_ADAPTIVE_NORMALIZATION)
+#define RENODX_TONE_MAP_ADAPTIVE_NORMALIZATION 1.f
+#endif
+  config.adaptive_normalization = RENODX_TONE_MAP_ADAPTIVE_NORMALIZATION;
+
+  return config;
+}
+
+}  // namespace config
+
+float3 psychotm_customized(
+    float3 bt709_linear_input,
+    config::Config psycho_config) {
+  float3 peak_value = psycho_config.peak_value;
+  float exposure = psycho_config.exposure;
+  float highlights = psycho_config.highlights;
+  float shadows = psycho_config.shadows;
+  float contrast = psycho_config.contrast;
+  float shadow_biased_contrast = psycho_config.shadow_biased_contrast;
+  float contrast_shadow_bias = psycho_config.contrast_shadow_bias;
+  float purity_scale = psycho_config.purity_scale;
+  float highlight_purity = psycho_config.highlight_purity;
+  float bleaching_intensity = psycho_config.bleaching_intensity;
+  float flare = psycho_config.flare;
+  float clip_point = psycho_config.clip_point;
+  float hue_restore = psycho_config.hue_restore;
+  float adaptation_contrast = psycho_config.adaptation_contrast;
+  int grading_mode = psycho_config.grading_mode;  // 0 = LMS Per Channel, 1 = Yf
+  int white_curve_mode = psycho_config.white_curve_mode;
+  float cone_response_exponent = psycho_config.cone_response_exponent;
+  float3 current_adaptive_state_bt709 = psycho_config.current_adaptive_state_bt709;
+  float3 current_background_state_bt709 = psycho_config.current_background_state_bt709;
+  float gamut_compression = psycho_config.gamut_compression;
+  int gamut_compression_mode = psycho_config.gamut_compression_mode;
+  float adaptive_normalization = psycho_config.adaptive_normalization;
+
+  float3 bt709_scene = bt709_linear_input * exposure;
+
+  float3 lms_in = renodx::color::lms::from::BT709(bt709_scene);
+  float3 lms_peak = renodx::color::lms::from::BT709(peak_value);
+  float3 current_adaptive_state_lms = renodx::color::lms::from::BT709(current_adaptive_state_bt709);
+  float3 desired_background_state_lms = renodx::color::lms::from::BT709(current_background_state_bt709);
+  float3 lms_working = lms_in;
+  if (true) {
+    // noop
+  } else if (gamut_compression == 0) {
+    lms_working = psycho17_GamutCompressLMSBoundAdaptive(
+        lms_in,
+        current_adaptive_state_lms,
+        renodx::color::macleod_boynton::LMS_TO_LMS_WEIGHTED_MAT,
+        1.f);
+  } else if (gamut_compression_mode == 0) {
+    lms_working = psycho17_GamutCompressLMSBoundAdaptive(
+        lms_in,
+        current_adaptive_state_lms,
+        renodx::color::macleod_boynton::BT709_TO_LMS_WEIGHTED_MAT,
+        1.f);
+  } else {
+    lms_working = psycho17_GamutCompressLMSBoundAdaptive(
+        lms_in,
+        current_adaptive_state_lms,
+        renodx::color::macleod_boynton::BT2020_TO_LMS_WEIGHTED_MAT,
+        1.f);
+  }
+
+  float3 lms_graded = lms_working;
+  if (grading_mode == 0) {
+    if (shadow_biased_contrast != 1.f) {
+      lms_graded = ContrastSafeShadowBias(
+          lms_graded,
+          shadow_biased_contrast,
+          current_adaptive_state_lms,
+          contrast_shadow_bias);
+    }
+    if (highlights != 1.f) {
+      if (highlights > 1.f) {
+        float3 normalized = lms_graded / current_adaptive_state_lms;
+        float3 curved = pow(normalized, highlights);
+        normalized = max(normalized, lerp(normalized, curved, saturate(normalized)));
+        lms_graded = normalized * current_adaptive_state_lms;
+      } else {  // highlights < 1.f
+        lms_graded /= current_adaptive_state_lms;
+        lms_graded = lerp(lms_graded, pow(lms_graded, highlights), step(1.f, lms_graded)) * current_adaptive_state_lms;
+      }
+    }
+    if (shadows != 1.f) {
+      float3 scaled = lms_graded / current_adaptive_state_lms;
+      float3 shadowed = pow(scaled, -1.f * (shadows - 2.f));
+      float3 lerped = lerp(shadowed, scaled, saturate(shadowed));
+      float3 rescaled = lerped * current_adaptive_state_lms;
+      lms_graded = rescaled;
+    }
+    if (contrast != 1.f || flare > 0.f) {
+      float3 normalized = lms_graded / current_adaptive_state_lms;
+      float3 flare_multiplier = renodx::math::DivideSafe(normalized + flare, normalized, 1.f);
+      float3 exponent = contrast * flare_multiplier;
+      lms_graded = renodx::math::SignPow(normalized, exponent) * current_adaptive_state_lms;
+    }
+  } else {
+    float yf_input = renodx::color::yf::from::LMS(lms_working);
+    // float yf_midgray = renodx::color::yf::from::BT709(0.18f);
+    float yf_midgray = renodx::color::yf::from::BT709(current_adaptive_state_bt709);
+    float yf_target = yf_input;
+
+    // Stage 1: apply UI highlight/shadow/contrast controls in luminosity space.
+    if (shadow_biased_contrast != 1.f) {
+      yf_target = ContrastSafeShadowBias(
+          yf_target,
+          shadow_biased_contrast,
+          yf_midgray,
+          contrast_shadow_bias);
+    }
+    if (highlights != 1.f) {
+      if (highlights > 1.f) {
+        yf_target = max(yf_target, lerp(yf_target, yf_midgray * pow(yf_target / yf_midgray, highlights), min(yf_target, 1.f)));
+      } else {  // highlights < 1.f
+        yf_target /= yf_midgray;
+        yf_target = lerp(yf_target, pow(yf_target, highlights), step(1.f, yf_target)) * yf_midgray;
+      }
+    }
+    if (shadows != 1.f) {
+      yf_target = renodx::color::grade::Shadows(yf_target, shadows, yf_midgray, 1);
+    }
+    if (contrast != 1.f || flare > 0.f) {
+      float normalized = yf_target / yf_midgray;
+      float flare_multiplier = renodx::math::DivideSafe(normalized + flare, normalized, 1.f);
+      float exponent = contrast * flare_multiplier;
+      yf_target = renodx::math::SignPow(normalized, exponent) * yf_midgray;
+    }
+
+    float yf_scale = renodx::math::DivideSafe(yf_target, yf_input, 1.f);
+
+    lms_graded = lms_working * yf_scale;
+  }
+
+  if (purity_scale != 1.f) {
+    lms_graded = psycho17_ScaleAdaptiveRelativeMBChroma(
+        lms_graded,
+        current_adaptive_state_lms,
+        purity_scale);
+  }
+
+  if (highlight_purity != 1.f) {
+    float3 lms_graded_relative = psycho17_ToAdaptiveRelativeLMS(
+        lms_graded,
+        current_adaptive_state_lms);
+    float yf_graded = max(0.f, renodx::color::yf::from::LMS(lms_graded_relative));
+    float3 lms_peak_relative = psycho17_ToAdaptiveRelativeLMS(
+        lms_peak,
+        current_adaptive_state_lms);
+    float yf_peak = max(renodx::color::yf::from::LMS(lms_peak_relative), 1e-6f);
+    float highlight_weight = psycho17_HighlightPurityWeight(yf_graded, yf_peak);
+    lms_graded = psycho17_ScaleAdaptiveRelativeMBChroma(
+        lms_graded,
+        current_adaptive_state_lms,
+        lerp(1.f, highlight_purity, highlight_weight));
+  }
+
+  float3 lms_cones = lms_graded;
+
+  if (bleaching_intensity != 0.f) {
+    float3 availability = 1.f.xxx / (1.f.xxx + (peak_value / current_adaptive_state_lms));
+    availability = lerp(1.f.xxx, availability, bleaching_intensity);
+
+    float input_energy = lms_cones.x + lms_cones.y + lms_cones.z;
+    float white_y = current_adaptive_state_lms.x + current_adaptive_state_lms.y + current_adaptive_state_lms.z;
+    float3 white_at_y = current_adaptive_state_lms * (input_energy / white_y);
+    float3 delta = (lms_cones - white_at_y) * availability;
+    lms_cones = max(0, white_at_y + delta);
+  }
+
+  float3 display_scaled_relative_weighted;
+  float3 display_adaptive_state_lms = current_adaptive_state_lms;
+  if (white_curve_mode == 0) {
+    float3 hue_shifted_color;
+
+    hue_shifted_color.x = psycho17_ReinhardPiecewisePeakAnchored(lms_cones.x, lms_peak.x, current_adaptive_state_lms.x, desired_background_state_lms.x);
+    hue_shifted_color.y = psycho17_ReinhardPiecewisePeakAnchored(lms_cones.y, lms_peak.y, current_adaptive_state_lms.y, desired_background_state_lms.y);
+    hue_shifted_color.z = psycho17_ReinhardPiecewisePeakAnchored(lms_cones.z, lms_peak.z, current_adaptive_state_lms.z, desired_background_state_lms.z);
+
+    float3 adaptation_scaled_lms = lms_cones * renodx::math::DivideSafe(desired_background_state_lms, current_adaptive_state_lms, 1.f.xxx);
+    // hue_shifted_color = renodx::color::correct::Luminance(
+    //   hue_shifted_color,
+    //   adaptation_scaled_lms);
+    float3 display_scaled = hue_shifted_color;
+
+    display_adaptive_state_lms = desired_background_state_lms;
+    display_scaled_relative_weighted = psycho17_ToAdaptiveRelativeWeightedLMS(
+        display_scaled,
+        display_adaptive_state_lms);
+  } else {
+    // Naka-Rushton is scale-equivariant if input, peak, and anchors are all
+    // normalized by the same adaptive LMS state, so keep the absolute-LMS form.
+    float3 display_scaled = renodx::tonemap::NakaRushton(
+        lms_cones,
+        lms_peak,
+        current_adaptive_state_lms,
+        desired_background_state_lms,
+        cone_response_exponent);
+    display_scaled_relative_weighted = psycho17_ToAdaptiveRelativeWeightedLMS(
+        display_scaled,
+        current_adaptive_state_lms);
+  }
+
+  if (hue_restore > 0.f) {
+    float3 lms_cones_relative_weighted = psycho17_ToAdaptiveRelativeWeightedLMS(
+        lms_cones,
+        current_adaptive_state_lms);
+    float3 mb_source =
+        renodx::color::macleod_boynton::from::WeightedLMS(lms_cones_relative_weighted);
+    float3 mb_display_target =
+        renodx::color::macleod_boynton::from::WeightedLMS(display_scaled_relative_weighted);
+    float3 mb_adapted_bg = renodx::color::macleod_boynton::from::LMS(1.f.xxx);
+
+    float2 source_offset = mb_source.xy - mb_adapted_bg.xy;
+    float2 display_target_offset = mb_display_target.xy - mb_adapted_bg.xy;
+    float src2 = dot(source_offset, source_offset);
+    float display_tgt2 = dot(display_target_offset, display_target_offset);
+    if (src2 > 1e-7 && display_tgt2 > 1e-7) {
+      float inv_target_radius = rsqrt(display_tgt2);
+      float target_radius = display_tgt2 * inv_target_radius;
+      float source_t_clip = psycho17_RayExitTCIE1702(mb_adapted_bg.xy, source_offset);
+      float display_t_clip = psycho17_RayExitTCIE1702(mb_adapted_bg.xy, display_target_offset);
+      // Scale hue restoration by purity loss relative to the adapted neutral anchor.
+      float source_purity_signal = psycho17_HueRelativePuritySignalFromTClip(source_t_clip);
+      float display_purity_signal = psycho17_HueRelativePuritySignalFromTClip(display_t_clip);
+      float purity_signal_loss = saturate(display_purity_signal / source_purity_signal);
+      float hue_sensitivity = psycho17_AdaptiveHueSensitivityFromTClip(display_t_clip);
+      float restore_weight = 1.f * hue_sensitivity * hue_restore * purity_signal_loss;
+      if (restore_weight > 0.f) {
+        float inv_source_radius = rsqrt(src2);
+        float2 source_dir = source_offset * inv_source_radius;
+        float2 display_target_dir = display_target_offset * inv_target_radius;
+        float2 blended_dir = lerp(display_target_dir, source_dir, restore_weight);
+        float blended_len2 = dot(blended_dir, blended_dir);
+        if (blended_len2 > 1e-7) {
+          blended_dir *= rsqrt(blended_len2);
+        } else {
+          blended_dir = display_target_dir;
+        }
+
+        // Keep display-scaled chroma radius and y_MB; only replace hue direction.
+        float2 mb_restored_xy = mb_adapted_bg.xy + blended_dir * target_radius;
+        float3 mb_restored = float3(mb_restored_xy, mb_display_target.z);
+        display_scaled_relative_weighted =
+            renodx::color::macleod_boynton::WeightedLMSFromMacleodBoynton(mb_restored);
+      }
+    }
+  }
+
+  if (gamut_compression != 0.f) {
+    if (gamut_compression_mode == 0) {
+      display_scaled_relative_weighted = psycho17_GamutCompressAdaptiveRelativeWeightedLMSBound(
+          display_scaled_relative_weighted,
+          display_adaptive_state_lms,
+          renodx::color::macleod_boynton::BT709_TO_LMS_WEIGHTED_MAT,
+          gamut_compression);
+    } else if (gamut_compression_mode == 1) {
+      display_scaled_relative_weighted = psycho17_GamutCompressAdaptiveRelativeWeightedLMSBound(
+          display_scaled_relative_weighted,
+          display_adaptive_state_lms,
+          renodx::color::macleod_boynton::BT2020_TO_LMS_WEIGHTED_MAT,
+          gamut_compression);
+    }
+  }
+
+  float3 final_lms = renodx::color::macleod_boynton::UnweighLMS(
+      psycho17_FromAdaptiveRelativeWeightedLMS(
+          display_scaled_relative_weighted,
+          display_adaptive_state_lms));
+
+  float3 final_bt709 = renodx::color::bt709::from::LMS(final_lms);
+
+  return final_bt709;
+}
+
+float3 psychotm_customized(float3 bt709_linear_input) {
+  return psychotm_customized(bt709_linear_input, config::BuildConfig());
+}
+
+float3 ApplyGrading(float3 bt709_linear, float3 peak_value = 1.f, float current_adaptive_state_bt709 = 0.18f, int grading_mode = 0, renodx::draw::Config config = renodx::draw::BuildConfig()) {
+  float exposure = config.tone_map_exposure;
+  float highlights = config.tone_map_highlights;
+  float shadows = config.tone_map_shadows;
+  float contrast = config.tone_map_contrast;
+  float flare = config.tone_map_flare;
+  float purity_scale = config.tone_map_saturation;
+  float bleaching_intensity = config.tone_map_blowout;
+
+  float3 bt709_scene = bt709_linear * exposure;
+
+  float3 lms_in = renodx::color::lms::from::BT709(bt709_scene);
+  float3 lms_peak = renodx::color::lms::from::BT709(peak_value);
+  float3 current_adaptive_state_lms = renodx::color::lms::from::BT709(current_adaptive_state_bt709);
+  float3 lms_working = lms_in;
+
+  float3 lms_graded = lms_working;
+  if (grading_mode == 0) {
+    if (highlights != 1.f) {
+      if (highlights > 1.f) {
+        float3 normalized = lms_graded / current_adaptive_state_lms;
+        float3 curved = pow(normalized, highlights);
+        normalized = max(normalized, lerp(normalized, curved, saturate(normalized)));
+        lms_graded = normalized * current_adaptive_state_lms;
+      } else {  // highlights < 1.f
+        lms_graded /= current_adaptive_state_lms;
+        lms_graded = lerp(lms_graded, pow(lms_graded, highlights), step(1.f, lms_graded)) * current_adaptive_state_lms;
+      }
+    }
+    if (shadows != 1.f) {
+      float3 scaled = lms_graded / current_adaptive_state_lms;
+      float3 shadowed = pow(scaled, -1.f * (shadows - 2.f));
+      lms_graded = lerp(shadowed, scaled, saturate(shadowed)) * current_adaptive_state_lms;
+    }
+    if (contrast != 1.f || flare > 0.f) {
+      float3 normalized = lms_graded / current_adaptive_state_lms;
+      float3 flare_multiplier = renodx::math::DivideSafe(normalized + flare, normalized, 1.f);
+      float3 exponent = contrast * flare_multiplier;
+      lms_graded = renodx::math::SignPow(normalized, exponent) * current_adaptive_state_lms;
+    }
+  } else {
+    float yf_input = renodx::color::yf::from::LMS(lms_working);
+    float yf_midgray = renodx::color::yf::from::BT709(current_adaptive_state_bt709);
+    float yf_target = yf_input;
+
+    if (highlights != 1.f) {
+      if (highlights > 1.f) {
+        yf_target = max(yf_target, lerp(yf_target, yf_midgray * pow(yf_target / yf_midgray, highlights), min(yf_target, 1.f)));
+      } else {  // highlights < 1.f
+        yf_target /= yf_midgray;
+        yf_target = lerp(yf_target, pow(yf_target, highlights), step(1.f, yf_target)) * yf_midgray;
+      }
+    }
+    if (shadows != 1.f) {
+      yf_target = renodx::color::grade::Shadows(yf_target, shadows, yf_midgray, 1);
+    }
+    if (contrast != 1.f || flare > 0.f) {
+      float normalized = yf_target / yf_midgray;
+      float flare_multiplier = renodx::math::DivideSafe(normalized + flare, normalized, 1.f);
+      float exponent = contrast * flare_multiplier;
+      yf_target = renodx::math::SignPow(normalized, exponent) * yf_midgray;
+    }
+
+    float yf_scale = renodx::math::DivideSafe(yf_target, yf_input, 1.f);
+    lms_graded = lms_working * yf_scale;
+  }
+  if (purity_scale != 1.f) {
+    float3 lms_graded_relative = psycho17_ToAdaptiveRelativeLMS(
+        lms_graded,
+        current_adaptive_state_lms);
+    float3 mb = renodx::color::macleod_boynton::from::LMS(lms_graded_relative);
+    float2 mb_white = renodx::color::macleod_boynton::from::LMS(1.f.xxx).xy;
+    float2 mb_scaled = lerp(mb_white, mb.xy, purity_scale);
+    lms_graded = psycho17_FromAdaptiveRelativeLMS(
+        renodx::color::lms::from::MacLeodBoynton(float3(mb_scaled, mb.z)),
+        current_adaptive_state_lms);
+  }
+
+  float3 lms_cones = lms_graded;
+
+  if (bleaching_intensity != 0.f) {
+    float3 availability = 1.f.xxx / (1.f.xxx + (peak_value / current_adaptive_state_lms));
+    availability = lerp(1.f.xxx, availability, bleaching_intensity);
+
+    float input_energy = lms_cones.x + lms_cones.y + lms_cones.z;
+    float white_y = current_adaptive_state_lms.x + current_adaptive_state_lms.y + current_adaptive_state_lms.z;
+    float3 white_at_y = current_adaptive_state_lms * (input_energy / white_y);
+    float3 delta = (lms_cones - white_at_y) * availability;
+    lms_cones = max(0, white_at_y + delta);
+  }
+
+  // Scale back from first-site adaptation;
+  // psycho17_GamutCompressLMSBoundAdaptive
+  float3 final_bt709 = renodx::color::bt709::from::LMS(lms_cones);
   return final_bt709;
 }
 

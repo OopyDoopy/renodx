@@ -1,7 +1,7 @@
 #ifndef RENODX_LOCAL_LIGHT_COMMON_HLSL_
 #define RENODX_LOCAL_LIGHT_COMMON_HLSL_
 
-#include "../psycho_test11_custom.hlsl"
+#include "../shared.h"
 
 // ============================================================================
 // Local Light Hue Correction — MB Space (Stockman-Sharp LMS + BT.2020)
@@ -32,14 +32,14 @@ float3 ApplyLocalLightHueCorrection(float3 color_bt709, float hue_strength, floa
   }
 
   // BT.709 → BT.2020 → Stockman-Sharp LMS
-  float3 bt2020 = psycho11_BT2020FromBT709(color_bt709);
-  float3 lms = psycho11_LMSFromBT2020(bt2020);
+  float3 bt2020 = renodx::color::bt2020::from::BT709(color_bt709);
+  float3 lms = renodx::color::lms::from::BT2020(bt2020);
 
   // Pre-correct gamut (pull any negatives into valid range)
-  lms = psycho11_GamutCompressAddWhiteBT2020Bounded(lms);
+  lms = renodx::color::gamut::GamutCompressLMSBoundBT2020(lms);
 
-  float3 mb = psycho11_MB2FromLMS(lms);
-  float2 white = psycho11_WhiteD65Chromaticity();
+  float3 mb = renodx::color::macleod_boynton::from::LMS(lms);
+  float2 white = renodx::color::macleod_boynton::from::D65XY();
 
   float2 color_offset = mb.xy - white;
   float color_dist_sq = dot(color_offset, color_offset);
@@ -73,11 +73,12 @@ float3 ApplyLocalLightHueCorrection(float3 color_bt709, float hue_strength, floa
   float2 mb_corrected_xy = white + blended_dir * final_radius;
   float3 mb_corrected = float3(mb_corrected_xy, mb.z);
 
-  // MB → LMS → gamut compress → BT.2020 → BT.709
-  float3 lms_corrected = psycho11_LMSFromMB2(mb_corrected);
-  lms_corrected = psycho11_GamutCompressAddWhiteBT2020Bounded(lms_corrected);
-  float3 bt2020_corrected = psycho11_BT2020FromLMS(lms_corrected);
-  return max(psycho11_BT709FromBT2020(bt2020_corrected), 0.f);
+  // // MB → LMS → gamut compress → BT.2020 → BT.709
+  // float3 lms_corrected = renodx::color::lms::from::MacLeodBoynton(mb_corrected);
+  // lms_corrected = renodx::color::gamut::GamutCompressLMSBoundBT709(lms_corrected);
+  // float3 bt2020_corrected = renodx::color::bt2020::from::LMS(lms_corrected);
+  // return max(renodx::color::bt709::from::BT2020(bt2020_corrected), 0.f);
+  return renodx::color::bt709::from::MacLeodBoynton(mb_corrected);
 }
 
 #endif  // RENODX_LOCAL_LIGHT_COMMON_HLSL_

@@ -73,7 +73,8 @@
 #define RENODX_TONE_MAP_SHADOWS                shader_injection.tone_map_shadows
 #define RENODX_TONE_MAP_CONTRAST               shader_injection.tone_map_contrast
 #define RENODX_TONE_MAP_SATURATION             shader_injection.tone_map_saturation
-#define CUSTOM_CONE_RESPONSE                   shader_injection.tone_map_cone_response
+#define RENODX_TONE_MAP_HIGHLIGHT_SATURATION   shader_injection.tone_map_highlight_saturation
+#define RENODX_TONE_MAP_FLARE                  shader_injection.tone_map_flare
 
 #define CUSTOM_FILM_GRAIN_TYPE                 ((CUSTOM_FLAGS_AS_UINT & CUSTOM_FLAGS__FILM_GRAIN_TYPE) != 0u ? 1.f : 0.f)
 #define CUSTOM_FILM_GRAIN_STRENGTH             shader_injection.custom_film_grain
@@ -262,7 +263,8 @@ struct ShaderInjectData {
   float tone_map_shadows;
   float tone_map_contrast;
   float tone_map_saturation;
-  float tone_map_cone_response;
+  float tone_map_highlight_saturation;
+  float tone_map_flare;
 
   float custom_film_grain;
   float custom_random;
