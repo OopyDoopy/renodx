@@ -126,14 +126,43 @@ float3 psycho17_ScaleAdaptiveRelativeMBChroma(
       current_adaptive_state_lms);
 }
 
+float3 psycho17_ScaleAdaptiveRelativeMBChromaGamutAware(
+    float3 lms_input,
+    float3 current_adaptive_state_lms,
+    float chroma_scale) {
+  float3 lms_relative = psycho17_ToAdaptiveRelativeLMS(
+      lms_input,
+      current_adaptive_state_lms);
+  float3 mb = renodx::color::macleod_boynton::from::LMS(lms_relative);
+  float2 mb_white = renodx::color::macleod_boynton::from::LMS(1.f.xxx).xy;
+  float2 direction = mb.xy - mb_white;
+  if (dot(direction, direction) <= renodx::color::gamut::MB_NEAR_WHITE_EPSILON) {
+    return lms_input;
+  }
+
+  float final_chroma_scale = chroma_scale;
+  if (chroma_scale > 1.f) {
+    float t_clip = psycho17_RayExitTCIE1702(mb_white, direction);
+    float max_delta = max(0.f, (t_clip * 0.95f) - 1.f);
+    float requested_delta = (chroma_scale - 1.f) * 2.25f;
+    float compressed_delta = max_delta > 1e-6f
+        ? max_delta * (1.f - exp(-requested_delta / max_delta))
+        : 0.f;
+    final_chroma_scale = 1.f + compressed_delta;
+  }
+
+  mb.xy = mb_white + direction * final_chroma_scale;
+  return psycho17_FromAdaptiveRelativeLMS(
+      renodx::color::lms::from::MacLeodBoynton(mb),
+      current_adaptive_state_lms);
+}
+
 float psycho17_HighlightPurityWeight(float yf_relative, float yf_peak_relative) {
-  // Weight in adaptive-relative luminance space.  The display peak can be far
-  // above diffuse white, so using it directly makes the slider nearly inert
-  // until extreme highlights.  Cap the shoulder range so normal HDR highlights
-  // get useful control while preserving a smooth roll-in from diffuse white.
-  float highlight_end = max(2.f, min(yf_peak_relative, 8.f));
-  float shoulder = smoothstep(1.f, highlight_end, yf_relative);
-  return sqrt(shoulder);
+  // Start highlight saturation from black, then smoothly ramp toward the target
+  // peak.  Use a strong root response so the saturation effect comes in earlier
+  // through the mid/high range while still landing at full strength at peak.
+  float target_peak = max(1.f, yf_peak_relative);
+  return pow(smoothstep(0.f, target_peak, yf_relative), 0.375f);
 }
 
 float3 psycho17_GamutCompressLMSBoundAdaptive(
@@ -1137,11 +1166,11 @@ float3 psychotm_customized(
         current_adaptive_state_lms);
     float yf_graded = max(0.f, renodx::color::yf::from::LMS(lms_graded_relative));
     float3 lms_peak_relative = psycho17_ToAdaptiveRelativeLMS(
-        lms_peak,
-        current_adaptive_state_lms);
+      lms_peak,
+      current_adaptive_state_lms);
     float yf_peak = max(renodx::color::yf::from::LMS(lms_peak_relative), 1e-6f);
     float highlight_weight = psycho17_HighlightPurityWeight(yf_graded, yf_peak);
-    lms_graded = psycho17_ScaleAdaptiveRelativeMBChroma(
+    lms_graded = psycho17_ScaleAdaptiveRelativeMBChromaGamutAware(
         lms_graded,
         current_adaptive_state_lms,
         lerp(1.f, highlight_purity, highlight_weight));

@@ -705,7 +705,7 @@ renodx::utils::settings::Settings settings = {
         .tint = tone_mapping,
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
-        .parse = [](float value) { return value * 0.01f; },
+        .parse = [](float value) { return fmax(value * 0.01f, 0.000001f); },
         .is_visible = []() { return current_settings_mode == color_grading_group; },
     },
     new renodx::utils::settings::Setting{
