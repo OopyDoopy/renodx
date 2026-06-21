@@ -10,13 +10,14 @@
 #define SCENE_GRADE_COLOR_GRADE_STRENGTH     shader_injection.scene_grade_color_grade_strength
 #define SCENE_GRADE_COLOR_GRADE_STRENGTH_TWO shader_injection.scene_grade_color_grade_strength_two
 
-#define RENODX_TONE_MAP_EXPOSURE   shader_injection.tone_map_exposure
-#define RENODX_TONE_MAP_HIGHLIGHTS shader_injection.tone_map_highlights
-#define RENODX_TONE_MAP_SHADOWS    shader_injection.tone_map_shadows
-#define RENODX_TONE_MAP_CONTRAST   shader_injection.tone_map_contrast
-#define RENODX_TONE_MAP_SATURATION shader_injection.tone_map_saturation
-#define RENODX_TONE_MAP_BLOWOUT    shader_injection.tone_map_blowout
-#define RENODX_TONE_MAP_FLARE      shader_injection.tone_map_flare
+#define RENODX_TONE_MAP_EXPOSURE             shader_injection.tone_map_exposure
+#define RENODX_TONE_MAP_HIGHLIGHTS           shader_injection.tone_map_highlights
+#define RENODX_TONE_MAP_SHADOWS              shader_injection.tone_map_shadows
+#define RENODX_TONE_MAP_CONTRAST             shader_injection.tone_map_contrast
+#define RENODX_TONE_MAP_SATURATION           shader_injection.tone_map_saturation
+#define RENODX_TONE_MAP_HIGHLIGHT_SATURATION shader_injection.tone_map_highlight_saturation
+#define RENODX_TONE_MAP_BLOWOUT              shader_injection.tone_map_blowout
+#define RENODX_TONE_MAP_FLARE                shader_injection.tone_map_flare
 
 #define CUSTOM_BLOOM                 shader_injection.custom_bloom
 #define CUSTOM_ANAMORPHIC_LENS_FLARE shader_injection.custom_anamorphic_lens_flare
@@ -42,6 +43,7 @@ struct ShaderInjectData {
   float tone_map_shadows;
   float tone_map_contrast;
   float tone_map_saturation;
+  float tone_map_highlight_saturation;
   float tone_map_blowout;
   float tone_map_flare;
 
