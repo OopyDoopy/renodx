@@ -75,6 +75,45 @@ float3 psycho17_FromAdaptiveRelativeLMS(float3 lms_relative, float3 current_adap
   return lms_relative * max(current_adaptive_state_lms, 1e-6f.xxx);
 }
 
+float3 psycho17_ScaleAdaptiveRelativeMBChromaGamutAware(
+    float3 lms_input,
+    float3 current_adaptive_state_lms,
+    float chroma_scale) {
+  float3 lms_relative = psycho17_ToAdaptiveRelativeLMS(
+      lms_input,
+      current_adaptive_state_lms);
+  float3 mb = renodx::color::macleod_boynton::from::LMS(lms_relative);
+  float2 mb_white = renodx::color::macleod_boynton::from::LMS(1.f.xxx).xy;
+  float2 direction = mb.xy - mb_white;
+  if (dot(direction, direction) <= renodx::color::gamut::MB_NEAR_WHITE_EPSILON) {
+    return lms_input;
+  }
+
+  float final_chroma_scale = chroma_scale;
+  if (chroma_scale > 1.f) {
+    float t_clip = psycho17_RayExitTCIE1702(mb_white, direction);
+    float max_delta = max(0.f, (t_clip * 0.95f) - 1.f);
+    float requested_delta = (chroma_scale - 1.f) * 2.25f;
+    float compressed_delta = max_delta > 1e-6f
+        ? max_delta * (1.f - exp(-requested_delta / max_delta))
+        : 0.f;
+    final_chroma_scale = 1.f + compressed_delta;
+  }
+
+  mb.xy = mb_white + direction * final_chroma_scale;
+  return psycho17_FromAdaptiveRelativeLMS(
+      renodx::color::lms::from::MacLeodBoynton(mb),
+      current_adaptive_state_lms);
+}
+
+float psycho17_HighlightPurityWeight(float yf_relative, float yf_peak_relative) {
+  // Start highlight saturation from black, then smoothly ramp toward the target
+  // peak. Use a strong root response so the saturation effect comes in earlier
+  // through the mid/high range while still landing at full strength at peak.
+  float target_peak = max(1.f, yf_peak_relative);
+  return pow(smoothstep(0.f, target_peak, yf_relative), 0.375f);
+}
+
 float3 psycho17_ToAdaptiveRelativeWeightedLMS(float3 lms_input, float3 current_adaptive_state_lms) {
   return renodx::math::DivideSafe(
       renodx::color::macleod_boynton::WeighLMS(lms_input),
@@ -788,6 +827,7 @@ struct Config {
   float shadow_biased_contrast;
   float contrast_shadow_bias;
   float purity_scale;
+  float highlight_purity;
   float bleaching_intensity;
   float flare;
   float clip_point;
@@ -821,6 +861,7 @@ Config Create() {
   config.shadow_biased_contrast = 1.f;
   config.contrast_shadow_bias = 0.35f;
   config.purity_scale = 1.f;
+  config.highlight_purity = 1.f;
   config.bleaching_intensity = 1.f;
   config.flare = 0.f;
   config.clip_point = 100.f;
@@ -881,6 +922,11 @@ Config BuildConfig() {
 #define RENODX_TONE_MAP_SATURATION 1.f
 #endif
   config.purity_scale = RENODX_TONE_MAP_SATURATION;
+
+#if !defined(RENODX_TONE_MAP_HIGHLIGHT_SATURATION)
+#define RENODX_TONE_MAP_HIGHLIGHT_SATURATION 1.f
+#endif
+  config.highlight_purity = RENODX_TONE_MAP_HIGHLIGHT_SATURATION;
 
 #if !defined(RENODX_TONE_MAP_BLOWOUT)
 #define RENODX_TONE_MAP_BLOWOUT 0.f
@@ -971,6 +1017,7 @@ float3 psychotm_customized(
   float shadow_biased_contrast = psycho_config.shadow_biased_contrast;
   float contrast_shadow_bias = psycho_config.contrast_shadow_bias;
   float purity_scale = psycho_config.purity_scale;
+  float highlight_purity = psycho_config.highlight_purity;
   float bleaching_intensity = psycho_config.bleaching_intensity;
   float flare = psycho_config.flare;
   float clip_point = psycho_config.clip_point;
@@ -1118,6 +1165,22 @@ float3 psychotm_customized(
     lms_graded = psycho17_FromAdaptiveRelativeLMS(
         renodx::color::lms::from::MacLeodBoynton(float3(mb_scaled, mb.z)),
         current_adaptive_state_lms);
+  }
+
+  if (highlight_purity != 1.f) {
+    float3 lms_graded_relative = psycho17_ToAdaptiveRelativeLMS(
+        lms_graded,
+        current_adaptive_state_lms);
+    float yf_graded = max(0.f, renodx::color::yf::from::LMS(lms_graded_relative));
+    float3 lms_peak_relative = psycho17_ToAdaptiveRelativeLMS(
+        lms_peak,
+        current_adaptive_state_lms);
+    float yf_peak = max(renodx::color::yf::from::LMS(lms_peak_relative), 1e-6f);
+    float highlight_weight = psycho17_HighlightPurityWeight(yf_graded, yf_peak);
+    lms_graded = psycho17_ScaleAdaptiveRelativeMBChromaGamutAware(
+        lms_graded,
+        current_adaptive_state_lms,
+        lerp(1.f, highlight_purity, highlight_weight));
   }
 
   float3 lms_cones = lms_graded;
