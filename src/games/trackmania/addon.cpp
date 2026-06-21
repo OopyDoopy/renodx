@@ -87,6 +87,7 @@ const std::string BUILD_TIME = __TIME__;
 const std::unordered_map<std::string, float> VANILLA_PLUS_VALUES = {
     {"ColorGradeContrast", 60.f},
     {"ColorGradeSaturation", 80.f},
+    {"ColorGradeHighlightSaturation", 50.f},
     {"ColorGradeBlowout", 70.f},
     {"ColorGradeStrength", 70.f},
 };
@@ -241,6 +242,18 @@ renodx::utils::settings::Settings settings = {
         .default_value = 50.f,
         .label = "Saturation",
         .section = "Color Grading",
+        .max = 100.f,
+        .is_enabled = []() { return shader_injection.tone_map_type != 0; },
+        .parse = [](float value) { return value * 0.02f; },
+        .is_visible = []() { return settings[0]->GetValue() >= 1; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeHighlightSaturation",
+        .binding = &RENODX_TONE_MAP_HIGHLIGHT_SATURATION,
+        .default_value = 50.f,
+        .label = "Highlight Saturation",
+        .section = "Color Grading",
+        .tooltip = "Adjust saturation as brightness approaches peak white.",
         .max = 100.f,
         .is_enabled = []() { return shader_injection.tone_map_type != 0; },
         .parse = [](float value) { return value * 0.02f; },
