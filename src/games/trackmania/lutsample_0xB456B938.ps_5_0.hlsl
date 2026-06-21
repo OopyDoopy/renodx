@@ -40,11 +40,13 @@ void main(
 
   float3 ungraded = r0.xyz;
   SceneGradeGamutCompressionState gamut_compression_state = SetupSceneGradeGamutCompression(r0.xyz);
+  r0.xyz = renodx::color::srgb::EncodeSafe(r0.xyz);
 
   r1.xyz = g_CBuffer.TcScale.xyz * r0.xyz + g_CBuffer.TcTrans.xyz;
   r1.xyz = TMapRemap.Sample(SGbxClamp_Trilinear_s, r1.xyz).xyz;
   o0.xyz = g_CBuffer.wIdentity * r0.xyz + r1.xyz;
 
+  o0.xyz = renodx::color::srgb::DecodeSafe(o0.xyz);
   o0.xyz = InvertSceneGradeGamutCompression(o0.xyz, gamut_compression_state);
   o0.xyz = lerp(ungraded, o0.xyz, SCENE_GRADE_COLOR_GRADE_STRENGTH_TWO);
 
