@@ -5,7 +5,94 @@ Texture2D<float4> __3__36__0__0__g_sceneColor : register(t32, space36);
 Texture2D<float> __3__36__0__0__g_depth : register(t40, space36);
 
 cbuffer __3__35__0__0__SceneConstantBuffer : register(b15, space35) {
-  uint4 __3__35__0__0__SceneConstantBuffer_raw[172];
+  float4 _time;
+  float4 _timeNoScale;
+  uint4 _frameNumber;
+  float4 _screenSizeAndInvSize;
+  float4 _bufferSizeAndInvSize;
+  float4 _hiZUVScaleAndInvScale;
+  float4 _resolutionScale;
+  float4 _temporalReprojectionParams;
+  float4 _viewPos;
+  float4 _viewDir;
+  column_major float4x4 _viewProj;
+  column_major float4x4 _viewProjNoJitter;
+  column_major float4x4 _viewProjRelative;
+  column_major float4x4 _viewProjRelativeNoJitter;
+  column_major float4x4 _invViewProj;
+  column_major float4x4 _invViewProjRelative;
+  column_major float4x4 _invViewProjRelativeNoJitter;
+  column_major float4x4 _viewProjRelativeOrtho;
+  float4 _sunDirection;
+  float4 _moonDirection;
+  float4 _moonRight;
+  float4 _moonUp;
+  float4 _ssaoRandomDirection[16];
+  column_major float4x4 _view;
+  column_major float4x4 _viewRelative;
+  column_major float4x4 _viewRelativePrev;
+  column_major float4x4 _proj;
+  column_major float4x4 _projNoJitter;
+  float4 _viewPosPrev;
+  column_major float4x4 _viewProjNoJitterPrev;
+  column_major float4x4 _viewProjRelativePrev;
+  column_major float4x4 _viewProjRelativeNoJitterPrev;
+  column_major float4x4 _invViewProjPrev;
+  column_major float4x4 _invViewProjRelativePrev;
+  column_major float4x4 _projToPrevProj;
+  column_major float4x4 _projToPrevProjNoTranslation;
+  column_major float4x4 _viewProjectionTexScale;
+  float4 _temporalAAJitter;
+  float4 _temporalAAJitterParams;
+  float4 _frustumPlanes[6];
+  float4 _frustumPlanesPrev[6];
+  float4 _frustumCornerDirs[4];
+  float4 _screenPercentage;
+  float4 _nearFarProj;
+  float4 _renderingOriginPos;
+  float4 _renderingOriginPosPrev;
+  float4 _lodMaskRenderRate;
+  float4 _terrainNormalParams;
+  int4 _hiZMapInfo;
+  int4 _hiZMapInfoCurrent;
+  float4 _treeParams;
+  uint4 _clusterSize;
+  uint4 _globalLightParams;
+  float4 _bevelParams;
+  float4 _variableRateShadingParams;
+  float4 _cavityParams;
+  float4 _customRenderPassSizeInvSize;
+  uint4 _impostorParams;
+  float4 _clusterDecalSizeAndInvSize;
+  uint4 _globalWindParams;
+  float4 _windFluidVolumeParams;
+  float4 _windFluidTextureParams;
+  float4 _raytracingAccelerationStructureOrigin;
+  float4 _debugBaseColor;
+  float4 _debugNormal;
+  float4 _debugMaterial;
+  float4 _debugMultiplier;
+  half4 _debugBaseColor16;
+  half4 _debugNormal16;
+  half4 _debugMaterial16;
+  half4 _debugMultiplier16;
+  float4 _debugCursorWorldPos;
+  uint4 _debugRenderToggle01;
+  uint4 _debugTreeShapeVariation;
+  float4 _positionBasedDynamicsParameter;
+  float _effectiveMetallicForVelvet;
+  float _debugCharacterSnowRate;
+  uint _systemRandomSeed;
+  uint _skinnedMeshDebugFlag;
+  float4 _viewPosShifted;
+  float4 _viewPosShiftedPrev;
+  float4 _viewTileRelativePos;
+  float4 _viewTileRelativePosPrev;
+  int2 _viewTileIndex;
+  int2 _viewTileIndexPrev;
+  float4 _worldVolume;
+  float3 _diffViewPosAccurate;
+  uint _isPhotosensitiveMode_isAllolwBlood;
 };
 
 cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
@@ -25,26 +112,16 @@ cbuffer __3__1__0__0__GlobalPushConstants : register(b0, space1) {
   int3 _padding : packoffset(c012.y);
 };
 
-cbuffer __3__35__0__0__ColorBlindConstantBuffer : register(b46, space35) {
-  float4 _colorBlind0 : packoffset(c000.x);
-  float4 _colorBlind1 : packoffset(c001.x);
-  float4 _colorBlind2 : packoffset(c002.x);
-};
-
 SamplerState __0__4__0__0__g_staticBilinearClamp : register(s3, space4);
 
 SamplerState __0__4__0__0__g_staticPointBlackBorder : register(s11, space4);
 
-// DXIL FirstbitHi: returns bit position counting from MSB (leading zeros count)
-uint firstbithigh_msb(int value) { return (value == 0) ? 0xFFFFFFFF : (31u - firstbithigh(value)); }
-uint firstbithigh_msb(uint value) { return (value == 0) ? 0xFFFFFFFF : (31u - firstbithigh(value)); }
-
 float4 main(
-  precise noperspective float4 SV_Position : SV_Position,
+  noperspective float4 SV_Position : SV_Position,
   linear float2 TEXCOORD : TEXCOORD
 ) : SV_Target {
   float4 SV_Target;
-  float4 _14;
+  float4 _14 = __3__36__0__0__g_sceneColor.Sample(__0__4__0__0__g_staticPointBlackBorder, float2(TEXCOORD.x, TEXCOORD.y));
   float _37;
   float _38;
   float _82;
@@ -57,76 +134,32 @@ float4 main(
   float _244;
   float _245;
   float _328;
-  float _48;
-  float _49;
-  float _53;
-  float _58;
-  float _62;
-  float _67;
-  float _71;
-  float _77;
-  uint _90;
-  uint _91;
-  float _93;
-  float _101;
-  float4 _108;
-  float4 _113;
-  float4 _118;
-  float4 _123;
-  float _134;
-  float _141;
-  float _144;
-  float _166;
-  float _167;
-  float _168;
-  float _173;
-  float _174;
-  float _175;
-  float _176;
-  float _214;
-  float _218;
-  float _219;
-  float _220;
-  float _221;
-  float _226;
-  float _252;
-  float _253;
-  float _254;
-  float _280;
-  float _281;
-  float _282;
-  float _310;
-  float _313;
-  float _314;
-  float _331;
-  float _332;
-  float _336;
-  float _346;
-  float _347;
-  float _348;
-  bool _381;
-  _14 = __3__36__0__0__g_sceneColor.Sample(__0__4__0__0__g_staticPointBlackBorder, float2(TEXCOORD.x, TEXCOORD.y));
   if (_postProcessParams.w > 0.0f) {
-    _37 = (((float4)(__3__36__0__0__g_sceneColor.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(((_postProcessParams.w * ((TEXCOORD.x * 0.003000000026077032f) + -0.001500000013038516f)) + TEXCOORD.x), TEXCOORD.y), 0.0f))).x);
-    _38 = (((float4)(__3__36__0__0__g_sceneColor.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(TEXCOORD.x, ((_postProcessParams.w * ((TEXCOORD.y * 0.003000000026077032f) + -0.001500000013038516f)) + TEXCOORD.y)), 0.0f))).z);
+    float4 _31 = __3__36__0__0__g_sceneColor.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(((_postProcessParams.w * ((TEXCOORD.x * 0.003000000026077032f) + -0.001500000013038516f)) + TEXCOORD.x), TEXCOORD.y), 0.0f);
+    float4 _34 = __3__36__0__0__g_sceneColor.SampleLevel(__0__4__0__0__g_staticBilinearClamp, float2(TEXCOORD.x, ((_postProcessParams.w * ((TEXCOORD.y * 0.003000000026077032f) + -0.001500000013038516f)) + TEXCOORD.y)), 0.0f);
+    _37 = _31.x;
+    _38 = _34.z;
   } else {
     _37 = _14.x;
     _38 = _14.z;
   }
-
+  // RenoDX: >>> [Patch: FinalChromaticAberration] [Version: 1.10]
   _37 = lerp(_14.x, _37, CUSTOM_CHROMATIC_ABERRATION);
   _38 = lerp(_14.z, _38, CUSTOM_CHROMATIC_ABERRATION);
+  // RenoDX: <<< [Patch: FinalChromaticAberration]
 
+  // RenoDX: >>> [Patch: CustomFilmGrainGate] [Version: 1.10]
   bool vanilla_film_grain = (_slopeParams.w > 0.0f) && CUSTOM_FILM_GRAIN_TYPE == 0;
+  // RenoDX: <<< [Patch: CustomFilmGrainGate]
   if (vanilla_film_grain) {
-    _48 = ((TEXCOORD.y + 4.0f) * (TEXCOORD.x + 4.0f)) * asfloat(__3__35__0__0__SceneConstantBuffer_raw[0u].x);
-    _49 = _48 * 0.7692307829856873f;
-    _53 = frac(abs(_49));
-    _58 = _48 * 0.08130080997943878f;
-    _62 = frac(abs(_58));
-    _67 = ((select((_58 >= (-0.0f - _58)), _62, (-0.0f - _62)) * 1230.0f) + 10.0f) * ((select((_49 >= (-0.0f - _49)), _53, (-0.0f - _53)) * 13.0f) + 1.0f);
-    _71 = frac(abs(_67));
-    _77 = ((0.007500052452087402f - (select((_67 >= (-0.0f - _67)), _71, (-0.0f - _71)) * 0.15000000596046448f)) * _slopeParams.w) + 1.0f;
+    float _48 = ((TEXCOORD.y + 4.0f) * (TEXCOORD.x + 4.0f)) * _time.x;
+    float _49 = _48 * 0.7692307829856873f;
+    float _53 = frac(abs(_49));
+    float _58 = _48 * 0.08130080997943878f;
+    float _62 = frac(abs(_58));
+    float _67 = ((select((_58 >= (-0.0f - _58)), _62, (-0.0f - _62)) * 1230.0f) + 10.0f) * ((select((_49 >= (-0.0f - _49)), _53, (-0.0f - _53)) * 13.0f) + 1.0f);
+    float _71 = frac(abs(_67));
+    float _77 = ((0.007500052452087402f - (select((_67 >= (-0.0f - _67)), _71, (-0.0f - _71)) * 0.15000000596046448f)) * _slopeParams.w) + 1.0f;
     _82 = (_77 * _37);
     _83 = (_77 * _14.y);
     _84 = (_77 * _38);
@@ -135,7 +168,7 @@ float4 main(
     _83 = _14.y;
     _84 = _38;
   }
-
+  // RenoDX: >>> [Patch: FinalCustomPostProcessingHDR] [Version: 1.10]
   if (CUSTOM_FILM_GRAIN_TYPE != 0 || CUSTOM_SHARPENING_TYPE != 0) {
     float3 color_pq = float3(_82, _83, _84);
 
@@ -150,26 +183,27 @@ float4 main(
     _83 = color_pq.y;
     _84 = color_pq.z;
   }
+  // RenoDX: <<< [Patch: FinalCustomPostProcessingHDR]
 
-  _90 = uint(asfloat(__3__35__0__0__SceneConstantBuffer_raw[3u].x) * TEXCOORD.x);
-  _91 = uint(asfloat(__3__35__0__0__SceneConstantBuffer_raw[3u].y) * TEXCOORD.y);
-  _93 = __3__36__0__0__g_depth.Sample(__0__4__0__0__g_staticPointBlackBorder, float2(TEXCOORD.x, TEXCOORD.y));
-  if (!((_93.x < 1.0000000116860974e-07f) || (_93.x == 1.0f))) {
-    _101 = select((_postProcessParams.z >= 1.0f), 1.0f, 0.25f);
-    _108 = __3__36__0__0__g_sceneColor.Load(int3(_90, ((int)(_91 + (uint)(-1))), 0));
-    _113 = __3__36__0__0__g_sceneColor.Load(int3(((int)(_90 + (uint)(-1))), _91, 0));
-    _118 = __3__36__0__0__g_sceneColor.Load(int3(((int)(_90 + 1u)), _91, 0));
-    _123 = __3__36__0__0__g_sceneColor.Load(int3(_90, ((int)(_91 + 1u)), 0));
-    _134 = max(max(_83, _108.y), max(max(_113.y, _118.y), _123.y));
-    _141 = sqrt(saturate(min(min(min(_83, _108.y), min(min(_113.y, _118.y), _123.y)), (1.0f - _134)) * (1.0f / _134))) * (-1.0f / (((1.0f - _101) * 8.0f) + (_101 * 5.0f)));
-    _144 = 1.0f / ((_141 * 4.0f) + 1.0f);
-    _166 = saturate(((_141 * (((_113.x + _108.x) + _118.x) + _123.x)) + _82) * _144) - _82;
-    _167 = saturate(((_141 * (((_113.y + _108.y) + _118.y) + _123.y)) + _83) * _144) - _83;
-    _168 = saturate(((_141 * (((_113.z + _108.z) + _118.z) + _123.z)) + _84) * _144) - _84;
-    _173 = 1.0f - dot(float3(abs(_166), abs(_167), abs(_168)), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f));
-    _174 = _173 * _173;
-    _175 = _174 * _174;
-    _176 = _175 * _175;
+  uint _90 = uint(_screenSizeAndInvSize.x * TEXCOORD.x);
+  uint _91 = uint(_screenSizeAndInvSize.y * TEXCOORD.y);
+  float _93 = __3__36__0__0__g_depth.Sample(__0__4__0__0__g_staticPointBlackBorder, float2(TEXCOORD.x, TEXCOORD.y));
+  if (!(((_93.x < 1.0000000116860974e-07f)) || ((_93.x == 1.0f)))) {
+    float _101 = select((_postProcessParams.z >= 1.0f), 1.0f, 0.25f);
+    float4 _108 = __3__36__0__0__g_sceneColor.Load(int3((int)(_90), ((int)(_91 + (uint)(-1))), 0));
+    float4 _113 = __3__36__0__0__g_sceneColor.Load(int3(((int)(_90 + (uint)(-1))), (int)(_91), 0));
+    float4 _118 = __3__36__0__0__g_sceneColor.Load(int3(((int)(_90 + 1u)), (int)(_91), 0));
+    float4 _123 = __3__36__0__0__g_sceneColor.Load(int3((int)(_90), ((int)(_91 + 1u)), 0));
+    float _134 = max(max(_83, _108.y), max(max(_113.y, _118.y), _123.y));
+    float _141 = sqrt(saturate(min(min(min(_83, _108.y), min(min(_113.y, _118.y), _123.y)), (1.0f - _134)) * (1.0f / _134))) * (-1.0f / (((1.0f - _101) * 8.0f) + (_101 * 5.0f)));
+    float _144 = 1.0f / ((_141 * 4.0f) + 1.0f);
+    float _166 = saturate(((_141 * (((_113.x + _108.x) + _118.x) + _123.x)) + _82) * _144) - _82;
+    float _167 = saturate(((_141 * (((_113.y + _108.y) + _118.y) + _123.y)) + _83) * _144) - _83;
+    float _168 = saturate(((_141 * (((_113.z + _108.z) + _118.z) + _123.z)) + _84) * _144) - _84;
+    float _173 = 1.0f - dot(float3(abs(_166), abs(_167), abs(_168)), float3(0.21267099678516388f, 0.7151600122451782f, 0.0721689984202385f));
+    float _174 = _173 * _173;
+    float _175 = _174 * _174;
+    float _176 = _175 * _175;
     _184 = ((_176 * _166 * CUSTOM_SHARPENING) + _82);
     _185 = ((_176 * _167 * CUSTOM_SHARPENING) + _83);
     _186 = ((_176 * _168 * CUSTOM_SHARPENING) + _84);
@@ -178,20 +212,15 @@ float4 main(
     _185 = _83;
     _186 = _84;
   }
-  _214 = 1.0f - abs(_etcParams.w);
-  _218 = saturate(_etcParams.w);
-#if 0
-  _219 = (_214 * select((_184 < 0.040449999272823334f), (_184 * 0.07739938050508499f), exp2(log2((_184 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _218;
-  _220 = (_214 * select((_185 < 0.040449999272823334f), (_185 * 0.07739938050508499f), exp2(log2((_185 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _218;
-  _221 = (_214 * select((_186 < 0.040449999272823334f), (_186 * 0.07739938050508499f), exp2(log2((_186 + 0.054999999701976776f) * 0.9478673338890076f) * 2.4000000953674316f))) + _218;
-#else
-  _219 = _214 * _184 + _218;
-  _220 = _214 * _185 + _218;
-  _221 = _214 * _186 + _218;
-#endif
-
+  float _214 = 1.0f - abs(_etcParams.w);
+  float _218 = saturate(_etcParams.w);
+  // RenoDX: >>> [Patch: RemoveFinalSrgbDecodeHDR] [Version: 1.10]
+  float _219 = (_214 * _184) + _218;
+  float _220 = (_214 * _185) + _218;
+  float _221 = (_214 * _186) + _218;
+  // RenoDX: <<< [Patch: RemoveFinalSrgbDecodeHDR]
   if (_colorGradingParams.w > 0.0f) {
-    _226 = saturate(_colorGradingParams.w);
+    float _226 = saturate(_colorGradingParams.w);
     _243 = (((max(0.0f, (1.0f - _219)) - _219) * _226) + _219);
     _244 = (((max(0.0f, (1.0f - _220)) - _220) * _226) + _220);
     _245 = (((max(0.0f, (1.0f - _221)) - _221) * _226) + _221);
@@ -200,39 +229,34 @@ float4 main(
     _244 = _220;
     _245 = _221;
   }
-  _252 = (pow(_243, 0.012683313339948654f));
-  _253 = (pow(_244, 0.012683313339948654f));
-  _254 = (pow(_245, 0.012683313339948654f));
-  _280 = (TEXCOORD.x * 2.0f) + -1.0f;
-  _281 = TEXCOORD.y * 2.0f;
-  _282 = 1.0f - _281;
-  _310 = mad(asfloat(__3__35__0__0__SceneConstantBuffer_raw[105u].w), 1.0000000116860974e-07f, mad(asfloat(__3__35__0__0__SceneConstantBuffer_raw[104u].w), _282, (asfloat(__3__35__0__0__SceneConstantBuffer_raw[103u].w) * _280))) + asfloat(__3__35__0__0__SceneConstantBuffer_raw[106u].w);
-  _313 = ((mad(asfloat(__3__35__0__0__SceneConstantBuffer_raw[105u].x), 1.0000000116860974e-07f, mad(asfloat(__3__35__0__0__SceneConstantBuffer_raw[104u].x), _282, (asfloat(__3__35__0__0__SceneConstantBuffer_raw[103u].x) * _280))) + asfloat(__3__35__0__0__SceneConstantBuffer_raw[106u].x)) / _310) - _280;
-  _314 = ((mad(asfloat(__3__35__0__0__SceneConstantBuffer_raw[105u].y), 1.0000000116860974e-07f, mad(asfloat(__3__35__0__0__SceneConstantBuffer_raw[104u].y), _282, (asfloat(__3__35__0__0__SceneConstantBuffer_raw[103u].y) * _280))) + asfloat(__3__35__0__0__SceneConstantBuffer_raw[106u].y)) / _310) - _282;
+  float _252 = (pow(_243, 0.012683313339948654f));
+  float _253 = (pow(_244, 0.012683313339948654f));
+  float _254 = (pow(_245, 0.012683313339948654f));
+  float _280 = (TEXCOORD.x * 2.0f) + -1.0f;
+  float _281 = TEXCOORD.y * 2.0f;
+  float _282 = 1.0f - _281;
+  float _310 = mad((_projToPrevProj[3].z), 1.0000000116860974e-07f, mad((_projToPrevProj[3].y), _282, ((_projToPrevProj[3].x) * _280))) + (_projToPrevProj[3].w);
+  float _313 = ((mad((_projToPrevProj[0].z), 1.0000000116860974e-07f, mad((_projToPrevProj[0].y), _282, ((_projToPrevProj[0].x) * _280))) + (_projToPrevProj[0].w)) / _310) - _280;
+  float _314 = ((mad((_projToPrevProj[1].z), 1.0000000116860974e-07f, mad((_projToPrevProj[1].y), _282, ((_projToPrevProj[1].x) * _280))) + (_projToPrevProj[1].w)) / _310) - _282;
   if (_localToneMappingParams.w > 0.0f) {
     _328 = saturate(1.0f - (sqrt((_314 * _314) + (_313 * _313)) * 2.0f));
   } else {
     _328 = 1.0f;
   }
-  _331 = abs(_280);
-  _332 = abs(_281 + -1.0f);
-  _336 = saturate(1.0f - ((_328 * _postProcessParams.x * CUSTOM_VIGNETTE) * dot(float2(_331, _332), float2(_331, _332))));
-  _346 = exp2(log2(_336 * exp2(log2(max(0.0f, (_252 + -0.8359375f)) / (18.8515625f - (_252 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
-  _347 = exp2(log2(_336 * exp2(log2(max(0.0f, (_253 + -0.8359375f)) / (18.8515625f - (_253 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
-  _348 = exp2(log2(_336 * exp2(log2(max(0.0f, (_254 + -0.8359375f)) / (18.8515625f - (_254 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
-  _381 = (SV_Position.y >= asfloat(__3__35__0__0__SceneConstantBuffer_raw[9u].w)) && (SV_Position.y < (asfloat(__3__35__0__0__SceneConstantBuffer_raw[3u].y) - asfloat(__3__35__0__0__SceneConstantBuffer_raw[9u].w)));
+  float _331 = abs(_280);
+  float _332 = abs(_281 + -1.0f);
+  float _336 = saturate(1.0f - ((_328 * _postProcessParams.x * CUSTOM_VIGNETTE) * dot(float2(_331, _332), float2(_331, _332))));
+  float _346 = exp2(log2(_336 * exp2(log2(max(0.0f, (_252 + -0.8359375f)) / (18.8515625f - (_252 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
+  float _347 = exp2(log2(_336 * exp2(log2(max(0.0f, (_253 + -0.8359375f)) / (18.8515625f - (_253 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
+  float _348 = exp2(log2(_336 * exp2(log2(max(0.0f, (_254 + -0.8359375f)) / (18.8515625f - (_254 * 18.6875f))) * 6.277394771575928f)) * 0.1593017578125f);
+  bool _381 = ((!(SV_Position.y < _viewDir.w))) && ((!(SV_Position.y >= (_screenSizeAndInvSize.y - _viewDir.w))));
   SV_Target.x = select(_381, exp2(log2((1.0f / ((_346 * 18.6875f) + 1.0f)) * ((_346 * 18.8515625f) + 0.8359375f)) * 78.84375f), 0.0f);
   SV_Target.y = select(_381, exp2(log2((1.0f / ((_347 * 18.6875f) + 1.0f)) * ((_347 * 18.8515625f) + 0.8359375f)) * 78.84375f), 0.0f);
   SV_Target.z = select(_381, exp2(log2((1.0f / ((_348 * 18.6875f) + 1.0f)) * ((_348 * 18.8515625f) + 0.8359375f)) * 78.84375f), 0.0f);
   SV_Target.w = _14.w;
 
   // RenoDX: >>> [Patch: FinalizePostProcessHDR] [Version: 1.10]
-  // Description: Retained HDR final variants can still be selected by older display-mode permutations. This patch applies the existing HDR color-temperature and Purkinje finalization using the live sun and moon elevation fields, preserving the shipped 1.09 final-output behavior without adding late final-space color grading.
-  SV_Target.xyz = FinalizeHDR(
-      SV_Target.xyz,
-      asfloat(__3__35__0__0__SceneConstantBuffer_raw[42u].y),
-      asfloat(__3__35__0__0__SceneConstantBuffer_raw[43u].y));
+  SV_Target.xyz = FinalizeHDR(SV_Target.xyz, _sunDirection.y, _moonDirection.y);
   // RenoDX: <<< [Patch: FinalizePostProcessHDR]
-
   return SV_Target;
 }

@@ -314,11 +314,12 @@ renodx::mods::shader::CustomShaders custom_shaders = [] {
   // fallback gate above. HDR finals call FinalizeHDR directly and are not listed here.
   // 0xE5C29C6A: RenderPostProcessPS SDR final.
   // 0x96C827AE / 0xF6FF6DB9: postprocessing_final SDR variants.
-  // 0xA9F53F51 / 0xDFBDBD09: postprocessing_final_fsr SDR variants.
+  // 0xA15081C2 / 0xA9F53F51 / 0xDFBDBD09: postprocessing_final_fsr SDR variants.
   for (uint32_t hash : {
            0xE5C29C6Au,
            0x96C827AEu,
            0xF6FF6DB9u,
+           0xA15081C2u,
            0xA9F53F51u,
            0xDFBDBD09u,
        }) {

@@ -30,8 +30,18 @@ foreach ($file in $files) {
 
     $newline = if ($content.Contains("`r`n")) { "`r`n" } else { "`n" }
 
-    if ($content -notmatch '(?m)^#include\s+"\.\./tonemap\.hlsli"$') {
-        $content = '#include "../tonemap.hlsli"' + $newline + $newline + $content
+    if ($content -notmatch '(?m)^#include\s+"\.\./tonemap\.hlsli"\r?$') {
+        $includeBlock = '#define RENODX_TONEMAP_EXTERNAL_SCENE_CONSTANT_BUFFER 1' + $newline +
+            '#define RENODX_TONEMAP_SCENE_TIME_W _time.w' + $newline +
+            '#include "../tonemap.hlsli"' + $newline + $newline
+
+        $sceneMatch = [regex]::Match($content, '(?s)cbuffer __3__35__0__0__SceneConstantBuffer : register\(b(?:15|16), space35\) \{.*?\};')
+        if ($sceneMatch.Success) {
+            $insertAt = $sceneMatch.Index + $sceneMatch.Length
+            $content = $content.Substring(0, $insertAt) + $newline + $newline + $includeBlock + $content.Substring($insertAt)
+        } else {
+            $content = '#include "../tonemap.hlsli"' + $newline + $newline + $content
+        }
     }
 
     $wrapCBuffer = {
@@ -40,12 +50,24 @@ foreach ($file in $files) {
             [string]$cbufferPattern
         )
 
-        $wrappedPattern = "(?s)#if 0 // Provided by tonemap\\.hlsli\\s*$cbufferPattern\\s*#endif"
+        $cbufferMatch = [regex]::Match($text, $cbufferPattern)
+        if ($cbufferMatch.Success) {
+            $beforeCBuffer = $text.Substring(0, $cbufferMatch.Index)
+            $lastProvidedIf = $beforeCBuffer.LastIndexOf('#if 0 // Provided by tonemap.hlsli', [System.StringComparison]::Ordinal)
+            $lastEndIf = $beforeCBuffer.LastIndexOf('#endif', [System.StringComparison]::Ordinal)
+            $nextEndIf = $text.IndexOf('#endif', $cbufferMatch.Index + $cbufferMatch.Length, [System.StringComparison]::Ordinal)
+
+            if ($lastProvidedIf -gt $lastEndIf -and $nextEndIf -ge 0) {
+                return [pscustomobject]@{ Content = $text; Found = $true }
+            }
+        }
+
+        $wrappedPattern = "(?s)#if 0 // Provided by tonemap\\.hlsli.*?$cbufferPattern.*?#endif"
         if ([regex]::IsMatch($text, $wrappedPattern)) {
             return [pscustomobject]@{ Content = $text; Found = $true }
         }
 
-        if ([regex]::IsMatch($text, $cbufferPattern)) {
+        if ($cbufferMatch.Success) {
             $updated = [regex]::Replace(
                 $text,
                 $cbufferPattern,
@@ -62,15 +84,14 @@ foreach ($file in $files) {
         return [pscustomobject]@{ Content = $text; Found = $false }
     }
 
-    $sceneCBufferPattern = '(?s)cbuffer __3__35__0__0__SceneConstantBuffer : register\(b16, space35\) \{.*?\};'
-    $exposureCBufferPattern = '(?s)cbuffer __3__35__0__0__ExposureConstantBuffer : register\(b31, space35\) \{.*?\};'
+    $sceneCBufferPattern = '(?s)cbuffer __3__35__0__0__SceneConstantBuffer : register\(b(?:15|16), space35\) \{.*?\};'
+    $exposureCBufferPattern = '(?s)cbuffer __3__35__0__0__ExposureConstantBuffer : register\(b(?:30|31), space35\) \{.*?\};'
     $globalPushConstantsPattern = '(?s)cbuffer __3__1__0__0__GlobalPushConstants : register\(b0, space1\) \{.*?\};'
+    $colorBlindCBufferPattern = '(?s)cbuffer __3__35__0__0__ColorBlindConstantBuffer : register\(b46, space35\) \{.*?\};'
 
     $missingAnyCBuffer = $false
 
-    $sceneWrapResult = & $wrapCBuffer $content $sceneCBufferPattern
-    $content = $sceneWrapResult.Content
-    if (-not $sceneWrapResult.Found) {
+    if (-not [regex]::IsMatch($content, $sceneCBufferPattern)) {
         $missingAnyCBuffer = $true
     }
 
@@ -86,15 +107,40 @@ foreach ($file in $files) {
         $missingAnyCBuffer = $true
     }
 
+    $colorBlindWrapResult = & $wrapCBuffer $content $colorBlindCBufferPattern
+    $content = $colorBlindWrapResult.Content
+    if (-not $colorBlindWrapResult.Found) {
+        $missingAnyCBuffer = $true
+    }
+
     if ($missingAnyCBuffer) {
         $missingCBufferPattern.Add($file.Name)
     }
 
-    $needle = 'if (_localToneMappingParams.w > 0.0f) {'
-    $start = $content.LastIndexOf($needle, [System.StringComparison]::Ordinal)
+    $hasTonemapReplacement = [regex]::IsMatch($content, 'TonemapReplacer\s*\(\s*float3')
 
-    if ($start -ge 0) {
-        $bodyStart = $start + $needle.Length
+    $conditionMatches = New-Object System.Collections.Generic.List[object]
+    foreach ($directMatch in [regex]::Matches($content, 'if\s*\(\s*_localToneMappingParams\.w\s*>\s*0\.0f\s*\)\s*\{')) {
+        $conditionMatches.Add($directMatch)
+    }
+
+    foreach ($flagMatch in [regex]::Matches($content, '(?m)^\s*bool\s+(_\d+)\s*=\s*\(\s*_localToneMappingParams\.w\s*>\s*0\.0f\s*\)\s*;')) {
+        $escapedFlag = [regex]::Escape($flagMatch.Groups[1].Value)
+        foreach ($flagIfMatch in [regex]::Matches($content, "if\s*\(\s*$escapedFlag\s*\)\s*\{")) {
+            $conditionMatches.Add($flagIfMatch)
+        }
+    }
+
+    $conditionMatch = $null
+    if ($conditionMatches.Count -gt 0) {
+        $conditionMatch = $conditionMatches |
+            Sort-Object -Property Index |
+            Select-Object -Last 1
+    }
+
+    if ($null -ne $conditionMatch) {
+        $start = $conditionMatch.Index
+        $bodyStart = $conditionMatch.Index + $conditionMatch.Length
         $depth = 1
         $index = $bodyStart
 
@@ -163,7 +209,7 @@ foreach ($file in $files) {
 
                             $assignedNames = New-Object System.Collections.Generic.HashSet[string]
                             foreach ($line in $ifLines) {
-                                $assignMatch = [regex]::Match($line, '^\s*(_\d+)\s*=')
+                                $assignMatch = [regex]::Match($line, '^\s*(?:(?:precise|min16float|float|half|int|uint|bool)\s+)?(_\d+)\s*=')
                                 if ($assignMatch.Success) {
                                     [void]$assignedNames.Add($assignMatch.Groups[1].Value)
                                 }
@@ -171,7 +217,7 @@ foreach ($file in $files) {
 
                             $tonemapExprVars = New-Object System.Collections.Generic.List[object]
                             foreach ($line in $ifLines) {
-                                $toneMatch = [regex]::Match($line, '^\s*(_\d+)\s*=\s*(.+?)\s*;\s*$')
+                                $toneMatch = [regex]::Match($line, '^\s*(?:(?:precise|min16float|float|half|int|uint|bool)\s+)?(_\d+)\s*=\s*(.+?)\s*;\s*$')
                                 if (-not $toneMatch.Success) {
                                     continue
                                 }
@@ -255,22 +301,22 @@ foreach ($file in $files) {
 
                             $content = $content.Substring(0, $bodyStart) + $newIfBody + $content.Substring($ifBodyEnd)
                         } else {
-                            $missingTonemapPattern.Add($file.Name)
+                            if (-not $hasTonemapReplacement) { $missingTonemapPattern.Add($file.Name) }
                         }
                     } else {
-                        $missingTonemapPattern.Add($file.Name)
+                        if (-not $hasTonemapReplacement) { $missingTonemapPattern.Add($file.Name) }
                     }
                 } else {
-                    $missingTonemapPattern.Add($file.Name)
+                    if (-not $hasTonemapReplacement) { $missingTonemapPattern.Add($file.Name) }
                 }
             } else {
-                $missingTonemapPattern.Add($file.Name)
+                if (-not $hasTonemapReplacement) { $missingTonemapPattern.Add($file.Name) }
             }
         } else {
-            $missingTonemapPattern.Add($file.Name)
+            if (-not $hasTonemapReplacement) { $missingTonemapPattern.Add($file.Name) }
         }
     } else {
-        $missingTonemapPattern.Add($file.Name)
+        if (-not $hasTonemapReplacement) { $missingTonemapPattern.Add($file.Name) }
     }
 
     if ($content -ne $originalContent) {
