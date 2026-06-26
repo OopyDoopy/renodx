@@ -3274,7 +3274,7 @@ void main(
       _1761 = _285;
     }
     // RenoDX: >>> [Patch: FoliageColorCorrect] [Version: 1.11-family]
-    // Description: RenderDiffuseTiledCS 0xBF32993D applies AO+ foliage color shaping to foliage stencil materials after vanilla resolves the direct diffuse base color, using g_sceneShadowColor visibility so shadowed foliage does not receive the fully sunlit color-shaping path.
+    // Description: RenderDiffuseTiledCS 0xFAAFA17C applies AO+ foliage color shaping to foliage stencil materials after vanilla resolves the direct diffuse base color, using g_sceneShadowColor visibility so shadowed foliage does not receive the fully sunlit color-shaping path.
     if (FOLIAGE_COLOR_CORRECT > 0.0f && ((uint)(_117 - 12) < 7u)) {
       float3 _rndx_fcBaseColor = float3(float(_1759), float(_1760), float(_1761));
       half4 _rndx_fcShadow = __3__36__0__0__g_sceneShadowColor.Load(int3(_99, _101, 0));
@@ -4976,7 +4976,7 @@ void main(
     _4410 = (_4232 == 54);
     _4411 = _4410 || _4409;
     // RenoDX: >>> [Patch: FoliageTransmission] [Version: 1.11-family]
-    // Description: RenderDiffuseTiledCS 0xBF32993D initializes foliage transmission accumulators once before the preserved direct-light branch fanout; exactly one foliage branch contributes transmission before final diffuse-light add-back.
+    // Description: RenderDiffuseTiledCS 0xFAAFA17C initializes foliage transmission accumulators once before the preserved direct-light branch fanout; exactly one foliage branch contributes transmission before final diffuse-light add-back.
     float _rndx_foliageTransR = 0.0f;
     float _rndx_foliageTransG = 0.0f;
     float _rndx_foliageTransB = 0.0f;
@@ -5107,7 +5107,7 @@ void main(
                   _4977 = 0.0f;
                 }
                 // RenoDX: >>> [Patch: FoliageTransmission] [Version: 1.11-family]
-                // Description: RenderDiffuseTiledCS 0xBF32993D adds AO+ foliage transmission to this vanilla direct-light branch without enabling the broader material-table direct-light patches on this sibling.
+                // Description: RenderDiffuseTiledCS 0xFAAFA17C adds AO+ foliage transmission to this vanilla direct-light branch without enabling the broader material-table direct-light patches on this sibling.
                 if (FOLIAGE_TRANSMISSION > 0.0f && _rndx_isFoliage) {
                   FoliageTransmissionResult _rndx_ftResult = FoliageTransmission(
                       float3(_1766, _1767, _1768),
@@ -5283,7 +5283,7 @@ void main(
                 _4977 = 0.0f;
               }
               // RenoDX: >>> [Patch: FoliageTransmission] [Version: 1.11-family]
-              // Description: RenderDiffuseTiledCS 0xBF32993D adds AO+ foliage transmission to this vanilla direct-light branch without enabling the broader material-table direct-light patches on this sibling.
+              // Description: RenderDiffuseTiledCS 0xFAAFA17C adds AO+ foliage transmission to this vanilla direct-light branch without enabling the broader material-table direct-light patches on this sibling.
               if (FOLIAGE_TRANSMISSION > 0.0f && _rndx_isFoliage) {
                 FoliageTransmissionResult _rndx_ftResult = FoliageTransmission(
                     float3(_1766, _1767, _1768),
@@ -5489,7 +5489,7 @@ void main(
                 _4977 = 0.0f;
               }
               // RenoDX: >>> [Patch: FoliageTransmission] [Version: 1.11-family]
-              // Description: RenderDiffuseTiledCS 0xBF32993D adds AO+ foliage transmission to this vanilla direct-light branch without enabling the broader material-table direct-light patches on this sibling.
+              // Description: RenderDiffuseTiledCS 0xFAAFA17C adds AO+ foliage transmission to this vanilla direct-light branch without enabling the broader material-table direct-light patches on this sibling.
               if (FOLIAGE_TRANSMISSION > 0.0f && _rndx_isFoliage) {
                 FoliageTransmissionResult _rndx_ftResult = FoliageTransmission(
                     float3(_1766, _1767, _1768),
@@ -5665,7 +5665,7 @@ void main(
               _4977 = 0.0f;
             }
             // RenoDX: >>> [Patch: FoliageTransmission] [Version: 1.11-family]
-            // Description: RenderDiffuseTiledCS 0xBF32993D adds AO+ foliage transmission to this vanilla direct-light branch without enabling the broader material-table direct-light patches on this sibling.
+            // Description: RenderDiffuseTiledCS 0xFAAFA17C adds AO+ foliage transmission to this vanilla direct-light branch without enabling the broader material-table direct-light patches on this sibling.
             if (FOLIAGE_TRANSMISSION > 0.0f && _rndx_isFoliage) {
               FoliageTransmissionResult _rndx_ftResult = FoliageTransmission(
                   float3(_1766, _1767, _1768),
@@ -6397,7 +6397,7 @@ void main(
       }
     }
     // RenoDX: >>> [Patch: FoliageTransmission] [Version: 1.11-family]
-    // Description: RenderDiffuseTiledCS 0xBF32993D adds the branch-local AO+ foliage transmission contribution into resolved direct diffuse lighting before vanilla AWB sampling and final scene color composition.
+    // Description: RenderDiffuseTiledCS 0xFAAFA17C adds the branch-local AO+ foliage transmission contribution into resolved direct diffuse lighting before vanilla AWB sampling and final scene color composition.
     _5660 = _5645 + _3885 + _rndx_foliageTransR;
     _5661 = _5646 + _3886 + _rndx_foliageTransG;
     _5662 = _5647 + _3887 + _rndx_foliageTransB;
@@ -6583,7 +6583,7 @@ void main(
       _6102 = _6081;
     }
     // RenoDX: >>> [Patch: FoliageFinalAO] [Version: 1.11-family]
-    // Description: RenderDiffuseTiledCS 0xBF32993D applies RenoDX foliage AO darkening to the final direct-lit scene color for foliage stencil materials, using vanilla blended scene AO and shadow visibility so direct light remains naturally occluded.
+    // Description: RenderDiffuseTiledCS 0xFAAFA17C applies RenoDX foliage AO darkening to the final direct-lit scene color for foliage stencil materials, using vanilla blended scene AO and shadow visibility so direct light remains naturally occluded.
     if (FOLIAGE_AO_STRENGTH > 0.0f && ((uint)(_117 - 12) < 7u)) {
       half4 _rndx_shadow = __3__36__0__0__g_sceneShadowColor.Load(int3(_99, _101, 0));
       float _rndx_directRatio = saturate(dot(float3(_rndx_shadow.xyz), float3(0.333f, 0.333f, 0.333f)));

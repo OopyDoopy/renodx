@@ -1429,6 +1429,19 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "Detected: Ray Reconstruction / Ray Regeneration is active.\n",
+        .section = "World / Materials",
+        .is_visible = []() { return current_settings_mode == rendering_group && RR_ENABLED; },
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "Not detected: controls below require Ray Reconstruction / Ray Regeneration.\n",
+        .section = "World / Materials",
+        .tint = 0xaa0000,
+        .is_visible = []() { return current_settings_mode == rendering_group && !RR_ENABLED; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "MaterialImprovements",
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -1438,12 +1451,14 @@ renodx::utils::settings::Settings settings = {
         .label = "Material Improvements",
         .section = "World / Materials",
         .tooltip = "Enables material/lighting improvements:\n"
-                   "- Applies in all renderer modes: glass/refraction fixes\n"
-                   "- Requires Ray Reconstruction / Ray Regeneration: smooth terminator for direct lighting\n"
-                   "- Requires Ray Reconstruction / Ray Regeneration: geometric specular anti aliasing\n"
-                   "Currently disabled: EON diffuse BRDF, spectral diffraction.",
+                   "- Smooth terminator for direct lighting\n"
+                   "- Geometric specular anti aliasing\n"
+                   "- Water/ice refraction surface shadowing\n"
+                   "Currently disabled: EON diffuse BRDF, spectral diffraction.\n"
+                   "Disabled until Ray Reconstruction / Ray Regeneration is detected.",
         .labels = {"Off", "On"},
         .tint = wiprendering,
+        .is_enabled = []() { return RR_ENABLED; },
         .is_visible = []() { return current_settings_mode == rendering_group; },
     },
     new renodx::utils::settings::Setting{

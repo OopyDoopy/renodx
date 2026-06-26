@@ -1395,7 +1395,7 @@ void main(
       _1072 = _275;
     }
     // RenoDX: >>> [Patch: FoliageColorCorrect] [Version: 1.11-family]
-    // Description: RenderDiffuseTiledCS 0x2329885D applies AO+ foliage color shaping to foliage stencil materials at the material base-color stage. This lower-lighting sibling also rebuilds a temporally blended diffuse-cache color later; correcting that cache directly caused blocky AO+ artifacts, so this block mirrors the stable base-color patch point and leaves g_diffuseResultUAV history untouched.
+    // Description: RenderDiffuseTiledCS 0xEC0B64EC applies AO+ foliage color shaping to foliage stencil materials at the material base-color stage. This lower-lighting sibling also rebuilds a temporally blended diffuse-cache color later; correcting that cache directly caused blocky AO+ artifacts, so this block mirrors the stable base-color patch point and leaves g_diffuseResultUAV history untouched.
     if (FOLIAGE_COLOR_CORRECT > 0.0f && ((uint)(_107 - 12) < 7u)) {
       float3 _rndx_fcBaseColor = float3(float(_1070), float(_1071), float(_1072));
       half4 _rndx_fcShadow = __3__36__0__0__g_sceneShadowColor.Load(int3(_89, _91, 0));
@@ -2394,7 +2394,7 @@ void main(
       _3484 = 0.0f;
     }
     // RenoDX: >>> [Patch: FoliageTransmission] [Version: 1.11-family]
-    // Description: RenderDiffuseTiledCS 0x2329885D adds AO+ foliage transmission to the non-material-table vanilla direct-light path while leaving the sibling's broader direct-light material behavior native.
+    // Description: RenderDiffuseTiledCS 0xEC0B64EC adds AO+ foliage transmission to the non-material-table vanilla direct-light path while leaving the sibling's broader direct-light material behavior native.
     float _rndx_foliageTransR = 0.0f;
     float _rndx_foliageTransG = 0.0f;
     float _rndx_foliageTransB = 0.0f;
@@ -2425,7 +2425,7 @@ void main(
       _3493 = _3358;
     }
     // RenoDX: >>> [Patch: FoliageTransmission] [Version: 1.11-family]
-    // Description: RenderDiffuseTiledCS 0x2329885D adds the AO+ foliage transmission contribution into resolved direct diffuse lighting before vanilla AWB sampling and final scene color composition.
+    // Description: RenderDiffuseTiledCS 0xEC0B64EC adds the AO+ foliage transmission contribution into resolved direct diffuse lighting before vanilla AWB sampling and final scene color composition.
     _3500 = ((_2930 * _3493) * _3292) + (_1843 * _1785) + _rndx_foliageTransR;
     _3501 = ((_2931 * _3493) * _3293) + (_1844 * _1785) + _rndx_foliageTransG;
     _3502 = ((_2932 * _3493) * _3294) + (_1845 * _1785) + _rndx_foliageTransB;
@@ -2559,7 +2559,7 @@ void main(
       _3818 = _3797;
     }
     // RenoDX: >>> [Patch: FoliageFinalAO] [Version: 1.11-family]
-    // Description: RenderDiffuseTiledCS 0x2329885D applies RenoDX foliage AO darkening to the final direct-lit scene color for foliage stencil materials, using vanilla blended scene AO and shadow visibility so direct light remains naturally occluded.
+    // Description: RenderDiffuseTiledCS 0xEC0B64EC applies RenoDX foliage AO darkening to the final direct-lit scene color for foliage stencil materials, using vanilla blended scene AO and shadow visibility so direct light remains naturally occluded.
     if (FOLIAGE_AO_STRENGTH > 0.0f && ((uint)(_107 - 12) < 7u)) {
       half4 _rndx_shadow = __3__36__0__0__g_sceneShadowColor.Load(int3(_89, _91, 0));
       float _rndx_directRatio = saturate(dot(float3(_rndx_shadow.xyz), float3(0.333f, 0.333f, 0.333f)));

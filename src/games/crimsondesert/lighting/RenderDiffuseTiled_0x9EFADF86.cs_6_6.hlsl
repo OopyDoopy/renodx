@@ -3195,7 +3195,7 @@ void main(
       _1705 = _284;
     }
     // RenoDX: >>> [Patch: FoliageColorCorrect] [Version: 1.11-family]
-    // Description: RenderDiffuseTiledCS 0x88575103 is an inferred 1.10 direct diffuse sibling that reads scene AO and writes scene color like the covered RenderDiffuseTiled family. Apply AO+ foliage color shaping with g_sceneShadowColor visibility so shadowed foliage does not receive the fully sunlit color-shaping path.
+    // Description: RenderDiffuseTiledCS 0x9EFADF86 is an inferred 1.10 direct diffuse sibling that reads scene AO and writes scene color like the covered RenderDiffuseTiled family. Apply AO+ foliage color shaping with g_sceneShadowColor visibility so shadowed foliage does not receive the fully sunlit color-shaping path.
     if (FOLIAGE_COLOR_CORRECT > 0.0f && ((uint)(_116 - 12) < 7u)) {
       float3 _rndx_fcBaseColor = float3(float(_1703), float(_1704), float(_1705));
       half4 _rndx_fcShadow = __3__36__0__0__g_sceneShadowColor.Load(int3(_98, _100, 0));
@@ -6586,7 +6586,7 @@ void main(
       _6050 = _6029;
     }
     // RenoDX: >>> [Patch: FoliageFinalAO] [Version: 1.11-family]
-    // Description: RenderDiffuseTiledCS 0x88575103 is a 1.10 direct diffuse sibling that can otherwise leave foliage pixels using vanilla direct-light AO while adjacent RenderDiffuseTiled siblings receive RenoDX foliage AO. Apply the same final direct-lit AO darkening for foliage stencil materials, using vanilla blended scene AO and shadow visibility so direct light remains naturally occluded.
+    // Description: RenderDiffuseTiledCS 0x9EFADF86 is a 1.10 direct diffuse sibling that can otherwise leave foliage pixels using vanilla direct-light AO while adjacent RenderDiffuseTiled siblings receive RenoDX foliage AO. Apply the same final direct-lit AO darkening for foliage stencil materials, using vanilla blended scene AO and shadow visibility so direct light remains naturally occluded.
     if (FOLIAGE_AO_STRENGTH > 0.0f && ((uint)(_116 - 12) < 7u)) {
       half4 _rndx_shadow = __3__36__0__0__g_sceneShadowColor.Load(int3(_98, _100, 0));
       float _rndx_directRatio = saturate(dot(float3(_rndx_shadow.xyz), float3(0.333f, 0.333f, 0.333f)));
