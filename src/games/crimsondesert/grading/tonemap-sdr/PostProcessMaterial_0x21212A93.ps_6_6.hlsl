@@ -324,6 +324,10 @@ float4 main(
   float _107 = float((uint)(uint)(_enableChromaticAberration)) * WaveReadLaneFirst(BindlessParameters_PostProcessUber_CD[((int)((uint)(select(((uint)_95 < (uint)170000), _95, 0)) + 0u))]._statusVignetteChromaticShift3);
   int _108 = WaveReadLaneFirst(_materialIndex);
   float _120 = float((uint)(uint)(_enableChromaticAberration)) * WaveReadLaneFirst(BindlessParameters_PostProcessUber_CD[((int)((uint)(select(((uint)_108 < (uint)170000), _108, 0)) + 0u))]._chromaticAberrationRatio);
+  // RenoDX: >>> [Patch: BasicPostProcessChromaticAberration] [Version: 1.12.02]
+  // Description: SDR DLAA can use this composite material shader as the final visible output and skip the standalone SDR final shader where RenoDX normally scales chromatic aberration. Apply the RenoDX Chromatic Aberration setting to this shader's generic material chromatic aberration ratio while leaving separate status/vignette chromatic effects under the game's native controls.
+  _120 *= CUSTOM_CHROMATIC_ABERRATION;
+  // RenoDX: <<< [Patch: BasicPostProcessChromaticAberration]
   int _121 = WaveReadLaneFirst(_materialIndex);
   float _129 = WaveReadLaneFirst(BindlessParameters_PostProcessUber_CD[((int)((uint)(select(((uint)_121 < (uint)170000), _121, 0)) + 0u))]._chromaticAberrationShiftValue);
   int _130 = WaveReadLaneFirst(_materialIndex);
@@ -1285,10 +1289,26 @@ float4 main(
     _3274 = _2902;
     _3275 = _2903;
   }
+  // RenoDX: >>> [Patch: BasicPostProcessFilmGrain] [Version: 1.12.02]
+  // Description: SDR DLAA can use this composite material shader as the final visible output and skip the standalone SDR final shader. When the runtime marks this draw as the basic postprocess final path, apply RenoDX custom film grain directly to the local output color. This preserves the older direct-output material fallback without sampling neighboring final-pass textures from a different source stage.
+  if (CUSTOM_BASIC_POSTPROCESS_FINAL == 1.f && CUSTOM_FILM_GRAIN_TYPE != 0) {
+    float3 _rndx_postprocess_color = renodx::effects::ApplyFilmGrain(float3(_3273, _3274, _3275), TEXCOORD, CUSTOM_RANDOM, CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);
+    _3273 = _rndx_postprocess_color.x;
+    _3274 = _rndx_postprocess_color.y;
+    _3275 = _rndx_postprocess_color.z;
+  }
+  // RenoDX: <<< [Patch: BasicPostProcessFilmGrain]
   if (_etcParams.y > 1.0f) {
     float _3284 = abs((TEXCOORD.x * 2.0f) + -1.0f);
     float _3285 = abs((TEXCOORD.y * 2.0f) + -1.0f);
-    float _3289 = saturate(1.0f - (dot(float2(_3284, _3285), float2(_3284, _3285)) * saturate(_etcParams.y + -1.0f)));
+    // RenoDX: >>> [Patch: BasicPostProcessVignette] [Version: 1.12.02]
+    // Description: The SDR DLAA material-final path uses this shader's native output vignette instead of the standalone SDR final shader's different final-pass vignette. When this shader is the selected basic postprocess final path, scale the native material vignette by the RenoDX Vignette setting while leaving HDR and DLSS intermediate uses untouched.
+    float _rndx_vignette_strength = saturate(_etcParams.y + -1.0f);
+    if (CUSTOM_BASIC_POSTPROCESS_FINAL == 1.f) {
+      _rndx_vignette_strength *= CUSTOM_VIGNETTE;
+    }
+    float _3289 = saturate(1.0f - (dot(float2(_3284, _3285), float2(_3284, _3285)) * _rndx_vignette_strength));
+    // RenoDX: <<< [Patch: BasicPostProcessVignette]
     _3294 = (_3289 * _3273);
     _3295 = (_3289 * _3274);
     _3296 = (_3289 * _3275);
@@ -1328,6 +1348,15 @@ float4 main(
     _3343 = _3327;
     _3344 = _3328;
   }
+  // RenoDX: >>> [Patch: BasicPostProcessFinalizeSDR] [Version: 1.12.02]
+  // Description: SDR DLAA can bypass the standalone SDR final shader and output this composite material directly to the fake swapchain. When the addon marks this shader as the basic postprocess final path, run only the shared SDR finalization step here so white point/color-temperature, Purkinje, and the SDR Gamma setting are not skipped. This intentionally avoids standalone-final sharpening, RCAS, and late final color-transfer math because this material shader does not have the same final-source texture semantics.
+  if (CUSTOM_BASIC_POSTPROCESS_FINAL == 1.f) {
+    float3 _rndx_final_color = FinalizeSDR(float3(_3342, _3343, _3344), _sunDirection.y, _moonDirection.y);
+    _3342 = _rndx_final_color.x;
+    _3343 = _rndx_final_color.y;
+    _3344 = _rndx_final_color.z;
+  }
+  // RenoDX: <<< [Patch: BasicPostProcessFinalizeSDR]
   SV_Target.x = _3342;
   SV_Target.y = _3343;
   SV_Target.z = _3344;
