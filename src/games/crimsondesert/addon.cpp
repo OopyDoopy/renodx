@@ -902,7 +902,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Minimum brightness bound for Perceptual.\nValues are percentages of diffuse white.\n0 = no minimum bound.\nWith both min and max at 0, Perceptual targets its adapted field directly.",
         .tint = auto_exposure,
         .min = 0.f,
-        .max = 2.f,
+        .max = 4.f,
         .format = "%.2f%%",
         .is_enabled = []() { return IMPROVED_AUTO_EXPOSURE == 2.f; },
         .parse = [](float value) { return value * 0.01f; },
@@ -1824,15 +1824,15 @@ void OnPresetOff() {
       {"DisableUIShaders", 0.f},
 
       {"ImprovedAutoExposure", 0.f},
-      {"AE_PerceptualMinBrightness", 0.f},
-      {"AE_PerceptualMaxBrightness", 0.f},
-      {"AE_TargetSmoothing", 0.f},
+      {"AE_PerceptualMinBrightness", 1.f},
+      {"AE_PerceptualMaxBrightness", 5.f},
+      {"AE_TargetSmoothing", 100.f},
       {"AE_DynamismHigh", 40.f},
       {"AE_DynamismLow", 50.f},
-      {"AE_Speed", 0.f},
-      {"AE_DarkToLightTime", 1.6f},
+      {"AE_Speed", 50.f},
+      {"AE_DarkToLightTime", 1.f},
       {"AE_LightToDarkTime", 4.3f},
-      {"AE_EnvironmentBias", 100.f},
+      {"AE_EnvironmentBias", 0.f},
   });
 }
 

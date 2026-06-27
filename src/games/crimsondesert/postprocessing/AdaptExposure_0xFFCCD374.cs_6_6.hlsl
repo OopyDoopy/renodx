@@ -410,15 +410,16 @@ void main(
           // Doesnt fully remove bloom jitter but better than before especially
           // with alt auto exposure
           float _smoothed_target_yf = _198;
-          float _ae_history_valid_raw = __3__39__0__1__g_exposureUAV[13];
+          // RenoDX: >>> [Patch: AutoExposureModeMatchedHistory] [Version: 1.12.02]
+          // Description: Slot 13 stores both history validity and the AE mode that wrote the exposure state as 1 + IMPROVED_AUTO_EXPOSURE. Treating the slot as a boolean lets Perceptual AE reuse Vanilla or Custom AE history slots with incompatible meanings, which can seed stale fast/slow adaptation state after mode or preset changes. This validates the marker and only reuses history when the stored mode matches the active mode.
+          float _ae_history_state_raw = __3__39__0__1__g_exposureUAV[13];
           bool _ae_history_valid =
-              (_ae_history_valid_raw > 0.5f) && !isnan(_ae_history_valid_raw) && !isinf(_ae_history_valid_raw);
-          // Slot 13 marks whether a prior AdaptExposure run has seeded the AE
-          // history slots. Boot/reset can leave finite garbage in the UAV, so
-          // only reuse prior state when this flag is set and temporal
-          // continuity is intact.
+              (_ae_history_state_raw > 0.5f) && !isnan(_ae_history_state_raw) && !isinf(_ae_history_state_raw);
+          float _ae_previous_mode = _ae_history_valid ? (floor(_ae_history_state_raw + 0.5f) - 1.0f) : -1.0f;
+          bool _ae_mode_matches_history = abs(_ae_previous_mode - IMPROVED_AUTO_EXPOSURE) < 0.5f;
           bool _ae_temporal_continuity = !(_temporalReprojectionParams.w > 0.5f);
-          bool _ae_can_reuse_history = _ae_history_valid && _ae_temporal_continuity;
+          bool _ae_can_reuse_history = _ae_history_valid && _ae_temporal_continuity && _ae_mode_matches_history;
+          // RenoDX: <<< [Patch: AutoExposureModeMatchedHistory]
           // Compact adapting-field proxy for the perceptual AE path.
           // Kraft & Brainard (1999, PNAS 96:307-312) show that simple local
           // surround / spatial-mean / max-flux rules are not sufficient under
@@ -471,7 +472,11 @@ void main(
               }
               break;
             }
-          } else if ((IMPROVED_AUTO_EXPOSURE == 1) || (IMPROVED_AUTO_EXPOSURE == 2)) {
+          }
+          // RenoDX: >>> [Patch: PerceptualAEFieldSmoothing] [Version: 1.12.02]
+          // Description: Perceptual AE computes a central 20-80% geometric field in the branch above, but the shared target smoothing block was chained as an else-if and was therefore unreachable for IMPROVED_AUTO_EXPOSURE == 2. Run the smoothing block independently so Perceptual AE feeds the filtered PsychoV17 field into the exposure solve instead of falling back to the raw histogram mean.
+          [branch]
+          if ((IMPROVED_AUTO_EXPOSURE == 1) || (IMPROVED_AUTO_EXPOSURE == 2)) {
             float _prevFilteredTarget = __3__39__0__1__g_exposureUAV[19];
             bool _prevFilteredTargetValid =
                 _ae_can_reuse_history && (_prevFilteredTarget > 0.0001f) && !isnan(_prevFilteredTarget) &&
@@ -503,6 +508,7 @@ void main(
               }
             }
           }
+          // RenoDX: <<< [Patch: PerceptualAEFieldSmoothing]
           float _psychov17_min_target_yf = 0.0f;
           float _psychov17_max_target_yf = 0.0f;
           bool _psychov17_has_min_target = false;
@@ -679,11 +685,19 @@ void main(
             float _psychov17_predicted_current_state_yf = max(_smoothed_target_yf, 9.999999747378752e-05f);
             if (IMPROVED_AUTO_EXPOSURE == 2) {
               float _psychov17_predicted_field_yf = max(_smoothed_target_yf, 9.999999974752427e-07f);
+              // RenoDX: >>> [Patch: PerceptualAEHistoryReset] [Version: 1.12.02]
+              // Description: Perceptual AE interprets slots 9/10/11 as fast carryover, adapted field, and slow carryover. Those slots have different meanings in other AE modes, so wrong-mode or invalid history must not seed the predicted current adaptation state. Gate all previous-state reads with the mode-matched history check while preserving the current signed fast/slow carryover model.
               float _psychov17_prev_fast_eqbg = __3__39__0__1__g_exposureUAV[9];
-              float _psychov17_prev_field_yf = max(__3__39__0__1__g_exposureUAV[10], 9.999999974752427e-07f);
+              float _psychov17_prev_field_raw = __3__39__0__1__g_exposureUAV[10];
+              float _psychov17_prev_field_yf = max(_psychov17_prev_field_raw, 9.999999974752427e-07f);
               float _psychov17_prev_slow_eqbg = __3__39__0__1__g_exposureUAV[11];
-              bool _psychov17_prev_fast_valid = !isnan(_psychov17_prev_fast_eqbg) && !isinf(_psychov17_prev_fast_eqbg);
-              bool _psychov17_prev_slow_valid = !isnan(_psychov17_prev_slow_eqbg) && !isinf(_psychov17_prev_slow_eqbg);
+              bool _psychov17_prev_fast_valid =
+                  _ae_can_reuse_history && !isnan(_psychov17_prev_fast_eqbg) && !isinf(_psychov17_prev_fast_eqbg);
+              bool _psychov17_prev_field_valid =
+                  _ae_can_reuse_history && (_psychov17_prev_field_raw > 0.0f) && !isnan(_psychov17_prev_field_raw) &&
+                  !isinf(_psychov17_prev_field_raw);
+              bool _psychov17_prev_slow_valid =
+                  _ae_can_reuse_history && !isnan(_psychov17_prev_slow_eqbg) && !isinf(_psychov17_prev_slow_eqbg);
               float _psychov17_prev_current_state_yf = _psychov17_prev_field_yf;
               if (_psychov17_prev_fast_valid) {
                 _psychov17_prev_current_state_yf += _psychov17_prev_fast_eqbg;
@@ -694,9 +708,9 @@ void main(
               _psychov17_prev_current_state_yf = max(_psychov17_prev_current_state_yf, 9.999999747378752e-05f);
               float _psychov17_tau_fast = max(AE_DARK_TO_LIGHT_TIME, 0.10000000149011612f);
               float _psychov17_tau_slow = max(AE_LIGHT_TO_DARK_TIME, 0.10000000149011612f);
-              if (!_ae_temporal_continuity) {
+              if (!_ae_can_reuse_history) {
                 _psychov17_predicted_current_state_yf = _psychov17_predicted_field_yf;
-              } else if ((_psychov17_prev_field_yf <= 0.0f) || isnan(_psychov17_prev_field_yf) || isinf(_psychov17_prev_field_yf)) {
+              } else if (!_psychov17_prev_field_valid) {
                 _psychov17_predicted_current_state_yf = _psychov17_predicted_field_yf;
               } else if ((_psychov17_predicted_field_yf <= 0.0f) || isnan(_psychov17_predicted_field_yf) || isinf(_psychov17_predicted_field_yf)) {
                 _psychov17_predicted_current_state_yf = _psychov17_prev_current_state_yf;
@@ -745,6 +759,7 @@ void main(
               _psychov17_predicted_current_state_yf = max(
                   _psychov17_predicted_field_yf + _psychov17_predicted_fast_eqbg + _psychov17_predicted_slow_eqbg,
                   9.999999747378752e-05f);
+              // RenoDX: <<< [Patch: PerceptualAEHistoryReset]
             }
 
             // Readable AE target gain alias for both legacy and AE2 paths.
@@ -774,7 +789,7 @@ void main(
                   16.0f);
             }
 
-            bool _353 = _ae_temporal_continuity;
+            bool _353 = _ae_can_reuse_history;
             if (_353) {
               float _357 = __3__39__0__1__g_exposureUAV[1];
               [branch]

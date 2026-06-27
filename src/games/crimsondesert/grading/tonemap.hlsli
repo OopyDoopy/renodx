@@ -255,13 +255,11 @@ float3 TonemapReplacer(float3 color, bool use_color_blind = true, bool use_etc_p
     float histogram_target_mean = 0.18f;
     histogram_mean = GetPerceptualAdaptedFieldYf();
 
-    if (_exposure2.z > 0.0f) {
-      histogram_target_mean = _exposure2.z;
-    } else {
-      histogram_target_mean = histogram_mean;
-    }
+    // RenoDX: >>> [Patch: SDRPerceptualLiveAnchorTarget] [Version: 1.12.02]
+    // Description: Perceptual AE solves exposure against the live adaptation anchor S returned by GetPerceptualAdaptedFieldYf(), which includes the clean field plus fast/slow carryover. The SDR path previously targeted the clean field F (_exposure2.z) while using S as the current anchor, injecting an extra F/S transient that brightened when looking at bright sky and darkened when looking at darker ground. Reconstruct the target from S to match the HDR compute tonemap path.
+    histogram_target_mean = histogram_mean;
     histogram_target_mean = min(histogram_target_mean * exposure, 1.0f);
-    histogram_target_mean = min(histogram_target_mean, 1.0f);
+    // RenoDX: <<< [Patch: SDRPerceptualLiveAnchorTarget]
     float3 ungraded_bt709 = float3(
         max(0.0f, (((color.x * 1.705049991607666f) - (color.y * 0.6217899918556213f)) - (color.z * 0.08325999975204468f))),
         max(0.0f, (((color.y * 1.1407999992370605f) - (color.x * 0.13026000559329987f)) - (color.z * 0.01054999977350235f))),
