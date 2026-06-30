@@ -191,10 +191,7 @@ void main(
 #endif
     } else {
       const float mid_gray = 0.18f;
-      float mid_gray_adjusted = SDRToneMap(mid_gray, false, false).x;
-      mid_gray_adjusted = lerp(0.18f, mid_gray_adjusted, CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
-      // mid_gray_scale = mid_gray_adjusted / mid_gray;
-      // mid_gray_scale = lerp(1.f, mid_gray_scale, CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
+      float mid_gray_adjusted = mid_gray * lerp(1.0f, GetSDRTonemapExposure2BrightnessScalar(mid_gray), CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
       float3 tonemap_input_color = input_color;
 #if CUSTOM_TONEMAP_DEBUG
       if (tonemap_debug_enabled) {

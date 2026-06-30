@@ -74,11 +74,9 @@ float3 ApplyLocalLightHueCorrection(float3 color_bt709, float hue_strength, floa
   float3 mb_corrected = float3(mb_corrected_xy, mb.z);
 
   // // MB → LMS → gamut compress → BT.2020 → BT.709
-  // float3 lms_corrected = renodx::color::lms::from::MacLeodBoynton(mb_corrected);
-  // lms_corrected = renodx::color::gamut::GamutCompressLMSBoundBT709(lms_corrected);
-  // float3 bt2020_corrected = renodx::color::bt2020::from::LMS(lms_corrected);
-  // return max(renodx::color::bt709::from::BT2020(bt2020_corrected), 0.f);
-  return renodx::color::bt709::from::MacLeodBoynton(mb_corrected);
+  float3 lms_corrected = renodx::color::lms::from::MacLeodBoynton(mb_corrected);
+  lms_corrected = renodx::color::gamut::GamutCompressLMSBoundBT709(lms_corrected);
+  return renodx::color::bt709::from::LMS(lms_corrected);
 }
 
 #endif  // RENODX_LOCAL_LIGHT_COMMON_HLSL_

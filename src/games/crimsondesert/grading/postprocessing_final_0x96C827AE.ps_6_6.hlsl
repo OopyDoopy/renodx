@@ -188,7 +188,7 @@ float4 main(
   uint _90 = uint(_screenSizeAndInvSize.x * TEXCOORD.x);
   uint _91 = uint(_screenSizeAndInvSize.y * TEXCOORD.y);
   float _93 = __3__36__0__0__g_depth.Sample(__0__4__0__0__g_staticPointBlackBorder, float2(TEXCOORD.x, TEXCOORD.y));
-  if (!(((_93.x < 1.0000000116860974e-07f)) || ((_93.x == 1.0f)))) {
+  if (CUSTOM_SHARPENING_TYPE == 0 && !(((_93.x < 1.0000000116860974e-07f)) || ((_93.x == 1.0f)))) {
     float _101 = select((_postProcessParams.z >= 1.0f), 1.0f, 0.25f);
     float4 _108 = __3__36__0__0__g_sceneColor.Load(int3((int)(_90), ((int)(_91 + (uint)(-1))), 0));
     float4 _113 = __3__36__0__0__g_sceneColor.Load(int3(((int)(_90 + (uint)(-1))), (int)(_91), 0));

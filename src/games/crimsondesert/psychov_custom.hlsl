@@ -3,6 +3,11 @@
 #ifndef RENODX_SHADERS_TONEMAP_PSYCHO_TEST17_HLSL_
 #define RENODX_SHADERS_TONEMAP_PSYCHO_TEST17_HLSL_
 
+// 0 = MacLeod-Boynton, 1 = ICtCp
+#ifndef RENODX_PSYCHOV_FINAL_BLEND_MODE
+#define RENODX_PSYCHOV_FINAL_BLEND_MODE 1
+#endif
+
 namespace renodx {
 namespace tonemap {
 namespace psycho {
@@ -87,6 +92,97 @@ float3 psycho17_FromAdaptiveRelativeWeightedLMS(
   return lms_weighted_relative * max(current_adaptive_state_lms, 1e-6f.xxx);
 }
 
+// Adapted from upstream Crimson Desert MB hue/purity correction helpers.
+// Applies the reference MB chromaticity/hue to the target while preserving the
+// target's carried MB intensity term in the target adaptive basis.
+float3 psycho17_ApplyMacLeodBoyntonChromaticity(
+  float3 target_lms,
+  float3 target_adaptive_state_lms,
+  float3 reference_lms,
+  float3 reference_adaptive_state_lms) {
+  float3 target_relative_weighted = psycho17_ToAdaptiveRelativeWeightedLMS(
+    target_lms,
+    target_adaptive_state_lms);
+  float3 reference_relative_weighted = psycho17_ToAdaptiveRelativeWeightedLMS(
+    reference_lms,
+    reference_adaptive_state_lms);
+
+  float3 target_mb = renodx::color::macleod_boynton::from::WeightedLMS(target_relative_weighted);
+  float3 reference_mb = renodx::color::macleod_boynton::from::WeightedLMS(reference_relative_weighted);
+
+  float3 composited_relative_weighted =
+    renodx::color::macleod_boynton::WeightedLMSFromMacleodBoynton(
+      float3(reference_mb.xy, target_mb.z));
+
+  return renodx::color::macleod_boynton::UnweighLMS(
+    psycho17_FromAdaptiveRelativeWeightedLMS(
+      composited_relative_weighted,
+      target_adaptive_state_lms));
+}
+
+bool psycho17_IsAdaptiveRelativeLMSInGamutCompressibleDomain(float3 lms_relative) {
+  float3 weighted_lms = renodx::color::macleod_boynton::WeighLMS(lms_relative);
+  if (min(weighted_lms.x, min(weighted_lms.y, weighted_lms.z)) < 0.f) {
+    return false;
+  }
+
+  float3 mb = renodx::color::macleod_boynton::from::WeightedLMS(weighted_lms);
+  float2 mb_white = renodx::color::gamut::CIE1702WhiteChromaticity();
+  float2 direction = mb.xy - mb_white;
+  float radius2 = dot(direction, direction);
+  if (radius2 <= renodx::color::gamut::MB_NEAR_WHITE_EPSILON) {
+    return true;
+  }
+
+  return psycho17_RayExitTCIE1702(mb_white, direction) >= 1.f;
+}
+
+float psycho17_SoftLimitExpansionScale(
+    float requested_scale,
+    float max_scale,
+    float requested_delta_multiplier = 1.f) {
+  float max_delta = max(0.f, max_scale - 1.f);
+  float requested_delta = (requested_scale - 1.f) * requested_delta_multiplier;
+  float compressed_delta = max_delta > 1e-6f
+      ? max_delta * (1.f - exp(-requested_delta / max_delta))
+      : 0.f;
+  return 1.f + compressed_delta;
+}
+
+float psycho17_GamutAwareExpansionScaleFromAdaptiveRelativeLMSDelta(
+    float requested_scale,
+    float3 scale_one_lms_relative,
+    float3 scale_delta_lms_relative,
+    float requested_delta_multiplier = 1.f) {
+  if (requested_scale <= 1.f || dot(scale_delta_lms_relative, scale_delta_lms_relative) <= 1e-12f) {
+    return requested_scale;
+  }
+
+  float3 candidate_lms_relative = scale_one_lms_relative + scale_delta_lms_relative * (requested_scale - 1.f);
+  if (psycho17_IsAdaptiveRelativeLMSInGamutCompressibleDomain(candidate_lms_relative)) {
+    return requested_scale;
+  }
+
+  if (!psycho17_IsAdaptiveRelativeLMSInGamutCompressibleDomain(scale_one_lms_relative)) {
+    return 1.f;
+  }
+
+  float low = 1.f;
+  float high = requested_scale;
+  [unroll]
+  for (int i = 0; i < 8; ++i) {
+    float mid = 0.5f * (low + high);
+    candidate_lms_relative = scale_one_lms_relative + scale_delta_lms_relative * (mid - 1.f);
+    if (psycho17_IsAdaptiveRelativeLMSInGamutCompressibleDomain(candidate_lms_relative)) {
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+
+  return psycho17_SoftLimitExpansionScale(requested_scale, low, requested_delta_multiplier);
+}
+
 float3 psycho17_ScaleAdaptiveRelativeOkLabChroma(
     float3 lms_input,
     float3 current_adaptive_state_lms,
@@ -108,6 +204,89 @@ float3 psycho17_ScaleAdaptiveRelativeOkLabChroma(
       renodx::color::bt709::from::OkLab(perceptual) * bt709_relative_white;
   return psycho17_FromAdaptiveRelativeLMS(
       renodx::color::lms::from::BT709(bt709_relative_out),
+      current_adaptive_state_lms);
+}
+
+float3 psycho17_ScaleAdaptiveRelativeOkLabChromaGamutAware(
+    float3 lms_input,
+    float3 current_adaptive_state_lms,
+  float chroma_scale) {
+  float3 lms_relative = psycho17_ToAdaptiveRelativeLMS(
+      lms_input,
+      current_adaptive_state_lms);
+  float3 bt709_relative = renodx::color::bt709::from::LMS(lms_relative);
+  float3 bt709_relative_white = renodx::color::bt709::from::LMS(1.f.xxx);
+  float3 bt709_white_normalized = renodx::math::DivideSafe(
+      bt709_relative,
+      bt709_relative_white,
+      0.f.xxx);
+
+  float3 perceptual = renodx::color::oklab::from::BT709(bt709_white_normalized);
+  float2 ab = perceptual.yz;
+  if (dot(ab, ab) <= 1e-12f) {
+    return lms_input;
+  }
+
+  float final_chroma_scale = chroma_scale;
+  if (chroma_scale > 1.f) {
+    float3 candidate_perceptual = perceptual;
+    candidate_perceptual.yz = ab * chroma_scale;
+    float3 candidate_bt709 = renodx::color::bt709::from::OkLab(candidate_perceptual);
+    float3 candidate_lms_relative = renodx::color::lms::from::BT709(candidate_bt709 * bt709_relative_white);
+    float3 scale_delta_lms_relative = renodx::math::DivideSafe(
+        candidate_lms_relative - lms_relative,
+        chroma_scale - 1.f,
+        0.f.xxx);
+    final_chroma_scale = psycho17_GamutAwareExpansionScaleFromAdaptiveRelativeLMSDelta(
+        chroma_scale,
+        lms_relative,
+        scale_delta_lms_relative);
+  }
+
+  perceptual.yz = ab * final_chroma_scale;
+  float3 bt709_relative_out =
+      renodx::color::bt709::from::OkLab(perceptual) * bt709_relative_white;
+  return psycho17_FromAdaptiveRelativeLMS(
+      renodx::color::lms::from::BT709(bt709_relative_out),
+      current_adaptive_state_lms);
+}
+
+float3 psycho17_ScaleAdaptiveRelativeYfSaturation(
+    float3 lms_input,
+    float3 current_adaptive_state_lms,
+    float saturation_scale) {
+  float3 lms_relative = psycho17_ToAdaptiveRelativeLMS(
+      lms_input,
+      current_adaptive_state_lms);
+  float yf = renodx::color::yf::from::LMS(lms_relative);
+  float white_yf = max(renodx::color::yf::from::LMS(1.f.xxx), 1e-6f);
+  float3 neutral_lms_relative = yf / white_yf;
+  float3 saturated_lms_relative = lerp(neutral_lms_relative, lms_relative, saturation_scale);
+  return psycho17_FromAdaptiveRelativeLMS(
+      saturated_lms_relative,
+      current_adaptive_state_lms);
+}
+
+float3 psycho17_ScaleAdaptiveRelativeYfSaturationGamutAware(
+    float3 lms_input,
+    float3 current_adaptive_state_lms,
+    float saturation_scale) {
+  float3 lms_relative = psycho17_ToAdaptiveRelativeLMS(
+      lms_input,
+      current_adaptive_state_lms);
+  float yf = renodx::color::yf::from::LMS(lms_relative);
+  float white_yf = max(renodx::color::yf::from::LMS(1.f.xxx), 1e-6f);
+  float3 neutral_lms_relative = yf / white_yf;
+  float3 delta_lms_relative = lms_relative - neutral_lms_relative;
+
+  float final_saturation_scale = psycho17_GamutAwareExpansionScaleFromAdaptiveRelativeLMSDelta(
+      saturation_scale,
+      lms_relative,
+      delta_lms_relative);
+
+  float3 saturated_lms_relative = neutral_lms_relative + delta_lms_relative * final_saturation_scale;
+  return psycho17_FromAdaptiveRelativeLMS(
+      saturated_lms_relative,
       current_adaptive_state_lms);
 }
 
@@ -143,12 +322,10 @@ float3 psycho17_ScaleAdaptiveRelativeMBChromaGamutAware(
   float final_chroma_scale = chroma_scale;
   if (chroma_scale > 1.f) {
     float t_clip = psycho17_RayExitTCIE1702(mb_white, direction);
-    float max_delta = max(0.f, (t_clip * 0.95f) - 1.f);
-    float requested_delta = (chroma_scale - 1.f) * 2.25f;
-    float compressed_delta = max_delta > 1e-6f
-        ? max_delta * (1.f - exp(-requested_delta / max_delta))
-        : 0.f;
-    final_chroma_scale = 1.f + compressed_delta;
+    final_chroma_scale = psycho17_SoftLimitExpansionScale(
+        chroma_scale,
+        t_clip * 0.95f,
+        2.25f);
   }
 
   mb.xy = mb_white + direction * final_chroma_scale;
@@ -854,6 +1031,17 @@ float psycho17_ReinhardPiecewisePeakAnchored(
   return lerp(linear_output, shoulder, step(anchor_in_safe, x));
 }
 
+float3 psycho17_ReinhardPiecewisePeakAnchored(
+    float3 x,
+    float3 peak,
+    float3 anchor_in,
+    float3 anchor_out) {
+  return float3(
+      psycho17_ReinhardPiecewisePeakAnchored(x.x, peak.x, anchor_in.x, anchor_out.x),
+      psycho17_ReinhardPiecewisePeakAnchored(x.y, peak.y, anchor_in.y, anchor_out.y),
+      psycho17_ReinhardPiecewisePeakAnchored(x.z, peak.z, anchor_in.z, anchor_out.z));
+}
+
 namespace config {
 
 struct Config {
@@ -1154,10 +1342,23 @@ float3 psychotm_customized(
   }
 
   if (purity_scale != 1.f) {
-    lms_graded = psycho17_ScaleAdaptiveRelativeMBChroma(
+  #define SATURATION_MODE 1
+    #if SATURATION_MODE == 0
+      lms_graded = psycho17_ScaleAdaptiveRelativeMBChromaGamutAware(
+          lms_graded,
+          current_adaptive_state_lms,
+        purity_scale);
+    #elif SATURATION_MODE == 1
+    lms_graded = psycho17_ScaleAdaptiveRelativeYfSaturationGamutAware(
         lms_graded,
         current_adaptive_state_lms,
         purity_scale);
+    #elif SATURATION_MODE == 2
+    lms_graded = psycho17_ScaleAdaptiveRelativeOkLabChromaGamutAware(
+          lms_graded,
+          current_adaptive_state_lms,
+        purity_scale);
+  #endif
   }
 
   if (highlight_purity != 1.f) {
@@ -1170,10 +1371,10 @@ float3 psychotm_customized(
       current_adaptive_state_lms);
     float yf_peak = max(renodx::color::yf::from::LMS(lms_peak_relative), 1e-6f);
     float highlight_weight = psycho17_HighlightPurityWeight(yf_graded, yf_peak);
-    lms_graded = psycho17_ScaleAdaptiveRelativeMBChromaGamutAware(
+    lms_graded = psycho17_ScaleAdaptiveRelativeYfSaturationGamutAware(
         lms_graded,
         current_adaptive_state_lms,
-        lerp(1.f, highlight_purity, highlight_weight));
+      lerp(1.f, highlight_purity, highlight_weight));
   }
 
   float3 lms_cones = lms_graded;
@@ -1192,17 +1393,16 @@ float3 psychotm_customized(
   float3 display_scaled_relative_weighted;
   float3 display_adaptive_state_lms = current_adaptive_state_lms;
   if (white_curve_mode == 0) {
-    float3 hue_shifted_color;
-
-    hue_shifted_color.x = psycho17_ReinhardPiecewisePeakAnchored(lms_cones.x, lms_peak.x, current_adaptive_state_lms.x, desired_background_state_lms.x);
-    hue_shifted_color.y = psycho17_ReinhardPiecewisePeakAnchored(lms_cones.y, lms_peak.y, current_adaptive_state_lms.y, desired_background_state_lms.y);
-    hue_shifted_color.z = psycho17_ReinhardPiecewisePeakAnchored(lms_cones.z, lms_peak.z, current_adaptive_state_lms.z, desired_background_state_lms.z);
+    float3 display_scaled = psycho17_ReinhardPiecewisePeakAnchored(
+      lms_cones,
+      lms_peak,
+      current_adaptive_state_lms,
+      desired_background_state_lms);
 
     float3 adaptation_scaled_lms = lms_cones * renodx::math::DivideSafe(desired_background_state_lms, current_adaptive_state_lms, 1.f.xxx);
     // hue_shifted_color = renodx::color::correct::Luminance(
     //   hue_shifted_color,
     //   adaptation_scaled_lms);
-    float3 display_scaled = hue_shifted_color;
 
     display_adaptive_state_lms = desired_background_state_lms;
     display_scaled_relative_weighted = psycho17_ToAdaptiveRelativeWeightedLMS(
@@ -1290,6 +1490,115 @@ float3 psychotm_customized(
           display_adaptive_state_lms));
 
   float3 final_bt709 = renodx::color::bt709::from::LMS(final_lms);
+
+#if 0
+  if (white_curve_mode == 0) {
+    float3 lms_cones_output_adapted = lms_cones * renodx::math::DivideSafe(
+        desired_background_state_lms,
+        current_adaptive_state_lms,
+        1.f.xxx);
+    float3 composited_lms = psycho17_ApplyMacLeodBoyntonChromaticity(
+        lms_cones_output_adapted,
+        display_adaptive_state_lms,
+        final_lms,
+        display_adaptive_state_lms);
+
+    float display_peak = max(renodx::math::Max(peak_value), 1e-6f);
+    float3 display_rgb_lms = gamut_compression_mode == 1
+      ? renodx::color::bt2020::from::LMS(final_lms)
+      : renodx::color::bt709::from::LMS(final_lms);
+
+    float3 display_rgb_primary = gamut_compression_mode == 1
+        ? renodx::color::bt2020::from::LMS(composited_lms)
+        : renodx::color::bt709::from::LMS(composited_lms);
+
+    float display_anchor = max(renodx::math::Max(current_background_state_bt709), 1e-6f);
+    display_rgb_primary = psycho17_ReinhardPiecewisePeakAnchored(
+      display_rgb_primary,
+      display_peak.xxx,
+      display_anchor.xxx,
+      display_anchor.xxx);
+
+    float display_lms_max = renodx::math::Max(display_rgb_lms);
+    float display_lms_min = min(display_rgb_lms.x, min(display_rgb_lms.y, display_rgb_lms.z));
+    float peak_blend = smoothstep(display_anchor, display_peak, display_lms_max);
+    float negative_blend = smoothstep(0.f, display_anchor, -display_lms_min);
+    float display_primary_blend = max(peak_blend, negative_blend);
+
+#if RENODX_PSYCHOV_FINAL_BLEND_MODE == 1
+    float3 display_bt709_lms = gamut_compression_mode == 1
+      ? renodx::color::bt709::from::BT2020(display_rgb_lms)
+      : display_rgb_lms;
+    float3 display_bt709_primary = gamut_compression_mode == 1
+      ? renodx::color::bt709::from::BT2020(display_rgb_primary)
+      : display_rgb_primary;
+
+    float3 display_lms_map_ictcp = renodx::color::ictcp::from::BT709(display_bt709_lms);
+    float3 display_primary_map_ictcp = renodx::color::ictcp::from::BT709(display_bt709_primary);
+
+    float2 lms_chroma = display_lms_map_ictcp.yz;
+    float2 primary_chroma = display_primary_map_ictcp.yz;
+    float lms_radius = length(lms_chroma);
+    float primary_radius = length(primary_chroma);
+    float2 lms_unit = lms_chroma * renodx::math::DivideSafe(1.f, lms_radius, 0.f);
+    float2 primary_unit = primary_chroma * renodx::math::DivideSafe(1.f, primary_radius, 0.f);
+    float2 blended_unit = lerp(lms_unit, primary_unit, display_primary_blend);
+    float blended_unit_len = length(blended_unit);
+    blended_unit = blended_unit_len > 1e-6f
+      ? blended_unit / blended_unit_len
+      : lerp(lms_unit, primary_unit, step(0.5f, display_primary_blend));
+    float blended_radius = lerp(lms_radius, primary_radius, display_primary_blend);
+
+    float3 display_blended_ictcp = float3(
+      display_primary_map_ictcp.x,
+      blended_unit * blended_radius);
+    float3 display_rgb = renodx::color::bt709::from::ICtCp(display_blended_ictcp);
+#else  // RENODX_PSYCHOV_FINAL_BLEND_MODE == 0, MacLeod-Boynton
+    float3 display_lms_map_lms = gamut_compression_mode == 1
+      ? renodx::color::lms::from::BT2020(display_rgb_lms)
+      : renodx::color::lms::from::BT709(display_rgb_lms);
+    float3 display_primary_map_lms = gamut_compression_mode == 1
+      ? renodx::color::lms::from::BT2020(display_rgb_primary)
+      : renodx::color::lms::from::BT709(display_rgb_primary);
+
+    float3 display_lms_map_weighted = renodx::color::macleod_boynton::WeighLMS(display_lms_map_lms);
+    float3 display_primary_map_weighted = renodx::color::macleod_boynton::WeighLMS(display_primary_map_lms);
+    float3 display_lms_map_mb = renodx::color::macleod_boynton::from::WeightedLMS(display_lms_map_weighted);
+    float3 display_primary_map_mb = renodx::color::macleod_boynton::from::WeightedLMS(display_primary_map_weighted);
+    float2 display_white_mb = renodx::color::macleod_boynton::from::LMS(display_anchor.xxx).xy;
+
+    float2 lms_direction = display_lms_map_mb.xy - display_white_mb;
+    float2 primary_direction = display_primary_map_mb.xy - display_white_mb;
+    float lms_radius = length(lms_direction);
+    float primary_radius = length(primary_direction);
+    float2 lms_unit = lms_direction * renodx::math::DivideSafe(1.f, lms_radius, 0.f);
+    float2 primary_unit = primary_direction * renodx::math::DivideSafe(1.f, primary_radius, 0.f);
+    float2 blended_unit = lerp(lms_unit, primary_unit, display_primary_blend);
+    float blended_unit_len = length(blended_unit);
+    blended_unit = blended_unit_len > 1e-6f
+      ? blended_unit / blended_unit_len
+      : lerp(lms_unit, primary_unit, step(0.5f, display_primary_blend));
+    float blended_radius = lerp(lms_radius, primary_radius, display_primary_blend);
+
+    float3 display_blended_weighted = renodx::color::macleod_boynton::WeightedLMSFromMacleodBoynton(
+      float3(display_white_mb + blended_unit * blended_radius, display_primary_map_mb.z));
+    float3 display_blended_lms = renodx::color::macleod_boynton::UnweighLMS(display_blended_weighted);
+    float3 display_rgb = gamut_compression_mode == 1
+      ? renodx::color::bt2020::from::LMS(display_blended_lms)
+      : renodx::color::bt709::from::LMS(display_blended_lms);
+#endif
+
+  //   // float max_channel = renodx::math::Max(display_rgb);
+  //   // float mapped_max_channel = psycho17_ReinhardPiecewisePeakAnchored(
+  //   //     max_channel,
+  //   //     display_peak,
+  //   //     display_anchor,
+  //   //     display_anchor);
+  //   // display_rgb *= renodx::math::DivideSafe(mapped_max_channel, max_channel, 1.f);
+
+    final_bt709 = display_rgb;
+  }
+#endif
 
   return final_bt709;
 }

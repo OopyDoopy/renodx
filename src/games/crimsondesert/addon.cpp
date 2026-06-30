@@ -209,8 +209,8 @@ const std::unordered_map<std::string, float> HDR_LOOK_VALUES = {
     {"ToneMapFlare", 5.f},
     {"ColorGradeContrast", 60.f},
     {"ColorGradeSaturation", 55.f},
-    {"ColorGradeHighlightSaturation", 60.f},
-    {"ColorGradeHighlights", 60.f},
+    {"ColorGradeHighlightSaturation", 54.f},
+    {"ColorGradeHighlights", 55.f},
     {"ToneMapHueRestore", 100.f},
     {"ToneMapBlowout", 5.f},
     {"CustomToneMapMidgrayAdjust", 50.f},
@@ -524,10 +524,10 @@ renodx::utils::settings::Settings settings = {
         .label = "Tone Mapper",
         .section = "Tone Mapping",
         .tooltip = "Sets the tone mapper type."
-                   "\nVanilla SDR uses a per channel BT.709 curve"
-                   "\nVanilla HDR uses an unmodified ACESv2 tone mapper with in-game sliders."
+                   "\nVanilla SDR uses AgX."
+                   "\nVanilla HDR uses ACESv2 tone mapper with in-game sliders."
                    "\nPsychoV uses a custom psychovisual tone mapping system.",
-        .labels = {"Vanilla (Per-Channel SDR/ACESv2 HDR)", "PsychoV Custom"},
+        .labels = {"Vanilla (AgX SDR/ACESv2 HDR)", "PsychoV Custom"},
         .tint = tone_mapping,
         .parse = [](float value) { return value; },
         .is_visible = []() { return current_settings_mode == tone_mapping_group; },
@@ -787,7 +787,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "LocalLightHueCorrection",
         .binding = &shader_injection.local_light_hue_correction,
-        .default_value = 15.f,
+        .default_value = 0.f,
         .can_reset = true,
         .label = "Flame Hue Correction",
         .section = "Local Lighting",
@@ -825,13 +825,13 @@ renodx::utils::settings::Settings settings = {
         .key = "ImprovedAutoExposure",
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
+        .default_value = 2.f,
         .packed_values = {0u, CUSTOM_FLAGS__IMPROVED_AUTO_EXPOSURE, CUSTOM_FLAGS__IMPROVED_AUTO_EXPOSURE_PERCEPTUAL},
         .can_reset = true,
         .label = "Auto Exposure",
         .section = "Auto Exposure",
-        .tooltip = "Enables control over the brightness of dark and bright scenes.\nCustom provides control over dark and bright scene brightness, anchored in vanilla behavior.\nCustom Perceptual uses a more advanced system that attempts to emulate the human eye.",
-        .labels = {"Vanilla", "Custom", "Perceptual"},
+        .tooltip = "Enables control over the brightness of dark and bright scenes.\nCustom provides control over dark and bright scene brightness, anchored in vanilla behavior.\nCustom Perceptual uses a more advanced system that attempts to emulate the human eye, and is meant to work with PsychoV.",
+        .labels = {"Vanilla", "Custom", "Perceptual (PsychoV)"},
         .tint = auto_exposure,
         .is_visible = []() { return current_settings_mode == auto_exposure_group; },
     },
@@ -911,7 +911,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "AE_PerceptualMaxBrightness",
         .binding = &shader_injection.ae_perceptual_max_brightness,
-        .default_value = 5.f,
+        .default_value = 7.f,
         .can_reset = true,
         .label = "Maximum Brightness",
         .section = "Auto Exposure",
@@ -1381,7 +1381,7 @@ renodx::utils::settings::Settings settings = {
         .key = "PurkinjeEffect",
         .binding = &shader_injection.custom_flags,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
+        .default_value = 0.f,
         .packed_values = {0u, CUSTOM_FLAGS__PURKINJE_EFFECT},
         .can_reset = true,
         .label = "Purkinje Effect",

@@ -69,6 +69,28 @@ float GetPerceptualAdaptedFieldYf() {
   return field_state + fast_equivalent_background + slow_equivalent_background;
 }
 
+float GetSDRTonemapExposure2BrightnessScalar(float reference_linear = 0.18f) {
+  // Scalar approximation of the vanilla SDR tonemap's _exposure2.x low/mid lift,
+  // without evaluating the full SDR tonemap. `reference_linear` is projected into
+  // the SDR curve domain first because the boost fade uses the post-polynomial
+  // curve value, not the original scene-linear value.
+  float curve_x = min(max(log2(max(reference_linear, 0.0f)), -12.473930358886719f), 4.026069164276123f) + 12.473930358886719f;
+  float curve_normalized = curve_x * 0.06060606241226196f;
+  float curve_normalized_sq = curve_normalized * curve_normalized;
+  float curve_value = max(0.0f, (curve_x * 0.007218181621283293f)
+      + (curve_normalized_sq * 0.42980000376701355f)
+      + ((curve_normalized_sq * curve_normalized_sq) * ((31.959999084472656f - (curve_x * 2.432727336883545f)) + (curve_normalized_sq * 15.5f)))
+      - ((curve_x * 0.41624245047569275f) * curve_normalized_sq)
+      - 0.002319999970495701f);
+
+  float brightness_boost = saturate((_exposure2.x + -3.0f) * 0.1428571492433548f) * 0.20000004768371582f;
+  float highlight_fade = 1.0f - saturate(curve_value * curve_value * curve_value);
+  float curve_gain = 1.0f + (brightness_boost * 1.399999976158142f * highlight_fade);
+
+  // SDRToneMap converts this curve-domain gain to display-linear through pow(..., 2.2).
+  return exp2(log2(curve_gain) * 2.200000047683716f);
+}
+
 // // Core SDR curve stage only. Expects per-channel linear inputs and outputs in the same space.
 // float3 SDRCurveOnly(float3 color) {
 //   float _2972 = min(max(log2(max(color.x, 0.0f)), -12.473930358886719f), 4.026069164276123f) + 12.473930358886719f;
@@ -95,7 +117,7 @@ float GetPerceptualAdaptedFieldYf() {
 //   return float3(_3070, _3071, _3072);
 // }
 
-float3 ACESv2Curves(float3 color) {
+float3 AgXCurves(float3 color) {
   float _2972 = min(max(log2(mad(color.z, 0.07922374457120895f, mad(color.y, 0.07843360304832458f, (color.x * 0.8424790501594543f)))), -12.473930358886719f), 4.026069164276123f) + 12.473930358886719f;
   float _2973 = min(max(log2(mad(color.z, 0.07916612923145294f, mad(color.y, 0.8784686326980591f, (color.x * 0.04232824221253395f)))), -12.473930358886719f), 4.026069164276123f) + 12.473930358886719f;
   float _2974 = min(max(log2(mad(color.z, 0.8791429996490479f, mad(color.y, 0.07843360304832458f, (color.x * 0.042375653982162476f)))), -12.473930358886719f), 4.026069164276123f) + 12.473930358886719f;
@@ -124,7 +146,7 @@ float3 ACESv2Curves(float3 color) {
 }
 
 float3 VanillaCurves(float3 color) {
-  float3 aces = ACESv2Curves(color);
+  float3 aces = AgXCurves(color);
   float curveR = aces.x;
   float curveG = aces.y;
   float curveB = aces.z;
@@ -315,8 +337,7 @@ float3 TonemapReplacer(float3 color, bool use_color_blind = true, bool use_etc_p
       float3 untonemapped_bt709 = input_color;
 
       const float mid_gray = 0.18f;
-      float mid_gray_adjusted = SDRToneMap(mid_gray, false, false).x;
-      mid_gray_adjusted = lerp(0.18f, mid_gray_adjusted, CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
+      float mid_gray_adjusted = mid_gray * lerp(1.0f, GetSDRTonemapExposure2BrightnessScalar(mid_gray), CUSTOM_TONE_MAP_MIDGRAY_ADJUST);
 
       float3 tonemap_input_color = untonemapped_bt709;
 #if CUSTOM_TONEMAP_DEBUG
@@ -339,6 +360,10 @@ float3 TonemapReplacer(float3 color, bool use_color_blind = true, bool use_etc_p
 #endif
       return output_color;
     } else {
+      // float yf_in = renodx::color::yf::from::BT709(input_color);
+      // float yf_out = SDRToneMap(yf_in.xxx, use_color_blind, use_etc_params).x;
+      // float3 luminance_mapped = renodx::color::correct::Luminance(input_color, yf_in, yf_out);
+      // return renodx::color::correct::Luminance(SDRToneMap(input_color, use_color_blind, use_etc_params), luminance_mapped);
       return SDRToneMap(input_color, use_color_blind, use_etc_params);
     }
   } 

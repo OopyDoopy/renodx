@@ -196,7 +196,33 @@ foreach ($file in $files) {
         }
     }
 
-    if ($isHdr -and -not $content.Contains('CUSTOM_SHARPENING) +')) {
+    $vanillaSharpeningStrength = '(CUSTOM_SHARPENING_TYPE == 0 ? CUSTOM_SHARPENING : 0.f)'
+    $content = $content.Replace("* $vanillaSharpeningStrength) +", '* CUSTOM_SHARPENING) +')
+    $content = $content.Replace(", $vanillaSharpeningStrength);", ', CUSTOM_SHARPENING);')
+    $content = $content.Replace("$newline$newline$newline    // RenoDX: >>> [Patch: FinalSharpeningStrength]", "$newline$newline    // RenoDX: >>> [Patch: FinalSharpeningStrength]")
+
+    $content = [regex]::Replace(
+        $content,
+        "(?ms)\r?\n\s*// RenoDX: >>> \[Patch: FinalSharpeningStrength\] \[Version: 1\.10\]\r?\n\s*_\d+\s*=\s*lerp\([^;]+;\r?\n\s*_\d+\s*=\s*lerp\([^;]+;\r?\n\s*_\d+\s*=\s*lerp\([^;]+;\r?\n\s*// RenoDX: <<< \[Patch: FinalSharpeningStrength\](?!\r?\n\s*\}\s*else)",
+        $newline,
+        1)
+
+    if ($hasDepth) {
+        $depthSampleMatch = [regex]::Match($content, '__3__36__0__0__g_depth\.Sample\([^;]+;')
+        if ($depthSampleMatch.Success) {
+            $depthIfMatch = [regex]::Match($content.Substring($depthSampleMatch.Index + $depthSampleMatch.Length), 'if\s*\(')
+            if ($depthIfMatch.Success) {
+                $depthIfIndex = $depthSampleMatch.Index + $depthSampleMatch.Length + $depthIfMatch.Index
+                $depthIfPrefix = $content.Substring($depthIfIndex, [Math]::Min(64, $content.Length - $depthIfIndex))
+                if ($depthIfPrefix -notmatch 'if\s*\(\s*CUSTOM_SHARPENING_TYPE\s*==\s*0\s*&&') {
+                    $insertAt = $content.IndexOf('(', $depthIfIndex) + 1
+                    $content = $content.Substring(0, $insertAt) + 'CUSTOM_SHARPENING_TYPE == 0 && ' + $content.Substring($insertAt)
+                }
+            }
+        }
+    }
+
+    if ($isHdr -and -not $content.Contains('* CUSTOM_SHARPENING) +')) {
         $content = [regex]::Replace($content, '(?m)^(\s*_\d+\s*=\s*\(\(_\d+\s*\*\s*_\d+)(\)\s*\+\s*_\d+\);)', '$1 * CUSTOM_SHARPENING$2', 3)
     }
 
@@ -241,9 +267,12 @@ foreach ($file in $files) {
         if ($null -ne $depthMatch -and $depthMatch.Success) {
             $depthEnd = Find-IfElseEnd -Text $content -IfMatch $depthMatch
             if ($depthEnd -gt 0) {
+                $depthIfOpenBrace = $content.IndexOf('{', $depthMatch.Index)
+                $depthIfEnd = Find-BlockEnd -Text $content -OpenBraceIndex $depthIfOpenBrace
                 $depthBlock = $content.Substring($depthMatch.Index, $depthEnd - $depthMatch.Index)
                 $elseAssigns = [regex]::Matches($depthBlock, '(?m)^\s*(_\d+)\s*=\s*(_\d+)\s*;')
-                if ($elseAssigns.Count -ge 3) {
+                if ($depthIfEnd -gt 0 -and $elseAssigns.Count -ge 3) {
+                    $depthIfCloseLineStart = Find-LineStart -Text $content -Index ($depthIfEnd - 1) -Newline $newline
                     $out1 = $elseAssigns[$elseAssigns.Count - 3].Groups[1].Value
                     $in1 = $elseAssigns[$elseAssigns.Count - 3].Groups[2].Value
                     $out2 = $elseAssigns[$elseAssigns.Count - 2].Groups[1].Value
@@ -251,12 +280,12 @@ foreach ($file in $files) {
                     $out3 = $elseAssigns[$elseAssigns.Count - 1].Groups[1].Value
                     $in3 = $elseAssigns[$elseAssigns.Count - 1].Groups[2].Value
                     $sharpenBlock = $newline +
-                        "  // RenoDX: >>> [Patch: FinalSharpeningStrength] [Version: 1.10]$newline" +
-                        "  $out1 = lerp($in1, $out1, CUSTOM_SHARPENING);$newline" +
-                        "  $out2 = lerp($in2, $out2, CUSTOM_SHARPENING);$newline" +
-                        "  $out3 = lerp($in3, $out3, CUSTOM_SHARPENING);$newline" +
-                        "  // RenoDX: <<< [Patch: FinalSharpeningStrength]$newline"
-                    $content = $content.Substring(0, $depthEnd) + $sharpenBlock + $content.Substring($depthEnd)
+                        "    // RenoDX: >>> [Patch: FinalSharpeningStrength] [Version: 1.10]$newline" +
+                        "    $out1 = lerp($in1, $out1, CUSTOM_SHARPENING);$newline" +
+                        "    $out2 = lerp($in2, $out2, CUSTOM_SHARPENING);$newline" +
+                        "    $out3 = lerp($in3, $out3, CUSTOM_SHARPENING);$newline" +
+                        "    // RenoDX: <<< [Patch: FinalSharpeningStrength]$newline"
+                    $content = $content.Substring(0, $depthIfCloseLineStart) + $sharpenBlock + $content.Substring($depthIfCloseLineStart)
                 } else {
                     $missing = $true
                 }

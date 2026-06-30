@@ -256,6 +256,32 @@ float3 CustomPsychoVPeak(
   psycho_config.current_adaptive_state_bt709 = current_average.xxx;
   psycho_config.current_background_state_bt709 = target_average.xxx;
   psycho_config.gamut_compression_mode = gamut_compression_mode;
+  //psycho_config.gamut_compression = 1.f;
+  //psycho_config.gamut_compression_mode = 0;
+
+  // psycho_config.cone_response_exponent = 1.2f;
+  // psycho_config.white_curve_mode = 1;
+
+//   return renodx::tonemap::psycho::psychotm_test17(
+//       bt709_scene,
+//       peak_value,
+//       psycho_config.exposure,
+//       psycho_config.highlights,
+//       psycho_config.shadows,
+//       psycho_config.contrast,
+//       psycho_config.purity_scale,
+//       psycho_config.bleaching_intensity,
+//       psycho_config.clip_point,
+//       psycho_config.hue_restore,
+//       psycho_config.adaptation_contrast,
+//       psycho_config.white_curve_mode,
+//       psycho_config.cone_response_exponent,
+//       psycho_config.current_adaptive_state_bt709,
+//       psycho_config.current_background_state_bt709,
+//       psycho_config.gamut_compression,
+//       psycho_config.gamut_compression_mode,
+//       psycho_config.adaptive_normalization);
+// };
 
   return renodx::tonemap::psycho::psychotm_customized(bt709_scene, psycho_config);
 }
@@ -319,6 +345,11 @@ float3 CustomTonemapSDR(float3 untonemapped_bt709, float current_average = 0.18f
   calculated_peak = CUSTOM_SDR_BLACK_CRUSH_FIX == 1 ? renodx::color::correct::GammaSafe(calculated_peak) : calculated_peak;
 
   float3 output_color = ProcessTonemap(untonemapped_bt709, calculated_peak, current_average, target_average, true);
+  // output_color.x = renodx::tonemap::Neutwo(untonemapped_bt709.x, calculated_peak, 100.f, current_average, target_average);
+  // output_color.y = renodx::tonemap::Neutwo(untonemapped_bt709.y, calculated_peak, 100.f, current_average, target_average);
+  // output_color.z = renodx::tonemap::Neutwo(untonemapped_bt709.z, calculated_peak, 100.f, current_average, target_average);
+
+  //output_color = renodx::tonemap::neutwo::PerChannel(output_color);
 
   return output_color;
 }

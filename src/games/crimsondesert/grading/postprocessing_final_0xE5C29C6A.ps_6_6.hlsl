@@ -188,7 +188,7 @@ float4 main(
   uint _92 = uint(_screenSizeAndInvSize.x * TEXCOORD.x);
   uint _93 = uint(_screenSizeAndInvSize.y * TEXCOORD.y);
   float _95 = __3__36__0__0__g_depth.Sample(__0__4__0__0__g_staticPointBlackBorder, float2(TEXCOORD.x, TEXCOORD.y));
-  if (!(((_95.x < 1.0000000116860974e-07f)) || ((_95.x == 1.0f)))) {
+  if (CUSTOM_SHARPENING_TYPE == 0 && !(((_95.x < 1.0000000116860974e-07f)) || ((_95.x == 1.0f)))) {
     float _103 = select((_postProcessParams.z >= 1.0f), 1.0f, 0.25f);
     float4 _110 = __3__36__0__0__g_sceneColor.Load(int3((int)(_92), ((int)(_93 + (uint)(-1))), 0));
     float4 _115 = __3__36__0__0__g_sceneColor.Load(int3(((int)(_92 + (uint)(-1))), (int)(_93), 0));
@@ -200,16 +200,17 @@ float4 main(
     _169 = saturate(((_143 * (((_115.x + _110.x) + _120.x) + _125.x)) + _84) * _146);
     _170 = saturate(((_143 * (((_115.y + _110.y) + _120.y) + _125.y)) + _85) * _146);
     _171 = saturate(((_143 * (((_115.z + _110.z) + _120.z) + _125.z)) + _86) * _146);
+
+    // RenoDX: >>> [Patch: FinalSharpeningStrength] [Version: 1.10]
+    _169 = lerp(_84, _169, CUSTOM_SHARPENING);
+    _170 = lerp(_85, _170, CUSTOM_SHARPENING);
+    _171 = lerp(_86, _171, CUSTOM_SHARPENING);
+    // RenoDX: <<< [Patch: FinalSharpeningStrength]
   } else {
     _169 = _84;
     _170 = _85;
     _171 = _86;
   }
-  // RenoDX: >>> [Patch: FinalSharpeningStrength] [Version: 1.10]
-  _169 = lerp(_84, _169, CUSTOM_SHARPENING);
-  _170 = lerp(_85, _170, CUSTOM_SHARPENING);
-  _171 = lerp(_86, _171, CUSTOM_SHARPENING);
-  // RenoDX: <<< [Patch: FinalSharpeningStrength]
 
   float _202 = 1.0f - abs(_etcParams.w);
   float _206 = saturate(_etcParams.w);
