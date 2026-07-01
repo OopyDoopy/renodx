@@ -895,7 +895,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "AE_PerceptualMinBrightness",
         .binding = &shader_injection.ae_perceptual_min_brightness,
-        .default_value = 1.f,
+        .default_value = 0.2f,
         .can_reset = true,
         .label = "Minimum Brightness",
         .section = "Auto Exposure",
