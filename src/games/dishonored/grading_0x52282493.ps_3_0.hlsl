@@ -66,15 +66,14 @@ float4 main(PS_IN i) : COLOR {
 
   r2.xyz = ungraded_sdr;
 
-  r0.x = rsqrt(r2.x);
-  // r0.z = saturate(1 / r0.x);
-  r0.z = 1 / r0.x;
-  r0.x = rsqrt(r2.y);
-  r1.x = rsqrt(r2.z);
+  // r0.x = rsqrt(r2.x);
+  // // r0.z = saturate(1 / r0.x);
+  // r0.x = rsqrt(r2.y);
+  // r1.x = rsqrt(r2.z);
   // r0.y = saturate(1 / r1.x);
   // r0.w = saturate(1 / r0.x);
-  r0.y = 1 / r1.x;
-  r0.w = 1 / r0.x;
+
+  r0.zwy = EncodeLUTInput(r2.xyz);
 
   // r1.yzw = r0.xyz * float3(256, 14.9999, 15);
   // r1.yzw = r0.yzw * float3(256, 14.9999, 15);
@@ -91,6 +90,16 @@ float4 main(PS_IN i) : COLOR {
   // r3 = lerp(r2, r1, r0.x);
 
   r3 = Sample(gLinearToGammaRamp, r0.zwy, 16);
+  if (CUSTOM_LUT_SCALING != 0.f) {
+    const float3 lut_black = saturate(Sample(gLinearToGammaRamp, EncodeLUTInput(float3(0.f, 0.f, 0.f)), 16).xyz);
+    const float3 lut_mid = saturate(Sample(gLinearToGammaRamp, lut_black, 16).xyz);
+    r3.xyz = ApplyLUTScaling(
+        r3.xyz,
+      lut_black,
+      lut_mid,
+        saturate(Sample(gLinearToGammaRamp, EncodeLUTInput(float3(1.f, 1.f, 1.f)), 16).xyz),
+        r0.zwy);
+  }
   float3 graded_sdr = renodx::color::srgb::DecodeSafe(r3.xyz);
   float3 graded_hdr = graded_sdr / lut_scale;
   // GamutDecompression(graded_hdr, compression_scale);
