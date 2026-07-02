@@ -32,9 +32,13 @@
 // #define RENODX_SWAP_CHAIN_CLAMP_COLOR_SPACE    color::convert::COLOR_SPACE_UNKNOWN
 // #define RENODX_SWAP_CHAIN_ENCODING             ENCODING_SCRGB
 // #define RENODX_SWAP_CHAIN_ENCODING_COLOR_SPACE color::convert::COLOR_SPACE_BT709
+// #define CUSTOM_LUT_SCALING                     1.f
+
+#define UPGRADE_LUT_ENCODE        0.f
+#define CUSTOM_LUT_SCALING_ANCHOR 1.f
 
 // Must be 32bit aligned
-// Should be 5x32
+// Should be 4x32
 struct ShaderInjectData {
   float peak_white_nits;
   float diffuse_white_nits;
@@ -58,8 +62,8 @@ struct ShaderInjectData {
 
   float custom_hdr_boost;
   float gamma_correction;
+  float custom_lut_scaling;
   float padding0;
-  float padding1;
 };
 
 #ifndef __cplusplus
@@ -89,6 +93,7 @@ float4 shader_injection[5] : register(c50);
 
 #define CUSTOM_HDR_BOOST                       shader_injection[4][0]
 #define RENODX_GAMMA_CORRECTION                shader_injection[4][1]
+#define CUSTOM_LUT_SCALING                     shader_injection[4][2]
 
 #define RENODX_RENO_DRT_TONE_MAP_METHOD renodx::tonemap::renodrt::config::tone_map_method::REINHARD
 #define RENODX_SWAP_CHAIN_CLAMP_COLOR_SPACE    color::convert::COLOR_SPACE_BT2020
@@ -122,6 +127,7 @@ cbuffer shader_injection : register(b13) {
 #define CUSTOM_FILM_GRAIN_TOGGLE               shader_injection.custom_film_grain_toggle
 #define CUSTOM_HDR_BOOST                       shader_injection.custom_hdr_boost
 #define RENODX_GAMMA_CORRECTION                shader_injection.gamma_correction
+#define CUSTOM_LUT_SCALING                     shader_injection.custom_lut_scaling
 #define RENODX_RENO_DRT_TONE_MAP_METHOD        renodx::tonemap::renodrt::config::tone_map_method::REINHARD
 #define RENODX_SWAP_CHAIN_CLAMP_COLOR_SPACE    color::convert::COLOR_SPACE_BT2020
 #define RENODX_SWAP_CHAIN_ENCODING             renodx::draw::ENCODING_PQ
