@@ -60,7 +60,7 @@ float4 main(PS_IN i) : COLOR {
   float3 ungraded_compressed = ungraded;
   // float compression_scale;
   // GamutCompression(ungraded_compressed, compression_scale);
-  float lut_scale = ComputeReinhardSmoothClampScale(ungraded_compressed);
+  float lut_scale = renodx::tonemap::neutwo::ComputeMaxChannelScale(ungraded_compressed);
 
   float3 ungraded_sdr = saturate(ungraded_compressed * lut_scale);
 
@@ -100,6 +100,7 @@ float4 main(PS_IN i) : COLOR {
   if (CUSTOM_FILM_GRAIN_TOGGLE == 1) {
     o.xyz = renodx::effects::ApplyFilmGrain(r3.xyz, i.texcoord, CUSTOM_RANDOM, CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);
   } else {
+    r3.xyz = renodx::color::srgb::EncodeSafe(r3.xyz);
     r0.xyz = frac(i.texcoord3.xyx);
     r0.xyz = r0.xyz * 128 + float3(-64.34062, -72.46562, -64.34062);
     r0.xyz = r0.xyy * r0.xyz;
@@ -107,11 +108,12 @@ float4 main(PS_IN i) : COLOR {
     r0.x = frac(r0.x);
     r0.x = r0.x * gFilmGrainParams.x + gFilmGrainParams.y;
     o.xyz = r0.x + r3.xyz;
+    o.xyz = renodx::color::srgb::DecodeSafe(o.xyz);
   }
 
   o.w = r3.w;
 
-  o.rgb = renodx::draw::RenderIntermediatePass(renodx::color::srgb::DecodeSafe(o.xyz));
+  o.rgb = IntermediatePass(o.xyz);
 
   return o;
 }
