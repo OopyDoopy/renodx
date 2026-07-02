@@ -27,6 +27,8 @@ renodx::mods::shader::CustomShaders custom_shaders = {
 ShaderInjectData shader_injection;
 
 float current_settings_mode = 0;
+float fps_limiter_enabled = 0.f;
+float fps_limit_value = 60.f;
 
 renodx::utils::settings::Setting* tone_map_type_setting = nullptr;
 renodx::utils::settings::Setting* tone_map_peak_nits_setting = nullptr;
@@ -50,7 +52,12 @@ float GetDisplayRefreshRate() {
 
 void SetFPSLimit(float fps_limit) {
   if (fps_limit <= 0.f) return;
+    renodx::utils::settings::UpdateSetting("FPSLimiterEnabled", 1.f);
   renodx::utils::settings::UpdateSetting("FPSLimit", fps_limit);
+}
+
+void ApplyFPSLimit(float limiter_enabled, float limit_value) {
+  renodx::utils::swapchain::fps_limit = limiter_enabled != 0.f ? limit_value * 2.f : 0.f;
 }
 
 void SetFPSLimitToRefreshRateDivisor(float divisor) {
@@ -147,6 +154,30 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == 1; },
     },
     new renodx::utils::settings::Setting{
+        .key = "ColorGradeStrength",
+        .binding = &shader_injection.color_grade_strength,
+        .default_value = 100.f,
+        .label = "Color Grading Strength",
+        .section = "Scene Grading",
+        .tooltip = "Controls the strength of the game's color grading.",
+        .max = 100.f,
+        .is_enabled = []() { return shader_injection.tone_map_type >= 1.f; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode == 1; },
+    },
+        new renodx::utils::settings::Setting{
+        .key = "CustomLUTScaling",
+        .binding = &shader_injection.custom_lut_scaling,
+        .default_value = 100.f,
+        .label = "LUT Scaling",
+        .section = "Scene Grading",
+        .tooltip = "Scales color grading to lower the black floor.",
+        .max = 100.f,
+        .is_enabled = []() { return shader_injection.tone_map_type >= 1.f; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode == 1; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "ColorGradeExposure",
         .binding = &shader_injection.tone_map_exposure,
         .default_value = 1.f,
@@ -238,18 +269,6 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode == 1; },
     },
     new renodx::utils::settings::Setting{
-        .key = "ColorGradeStrength",
-        .binding = &shader_injection.color_grade_strength,
-        .default_value = 100.f,
-        .label = "Color Grading Strength",
-        .section = "Color Grading",
-        .tooltip = "Controls the strength of the game's color grading.",
-        .max = 100.f,
-        .is_enabled = []() { return shader_injection.tone_map_type >= 1.f; },
-        .parse = [](float value) { return value * 0.01f; },
-        .is_visible = []() { return current_settings_mode == 1; },
-    },
-    new renodx::utils::settings::Setting{
         .key = "FxFilmGrainToggle",
         .binding = &shader_injection.custom_film_grain_toggle,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -271,16 +290,37 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.01f; },
     },
     new renodx::utils::settings::Setting{
-        .key = "FPSLimit",
-        .binding = &renodx::utils::swapchain::fps_limit,
+        .key = "FPSLimiterEnabled",
+        .binding = &fps_limiter_enabled,
+        .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
         .default_value = 0.f,
+        .can_reset = false,
+        .label = "FPS Limiter",
+        .section = "Utilities",
+        .tooltip = "Enables the built-in FPS limiter. Recommended to smoothly present frames due to the device proxy used to enable HDR. Other limiters may struggle.",
+        .labels = {"Off", "On"},
+        .parse = [](float value) {
+          ApplyFPSLimit(value, fps_limit_value);
+          return value;
+        },
+        .is_global = true,
+    },
+    new renodx::utils::settings::Setting{
+        .key = "FPSLimit",
+        .binding = &fps_limit_value,
+        .default_value = 60.f,
         .can_reset = false,
         .label = "FPS Limit",
         .section = "Utilities",
-        .tooltip = "Limits your framerate. Needed to smoothly present frames due to the device proxy used to enable HDR.",
-        .min = 0.f,
+        .tooltip = "Limits your framerate.",
+        .min = 30.f,
         .max = 480.f,
-        .parse = [](float value) { return value * 2.f; },
+        .is_enabled = []() { return fps_limiter_enabled != 0.f; },
+        .parse = [](float value) {
+          ApplyFPSLimit(fps_limiter_enabled, value);
+          return value;
+        },
+        .is_global = true,
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
@@ -356,6 +396,7 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("ToneMapUINits", 203.f);
   renodx::utils::settings::UpdateSetting("GammaCorrection", 0.f);
   renodx::utils::settings::UpdateSetting("ToneMapHDRBoost", 0.f);
+  renodx::utils::settings::UpdateSetting("CustomLUTScaling", 0.f);
   renodx::utils::settings::UpdateSetting("ColorGradeExposure", 1.f);
   renodx::utils::settings::UpdateSetting("ColorGradeHighlights", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeShadows", 50.f);
@@ -373,11 +414,11 @@ void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
   auto peak = renodx::utils::swapchain::GetPeakNits(swapchain);
   if (peak.has_value()) {
     tone_map_peak_nits_setting->default_value = roundf(peak.value());
+    initialized = true;
   } else {
     tone_map_peak_nits_setting->default_value = 1000.f;
   }
   // settings[3]->default_value = fmin(renodx::utils::swapchain::ComputeReferenceWhite(settings[2]->default_value), 203.f);
-  initialized = true;
 }
 
 }  // namespace
