@@ -42,6 +42,66 @@ float3 GammaCorrectionLMS(float3 color, bool invert = false) {
   return renodx::color::bt709::from::LMS(lms_color * LMS_WHITE);
 }
 
+float3 EncodeLUTInput(float3 color) {
+  if (UPGRADE_LUT_ENCODE == 1.f) {
+    return renodx::color::srgb::Encode(color);
+  }
+
+  return sqrt(color);
+}
+
+float GetLUTY(float3 color_lms) {
+  return max(0.f, renodx::color::yf::from::BT709(renodx::color::bt709::from::LMS(color_lms * LMS_WHITE)));
+}
+
+float3 EncodeLUTGammaCorrectedLMS(float3 color_lms) {
+  return renodx::color::srgb::EncodeSafe(renodx::color::gamma::DecodeSafe(color_lms, GetGammaCorrectionValue()));
+}
+
+float3 DecodeLUTGammaCorrectedLMS(float3 color_lms) {
+  return renodx::color::gamma::EncodeSafe(renodx::color::srgb::DecodeSafe(color_lms), GetGammaCorrectionValue());
+}
+
+float3 UnclampLUT(float3 color_lms, float3 black_lms, float3 mid_lms, float3 neutral_lms) {
+  const float black_floor = min(black_lms.r, min(black_lms.g, black_lms.b));
+  const float mid_y = GetLUTY(mid_lms);
+  const float neutral_y = GetLUTY(neutral_lms);
+  const float t = mid_y > 0.f ? saturate((mid_y - neutral_y) / mid_y) : 0.f;
+  const float3 floor_remove = float3(black_floor, black_floor, black_floor) * t;
+
+  return max(0.f, color_lms - floor_remove);
+}
+
+float3 ApplyLUTScaling(float3 lut_corrected, float3 lut_black, float3 lut_mid, float3 lut_white, float3 neutral_gamma, float mid_gray = 0.18f) {
+  const float black_floor = 0.0001f;
+
+  if (CUSTOM_LUT_SCALING == 0.f || mid_gray <= black_floor) return lut_corrected;
+
+  const float lut_white_y = renodx::color::y::from::BT709(renodx::color::srgb::DecodeSafe(saturate(lut_white)));
+  if (lut_white_y < mid_gray) return lut_corrected;
+
+  const float3 lut_corrected_original = lut_corrected;
+
+  float3 lut_corrected_lms = renodx::color::lms::from::BT709(lut_corrected) / LMS_WHITE;
+  float3 lut_black_lms = renodx::color::lms::from::BT709(lut_black) / LMS_WHITE;
+  float3 lut_mid_lms = renodx::color::lms::from::BT709(lut_mid) / LMS_WHITE;
+  float3 neutral_lms = renodx::color::lms::from::BT709(neutral_gamma) / LMS_WHITE;
+
+  float3 unclamped_lms = lut_corrected_lms;
+  if (RENODX_GAMMA_CORRECTION != 0.f) {
+    lut_black_lms = EncodeLUTGammaCorrectedLMS(lut_black_lms);
+    lut_mid_lms = EncodeLUTGammaCorrectedLMS(lut_mid_lms);
+    lut_corrected_lms = EncodeLUTGammaCorrectedLMS(lut_corrected_lms);
+    neutral_lms = EncodeLUTGammaCorrectedLMS(neutral_lms);
+    unclamped_lms = DecodeLUTGammaCorrectedLMS(UnclampLUT(lut_corrected_lms, lut_black_lms, lut_mid_lms, neutral_lms));
+  } else {
+    unclamped_lms = UnclampLUT(lut_corrected_lms, lut_black_lms, lut_mid_lms, neutral_lms);
+  }
+
+  const float3 unclamped_gamma = renodx::color::bt709::from::LMS(unclamped_lms * LMS_WHITE);
+  return lerp(lut_corrected_original, unclamped_gamma, saturate(CUSTOM_LUT_SCALING));
+}
+
 float3 IntermediatePass(float3 color) {
   color = GammaCorrectionLMS(color);
   color *= RENODX_DIFFUSE_WHITE_NITS / RENODX_GRAPHICS_WHITE_NITS;
