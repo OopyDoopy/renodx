@@ -27,7 +27,6 @@
 // #define RENODX_INTERMEDIATE_COLOR_SPACE        color::convert::COLOR_SPACE_BT709
 // #define RENODX_SWAP_CHAIN_DECODING             RENODX_INTERMEDIATE_ENCODING
 // #define RENODX_SWAP_CHAIN_DECODING_COLOR_SPACE RENODX_INTERMEDIATE_COLOR_SPACE
-// #define RENODX_SWAP_CHAIN_CUSTOM_COLOR_SPACE   COLOR_SPACE_CUSTOM_BT709D65
 // #define RENODX_SWAP_CHAIN_SCALING_NITS         RENODX_GRAPHICS_WHITE_NITS
 // #define RENODX_SWAP_CHAIN_CLAMP_NITS           RENODX_PEAK_WHITE_NITS
 // #define RENODX_SWAP_CHAIN_CLAMP_COLOR_SPACE    color::convert::COLOR_SPACE_UNKNOWN
@@ -35,7 +34,7 @@
 // #define RENODX_SWAP_CHAIN_ENCODING_COLOR_SPACE color::convert::COLOR_SPACE_BT709
 
 // Must be 32bit aligned
-// Should be 4x32
+// Should be 5x32
 struct ShaderInjectData {
   float peak_white_nits;
   float diffuse_white_nits;
@@ -53,31 +52,20 @@ struct ShaderInjectData {
   float tone_map_blowout;
 
   float tone_map_flare;
-  float swap_chain_custom_color_space;
   float custom_film_grain;
   float custom_random;
-
   float custom_film_grain_toggle;
+
   float custom_hdr_boost;
   float gamma_correction;
-  float swap_chain_output_preset;
-
-  float scene_grade_per_channel_blowout;
-  float scene_grade_per_channel_hue_shift;
-  float scene_grade_hue_clip;
   float padding0;
-  //float saturation_clip;
-
-  //float hdr_toggle;
-  // float padding1;
-  // float padding2;
-  // float padding3;
+  float padding1;
 };
 
 #ifndef __cplusplus
 #if (__SHADER_TARGET_MAJOR == 3)
 
-float4 shader_injection[8] : register(c50);
+float4 shader_injection[5] : register(c50);
 
 #define RENODX_PEAK_WHITE_NITS                 shader_injection[0][0]
 #define RENODX_DIFFUSE_WHITE_NITS              shader_injection[0][1]
@@ -95,20 +83,12 @@ float4 shader_injection[8] : register(c50);
 #define RENODX_TONE_MAP_BLOWOUT                shader_injection[2][3]
 
 #define RENODX_TONE_MAP_FLARE                  shader_injection[3][0]
-#define RENODX_SWAP_CHAIN_CUSTOM_COLOR_SPACE   shader_injection[3][1]
-#define CUSTOM_FILM_GRAIN_STRENGTH             shader_injection[3][2]
-#define CUSTOM_RANDOM                          shader_injection[3][3]
+#define CUSTOM_FILM_GRAIN_STRENGTH             shader_injection[3][1]
+#define CUSTOM_RANDOM                          shader_injection[3][2]
+#define CUSTOM_FILM_GRAIN_TOGGLE               shader_injection[3][3]
 
-#define CUSTOM_FILM_GRAIN_TOGGLE               shader_injection[4][0]
-#define CUSTOM_HDR_BOOST                       shader_injection[4][1]
-#define RENODX_GAMMA_CORRECTION                shader_injection[4][2]
-#define RENODX_SWAP_CHAIN_OUTPUT_PRESET        shader_injection[4][3]
-
-#define SCENE_GRADE_PER_CHANNEL_BLOWOUT        shader_injection[5][0]
-#define SCENE_GRADE_PER_CHANNEL_HUE_SHIFT      shader_injection[5][1]
-#define SCENE_GRADE_HUE_CLIP                   shader_injection[5][2]
-
-// #define CUSTOM_HDR_TOGGLE                      shader_injection[5][0]
+#define CUSTOM_HDR_BOOST                       shader_injection[4][0]
+#define RENODX_GAMMA_CORRECTION                shader_injection[4][1]
 
 #define RENODX_RENO_DRT_TONE_MAP_METHOD renodx::tonemap::renodrt::config::tone_map_method::REINHARD
 #define RENODX_SWAP_CHAIN_CLAMP_COLOR_SPACE    color::convert::COLOR_SPACE_BT2020
@@ -122,6 +102,7 @@ cbuffer shader_injection : register(b13, space50) {
 cbuffer shader_injection : register(b13) {
   ShaderInjectData shader_injection : packoffset(c0);
 }
+#endif
 
 #define RENODX_PEAK_WHITE_NITS                 shader_injection.peak_white_nits
 #define RENODX_DIFFUSE_WHITE_NITS              shader_injection.diffuse_white_nits
@@ -136,20 +117,15 @@ cbuffer shader_injection : register(b13) {
 #define RENODX_TONE_MAP_HIGHLIGHT_SATURATION   shader_injection.tone_map_highlight_saturation
 #define RENODX_TONE_MAP_BLOWOUT                shader_injection.tone_map_blowout
 #define RENODX_TONE_MAP_FLARE                  shader_injection.tone_map_flare
-#define RENODX_SWAP_CHAIN_CUSTOM_COLOR_SPACE   shader_injection.swap_chain_custom_color_space
 #define CUSTOM_FILM_GRAIN_STRENGTH             shader_injection.custom_film_grain
 #define CUSTOM_RANDOM                          shader_injection.custom_random
 #define CUSTOM_FILM_GRAIN_TOGGLE               shader_injection.custom_film_grain_toggle
 #define CUSTOM_HDR_BOOST                       shader_injection.custom_hdr_boost
 #define RENODX_GAMMA_CORRECTION                shader_injection.gamma_correction
-//#define CUSTOM_SATURATION_CLIP                 shader_injection.saturation_clip
-//#define CUSTOM_HDR_TOGGLE                      shader_injection.hdr_toggle
 #define RENODX_RENO_DRT_TONE_MAP_METHOD        renodx::tonemap::renodrt::config::tone_map_method::REINHARD
 #define RENODX_SWAP_CHAIN_CLAMP_COLOR_SPACE    color::convert::COLOR_SPACE_BT2020
 #define RENODX_SWAP_CHAIN_ENCODING             renodx::draw::ENCODING_PQ
 #define RENODX_SWAP_CHAIN_ENCODING_COLOR_SPACE color::convert::COLOR_SPACE_BT2020
-
-#endif
 
 #endif
 
