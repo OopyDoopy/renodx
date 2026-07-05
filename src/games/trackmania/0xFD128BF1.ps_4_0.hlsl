@@ -102,6 +102,7 @@ void main(
       }
     }
   }
+  o0.xyz = saturate(o0.xyz);
   if (r0.y < strokeMult.y) discard;
   return;
 }
