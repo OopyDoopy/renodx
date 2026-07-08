@@ -35,22 +35,28 @@ float3 ProcessGammaCorrection(float3 color, bool pow_to_srgb = false, float gamm
   return color;
 }
 
-float3 Unclamp(float3 original_gamma, float3 black_gamma, float3 mid_gray_gamma, float3 neutral_gamma) {
-  //mid_gray_gamma = renodx::color::srgb::EncodeSafe(ProcessGammaCorrection(renodx::color::srgb::DecodeSafe(mid_gray_gamma), false));
-  //black_gamma = renodx::color::srgb::EncodeSafe(ProcessGammaCorrection(renodx::color::srgb::DecodeSafe(black_gamma), false));
-  //neutral_gamma = renodx::color::srgb::EncodeSafe(ProcessGammaCorrection(renodx::color::srgb::DecodeSafe(neutral_gamma), false));
+float GetLUTYBT709(float3 color) {
+  return max(0.f, renodx::color::yf::from::BT709(color));
+}
 
-  const float3 added_gamma = black_gamma;
+float GetLUTYLMS(float3 color_lms) {
+  return max(0.f, renodx::color::yf::from::BT709(renodx::color::bt709::from::LMS(color_lms * LMS_WHITE)));
+}
 
-  // Remove from 0 to mid-gray
-  const float3 shadow_length = mid_gray_gamma;
-  const float3 shadow_stop = neutral_gamma;
-  const float3 t = max(0, shadow_length - shadow_stop) / shadow_length;
-  //const float3 curved = renodx::math::SafePow(t, lerp(1.0f, 10.0f, CUSTOM_LUT_SCALING_BRIGHTNESS));
-  float3 floor_remove = added_gamma * t;
+float3 EncodeLUTGammaCorrected(float3 color) {
+  return renodx::color::srgb::EncodeSafe(renodx::color::gamma::DecodeSafe(color));
+}
 
-  // floor_remove = renodx::color::srgb::EncodeSafe(ProcessGammaCorrection(renodx::color::srgb::DecodeSafe(floor_remove)));
+float3 DecodeLUTGammaCorrected(float3 color) {
+  return renodx::color::gamma::EncodeSafe(renodx::color::srgb::DecodeSafe(color));
+}
 
-  const float3 unclamped_gamma = max(0, original_gamma - floor_remove);
-  return unclamped_gamma;
+float3 Unclamp(float3 color, float3 black, float3 mid, float3 neutral, bool use_lms) {
+  const float black_floor = min(black.r, min(black.g, black.b));
+  const float mid_y = use_lms ? GetLUTYLMS(mid) : GetLUTYBT709(mid);
+  const float neutral_y = use_lms ? GetLUTYLMS(neutral) : GetLUTYBT709(neutral);
+  const float t = mid_y > 0.f ? saturate((mid_y - neutral_y) / mid_y) : 0.f;
+  const float3 floor_remove = float3(black_floor, black_floor, black_floor) * t;
+
+  return max(0.f, color - floor_remove);
 }
