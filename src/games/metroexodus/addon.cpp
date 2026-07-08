@@ -326,20 +326,6 @@ renodx::utils::settings::Settings settings = {
     // },
 
         new renodx::utils::settings::Setting{
-        .key = "CustomLUTRecolor",
-        .binding = &shader_injection.custom_lut_recolor,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
-        .label = "LUT Recolor",
-        .section = "Color Grading",
-        .tooltip = "Applies the color of the unscaled image onto the LUT scaled image.",
-        .labels = {"Off", "On"},
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE > 0 && CUSTOM_LUT_SCALING > 0.f; },
-        .parse = [](float value) { return value * 0.01f; },
-        .is_visible = []() { return current_settings_mode >= 1.f; },
-    },
-
-        new renodx::utils::settings::Setting{
         .key = "FxFilmGrain",
         .binding = &shader_injection.custom_film_grain,
         .default_value = 10.f,
