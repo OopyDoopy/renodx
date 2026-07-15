@@ -1384,8 +1384,8 @@ float4 Main(float4 position : SV_Position, float2 texcoord : TexCoord) : SV_Targ
 	return DrawPeakBrightness(output, position.xy, estimated_peak_nits);
 }
 
-technique RenoDX <
-	ui_label = "RenoDX HDR Toolkit";
+technique RenoFX <
+	ui_label = "RenoFX HDR Toolkit";
 	ui_tooltip = "Processes SDR or native HDR input with HDR expansion, color grading, tone mapping, gamut handling, and SDR or HDR output presentation.";
 > {
 	pass MeasureAveragePictureLevel {
