@@ -11,6 +11,12 @@
 #define SPACE_YF     4
 #define SPACE_MAX_CHANNEL 5
 
+#define INPUT_AUTO   0
+#define INPUT_LINEAR 1
+#define INPUT_SRGB   2
+#define INPUT_HDR10  3
+#define INPUT_SCRGB  4
+
 #define OUTPUT_AUTO   0
 #define OUTPUT_SRGB   1
 #define OUTPUT_HDR10  2
@@ -137,22 +143,25 @@ static const float3 LMS_WEIGHTS = float3(
 );
 // clang-format on
 
-// uniform bool INSTRUCTIONS_TEXT <
-// 	ui_type = "button";
-// 	ui_category = "Instructions";
-// 	ui_text = SETTINGS_INSTRUCTIONS;
-// 	ui_label = " ";
-// 	noedit = 1;
-// 	noreset = 1;
-// > = false;
+#define RENOFX_INSTRUCTIONS "Instructions\n\nNative HDR:\n\n* Make sure your Input Transfer matches the type of HDR the game uses (HDR10 or scRGB). If in doubt, HDR10 is probably right.\n* Set the correct Input Scaling. This should match the paper white option in the game, unless implemented wrong. If no paper white option is provided, 100 is a safe assumption to work around. Check KoKlusz HDR Gaming Database on GitHub to easily figure out what to use.\n* Set Input Peak Nits to the peak target used by the game. For the highest quality, set the peak target as high as it can go in-game.\n* Ensure that Output Transfer was automatically detected correctly.\n* Set Output Peak Nits to your display peak.\n\nTips: \n* Output Scaling can be used to rescale the game's brightness to your desired level.\n* The game may need SDR EOTF Emulation set to Gamma 2.2. Most HDR games get this wrong, but this is a case-by-case issue.\n* Everything should be configured properly now to freely tweak Color Grading/Inverse Tone Mapping sliders.\n\n=====================================================\n\nSDR to HDR Upgrade:\n\n* This will require another tool to upgrade the swapchain. You can use the renodx-upgrade.addon32/64, the old autohdr addon, or SK. Whatever works best for your game.\n* Set Input Transfer to sRGB. This is generally what you'll need, but if things still look wrong by the end of these steps, switch it to Linear (SDR).\n* Keep Input Scaling at 100 nits.\n* Keep Input Peak Nits at 100 nits, unless the swapchain upgrade and/or resource upgrades unclamped the game. If the game was unclamped by upgrades, set this to 10000. If unsure, 100 nits is probably correct.\n* Ensure that Output Transfer was automatically detected correctly.\n* Set Output Peak Nits to your display peak.\n\nTips: \n* Output Scaling can be used to rescale the game's brightness to your desired level.\n* The main driver for the SDR to HDR upgrade will be HDR Boost. Setting this to 40 is a good starting point.\n* The game probably needs SDR EOTF Emulation set to Gamma 2.2. Which one looks better will be a case-by-case issue.\n* Everything should be configured properly now to freely tweak Color Grading/Inverse Tone Mapping sliders.\n\n=====================================================\n\nSDR:\n\n* Auto probably worked correctly, but set Input Transfer to sRGB if not.\n* Input Scaling, Output Scaling, and Output Peak Nits do not have any impact in SDR.\n* Keep Input Peak Nits at 100.\n\n====================================================="
+
+uniform bool INSTRUCTIONS_TEXT <
+	ui_type = "button";
+	ui_category = "Instructions";
+	ui_category_closed = 1;
+	ui_text = RENOFX_INSTRUCTIONS;
+	ui_label = " ";
+	noedit = 1;
+	noreset = 1;
+> = false;
 
 uniform uint INPUT_TRANSFER <
 	ui_type = "combo";
 	ui_category = "Input";
-	ui_items = "Linear (SDR)\0sRGB (SDR)\0HDR10 (HDR)\0scRGB (HDR)\0";
+	ui_items = "Auto\0Linear (SDR)\0sRGB (SDR)\0HDR10 (HDR)\0scRGB (HDR)\0";
 	ui_label = "Input Transfer";
-	ui_tooltip = "Choose sRGB for most SDR games, Linear SDR if sRGB looks obviously wrong, HDR10 for native HDR10 games (most games with native HDR), or Linear scRGB for HDR games where HDR10 looks obviously wrong.";
-> = 1;
+	ui_tooltip = "Auto detects HDR10 or scRGB from the color space reported to ReShade and uses sRGB for SDR or unknown input. Use a manual choice only if Auto produces incorrect colors or brightness.";
+> = INPUT_AUTO;
 
 uniform float INPUT_SCALING_NITS <
 	ui_type = "slider";
@@ -172,9 +181,17 @@ uniform float MAX_INPUT_WHITE_NITS <
 	ui_max = 10000.0;
 	ui_step = 1.0;
 	ui_units = " nits";
-	ui_label = "Max Input White";
+	ui_label = "Input Peak Nits";
 	ui_tooltip = "Set to the peak brightness of the input image. This is used to adjust behavior for highlight saturation, blowout, and Neutwo tone mapping.\nKeep at 100 nits for SDR input, unless upgrades unclamp the image before inverse tone mapping is applied.";
 > = 100.0;
+
+uniform uint OUTPUT_TRANSFER <
+	ui_type = "combo";
+	ui_category = "Output";
+	ui_items = "Auto\0sRGB\0HDR10 (BT.2020 PQ)\0scRGB (BT.709 Linear)\0";
+	ui_label = "Output Transfer";
+	ui_tooltip = "Auto detects the display mode reported to ReShade. Use a manual choice only if Auto produces incorrect colors or brightness.";
+> = OUTPUT_AUTO;
 
 uniform float GAME_BRIGHTNESS_NITS <
 	ui_type = "slider";
@@ -185,15 +202,18 @@ uniform float GAME_BRIGHTNESS_NITS <
 	ui_units = " nits";
 	ui_label = "Output Scaling";
 	ui_tooltip = "Sets the HDR reference-white brightness for HDR10 and scRGB output. This setting does not affect sRGB output.";
-> = 203.0;
+> = 100.0;
 
-uniform uint OUTPUT_TRANSFER <
-	ui_type = "combo";
+uniform float TONEMAP_PEAK_NITS <
+	ui_type = "slider";
 	ui_category = "Output";
-	ui_items = "Auto\0sRGB\0HDR10 (BT.2020 PQ)\0scRGB (BT.709 Linear)\0";
-	ui_label = "Output Transfer";
-	ui_tooltip = "Auto detects the display mode reported to ReShade. Use a manual choice only if Auto produces incorrect colors or brightness.";
-> = OUTPUT_AUTO;
+	ui_min = 80.0;
+	ui_max = 10000.0;
+	ui_step = 1.0;
+	ui_units = " nits";
+	ui_label = "Output Peak Nits";
+	ui_tooltip = "Sets the brightest value the forward tone mapper aims to preserve. Match this roughly to your display's peak brightness.\nThis setting does not apply in SDR.";
+> = 1000.0;
 
 uniform uint GAMMA_CORRECTION <
 	ui_type = "combo";
@@ -201,7 +221,7 @@ uniform uint GAMMA_CORRECTION <
 	ui_items = "Off\0Gamma 2.2\0";
 	ui_label = "SDR EOTF Emulation";
 	ui_tooltip = "Emulates the look of an sRGB game viewed on a gamma 2.2 display. This is how most games are made.\nIf you're using this on a native HDR game and it already uses the correct gamma, set this off.";
-> = 1;
+> = 0;
 
 uniform uint SHOW_PEAK_BRIGHTNESS <
 	ui_type = "combo";
@@ -219,7 +239,7 @@ uniform float HDR_BOOST <
 	ui_step = 1.0;
 	ui_label = "HDR Boost";
 	ui_tooltip = "Makes bright parts of the SDR image brighter in HDR. Zero turns it off; higher values create stronger highlights.";
-> = 40.0;
+> = 0.0;
 
 uniform float HDR_BOOST_START <
 	ui_type = "slider";
@@ -347,17 +367,6 @@ uniform uint TONEMAP_ENABLED <
 	ui_label = "Tone Mapper";
 	ui_tooltip = "Applies forward Neutwo compression after inverse tone mapping and grading. Max Input White becomes Neutwo's white clip. If used with a native HDR game, make sure to set input white to the game's peak brightness.";
 > = 1;
-
-uniform float TONEMAP_PEAK_NITS <
-	ui_type = "slider";
-	ui_category = "Tone Mapping";
-	ui_min = 80.0;
-	ui_max = 10000.0;
-	ui_step = 1.0;
-	ui_units = " nits";
-	ui_label = "Tone Map Peak Target";
-	ui_tooltip = "Sets the brightest value the forward tone mapper aims to preserve. Match this roughly to your display's peak brightness.\nThis setting does not apply in SDR.";
-> = 1000.0;
 
 uniform uint GAMUT_COMPRESSION_TARGET <
 	ui_type = "combo";
@@ -503,23 +512,48 @@ float3 PQDecode(float3 pq) {
 	return pow(numerator / denominator, 1.0f / m1);
 }
 
+uint ResolveInputTransfer() {
+	if (INPUT_TRANSFER != INPUT_AUTO) return INPUT_TRANSFER;
+
+#if defined(BUFFER_COLOR_SPACE)
+	if (BUFFER_COLOR_SPACE == COLOR_SPACE_SRGB) return INPUT_SRGB;
+	if (BUFFER_COLOR_SPACE == COLOR_SPACE_SCRGB) return INPUT_SCRGB;
+	if (BUFFER_COLOR_SPACE == COLOR_SPACE_HDR10_PQ) return INPUT_HDR10;
+	// HLG is known but unsupported; treat it as the SDR sRGB fallback.
+	if (BUFFER_COLOR_SPACE == COLOR_SPACE_HDR10_HLG) return INPUT_SRGB;
+#endif
+
+#if defined(BUFFER_COLOR_FORMAT)
+	if (BUFFER_COLOR_FORMAT == FORMAT_RGBA16_FLOAT) return INPUT_SCRGB;
+	if (BUFFER_COLOR_FORMAT == FORMAT_RGB10A2) return INPUT_HDR10;
+#elif defined(BUFFER_COLOR_BIT_DEPTH)
+	if (BUFFER_COLOR_BIT_DEPTH == 16) return INPUT_SCRGB;
+	if (BUFFER_COLOR_BIT_DEPTH == 10) return INPUT_HDR10;
+#endif
+
+	// Unknown metadata and ordinary SDR formats use sRGB, never linear SDR.
+	return INPUT_SRGB;
+}
+
 float ResolveInputScalingNits() {
-	if (INPUT_TRANSFER == 2 || INPUT_TRANSFER == 3) {
+	uint input_transfer = ResolveInputTransfer();
+	if (input_transfer == INPUT_HDR10 || input_transfer == INPUT_SCRGB) {
 		return max(INPUT_SCALING_NITS, 1.0f);
 	}
 	return 100.0f;
 }
 
 float3 DecodeInput(float3 input_color) {
-	if (INPUT_TRANSFER == 1) {
+	uint input_transfer = ResolveInputTransfer();
+	if (input_transfer == INPUT_SRGB) {
 		return SRGBDecode(input_color);
 	}
-	if (INPUT_TRANSFER == 2) {
+	if (input_transfer == INPUT_HDR10) {
 		float3 bt2020_nits = PQDecode(input_color) * 10000.0f;
 		return mul(BT2020_TO_BT709, bt2020_nits)
 				/ ResolveInputScalingNits();
 	}
-	if (INPUT_TRANSFER == 3) {
+	if (input_transfer == INPUT_SCRGB) {
 		// scRGB is linear BT.709 where 1.0 represents 80 nits.
 		return input_color * (80.0f / ResolveInputScalingNits());
 	}
