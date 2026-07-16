@@ -210,7 +210,7 @@ uniform float HDR_BOOST_GAMUT_EXPANSION <
 	ui_step = 1.0;
 	ui_label = "Gamut Expansion";
 	ui_tooltip = "Controls how much color expansion HDR Boost adds while preserving its brightness. Zero preserves the source color balance; 100 uses the full result from the selected working space.";
-> = 100.0;
+> = 50.0;
 
 uniform uint HDR_BOOST_APL_LIMITER <
 	ui_type = "combo";
