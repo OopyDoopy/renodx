@@ -385,6 +385,24 @@ sampler2D APLSampler {
 	AddressV = CLAMP;
 };
 
+// Frame-global values calculated once after the APL mip chain is available.
+// Texel 0 stores grading-space peak white in RGB and scene-dependent HDR Boost
+// availability in alpha. Texel 1 stores the APL-independent overlay peak nits.
+texture2D FrameStateTexture {
+	Width = 2;
+	Height = 1;
+	Format = RGBA32F;
+};
+
+sampler2D FrameStateSampler {
+	Texture = FrameStateTexture;
+	MinFilter = POINT;
+	MagFilter = POINT;
+	MipFilter = POINT;
+	AddressU = CLAMP;
+	AddressV = CLAMP;
+};
+
 float SignPow(float value, float power) {
 	return sign(value) * pow(abs(value), power);
 }
@@ -647,9 +665,10 @@ float3 RestoreWorkingHue(
 		float3 source,
 		float3 target,
 		uint working_space) {
-	return working_space == SPACE_LMS
-			? RestoreLMSHue(source, target)
-			: target;
+	if (working_space == SPACE_LMS) {
+		return RestoreLMSHue(source, target);
+	}
+	return target;
 }
 
 float Reinhard(float value, float peak) {
@@ -666,7 +685,7 @@ float HDRBoostChannel(float color, float power, float normalization_point) {
 	return max(color, lerp(color, powered, weight));
 }
 
-float3 ApplyHDRBoost(
+float3 ApplyHDRBoostShaping(
 		float3 working,
 		uint working_space,
 		float boost_availability) {
@@ -683,6 +702,18 @@ float3 ApplyHDRBoost(
 			normalized,
 			fully_boosted,
 			saturate(boost_availability)) * white;
+	return boosted;
+}
+
+float3 ApplyHDRBoost(
+		float3 working,
+		uint working_space,
+		float boost_availability) {
+	if (HDR_BOOST == 0.0f || boost_availability <= 0.0f) return working;
+	float3 boosted = ApplyHDRBoostShaping(
+			working,
+			working_space,
+			boost_availability);
 	return RestoreWorkingHue(working, boosted, working_space);
 }
 
@@ -747,7 +778,17 @@ float3 ApplyGlobalSaturation(
 	return ToWorking(SaturateOKLab(bt709, amount), working_space);
 }
 
-float3 ApplyBrightnessGrading(float3 working, uint working_space) {
+bool IsBrightnessGradingNeutral() {
+	return EXPOSURE == 1.0f
+			&& HIGHLIGHTS == 50.0f
+			&& SHADOWS == 50.0f
+			&& CONTRAST == 50.0f
+			&& FLARE == 0.0f;
+}
+
+float3 ApplyBrightnessGradingShaping(float3 working, uint working_space) {
+	if (IsBrightnessGradingNeutral()) return working;
+
 	float highlights = HIGHLIGHTS * 0.02f;
 	float shadows = SHADOWS * 0.02f;
 	float contrast = CONTRAST * 0.02f;
@@ -788,20 +829,31 @@ float3 ApplyBrightnessGrading(float3 working, uint working_space) {
 				SignPow(normalized.b, exponent.b)) * adaptive_state;
 	}
 
+	return graded;
+}
+
+float3 ApplyBrightnessGrading(float3 working, uint working_space) {
+	if (IsBrightnessGradingNeutral()) return working;
+	float3 graded = ApplyBrightnessGradingShaping(working, working_space);
 	return RestoreWorkingHue(working, graded, working_space);
 }
 
-float3 ApplyGrading(
+float3 ApplyColorGrading(
 		float3 working,
 		uint working_space,
 		float3 peak_white) {
 	float saturation = SATURATION * 0.02f;
 	float highlight_saturation = HIGHLIGHT_SATURATION * 0.02f;
 	float bleaching = BLOWOUT * 0.01f;
+	if (saturation == 1.0f
+			&& highlight_saturation == 1.0f
+			&& bleaching == 0.0f) {
+		return working;
+	}
 
 	float3 white = WorkingWhite(working_space);
 	float3 adaptive_state = white * GRADING_MID_GRAY;
-	float3 graded = ApplyBrightnessGrading(working, working_space);
+	float3 graded = working;
 
 	if (saturation != 1.0f && GRADING_SPACE != SPACE_YF) {
 		graded = ApplyGlobalSaturation(graded, saturation, working_space);
@@ -829,7 +881,36 @@ float3 ApplyGrading(
 		graded = max(0.0f, white_at_energy + (graded - white_at_energy) * availability);
 	}
 
-	return RestoreWorkingHue(working, graded, working_space);
+	return graded;
+}
+
+float3 ApplyGrading(
+		float3 working,
+		uint working_space,
+		float3 peak_white) {
+	float3 graded = ApplyBrightnessGrading(working, working_space);
+	return ApplyColorGrading(graded, working_space, peak_white);
+}
+
+float3 ApplyCombinedBrightnessShaping(
+		float3 working,
+		uint working_space,
+		float boost_availability) {
+	bool boost_active = HDR_BOOST != 0.0f && boost_availability > 0.0f;
+	bool grading_active = !IsBrightnessGradingNeutral();
+	if (!boost_active && !grading_active) return working;
+
+	float3 source = working;
+	if (boost_active) {
+		working = ApplyHDRBoostShaping(
+				working,
+				working_space,
+				boost_availability);
+	}
+	if (grading_active) {
+		working = ApplyBrightnessGradingShaping(working, working_space);
+	}
+	return RestoreWorkingHue(source, working, working_space);
 }
 
 float YfFromBT709(float3 bt709) {
@@ -882,7 +963,7 @@ float3 ApplyBrightnessGradingYf(float3 bt709) {
 	float white_yf = max(YfWhite(), 1e-6f);
 	float source_yf = max(YfFromBT709(bt709), 0.0f);
 	float normalized_yf = source_yf / white_yf;
-	float graded_yf = ApplyBrightnessGrading(
+	float graded_yf = ApplyBrightnessGradingShaping(
 			float3(normalized_yf, normalized_yf, normalized_yf),
 			SPACE_BT709).x * white_yf;
 	return ScaleToYf(bt709, source_yf, graded_yf);
@@ -899,6 +980,17 @@ float3 ApplyGradingYf(float3 bt709) {
 
 float3 EstimatePeakWhiteBT709(float boost_availability) {
 	float3 peak_white = float3(1.0f, 1.0f, 1.0f);
+	if (HDR_BOOST_GAMUT_EXPANSION >= 100.0f
+			&& HDR_BOOST_SPACE == GRADING_SPACE
+			&& GRADING_SPACE != SPACE_YF) {
+		float3 working = ToWorking(peak_white, GRADING_SPACE);
+		working = ApplyCombinedBrightnessShaping(
+				working,
+				GRADING_SPACE,
+				boost_availability);
+		return FromWorking(working, GRADING_SPACE);
+	}
+
 	if (HDR_BOOST_SPACE == SPACE_YF) {
 		peak_white = ApplyHDRBoostYf(peak_white, boost_availability);
 	} else {
@@ -916,20 +1008,24 @@ float3 EstimatePeakWhiteBT709(float boost_availability) {
 	return FromWorking(working, GRADING_SPACE);
 }
 
-float3 ApplyControls(float3 bt709, float boost_availability) {
-	float3 estimated_peak_white = EstimatePeakWhiteBT709(boost_availability);
-
-	// Preserve the original path exactly at full gamut expansion when both
-	// controls share a color space.
+float3 ApplyControls(
+		float3 bt709,
+		float boost_availability,
+		float3 estimated_peak_white_working) {
+	// Keep compatible brightness operations in one working-space chain, restore
+	// hue once, then apply intentional saturation and blowout adjustments.
 	if (HDR_BOOST_GAMUT_EXPANSION >= 100.0f
 			&& HDR_BOOST_SPACE == GRADING_SPACE
 			&& GRADING_SPACE != SPACE_YF) {
 		float3 working = ToWorking(bt709, GRADING_SPACE);
-		working = ApplyHDRBoost(working, GRADING_SPACE, boost_availability);
-		working = ApplyGrading(
+		working = ApplyCombinedBrightnessShaping(
 				working,
 				GRADING_SPACE,
-				ToWorking(estimated_peak_white, GRADING_SPACE));
+				boost_availability);
+		working = ApplyColorGrading(
+				working,
+				GRADING_SPACE,
+				estimated_peak_white_working);
 		return FromWorking(working, GRADING_SPACE);
 	}
 
@@ -950,7 +1046,7 @@ float3 ApplyControls(float3 bt709, float boost_availability) {
 		working = ApplyGrading(
 				working,
 				GRADING_SPACE,
-				ToWorking(estimated_peak_white, GRADING_SPACE));
+				estimated_peak_white_working);
 		controlled = FromWorking(working, GRADING_SPACE);
 	}
 	return controlled;
@@ -1144,6 +1240,12 @@ float3 GamutCompressWeightedLMS(
 			bound_green,
 			bound_blue,
 			found);
+	// A boundary at or beyond the current chromaticity produces an exact
+	// final scale of one in the compression path below.
+	if (found && peak >= 1.0f) {
+		return MBToWeightedLMS(white + direction, mb.z);
+	}
+
 	float clip = RayExitTCIE1702(direction);
 	if (!found) peak = clip;
 
@@ -1162,6 +1264,16 @@ float3 ApplyGamutCompression(float3 bt709) {
 	bool target_bt2020 = GAMUT_COMPRESSION_TARGET == GAMUT_TARGET_BT2020
 			|| (GAMUT_COMPRESSION_TARGET == GAMUT_TARGET_AUTO
 					&& output_transfer != OUTPUT_SRGB);
+
+	// Nonnegative target RGB components prove that the chromaticity is already
+	// inside the target triangle. Brightness is intentionally unbounded here.
+	if (target_bt2020) {
+		float3 bt2020 = mul(BT709_TO_BT2020, bt709);
+		if (all(bt2020 >= 0.0f)) return bt709;
+	} else {
+		if (all(bt709 >= 0.0f)) return bt709;
+	}
+
 	float3 adaptive_state_lms = mul(BT709_TO_LMS, float3(0.18f, 0.18f, 0.18f));
 	float2 bound_red = TargetPrimaryMB(0, target_bt2020, adaptive_state_lms);
 	float2 bound_green = TargetPrimaryMB(1, target_bt2020, adaptive_state_lms);
@@ -1255,6 +1367,25 @@ float ComputeAPLHDRBoostAvailability() {
 			saturate(apl));
 	float minimum_percentage = HDR_BOOST_APL_MINIMUM * 0.01f;
 	return lerp(1.0f, minimum_percentage, apl_weight);
+}
+
+float4 CacheFrameState(
+		float4 position : SV_Position,
+		float2 texcoord : TexCoord) : SV_Target {
+	if (position.x >= 1.0f) {
+		float estimated_peak_nits = 0.0f;
+		if (SHOW_PEAK_BRIGHTNESS != 0) {
+			estimated_peak_nits = EstimatePeakNits();
+		}
+		return float4(estimated_peak_nits, 0.0f, 0.0f, 0.0f);
+	}
+
+	float boost_availability = ComputeAPLHDRBoostAvailability();
+	float3 estimated_peak_white = EstimatePeakWhiteBT709(boost_availability);
+	float3 estimated_peak_white_working = GRADING_SPACE == SPACE_YF
+			? estimated_peak_white
+			: ToWorking(estimated_peak_white, GRADING_SPACE);
+	return float4(estimated_peak_white_working, boost_availability);
 }
 
 float3 EncodeOverlayNits(float nits) {
@@ -1351,22 +1482,26 @@ float PeakTextCoverage(float2 pixel_position, float2 origin, float scale, float 
 	return pixel_bit - floor(pixel_bit * 0.5f) * 2.0f;
 }
 
-float4 DrawPeakBrightness(float4 output, float2 pixel_position, float peak_nits) {
+float4 DrawPeakBrightness(float4 output, float2 pixel_position) {
 	if (SHOW_PEAK_BRIGHTNESS == 0) return output;
 
 	float scale = max(2.0f, floor(BUFFER_HEIGHT / 540.0f));
 	float2 panel_min = float2(12.0f, 12.0f) * scale;
-	float2 text_origin = panel_min + float2(7.0f, 5.0f) * scale;
 	float2 panel_max = panel_min + float2(122.0f, 17.0f) * scale;
+	bool inside_panel = all(pixel_position >= panel_min)
+			&& all(pixel_position <= panel_max);
+	if (!inside_panel) return output;
+
+	float peak_nits = tex2Dlod(
+			FrameStateSampler,
+			float4(0.75f, 0.5f, 0.0f, 0.0f)).r;
+	float2 text_origin = panel_min + float2(7.0f, 5.0f) * scale;
 
 	float text_nits = ResolveOutputTransfer() == OUTPUT_SRGB
 			? 100.0f
 			: max(100.0f, min(GAME_BRIGHTNESS_NITS, 203.0f));
 
-	bool inside_panel = all(pixel_position >= panel_min) && all(pixel_position <= panel_max);
-	if (inside_panel) {
-		output.rgb = lerp(output.rgb, EncodeOverlayNits(0.0f), 0.72f);
-	}
+	output.rgb = lerp(output.rgb, EncodeOverlayNits(0.0f), 0.72f);
 
 	float text_coverage = PeakTextCoverage(pixel_position, text_origin, scale, peak_nits);
 	output.rgb = lerp(output.rgb, EncodeOverlayNits(text_nits), text_coverage);
@@ -1376,12 +1511,13 @@ float4 DrawPeakBrightness(float4 output, float2 pixel_position, float peak_nits)
 float4 Main(float4 position : SV_Position, float2 texcoord : TexCoord) : SV_Target {
 	float4 input = tex2D(ReShade::BackBuffer, texcoord);
 	float3 bt709 = DecodeInput(input.rgb);
-	float boost_availability = ComputeAPLHDRBoostAvailability();
-	bt709 = ApplyControls(bt709, boost_availability);
+	float4 frame_state = tex2Dlod(
+			FrameStateSampler,
+			float4(0.25f, 0.5f, 0.0f, 0.0f));
+	bt709 = ApplyControls(bt709, frame_state.a, frame_state.rgb);
 
-	float estimated_peak_nits = EstimatePeakNits();
 	float4 output = float4(EncodeOutput(bt709), input.a);
-	return DrawPeakBrightness(output, position.xy, estimated_peak_nits);
+	return DrawPeakBrightness(output, position.xy);
 }
 
 technique RenoFX <
@@ -1393,6 +1529,13 @@ technique RenoFX <
 		PixelShader = MeasureAPL;
 		RenderTarget = APLTexture;
 		GenerateMipmaps = true;
+	}
+
+	pass BuildFrameState {
+		VertexShader = PostProcessVS;
+		PixelShader = CacheFrameState;
+		RenderTarget = FrameStateTexture;
+		GenerateMipmaps = false;
 	}
 
 	pass Composite {
