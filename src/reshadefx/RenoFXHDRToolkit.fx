@@ -346,7 +346,7 @@ uniform uint TONEMAP_ENABLED <
 	ui_items = "Off\0Neutwo\0";
 	ui_label = "Tone Mapper";
 	ui_tooltip = "Applies forward Neutwo compression after inverse tone mapping and grading. Max Input White becomes Neutwo's white clip. If used with a native HDR game, make sure to set input white to the game's peak brightness.";
-> = 0;
+> = 1;
 
 uniform float TONEMAP_PEAK_NITS <
 	ui_type = "slider";
@@ -356,7 +356,7 @@ uniform float TONEMAP_PEAK_NITS <
 	ui_step = 1.0;
 	ui_units = " nits";
 	ui_label = "Tone Map Peak Target";
-	ui_tooltip = "Sets the brightest value the forward tone mapper aims to preserve. Match this roughly to your display's peak brightness.";
+	ui_tooltip = "Sets the brightest value the forward tone mapper aims to preserve. Match this roughly to your display's peak brightness.\nThis setting does not apply in SDR.";
 > = 1000.0;
 
 uniform uint GAMUT_COMPRESSION_TARGET <
@@ -1128,7 +1128,7 @@ float3 ApplyNeutwo(float3 bt709, float white_clip) {
 	if (output_transfer != OUTPUT_SRGB && GAMMA_CORRECTION != 0) {
 		peak = SRGBDecode(SignPow(output_peak, 1.0f / 2.2f));
 	}
-	if (white_clip < peak) return bt709;
+	if (white_clip <= peak) return bt709;
 	float clip = max(white_clip, peak);
 
 	if (TONEMAP_SPACE == SPACE_YF) {
