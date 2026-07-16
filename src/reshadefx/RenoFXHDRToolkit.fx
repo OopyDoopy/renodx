@@ -63,6 +63,24 @@ static const float3x3 BT2020_TO_BT709 = float3x3(
 	-0.0181507636f, -0.1005788967f,  1.1187297106f
 );
 
+static const float3x3 XYZ_TO_BRADFORD_LMS = float3x3(
+	 0.8951000f,  0.2664000f, -0.1614000f,
+	-0.7502000f,  1.7135000f,  0.0367000f,
+	 0.0389000f, -0.0685000f,  1.0296000f
+);
+
+static const float3x3 BT709_TO_BRADFORD_LMS = float3x3(
+	0.4226580415f, 0.4913566408f, 0.0273644972f,
+	0.0556908000f, 0.9615562081f, 0.0231893750f,
+	0.0213792411f, 0.0876439216f, 0.9807434330f
+);
+
+static const float3x3 BRADFORD_LMS_TO_BT709 = float3x3(
+	 2.5384479276f, -1.2934827422f, -0.0402430490f,
+	-0.1460003045f,  1.1166225022f, -0.0223286193f,
+	-0.0422884197f, -0.0715901011f,  1.0225073225f
+);
+
 // ACEScg/AP1 conversions include Bradford D65 <-> D60 adaptation.
 static const float3x3 BT709_TO_AP1 = float3x3(
 	0.6130974024f, 0.3395231462f, 0.0473794514f,
@@ -281,6 +299,17 @@ uniform float SATURATION <
 	ui_tooltip = "Controls overall color strength. 50 is unchanged; lower values reduce color and higher values make colors more vivid.";
 > = 50.0;
 
+uniform float COLOR_TEMPERATURE_KELVIN <
+	ui_type = "slider";
+	ui_category = "Color Grading";
+	ui_min = 4000.0;
+	ui_max = 9300.0;
+	ui_step = 100.0;
+	ui_units = " K";
+	ui_label = "White Point";
+	ui_tooltip = "Adjusts the image white point using Bradford chromatic adaptation. 6500 K is neutral; higher values are cooler and lower values are warmer.";
+> = 6500.0;
+
 uniform float HIGHLIGHT_SATURATION <
 	ui_type = "slider";
 	ui_category = "Color Grading";
@@ -398,7 +427,8 @@ sampler2D APLSampler {
 
 // Frame-global values calculated once after the APL mip chain is available.
 // Texel 0 stores grading-space peak white in RGB and scene-dependent HDR Boost
-// availability in alpha. Texel 1 stores the APL-independent overlay peak nits.
+// availability in alpha. Texel 1 stores the APL-independent overlay peak nits
+// in red and the Bradford color-temperature adaptation in GBA.
 texture2D FrameStateTexture {
 	Width = 2;
 	Height = 1;
@@ -1342,6 +1372,55 @@ float3 ApplyGamma22Correction(float3 bt709) {
 	return SignPow(SRGBEncode(bt709), 2.2f);
 }
 
+float2 DaylightChromaticityFromKelvin(float kelvin) {
+	float temperature = clamp(kelvin, 4000.0f, 25000.0f);
+	float inverse_temperature = rcp(temperature);
+	float inverse_temperature_squared = inverse_temperature * inverse_temperature;
+	float inverse_temperature_cubed = inverse_temperature_squared * inverse_temperature;
+
+	float x = temperature <= 7000.0f
+			? 0.244063f
+					+ 99.11f * inverse_temperature
+					+ 2967800.0f * inverse_temperature_squared
+					- 4607000000.0f * inverse_temperature_cubed
+			: 0.237040f
+					+ 247.48f * inverse_temperature
+					+ 1901800.0f * inverse_temperature_squared
+					- 2006400000.0f * inverse_temperature_cubed;
+	float y = -3.0f * x * x + 2.87f * x - 0.275f;
+	return float2(x, y);
+}
+
+float3 XYZFromxyY(float2 chromaticity, float luminance) {
+	float scale = luminance / max(chromaticity.y, 1e-6f);
+	return float3(
+			chromaticity.x * scale,
+			luminance,
+			(1.0f - chromaticity.x - chromaticity.y) * scale);
+}
+
+float3 ComputeColorTemperatureAdaptation() {
+	float target_kelvin = clamp(COLOR_TEMPERATURE_KELVIN, 4000.0f, 9300.0f);
+	if (abs(target_kelvin - 6500.0f) < 0.5f) return 1.0f.xxx;
+
+	float3 source_white_xyz = XYZFromxyY(float2(0.31272f, 0.32903f), 1.0f);
+	float3 target_white_xyz = XYZFromxyY(
+			DaylightChromaticityFromKelvin(target_kelvin),
+			1.0f);
+	float3 source_white_lms = mul(XYZ_TO_BRADFORD_LMS, source_white_xyz);
+	float3 target_white_lms = mul(XYZ_TO_BRADFORD_LMS, target_white_xyz);
+	return DivideSafe(
+			target_white_lms,
+			max(source_white_lms, float3(1e-6f, 1e-6f, 1e-6f)),
+			1.0f);
+}
+
+float3 ApplyColorTemperature(float3 bt709, float3 adaptation) {
+	if (abs(COLOR_TEMPERATURE_KELVIN - 6500.0f) < 0.5f) return bt709;
+	float3 color_lms = mul(BT709_TO_BRADFORD_LMS, bt709);
+	return mul(BRADFORD_LMS_TO_BT709, color_lms * adaptation);
+}
+
 float EstimatePeakNits() {
 	// Evaluate the configured maximum input white at full HDR Boost availability
 	// so the estimate remains independent of scene-dependent APL limiting.
@@ -1352,20 +1431,30 @@ float EstimatePeakNits() {
 	return max(probe.r, max(probe.g, probe.b)) * reference_white_nits;
 }
 
-float3 PrepareOutputLinear(float3 bt709, float white_clip) {
+float3 PrepareOutputLinear(
+		float3 bt709,
+		float white_clip,
+		float3 color_temperature_adaptation) {
 	uint output_transfer = ResolveOutputTransfer();
 	bt709 = ApplyNeutwo(bt709, white_clip);
 
 	if (output_transfer != OUTPUT_SRGB && GAMMA_CORRECTION != 0) {
 		bt709 = ApplyGamma22Correction(bt709);
 	}
+	bt709 = ApplyColorTemperature(bt709, color_temperature_adaptation);
 
 	return ApplyGamutCompression(bt709);
 }
 
-float3 EncodeOutput(float3 bt709, float white_clip) {
+float3 EncodeOutput(
+		float3 bt709,
+		float white_clip,
+		float3 color_temperature_adaptation) {
 	uint output_transfer = ResolveOutputTransfer();
-	bt709 = PrepareOutputLinear(bt709, white_clip);
+	bt709 = PrepareOutputLinear(
+			bt709,
+			white_clip,
+			color_temperature_adaptation);
 
 	if (output_transfer == OUTPUT_SRGB) {
 		return SRGBEncode(bt709);
@@ -1417,7 +1506,8 @@ float4 CacheFrameState(
 		if (SHOW_PEAK_BRIGHTNESS != 0) {
 			estimated_peak_nits = EstimatePeakNits();
 		}
-		return float4(estimated_peak_nits, 0.0f, 0.0f, 0.0f);
+		float3 color_temperature_adaptation = ComputeColorTemperatureAdaptation();
+		return float4(estimated_peak_nits, color_temperature_adaptation);
 	}
 
 	float boost_availability = ComputeAPLHDRBoostAvailability();
@@ -1555,9 +1645,20 @@ float4 Main(float4 position : SV_Position, float2 texcoord : TexCoord) : SV_Targ
 			FrameStateSampler,
 			float4(0.25f, 0.5f, 0.0f, 0.0f));
 	float white_clip = WhiteClipFromGradingPeak(frame_state.rgb);
+	float3 color_temperature_adaptation = 1.0f.xxx;
+	if (abs(COLOR_TEMPERATURE_KELVIN - 6500.0f) >= 0.5f) {
+		color_temperature_adaptation = tex2Dlod(
+				FrameStateSampler,
+				float4(0.75f, 0.5f, 0.0f, 0.0f)).gba;
+	}
 	bt709 = ApplyControls(bt709, frame_state.a, frame_state.rgb);
 
-	float4 output = float4(EncodeOutput(bt709, white_clip), input.a);
+	float4 output = float4(
+			EncodeOutput(
+					bt709,
+					white_clip,
+					color_temperature_adaptation),
+			input.a);
 	return DrawPeakBrightness(output, position.xy);
 }
 
