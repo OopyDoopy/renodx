@@ -147,6 +147,17 @@ uniform float INPUT_SCALING_NITS <
 	ui_tooltip = "For HDR10 and scRGB input. This should match the brightness scaling used by the game. This setting does not affect SDR input.";
 > = 100.0;
 
+uniform float MAX_INPUT_WHITE_NITS <
+	ui_type = "slider";
+	ui_category = "Input";
+	ui_min = 1.0;
+	ui_max = 10000.0;
+	ui_step = 1.0;
+	ui_units = " nits";
+	ui_label = "Max Input White";
+	ui_tooltip = "Set to the peak brightness of the input image. This is used to adjust behavior for highlight saturation, blowout, and Neutwo tone mapping.\nKeep at 100 nits for SDR input, unless upgrades unclamp the image before inverse tone mapping is applied.";
+> = 100.0;
+
 uniform float GAME_BRIGHTNESS_NITS <
 	ui_type = "slider";
 	ui_category = "Output";
@@ -171,7 +182,7 @@ uniform uint GAMMA_CORRECTION <
 	ui_category = "Output";
 	ui_items = "Off\0Gamma 2.2\0";
 	ui_label = "SDR EOTF Emulation";
-	ui_tooltip = "Emulates the look of an sRGB game viewed on a gamma 2.2 display. This is how most games are made.";
+	ui_tooltip = "Emulates the look of an sRGB game viewed on a gamma 2.2 display. This is how most games are made.\nIf you're using this on a native HDR game and it already uses the correct gamma, set this off.";
 > = 1;
 
 uniform uint SHOW_PEAK_BRIGHTNESS <
@@ -179,7 +190,7 @@ uniform uint SHOW_PEAK_BRIGHTNESS <
 	ui_category = "Output";
 	ui_items = "Off\0On\0";
 	ui_label = "Show Estimated Peak";
-	ui_tooltip = "Shows the estimated brightest output value from inverse tone mapping and color grading in the top-left corner of the screen. This assumes an SDR input that's clamped to SDR range and does not include APL limiting.";
+	ui_tooltip = "Shows the estimated output brightness of Max Input White after inverse tone mapping and brightness grading. The estimate does not include APL limiting.";
 > = 0;
 
 uniform float HDR_BOOST <
@@ -315,7 +326,7 @@ uniform uint TONEMAP_ENABLED <
 	ui_category = "Tone Mapping";
 	ui_items = "Off\0Neutwo\0";
 	ui_label = "Tone Mapper";
-	ui_tooltip = "Applies forward Neutwo compression after inverse tone mapping and grading. Use this only when very bright values clip or become unstable.";
+	ui_tooltip = "Applies forward Neutwo compression after inverse tone mapping and grading. Max Input White becomes Neutwo's white clip. If used with a native HDR game, make sure to set input white to the game's peak brightness.";
 > = 0;
 
 uniform float TONEMAP_PEAK_NITS <
@@ -472,6 +483,13 @@ float3 PQDecode(float3 pq) {
 	return pow(numerator / denominator, 1.0f / m1);
 }
 
+float ResolveInputScalingNits() {
+	if (INPUT_TRANSFER == 2 || INPUT_TRANSFER == 3) {
+		return max(INPUT_SCALING_NITS, 1.0f);
+	}
+	return 100.0f;
+}
+
 float3 DecodeInput(float3 input_color) {
 	if (INPUT_TRANSFER == 1) {
 		return SRGBDecode(input_color);
@@ -479,11 +497,11 @@ float3 DecodeInput(float3 input_color) {
 	if (INPUT_TRANSFER == 2) {
 		float3 bt2020_nits = PQDecode(input_color) * 10000.0f;
 		return mul(BT2020_TO_BT709, bt2020_nits)
-				/ max(INPUT_SCALING_NITS, 1.0f);
+				/ ResolveInputScalingNits();
 	}
 	if (INPUT_TRANSFER == 3) {
 		// scRGB is linear BT.709 where 1.0 represents 80 nits.
-		return input_color * (80.0f / max(INPUT_SCALING_NITS, 1.0f));
+		return input_color * (80.0f / ResolveInputScalingNits());
 	}
 	return input_color;
 }
@@ -979,7 +997,10 @@ float3 ApplyGradingYf(float3 bt709) {
 }
 
 float3 EstimatePeakWhiteBT709(float boost_availability) {
-	float3 peak_white = float3(1.0f, 1.0f, 1.0f);
+	float max_input_white = max(
+			MAX_INPUT_WHITE_NITS / ResolveInputScalingNits(),
+			0.01f);
+	float3 peak_white = max_input_white.xxx;
 	if (HDR_BOOST_GAMUT_EXPANSION >= 100.0f
 			&& HDR_BOOST_SPACE == GRADING_SPACE
 			&& GRADING_SPACE != SPACE_YF) {
@@ -1052,13 +1073,30 @@ float3 ApplyControls(
 	return controlled;
 }
 
-float Neutwo(float value, float peak) {
-	float numerator = peak * value;
-	float denominator_squared = value * value + peak * peak;
+float Neutwo(float value, float peak, float clip) {
+	float clip_squared = clip * clip;
+	float peak_squared = peak * peak;
+	float value_squared = value * value;
+	float numerator = clip * peak * value;
+	float denominator_squared = value_squared
+			* (clip_squared - peak_squared)
+			+ clip_squared * peak_squared;
 	return numerator * rsqrt(max(denominator_squared, 1e-12f));
 }
 
-float3 ApplyNeutwo(float3 bt709) {
+float WhiteClipFromGradingPeak(float3 peak_white) {
+	if (GRADING_SPACE == SPACE_YF) {
+		return max(peak_white.r, max(peak_white.g, peak_white.b));
+	}
+
+	float3 normalized = DivideSafe(
+			peak_white,
+			WorkingWhite(GRADING_SPACE),
+			0.0f);
+	return max(normalized.r, max(normalized.g, normalized.b));
+}
+
+float3 ApplyNeutwo(float3 bt709, float white_clip) {
 	if (TONEMAP_ENABLED == 0) return bt709;
 
 	uint output_transfer = ResolveOutputTransfer();
@@ -1071,19 +1109,21 @@ float3 ApplyNeutwo(float3 bt709) {
 	if (output_transfer != OUTPUT_SRGB && GAMMA_CORRECTION != 0) {
 		peak = SRGBDecode(SignPow(output_peak, 1.0f / 2.2f));
 	}
+	if (white_clip < peak) return bt709;
+	float clip = max(white_clip, peak);
 
 	if (TONEMAP_SPACE == SPACE_YF) {
 		float white_yf = max(YfWhite(), 1e-6f);
 		float source_yf = max(YfFromBT709(bt709), 0.0f);
 		float normalized_yf = source_yf / white_yf;
-		float mapped_yf = Neutwo(normalized_yf, peak) * white_yf;
+		float mapped_yf = Neutwo(normalized_yf, peak, clip) * white_yf;
 		return ScaleToYf(bt709, source_yf, mapped_yf);
 	}
 
 	if (TONEMAP_SPACE == SPACE_MAX_CHANNEL) {
 		float brightest = max(bt709.r, max(bt709.g, bt709.b));
 		if (brightest <= 1e-6f) return bt709;
-		float mapped_brightest = Neutwo(brightest, peak);
+		float mapped_brightest = Neutwo(brightest, peak, clip);
 		return bt709 * (mapped_brightest / brightest);
 	}
 
@@ -1092,9 +1132,9 @@ float3 ApplyNeutwo(float3 bt709) {
 	float3 normalized = DivideSafe(working, white, 0.0f);
 
 	normalized = float3(
-			Neutwo(normalized.r, peak),
-			Neutwo(normalized.g, peak),
-			Neutwo(normalized.b, peak));
+			Neutwo(normalized.r, peak, clip),
+			Neutwo(normalized.g, peak, clip),
+			Neutwo(normalized.b, peak, clip));
 	float3 mapped = normalized * white;
 	mapped = RestoreWorkingHue(working, mapped, TONEMAP_SPACE);
 	return FromWorking(mapped, TONEMAP_SPACE);
@@ -1303,8 +1343,8 @@ float3 ApplyGamma22Correction(float3 bt709) {
 }
 
 float EstimatePeakNits() {
-	// Evaluate neutral SDR white at full HDR Boost availability so the estimate
-	// reports the configured peak independently of scene-dependent APL limiting.
+	// Evaluate the configured maximum input white at full HDR Boost availability
+	// so the estimate remains independent of scene-dependent APL limiting.
 	float3 probe = EstimatePeakWhiteBT709(1.0f);
 	float reference_white_nits = ResolveOutputTransfer() == OUTPUT_SRGB
 			? 100.0f
@@ -1312,9 +1352,9 @@ float EstimatePeakNits() {
 	return max(probe.r, max(probe.g, probe.b)) * reference_white_nits;
 }
 
-float3 PrepareOutputLinear(float3 bt709) {
+float3 PrepareOutputLinear(float3 bt709, float white_clip) {
 	uint output_transfer = ResolveOutputTransfer();
-	bt709 = ApplyNeutwo(bt709);
+	bt709 = ApplyNeutwo(bt709, white_clip);
 
 	if (output_transfer != OUTPUT_SRGB && GAMMA_CORRECTION != 0) {
 		bt709 = ApplyGamma22Correction(bt709);
@@ -1323,9 +1363,9 @@ float3 PrepareOutputLinear(float3 bt709) {
 	return ApplyGamutCompression(bt709);
 }
 
-float3 EncodeOutput(float3 bt709) {
+float3 EncodeOutput(float3 bt709, float white_clip) {
 	uint output_transfer = ResolveOutputTransfer();
-	bt709 = PrepareOutputLinear(bt709);
+	bt709 = PrepareOutputLinear(bt709, white_clip);
 
 	if (output_transfer == OUTPUT_SRGB) {
 		return SRGBEncode(bt709);
@@ -1514,9 +1554,10 @@ float4 Main(float4 position : SV_Position, float2 texcoord : TexCoord) : SV_Targ
 	float4 frame_state = tex2Dlod(
 			FrameStateSampler,
 			float4(0.25f, 0.5f, 0.0f, 0.0f));
+	float white_clip = WhiteClipFromGradingPeak(frame_state.rgb);
 	bt709 = ApplyControls(bt709, frame_state.a, frame_state.rgb);
 
-	float4 output = float4(EncodeOutput(bt709), input.a);
+	float4 output = float4(EncodeOutput(bt709, white_clip), input.a);
 	return DrawPeakBrightness(output, position.xy);
 }
 
