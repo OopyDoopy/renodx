@@ -157,7 +157,7 @@ uniform uint INPUT_TRANSFER <
 uniform float INPUT_SCALING_NITS <
 	ui_type = "slider";
 	ui_category = "Input";
-	ui_min = 1.0;
+	ui_min = 100.0;
 	ui_max = 1000.0;
 	ui_step = 1.0;
 	ui_units = " nits";
@@ -168,7 +168,7 @@ uniform float INPUT_SCALING_NITS <
 uniform float MAX_INPUT_WHITE_NITS <
 	ui_type = "slider";
 	ui_category = "Input";
-	ui_min = 1.0;
+	ui_min = 100.0;
 	ui_max = 10000.0;
 	ui_step = 1.0;
 	ui_units = " nits";
@@ -179,11 +179,11 @@ uniform float MAX_INPUT_WHITE_NITS <
 uniform float GAME_BRIGHTNESS_NITS <
 	ui_type = "slider";
 	ui_category = "Output";
-	ui_min = 1.0;
+	ui_min = 100.0;
 	ui_max = 500.0;
 	ui_step = 1.0;
 	ui_units = " nits";
-	ui_label = "Game Brightness";
+	ui_label = "Output Scaling";
 	ui_tooltip = "Sets the HDR reference-white brightness for HDR10 and scRGB output. This setting does not affect sRGB output.";
 > = 203.0;
 
@@ -248,16 +248,6 @@ uniform uint HDR_BOOST_APL_LIMITER <
 	ui_label = "APL Limiter";
 	ui_tooltip = "Lowers inverse tone mapping based on the average luminance of the full scene. This prevents very bright scenes from becoming too bright.";
 > = 1;
-
-uniform float EXPOSURE <
-	ui_type = "slider";
-	ui_category = "Color Grading";
-	ui_min = 0.0;
-	ui_max = 2.0;
-	ui_step = 0.01;
-	ui_label = "Exposure";
-	ui_tooltip = "Changes the brightness of the whole image. 1.0 is unchanged; lower values darken and higher values brighten.";
-> = 1.0;
 
 uniform float HIGHLIGHTS <
 	ui_type = "slider";
@@ -827,8 +817,7 @@ float3 ApplyGlobalSaturation(
 }
 
 bool IsBrightnessGradingNeutral() {
-	return EXPOSURE == 1.0f
-			&& HIGHLIGHTS == 50.0f
+	return HIGHLIGHTS == 50.0f
 			&& SHADOWS == 50.0f
 			&& CONTRAST == 50.0f
 			&& FLARE == 0.0f;
@@ -844,7 +833,7 @@ float3 ApplyBrightnessGradingShaping(float3 working, uint working_space) {
 
 	float3 white = WorkingWhite(working_space);
 	float3 adaptive_state = white * GRADING_MID_GRAY;
-	float3 graded = working * EXPOSURE;
+	float3 graded = working;
 
 	// Shape bright values around the middle of the visible range.
 	if (highlights != 1.0f) {
