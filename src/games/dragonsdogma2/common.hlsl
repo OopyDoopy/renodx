@@ -122,7 +122,7 @@ renodx::tonemap::aces::ODTConfig CreateODTConfig(
           exp_shift_max_reference);
     }
 
-    float exp_shift = log2(InvSSTS(mid_y, exp_shift_config)) - log2(0.18f);
+    float exp_shift = log2(renodx_custom::tonemap::aces::InvSSTS(mid_y, exp_shift_config)) - log2(0.18f);
     float shift_log10 = exp_shift * log10(2.f);
     config.y_min.x -= shift_log10;
     config.y_mid.x -= shift_log10;
