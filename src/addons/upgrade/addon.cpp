@@ -65,6 +65,7 @@ constexpr std::array UPGRADE_TARGETS = {
 
 renodx::utils::settings::Settings settings = {};
 Setting* device_proxy_setting = nullptr;
+bool effect_insertion_enabled = false;
 float fps_limiter_enabled = 0.f;
 float fps_limit_value = 60.f;
 reshade::api::swapchain* tracked_swapchain = nullptr;
@@ -2002,6 +2003,19 @@ void ConfigureEffectInsertion() {
     }
 }
 
+void ConfigureEffectInsertionFeature() {
+    effect_insertion_enabled = AddGlobalSetting(new Setting{
+            .key = "EnableEffectInsertion",
+            .value_type = SettingValueType::BOOLEAN,
+            .default_value = 0.f,
+            .label = "Enable Shader Insertion",
+            .section = "Shader Insertion",
+            .tooltip = "Enables shader, pipeline, descriptor, command-state, frame-capture, and ReShade effect-insertion tracking. Requires a game restart.",
+    })->GetValue() == 1.f;
+
+    if (effect_insertion_enabled) ConfigureEffectInsertion();
+}
+
 float GetDisplayRefreshRate() {
     if (tracked_swapchain == nullptr) return 0.f;
 
@@ -2674,7 +2688,7 @@ void Initialize() {
   renodx::utils::settings::use_presets = false;
 
   AddStartupNotice();
-    ConfigureEffectInsertion();
+    ConfigureEffectInsertionFeature();
   ConfigureSwapchain();
   ConfigureDeviceProxy();
   ConfigureResourceUpgrades();
@@ -2696,52 +2710,56 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD reason, LPVOID reserved) {
         initialized = true;
       }
 
-        reshade::register_event<reshade::addon_event::init_device>(OnInitDevice);
-        reshade::register_event<reshade::addon_event::destroy_device>(OnDestroyDevice);
-        reshade::register_event<reshade::addon_event::init_command_list>(OnInitCommandList);
-        reshade::register_event<reshade::addon_event::destroy_command_list>(OnDestroyCommandList);
-        reshade::register_event<reshade::addon_event::reset_command_list>(OnResetCommandList);
-        reshade::register_event<reshade::addon_event::execute_command_list>(OnExecuteCommandList);
-        reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
-        reshade::register_event<reshade::addon_event::destroy_swapchain>(OnDestroySwapchain);
-        reshade::register_event<reshade::addon_event::present>(OnPresent);
-        reshade::register_event<reshade::addon_event::finish_present>(OnFinishPresent);
-        reshade::register_event<reshade::addon_event::destroy_resource>(OnDestroyResource);
-        reshade::register_event<reshade::addon_event::reshade_overlay>(OnReshadeOverlay);
-        reshade::register_overlay("RenoDX Pipeline Insert", OnRegisterPipelineInsertOverlay);
-
         renodx::utils::settings::Use(reason, &settings);
-        renodx::utils::descriptor::trace_descriptor_tables = true;
-        renodx::utils::descriptor::Use(reason);
-        renodx::utils::pipeline_layout::Use(reason);
-        renodx::utils::shader::Use(reason);
-        renodx::utils::state::Use(reason);
-        renodx::utils::command_action::Use(reason);
+                if (effect_insertion_enabled) {
+                    reshade::register_event<reshade::addon_event::init_device>(OnInitDevice);
+                    reshade::register_event<reshade::addon_event::destroy_device>(OnDestroyDevice);
+                    reshade::register_event<reshade::addon_event::init_command_list>(OnInitCommandList);
+                    reshade::register_event<reshade::addon_event::destroy_command_list>(OnDestroyCommandList);
+                    reshade::register_event<reshade::addon_event::reset_command_list>(OnResetCommandList);
+                    reshade::register_event<reshade::addon_event::execute_command_list>(OnExecuteCommandList);
+                    reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
+                    reshade::register_event<reshade::addon_event::destroy_swapchain>(OnDestroySwapchain);
+                    reshade::register_event<reshade::addon_event::present>(OnPresent);
+                    reshade::register_event<reshade::addon_event::finish_present>(OnFinishPresent);
+                    reshade::register_event<reshade::addon_event::destroy_resource>(OnDestroyResource);
+                    reshade::register_event<reshade::addon_event::reshade_overlay>(OnReshadeOverlay);
+                    reshade::register_overlay("RenoDX Pipeline Insert", OnRegisterPipelineInsertOverlay);
+
+                    renodx::utils::descriptor::trace_descriptor_tables = true;
+                    renodx::utils::descriptor::Use(reason);
+                    renodx::utils::pipeline_layout::Use(reason);
+                    renodx::utils::shader::Use(reason);
+                    renodx::utils::state::Use(reason);
+                    renodx::utils::command_action::Use(reason);
+                }
         renodx::mods::swapchain::Use(reason);
       break;
     case DLL_PROCESS_DETACH:
-        reshade::unregister_overlay("RenoDX Pipeline Insert", OnRegisterPipelineInsertOverlay);
-        reshade::unregister_event<reshade::addon_event::reshade_overlay>(OnReshadeOverlay);
-        reshade::unregister_event<reshade::addon_event::destroy_resource>(OnDestroyResource);
-        reshade::unregister_event<reshade::addon_event::finish_present>(OnFinishPresent);
-        reshade::unregister_event<reshade::addon_event::present>(OnPresent);
-        reshade::unregister_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
-        reshade::unregister_event<reshade::addon_event::destroy_swapchain>(OnDestroySwapchain);
-        reshade::unregister_event<reshade::addon_event::execute_command_list>(OnExecuteCommandList);
-        reshade::unregister_event<reshade::addon_event::reset_command_list>(OnResetCommandList);
-        reshade::unregister_event<reshade::addon_event::destroy_command_list>(OnDestroyCommandList);
-        reshade::unregister_event<reshade::addon_event::init_command_list>(OnInitCommandList);
-        reshade::unregister_event<reshade::addon_event::init_device>(OnInitDevice);
-        reshade::unregister_event<reshade::addon_event::destroy_device>(OnDestroyDevice);
-
-        renodx::utils::command_action::Unregister(EffectInsertionCallback{});
-        renodx::utils::command_action::Unregister(EffectInsertionDrawCaptureCallback{});
         renodx::mods::swapchain::Use(reason);
-        renodx::utils::command_action::Use(reason);
-        renodx::utils::state::Use(reason);
-        renodx::utils::shader::Use(reason);
-        renodx::utils::pipeline_layout::Use(reason);
-        renodx::utils::descriptor::Use(reason);
+                if (effect_insertion_enabled) {
+                    reshade::unregister_overlay("RenoDX Pipeline Insert", OnRegisterPipelineInsertOverlay);
+                    reshade::unregister_event<reshade::addon_event::reshade_overlay>(OnReshadeOverlay);
+                    reshade::unregister_event<reshade::addon_event::destroy_resource>(OnDestroyResource);
+                    reshade::unregister_event<reshade::addon_event::finish_present>(OnFinishPresent);
+                    reshade::unregister_event<reshade::addon_event::present>(OnPresent);
+                    reshade::unregister_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
+                    reshade::unregister_event<reshade::addon_event::destroy_swapchain>(OnDestroySwapchain);
+                    reshade::unregister_event<reshade::addon_event::execute_command_list>(OnExecuteCommandList);
+                    reshade::unregister_event<reshade::addon_event::reset_command_list>(OnResetCommandList);
+                    reshade::unregister_event<reshade::addon_event::destroy_command_list>(OnDestroyCommandList);
+                    reshade::unregister_event<reshade::addon_event::init_command_list>(OnInitCommandList);
+                    reshade::unregister_event<reshade::addon_event::init_device>(OnInitDevice);
+                    reshade::unregister_event<reshade::addon_event::destroy_device>(OnDestroyDevice);
+
+                    renodx::utils::command_action::Unregister(EffectInsertionCallback{});
+                    renodx::utils::command_action::Unregister(EffectInsertionDrawCaptureCallback{});
+                    renodx::utils::command_action::Use(reason);
+                    renodx::utils::state::Use(reason);
+                    renodx::utils::shader::Use(reason);
+                    renodx::utils::pipeline_layout::Use(reason);
+                    renodx::utils::descriptor::Use(reason);
+                }
         renodx::utils::settings::Use(reason, &settings);
       reshade::unregister_addon(h_module);
       break;
