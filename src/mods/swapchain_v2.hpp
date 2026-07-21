@@ -115,6 +115,7 @@ static bool use_resize_buffer = false;
 static bool use_resize_buffer_on_set_full_screen = false;
 static bool use_resize_buffer_on_demand = false;
 static bool use_resize_buffer_on_present = false;
+static bool use_swapchain_upgrade = true;
 static bool& device_proxy_wait_idle_source = utils::device_proxy::device_proxy_wait_idle_source;
 static bool& device_proxy_wait_idle_destination = utils::device_proxy::device_proxy_wait_idle_destination;
 static bool upgrade_resource_views = true;
@@ -574,6 +575,8 @@ static bool OnCreateSwapchain(reshade::api::swapchain_desc& desc, void* hwnd) {
   original_swapchain_desc = desc;
   upgraded_swapchain_desc.reset();
 
+  if (!use_swapchain_upgrade) return false;
+
   if (!renodx::utils::bitwise::HasFlag(desc.back_buffer.usage, reshade::api::resource_usage::render_target)) {
     return false;
   }
@@ -759,6 +762,8 @@ static void OnPresentForResizeBuffer(
 
 static void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
   local_swapchain_resize = false;
+
+  if (!use_swapchain_upgrade) return;
 
   std::stringstream s;
   s << "mods::swapchain::OnInitSwapchain(";
@@ -1172,6 +1177,8 @@ inline void OnPresent(
     const reshade::api::rect* dest_rect,
     uint32_t dirty_rect_count,
     const reshade::api::rect* dirty_rects) {
+  if (!use_swapchain_upgrade) return;
+
   auto* device = swapchain->get_device();
   auto* data = renodx::utils::data::Get<DeviceData>(device);
   if (data == nullptr) return;
