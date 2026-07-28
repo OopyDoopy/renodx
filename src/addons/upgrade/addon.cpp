@@ -27,6 +27,8 @@
 
 #include <embed/shaders.h>
 
+#include "automatic_detection.hpp"
+
 #include "../../mods/swapchain.hpp"  // IWYU pragma: keep
 #include "../../utils/command_action.hpp"
 #include "../../utils/data.hpp"
@@ -42,6 +44,7 @@ namespace {
 
 using Setting = renodx::utils::settings::Setting;
 using SettingValueType = renodx::utils::settings::SettingValueType;
+namespace automatic_detection = renodx::addons::upgrade::automatic_detection;
 
 constexpr float UPGRADE_TYPE_OUTPUT_SIZE = 1.f;
 constexpr float UPGRADE_TYPE_OUTPUT_RATIO = 2.f;
@@ -152,15 +155,15 @@ struct __declspec(uuid("ae845c75-7314-47b4-832c-b8ab6059772b")) EffectInsertionD
     bool effect_runtime_present_lock_held = false;
     std::vector<uint32_t> occurrences;
     uint64_t rule_revision = 0u;
-    uint32_t automatic_shader_hash = 0u;
-    uint32_t automatic_vertex_shader_hash = 0u;
-    reshade::api::pipeline_layout automatic_pipeline_layout = {0u};
-    uint32_t automatic_shader_missed_frames = 0u;
     bool rendered = false;
-    bool final_effects_pending = false;
-    uint32_t automatic_match_count = 0u;
-    uint32_t rendered_technique_count = 0u;
-    uint32_t automatic_sample_frame_count = 0u;
+    std::unordered_set<reshade::api::effect_runtime*> final_effect_runtimes_pending;
+    renodx::addons::upgrade::automatic_detection::Detector automatic_detector;
+    bool automatic_final_target_active = false;
+    uint32_t automatic_true_output_shader_hash = 0u;
+    uint64_t automatic_true_output_resource = 0u;
+    std::vector<uint64_t> automatic_final_target_resources;
+    std::vector<uint64_t> automatic_current_final_target_resources;
+    renodx::addons::upgrade::automatic_detection::Detector automatic_final_target_detector;
     EffectInsertionRule render_rule = {};
     std::vector<reshade::api::resource_view> swapchain_rtvs;
     bool capture_requested = false;
@@ -176,10 +179,9 @@ struct __declspec(uuid("ae845c75-7314-47b4-832c-b8ab6059772b")) EffectInsertionD
 
 struct __declspec(uuid("627784c3-9367-48da-ad83-cbefa3fc14fa")) EffectInsertionCommandListData {
     std::mutex mutex;
-    uint64_t automatic_candidate_revision = 0u;
-    uint32_t automatic_candidate_shader_hash = 0u;
-    uint32_t automatic_candidate_vertex_shader_hash = 0u;
-    reshade::api::pipeline_layout automatic_candidate_pipeline_layout = {0u};
+    uint64_t automatic_revision = 0u;
+    std::vector<renodx::addons::upgrade::automatic_detection::SwapchainWriter> automatic_writers;
+    std::vector<renodx::addons::upgrade::automatic_detection::SwapchainWriter> automatic_final_target_writers;
 };
 
 EffectInsertionMode active_effect_insertion_mode = EffectInsertionMode::automatic;
@@ -201,6 +203,7 @@ thread_local bool is_rendering_inserted_effects = false;
 std::atomic<reshade::api::device*> effect_insertion_capture_device = nullptr;
 std::mutex active_effect_insertion_rule_mutex;
 std::atomic_uint64_t active_effect_insertion_rule_revision = 1u;
+std::atomic_uint32_t automatic_submission_counter = 0u;
 uint32_t selected_effect_insertion_shader_hash = 0u;
 size_t selected_effect_insertion_rule_index = SIZE_MAX;
 
@@ -584,6 +587,58 @@ void SaveEffectInsertionRules(const std::vector<EffectInsertionRule>& rules) {
     }
 }
 
+[[nodiscard]] reshade::api::resource GetLogicalResourceFromView(
+        reshade::api::device* device,
+        reshade::api::resource_view view) {
+    if (view.handle == 0u) return {0u};
+
+    reshade::api::resource resource = {0u};
+    if (renodx::utils::resource::GetLiveResourceViewInfo(
+                view,
+                [&resource](const renodx::utils::resource::ResourceViewInfo& info) {
+                    resource = info.original_resource;
+                })
+            && resource.handle != 0u) {
+        return resource;
+    }
+    return renodx::utils::resource::GetResourceFromView(device, view);
+}
+
+[[nodiscard]] std::vector<reshade::api::resource> GetMatchingPixelShaderResourcesD3D11(
+        reshade::api::command_list* cmd_list,
+        uint32_t width,
+        uint32_t height,
+    AutomaticEffectInsertionSourceSize source_size,
+    bool* has_texture_2d_srv = nullptr) {
+    std::vector<reshade::api::resource> resources;
+    auto* native_context = reinterpret_cast<ID3D11DeviceContext*>(
+            static_cast<uintptr_t>(cmd_list->get_native()));  // NOLINT(performance-no-int-to-ptr)
+    if (native_context == nullptr) return resources;
+
+    std::array<ID3D11ShaderResourceView*, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> views = {};
+    native_context->PSGetShaderResources(0u, static_cast<uint32_t>(views.size()), views.data());
+    auto* device = cmd_list->get_device();
+    for (auto* native_view : views) {
+        if (native_view == nullptr) continue;
+        const auto view = reshade::api::resource_view{reinterpret_cast<uintptr_t>(native_view)};
+        const auto resource = GetLogicalResourceFromView(device, view);
+        if (resource.handle == 0u) continue;
+        const auto desc = renodx::utils::resource::GetResourceDesc(device, resource);
+        if (desc.type == reshade::api::resource_type::texture_2d
+                && has_texture_2d_srv != nullptr) {
+            *has_texture_2d_srv = true;
+        }
+        if (MatchesAutomaticEffectInsertionSourceSize(desc, width, height, source_size)
+                && std::ranges::find(resources, resource) == resources.end()) {
+            resources.push_back(resource);
+        }
+    }
+    for (auto* native_view : views) {
+        if (native_view != nullptr) native_view->Release();
+    }
+    return resources;
+}
+
 [[nodiscard]] bool IsAutomaticEffectInsertionSourceResourceView(
         reshade::api::device* device,
         reshade::api::resource_view view,
@@ -626,38 +681,13 @@ void SaveEffectInsertionRules(const std::vector<EffectInsertionRule>& rules) {
             source_size);
 }
 
-[[nodiscard]] bool HasSwapchainSizedPixelShaderResourceD3D11(
-        reshade::api::command_list* cmd_list,
-        uint32_t width,
-    uint32_t height,
-    AutomaticEffectInsertionSourceSize source_size) {
-    auto* native_context = reinterpret_cast<ID3D11DeviceContext*>(
-            static_cast<uintptr_t>(cmd_list->get_native()));  // NOLINT(performance-no-int-to-ptr)
-    if (native_context == nullptr) return false;
-
-    std::array<ID3D11ShaderResourceView*, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> views = {};
-    native_context->PSGetShaderResources(0u, static_cast<uint32_t>(views.size()), views.data());
-    const auto* device = cmd_list->get_device();
-    bool found = false;
-    for (auto* native_view : views) {
-        if (native_view == nullptr) continue;
-        found |= IsAutomaticEffectInsertionSourceResourceView(
-            const_cast<reshade::api::device*>(device),
-                {reinterpret_cast<uintptr_t>(native_view)},
-            width, height, source_size);
-        if (found) break;
-    }
-    for (auto* native_view : views) {
-        if (native_view != nullptr) native_view->Release();
-    }
-    return found;
-}
-
 [[nodiscard]] bool HasSwapchainSizedPixelShaderResourceD3D12(
         reshade::api::command_list* cmd_list,
         uint32_t width,
     uint32_t height,
-    AutomaticEffectInsertionSourceSize source_size) {
+    AutomaticEffectInsertionSourceSize source_size,
+    std::vector<reshade::api::resource>* matching_resources = nullptr,
+    bool* has_texture_2d_srv = nullptr) {
     auto* command_state = renodx::utils::state::GetCurrentState(cmd_list);
     if (command_state == nullptr) return false;
 
@@ -684,7 +714,8 @@ void SaveEffectInsertionRules(const std::vector<EffectInsertionRule>& rules) {
                         shader_details.layout,
                         [&](const renodx::utils::pipeline_layout::PipelineLayoutData* layout_data) {
                             for (uint32_t parameter_index = 0u;
-                                    parameter_index < layout_data->params.size() && !found;
+                                    parameter_index < layout_data->params.size()
+                                    && (matching_resources != nullptr || !found);
                                     ++parameter_index) {
                                 if (parameter_index >= command_state->graphics_descriptor_tables.size()) continue;
                                 const auto descriptor_table = command_state->graphics_descriptor_tables[parameter_index];
@@ -706,7 +737,10 @@ void SaveEffectInsertionRules(const std::vector<EffectInsertionRule>& rules) {
                                         continue;
                                 }
 
-                                for (uint32_t range_index = 0u; range_index < range_count && !found; ++range_index) {
+                                for (uint32_t range_index = 0u;
+                                    range_index < range_count
+                                    && (matching_resources != nullptr || !found);
+                                    ++range_index) {
                                     const auto& range = ranges[range_index];
                                     if (range.count == 0u || range.count == UINT32_MAX
                                             || (static_cast<uint32_t>(range.visibility)
@@ -751,10 +785,29 @@ void SaveEffectInsertionRules(const std::vector<EffectInsertionRule>& rules) {
                                     }
 
                                     for (const auto resource_view : resource_views) {
+                                        const auto resource = GetLogicalResourceFromView(device, resource_view);
+                                        if (resource.handle != 0u && has_texture_2d_srv != nullptr) {
+                                            renodx::utils::resource::GetLiveResourceInfo(
+                                                    resource,
+                                                    [has_texture_2d_srv](
+                                                            const renodx::utils::resource::ResourceInfo& info) {
+                                                        if (info.desc.type
+                                                                == reshade::api::resource_type::texture_2d) {
+                                                            *has_texture_2d_srv = true;
+                                                        }
+                                                    });
+                                        }
                                         if (IsAutomaticEffectInsertionSourceResourceView(
                                                     device, resource_view, width, height, source_size)) {
                                             found = true;
-                                            break;
+                                            if (matching_resources == nullptr) break;
+                                            if (resource.handle != 0u
+                                                    && std::ranges::find(
+                                                               *matching_resources,
+                                                               resource)
+                                                           == matching_resources->end()) {
+                                                matching_resources->push_back(resource);
+                                            }
                                         }
                                     }
                                 }
@@ -764,10 +817,33 @@ void SaveEffectInsertionRules(const std::vector<EffectInsertionRule>& rules) {
     return found;
 }
 
-[[nodiscard]] bool FindAutomaticEffectInsertionRule(
+[[nodiscard]] std::vector<reshade::api::resource> GetMatchingPixelShaderResources(
         reshade::api::command_list* cmd_list,
+        uint32_t width,
+        uint32_t height,
+        AutomaticEffectInsertionSourceSize source_size,
+        bool* has_texture_2d_srv = nullptr) {
+    if (cmd_list->get_device()->get_api() == reshade::api::device_api::d3d11) {
+        return GetMatchingPixelShaderResourcesD3D11(
+            cmd_list, width, height, source_size, has_texture_2d_srv);
+    }
+
+    std::vector<reshade::api::resource> resources;
+        const bool found = HasSwapchainSizedPixelShaderResourceD3D12(
+            cmd_list,
+            width,
+            height,
+            source_size,
+            &resources,
+            has_texture_2d_srv);
+        (void)found;
+    return resources;
+}
+
+[[nodiscard]] bool FindSwapchainEffectInsertionRule(
+    reshade::api::command_list* cmd_list,
     EffectInsertionRule& rule,
-    AutomaticEffectInsertionSourceSize source_size) {
+    reshade::api::resource* target_resource = nullptr) {
     auto* device = cmd_list->get_device();
     const auto* command_list_data = renodx::utils::swapchain::GetCurrentState(cmd_list);
     if (command_list_data == nullptr) return false;
@@ -785,13 +861,31 @@ void SaveEffectInsertionRules(const std::vector<EffectInsertionRule>& rules) {
                 });
         if (!is_swapchain) continue;
 
-        const auto desc = renodx::utils::resource::GetResourceDesc(device, resource);
-        const bool has_source = device->get_api() == reshade::api::device_api::d3d11
-            ? HasSwapchainSizedPixelShaderResourceD3D11(
-                cmd_list, desc.texture.width, desc.texture.height, source_size)
-            : HasSwapchainSizedPixelShaderResourceD3D12(
-                cmd_list, desc.texture.width, desc.texture.height, source_size);
-        if (!has_source) continue;
+        rule = {
+                .enabled = true,
+                .match_format = false,
+                .match_dimensions = false,
+                .rtv_index = rtv_index,
+        };
+        if (target_resource != nullptr) {
+            *target_resource = GetLogicalResourceFromView(device, render_target);
+        }
+        return true;
+    }
+    return false;
+}
+
+[[nodiscard]] bool FindEffectInsertionRuleForResource(
+        reshade::api::command_list* cmd_list,
+        uint64_t target_resource,
+        EffectInsertionRule& rule) {
+    auto* device = cmd_list->get_device();
+    const auto* command_list_data = renodx::utils::swapchain::GetCurrentState(cmd_list);
+    if (command_list_data == nullptr) return false;
+
+    for (uint32_t rtv_index = 0u; rtv_index < command_list_data->current_render_targets.size(); ++rtv_index) {
+        const auto render_target = command_list_data->current_render_targets[rtv_index];
+        if (GetLogicalResourceFromView(device, render_target).handle != target_resource) continue;
 
         rule = {
                 .enabled = true,
@@ -930,6 +1024,7 @@ struct EffectInsertionCallback {
 
         const std::shared_lock lock(device_data->mutex);
         bool rendered_technique = false;
+        std::vector<reshade::api::effect_runtime*> rendered_runtimes;
         for (auto* runtime : device_data->effect_runtimes) {
             if (runtime == nullptr) continue;
             struct TechniqueState {
@@ -969,30 +1064,23 @@ struct EffectInsertionCallback {
                     runtime->set_technique_state(state.handle, state.selected);
                 }
             }
-            reshade::log::message(
-                    reshade::log::level::debug,
-                    "Pipeline insert rendering selected techniques through render_effects.");
             runtime->render_effects(context.cmd_list, render_target, render_target);
-            reshade::log::message(
-                    reshade::log::level::debug,
-                    "Pipeline insert completed render_effects.");
             for (const auto& state : technique_states) {
                 if (state.enabled != state.selected) {
                     runtime->set_technique_state(state.handle, state.enabled);
                 }
             }
             rendered_technique = true;
+            rendered_runtimes.push_back(runtime);
         }
         if (rendered_technique && previous_state.has_value()) {
             previous_state->Apply(context.cmd_list);
-            reshade::log::message(
-                    reshade::log::level::debug,
-                    "Pipeline insert restored the D3D12 game state.");
         }
         if (rendered_technique) {
             const std::lock_guard lock(insertion_data->mutex);
-            ++insertion_data->rendered_technique_count;
-            insertion_data->final_effects_pending = true;
+            insertion_data->final_effect_runtimes_pending.insert(
+                    rendered_runtimes.begin(),
+                    rendered_runtimes.end());
         }
     }
 
@@ -1008,10 +1096,6 @@ struct EffectInsertionCallback {
         if (shader_state == nullptr) return {};
         const uint32_t shader_hash = renodx::utils::shader::GetCurrentPixelShaderHash(shader_state);
         if (shader_hash == 0u) return {};
-        const uint32_t vertex_shader_hash = renodx::utils::shader::GetCurrentShaderHash(
-            shader_state,
-            renodx::utils::shader::VERTEX_INDEX);
-
         EffectInsertionMode mode = EffectInsertionMode::automatic;
         AutomaticEffectInsertionSourceSize automatic_source_size =
             AutomaticEffectInsertionSourceSize::swapchain;
@@ -1041,55 +1125,114 @@ struct EffectInsertionCallback {
             if (insertion_data->rule_revision != rule_revision) {
                 insertion_data->rule_revision = rule_revision;
                 insertion_data->occurrences.assign(rules.size(), 0u);
-                insertion_data->automatic_shader_hash = 0u;
-                insertion_data->automatic_vertex_shader_hash = 0u;
-                insertion_data->automatic_pipeline_layout = {0u};
-                insertion_data->automatic_shader_missed_frames = 0u;
+                insertion_data->automatic_detector.Reset();
+                insertion_data->automatic_final_target_active = false;
+                insertion_data->automatic_true_output_shader_hash = 0u;
+                insertion_data->automatic_true_output_resource = 0u;
+                insertion_data->automatic_final_target_resources.clear();
+                insertion_data->automatic_current_final_target_resources.clear();
+                insertion_data->automatic_final_target_detector.Reset();
                 insertion_data->rendered = false;
             }
-            if (insertion_data->rendered) return {};
-
             if (mode == EffectInsertionMode::automatic) {
-                if (device->get_api() != reshade::api::device_api::d3d12) {
-                    if (!FindAutomaticEffectInsertionRule(context.cmd_list, rule, automatic_source_size)) return {};
-                    ++insertion_data->automatic_match_count;
-                } else {
-                    const auto* current_state = renodx::utils::state::GetCurrentState(context.cmd_list);
-                    if (current_state == nullptr) return {};
-
-                    const bool has_automatic_signature = insertion_data->automatic_shader_hash != 0u;
-                    if (has_automatic_signature) {
-                        if (insertion_data->automatic_vertex_shader_hash != 0u) {
-                            if (insertion_data->automatic_vertex_shader_hash != vertex_shader_hash) return {};
-                        } else if (insertion_data->automatic_pipeline_layout
-                                   != current_state->graphics_pipeline_layout) {
-                            return {};
-                        }
-                    }
-                    if (!FindAutomaticEffectInsertionRule(context.cmd_list, rule, automatic_source_size)) return {};
-                    if (has_automatic_signature) {
-                        ++insertion_data->automatic_match_count;
-                        insertion_data->automatic_shader_hash = shader_hash;
-                    } else {
+                bool learned_final_target = false;
+                if (insertion_data->automatic_final_target_active) {
+                    for (const uint64_t target_resource : insertion_data->automatic_final_target_resources) {
+                        EffectInsertionRule target_rule = {};
+                        if (!FindEffectInsertionRuleForResource(context.cmd_list, target_resource, target_rule)) continue;
+                    bool has_texture_2d_srv = false;
+                    const auto target_desc = renodx::utils::resource::GetResourceDesc(
+                            device,
+                            reshade::api::resource{target_resource});
+                    const bool has_matching_source = !GetMatchingPixelShaderResources(
+                            context.cmd_list,
+                            target_desc.texture.width,
+                            target_desc.texture.height,
+                            automatic_source_size,
+                            &has_texture_2d_srv)
+                                                               .empty();
+                    const bool is_learned = insertion_data->automatic_final_target_detector.IsLearned(
+                        shader_hash);
+                    const automatic_detection::SwapchainWriter writer = {
+                        .shader_hash = shader_hash,
+                        .rtv_index = target_rule.rtv_index,
+                        .target_resource = target_resource,
+                        .has_texture_2d_srv = has_texture_2d_srv,
+                        .has_matching_source = has_matching_source,
+                    };
+                    if (device->get_api() == reshade::api::device_api::d3d12) {
                         auto* command_list_data = renodx::utils::data::Get<EffectInsertionCommandListData>(
                                 context.cmd_list);
-                        if (command_list_data != nullptr) {
-                            const std::lock_guard command_list_lock(command_list_data->mutex);
-                            if (command_list_data->automatic_candidate_revision != rule_revision) {
-                                command_list_data->automatic_candidate_revision = rule_revision;
-                                command_list_data->automatic_candidate_shader_hash = 0u;
-                                command_list_data->automatic_candidate_vertex_shader_hash = 0u;
-                                command_list_data->automatic_candidate_pipeline_layout = {0u};
-                            }
-                            if (command_list_data->automatic_candidate_shader_hash == 0u) {
-                                command_list_data->automatic_candidate_shader_hash = shader_hash;
-                                command_list_data->automatic_candidate_vertex_shader_hash = vertex_shader_hash;
-                                command_list_data->automatic_candidate_pipeline_layout =
-                                        current_state->graphics_pipeline_layout;
+                        if (command_list_data == nullptr) return {};
+                        const std::lock_guard command_list_lock(command_list_data->mutex);
+                        if (command_list_data->automatic_revision != rule_revision) {
+                            command_list_data->automatic_revision = rule_revision;
+                            command_list_data->automatic_writers.clear();
+                            command_list_data->automatic_final_target_writers.clear();
+                        }
+                        command_list_data->automatic_final_target_writers.push_back(writer);
+                    } else {
+                        insertion_data->automatic_final_target_detector.Record(writer);
+                    }
+                        if (is_learned) {
+                            rule = target_rule;
+                            learned_final_target = true;
+                        }
+                    }
+                }
+
+                reshade::api::resource swapchain_resource = {0u};
+                bool learned_swapchain = false;
+                if (FindSwapchainEffectInsertionRule(context.cmd_list, rule, &swapchain_resource)) {
+                    bool has_texture_2d_srv = false;
+                    const auto swapchain_desc = renodx::utils::resource::GetResourceDesc(
+                            device,
+                            swapchain_resource);
+                    const auto matching_resources = GetMatchingPixelShaderResources(
+                            context.cmd_list,
+                            swapchain_desc.texture.width,
+                            swapchain_desc.texture.height,
+                            automatic_source_size,
+                            &has_texture_2d_srv);
+                    const automatic_detection::SwapchainWriter writer = {
+                        .shader_hash = shader_hash,
+                        .rtv_index = rule.rtv_index,
+                        .target_resource = swapchain_resource.handle,
+                        .has_texture_2d_srv = has_texture_2d_srv,
+                        .has_matching_source = !matching_resources.empty(),
+                    };
+                    learned_swapchain = insertion_data->automatic_detector.IsLearned(
+                            shader_hash);
+                    if (device->get_api() == reshade::api::device_api::d3d12) {
+                        auto* command_list_data = renodx::utils::data::Get<EffectInsertionCommandListData>(
+                                context.cmd_list);
+                        if (command_list_data == nullptr) return {};
+
+                        const std::lock_guard command_list_lock(command_list_data->mutex);
+                        if (command_list_data->automatic_revision != rule_revision) {
+                            command_list_data->automatic_revision = rule_revision;
+                            command_list_data->automatic_writers.clear();
+                            command_list_data->automatic_final_target_writers.clear();
+                        }
+                        command_list_data->automatic_writers.push_back(writer);
+                        if (command_list_data->automatic_writers.size() == 1u) {
+                            insertion_data->automatic_current_final_target_resources.clear();
+                            for (const auto resource : matching_resources) {
+                                insertion_data->automatic_current_final_target_resources.push_back(resource.handle);
                             }
                         }
-                        return {};
+                    } else {
+                        insertion_data->automatic_detector.Record(writer);
+                        if (insertion_data->automatic_detector.GetFrameWriterCount() == 1u) {
+                            insertion_data->automatic_current_final_target_resources.clear();
+                            for (const auto resource : matching_resources) {
+                                insertion_data->automatic_current_final_target_resources.push_back(resource.handle);
+                            }
+                        }
                     }
+                }
+                if (insertion_data->rendered || (!learned_final_target && !learned_swapchain)) {
+                    return {};
                 }
             } else {
                 if (insertion_data->occurrences.size() != rules.size()) {
@@ -1111,9 +1254,8 @@ struct EffectInsertionCallback {
             insertion_data->rendered = true;
             insertion_data->render_rule = rule;
         }
-
         return {
-            .post_callback = RenderTechniques<Context>,
+                .post_callback = RenderTechniques<Context>,
                 .post_data = insertion_data,
         };
     }
@@ -1759,6 +1901,151 @@ void RenderEffectInsertionTechniqueSettings(reshade::api::effect_runtime* runtim
             selected_effect_insertion_techniques.size() == 1u ? "" : "s");
 }
 
+void RenderAutomaticDebugInfo() {
+    ImGui::SeparatorText("Automatic Status");
+    if (tracked_swapchain == nullptr) {
+        ImGui::TextDisabled("Waiting for a supported D3D11 or D3D12 swapchain.");
+        return;
+    }
+
+    auto* insertion_data = renodx::utils::data::Get<EffectInsertionDeviceData>(
+            tracked_swapchain->get_device());
+    if (insertion_data == nullptr) {
+        ImGui::TextDisabled("Waiting for automatic detection.");
+        return;
+    }
+
+    bool final_target_active = false;
+    uint32_t true_output_shader_hash = 0u;
+    uint64_t true_output_resource = 0u;
+    std::vector<uint64_t> current_final_target_resources;
+    std::vector<uint64_t> final_target_resources;
+    std::vector<automatic_detection::LearnedCandidate> learned_candidates;
+    std::optional<automatic_detection::Promotion> last_promotion;
+    std::vector<automatic_detection::SwapchainWriter> last_frame_writers;
+    std::vector<automatic_detection::LearnedCandidate> learned_final_target_candidates;
+    std::optional<automatic_detection::Promotion> last_final_target_promotion;
+    std::vector<automatic_detection::SwapchainWriter> last_final_target_writers;
+    {
+        const std::lock_guard lock(insertion_data->mutex);
+        final_target_active = insertion_data->automatic_final_target_active;
+        true_output_shader_hash = insertion_data->automatic_true_output_shader_hash;
+        true_output_resource = insertion_data->automatic_true_output_resource;
+        current_final_target_resources = insertion_data->automatic_current_final_target_resources;
+        final_target_resources = insertion_data->automatic_final_target_resources;
+        learned_candidates = insertion_data->automatic_detector.GetLearnedCandidates();
+        last_promotion = insertion_data->automatic_detector.GetLastPromotion();
+        last_frame_writers = insertion_data->automatic_detector.GetLastFrameWriters();
+        learned_final_target_candidates =
+            insertion_data->automatic_final_target_detector.GetLearnedCandidates();
+        last_final_target_promotion =
+            insertion_data->automatic_final_target_detector.GetLastPromotion();
+        last_final_target_writers =
+            insertion_data->automatic_final_target_detector.GetLastFrameWriters();
+    }
+
+    if (learned_candidates.empty()) {
+        ImGui::TextDisabled("Learned swapchain writer: none");
+    } else {
+        ImGui::Text("Learned swapchain writer: 0x%08X", learned_candidates.front().shader_hash);
+    }
+    if (last_promotion.has_value()) {
+        ImGui::Text(
+                "Last promoted writer: #%u 0x%08X",
+                last_promotion->writer_index,
+                last_promotion->shader_hash);
+    }
+    if (ImGui::TreeNode("Last swapchain writer order")) {
+        if (last_frame_writers.empty()) {
+            ImGui::TextDisabled("No promoted multi-writer frame recorded.");
+        }
+        for (uint32_t index = 0u; index < last_frame_writers.size(); ++index) {
+            const auto& writer = last_frame_writers[index];
+            ImGui::Text(
+                    "#%u  hash 0x%08X  submit %u  RTV %u  resource 0x%llX  SRV %s%s",
+                    index,
+                    writer.shader_hash,
+                    writer.submission_order,
+                    writer.rtv_index,
+                    static_cast<unsigned long long>(writer.target_resource),
+                    writer.has_matching_source
+                        ? "MATCH"
+                        : (writer.has_texture_2d_srv ? "OTHER" : "NO_TEXTURE2D"),
+                    last_promotion.has_value() && last_promotion->writer_index == index
+                            ? "  PROMOTED"
+                            : "");
+        }
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNode("Discovered swapchain-writer SRVs")) {
+        if (current_final_target_resources.empty()) {
+            ImGui::TextDisabled("No matching SRVs discovered on the current swapchain writer.");
+        }
+        for (uint32_t index = 0u; index < current_final_target_resources.size(); ++index) {
+            ImGui::Text(
+                    "#%u  resource 0x%llX",
+                    index,
+                    static_cast<unsigned long long>(current_final_target_resources[index]));
+        }
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNode("Tracked final-target resources")) {
+        if (final_target_resources.empty()) {
+            ImGui::TextDisabled("No final-target resources are active.");
+        }
+        for (uint32_t index = 0u; index < final_target_resources.size(); ++index) {
+            ImGui::Text(
+                    "#%u  resource 0x%llX",
+                    index,
+                    static_cast<unsigned long long>(final_target_resources[index]));
+        }
+        ImGui::TreePop();
+    }
+    if (learned_final_target_candidates.empty()) {
+        ImGui::TextDisabled("Current true-output writer: none");
+    } else {
+        ImGui::Text(
+                "Current true-output writer: 0x%08X",
+                learned_final_target_candidates.front().shader_hash);
+    }
+    if (last_final_target_promotion.has_value()) {
+        ImGui::Text(
+                "Last promoted true-output writer: #%u 0x%08X",
+                last_final_target_promotion->writer_index,
+                last_final_target_promotion->shader_hash);
+    }
+    if (ImGui::TreeNode("Last final-target writer order")) {
+        if (last_final_target_writers.empty()) {
+            ImGui::TextDisabled("No final-target writer frame recorded.");
+        }
+        for (uint32_t index = 0u; index < last_final_target_writers.size(); ++index) {
+            const auto& writer = last_final_target_writers[index];
+            ImGui::Text(
+                    "#%u  hash 0x%08X  submit %u  RTV %u  resource 0x%llX%s",
+                    index,
+                    writer.shader_hash,
+                    writer.submission_order,
+                    writer.rtv_index,
+                    static_cast<unsigned long long>(writer.target_resource),
+                    last_final_target_promotion.has_value()
+                            && last_final_target_promotion->writer_index == index
+                        ? "  PROMOTED"
+                        : "");
+        }
+        ImGui::TreePop();
+    }
+    if (!final_target_active) {
+        ImGui::TextDisabled("Swapchain mode active.");
+        return;
+    }
+
+    ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.5f, 1.f), "Final-target mode active.");
+        ImGui::Text("Final swapchain shader: 0x%08X", true_output_shader_hash);
+    ImGui::Text(
+            "Swapchain resource: 0x%llX",
+            static_cast<unsigned long long>(true_output_resource));
+}
+
 void RenderEffectInsertionSettings(reshade::api::effect_runtime* runtime) {
     bool changed = false;
     RenderEffectInsertionDrawView();
@@ -1790,9 +2077,9 @@ void RenderEffectInsertionSettings(reshade::api::effect_runtime* runtime) {
             ApplyAutomaticEffectInsertionSourceSize(AutomaticEffectInsertionSourceSize::aspect_ratio_16_9);
         }
         ImGui::TextWrapped(
-            "Runs once after the first pixel-shader draw that writes to a swapchain target and samples a source matching the selected size rule.");
-        ImGui::TextDisabled(
-            "If no automatic candidate is found, selected techniques run normally at the end of the frame.");
+                "Learns the post-process draw before UI-like work. Games with multiple swapchain writers use "
+                "swapchain mode; games with one stable true-output writer use its matching source texture in final mode.");
+        RenderAutomaticDebugInfo();
         ImGui::TextDisabled("Automatic matching inspects the live D3D11/D3D12 pixel-shader bindings.");
         return;
     }
@@ -1952,9 +2239,11 @@ void ConfigureEffectInsertion() {
     const auto legacy_rule = LoadEffectInsertionRule();
     uint32_t mode = static_cast<uint32_t>(EffectInsertionMode::automatic);
     reshade::get_config_value(nullptr, CONFIG_SECTION, "EffectInsertMode", mode);
-    saved_effect_insertion_mode = mode == static_cast<uint32_t>(EffectInsertionMode::manual)
-                                      ? EffectInsertionMode::manual
-                                      : EffectInsertionMode::automatic;
+    if (mode == static_cast<uint32_t>(EffectInsertionMode::manual)) {
+        saved_effect_insertion_mode = EffectInsertionMode::manual;
+    } else {
+        saved_effect_insertion_mode = EffectInsertionMode::automatic;
+    }
     saved_effect_insertion_rules = LoadEffectInsertionRules(legacy_rule);
         uint32_t automatic_source_size = static_cast<uint32_t>(AutomaticEffectInsertionSourceSize::swapchain);
         reshade::get_config_value(
@@ -2123,10 +2412,9 @@ void OnResetCommandList(reshade::api::command_list* cmd_list) {
     if (data == nullptr) return;
 
     const std::lock_guard lock(data->mutex);
-    data->automatic_candidate_revision = 0u;
-    data->automatic_candidate_shader_hash = 0u;
-    data->automatic_candidate_vertex_shader_hash = 0u;
-    data->automatic_candidate_pipeline_layout = {0u};
+    data->automatic_revision = 0u;
+    data->automatic_writers.clear();
+    data->automatic_final_target_writers.clear();
 }
 
 void OnExecuteCommandList(
@@ -2134,55 +2422,37 @@ void OnExecuteCommandList(
         reshade::api::command_list* cmd_list) {
     if (queue->get_device()->get_api() != reshade::api::device_api::d3d12) return;
 
-    EffectInsertionMode mode = EffectInsertionMode::automatic;
-    {
-        const std::lock_guard lock(active_effect_insertion_rule_mutex);
-        mode = active_effect_insertion_mode;
-    }
-    if (mode != EffectInsertionMode::automatic) return;
-
     auto* command_list_data = renodx::utils::data::Get<EffectInsertionCommandListData>(cmd_list);
     if (command_list_data == nullptr) return;
 
-    uint64_t candidate_revision = 0u;
-    uint32_t candidate_shader_hash = 0u;
-    uint32_t candidate_vertex_shader_hash = 0u;
-    reshade::api::pipeline_layout candidate_pipeline_layout = {0u};
+    uint64_t writer_revision = 0u;
+    std::vector<automatic_detection::SwapchainWriter> writers;
+    std::vector<automatic_detection::SwapchainWriter> final_target_writers;
     {
         const std::lock_guard lock(command_list_data->mutex);
-        candidate_revision = command_list_data->automatic_candidate_revision;
-        candidate_shader_hash = command_list_data->automatic_candidate_shader_hash;
-        candidate_vertex_shader_hash = command_list_data->automatic_candidate_vertex_shader_hash;
-        candidate_pipeline_layout = command_list_data->automatic_candidate_pipeline_layout;
+        writer_revision = command_list_data->automatic_revision;
+        writers = command_list_data->automatic_writers;
+        final_target_writers = command_list_data->automatic_final_target_writers;
     }
-    if (candidate_shader_hash == 0u
-            || candidate_revision != active_effect_insertion_rule_revision.load()) {
-        return;
+    if ((writers.empty() && final_target_writers.empty())
+            || writer_revision != active_effect_insertion_rule_revision.load()) return;
+
+    const uint32_t submission_order =
+            automatic_submission_counter.fetch_add(1u, std::memory_order_relaxed) + 1u;
+    for (auto& writer : writers) {
+        writer.submission_order = submission_order;
+    }
+    for (auto& writer : final_target_writers) {
+        writer.submission_order = submission_order;
     }
 
     auto* data = renodx::utils::data::Get<EffectInsertionDeviceData>(queue->get_device());
     if (data == nullptr) return;
 
-    bool selected = false;
-    {
-        const std::lock_guard lock(data->mutex);
-        if (data->rule_revision == candidate_revision && data->automatic_shader_hash == 0u) {
-            data->automatic_shader_hash = candidate_shader_hash;
-            data->automatic_vertex_shader_hash = candidate_vertex_shader_hash;
-            data->automatic_pipeline_layout = candidate_pipeline_layout;
-            data->automatic_shader_missed_frames = 0u;
-            selected = true;
-        }
-    }
-    if (selected) {
-        reshade::log::message(
-                reshade::log::level::info,
-                std::format(
-                    "Pipeline insert automatic selected DX12 pass PS 0x{:08X}, VS 0x{:08X}, layout 0x{:X} from submission order.",
-                    candidate_shader_hash,
-                    candidate_vertex_shader_hash,
-                    candidate_pipeline_layout.handle)
-                        .c_str());
+    const std::lock_guard lock(data->mutex);
+    if (data->rule_revision == writer_revision) {
+        data->automatic_detector.Record(writers);
+        data->automatic_final_target_detector.Record(final_target_writers);
     }
 }
 
@@ -2241,8 +2511,7 @@ void OnReshadeOverlay(reshade::api::effect_runtime* runtime) {
         const std::lock_guard lock(data->mutex);
         const uint32_t index = runtime->get_current_back_buffer_index();
         if (index >= data->swapchain_rtvs.size()) return;
-        insertion_rendered = data->final_effects_pending;
-        if (insertion_rendered) data->final_effects_pending = false;
+        insertion_rendered = data->final_effect_runtimes_pending.erase(runtime) != 0u;
         render_target = data->swapchain_rtvs[index];
     }
     if (render_target.handle == 0u) return;
@@ -2254,9 +2523,9 @@ void OnReshadeOverlay(reshade::api::effect_runtime* runtime) {
         mode = active_effect_insertion_mode;
         inserted_techniques = active_effect_insertion_techniques;
     }
-    const bool render_automatic_fallback =
+        const bool render_automatic_mode_fallback =
             mode == EffectInsertionMode::automatic && !insertion_rendered;
-    if (!insertion_rendered && !render_automatic_fallback) return;
+        if (!insertion_rendered && !render_automatic_mode_fallback) return;
 
     std::vector<reshade::api::effect_technique> techniques_to_render;
     const std::lock_guard runtime_lock(data->effect_runtime_mutex);
@@ -2337,41 +2606,71 @@ void OnPresent(
         }
     }
 
-    bool sample_automatic_insertion = false;
+    bool use_automatic_insertion = false;
     {
         const std::lock_guard lock(active_effect_insertion_rule_mutex);
-        sample_automatic_insertion = active_effect_insertion_mode == EffectInsertionMode::automatic
-                                     && !active_effect_insertion_techniques.empty();
+        use_automatic_insertion = active_effect_insertion_mode == EffectInsertionMode::automatic
+                                  && !active_effect_insertion_techniques.empty();
     }
     const std::lock_guard lock(data->mutex);
-    if (sample_automatic_insertion && data->automatic_shader_hash != 0u) {
-        if (data->rendered) {
-            data->automatic_shader_missed_frames = 0u;
-        } else if (++data->automatic_shader_missed_frames == 8u) {
-            reshade::log::message(
-                    reshade::log::level::info,
-                    std::format(
-                            "Pipeline insert automatic released pixel shader 0x{:08X} after 8 missed frames.",
-                            data->automatic_shader_hash)
-                            .c_str());
-            data->automatic_shader_hash = 0u;
-            data->automatic_vertex_shader_hash = 0u;
-            data->automatic_pipeline_layout = {0u};
-            data->automatic_shader_missed_frames = 0u;
+    if (use_automatic_insertion) {
+        const uint32_t current_back_buffer_index = swapchain->get_current_back_buffer_index();
+        const uint64_t current_back_buffer_resource = current_back_buffer_index < swapchain->get_back_buffer_count()
+                                  ? swapchain->get_back_buffer(current_back_buffer_index).handle
+                                  : 0u;
+        const uint32_t swapchain_writer_count = static_cast<uint32_t>(
+            data->automatic_detector.GetFrameWriterCount(current_back_buffer_resource));
+        const bool swapchain_mode_learned =
+            data->automatic_detector.HasLearnedCandidate();
+        if (swapchain_mode_learned) {
+            data->automatic_final_target_active = false;
+            data->automatic_true_output_shader_hash = 0u;
+            data->automatic_true_output_resource = 0u;
+            data->automatic_final_target_resources.clear();
+            data->automatic_current_final_target_resources.clear();
+            data->automatic_final_target_detector.Reset();
+                (void)data->automatic_detector.PromoteFirstFrameCandidate(
+                    current_back_buffer_resource,
+                    true);
+        } else if (swapchain_writer_count == 1u) {
+            const auto writer_iterator = std::ranges::find(
+                data->automatic_detector.GetFrameWriters(),
+                current_back_buffer_resource,
+                &automatic_detection::SwapchainWriter::target_resource);
+            const auto& writer = *writer_iterator;
+            data->automatic_true_output_shader_hash = writer.shader_hash;
+            data->automatic_true_output_resource = writer.target_resource;
+            data->automatic_detector.ClearFrame();
+            if (!data->automatic_current_final_target_resources.empty()) {
+                data->automatic_final_target_active = true;
+                data->automatic_final_target_resources =
+                        data->automatic_current_final_target_resources;
+            }
+        } else if (swapchain_writer_count > 1u) {
+            data->automatic_final_target_active = false;
+            data->automatic_true_output_shader_hash = 0u;
+            data->automatic_true_output_resource = 0u;
+            data->automatic_final_target_resources.clear();
+            data->automatic_current_final_target_resources.clear();
+            data->automatic_final_target_detector.Reset();
+                (void)data->automatic_detector.PromoteFirstFrameCandidate(
+                    current_back_buffer_resource,
+                    true);
+        } else {
+            data->automatic_final_target_active = false;
+            data->automatic_true_output_shader_hash = 0u;
+            data->automatic_true_output_resource = 0u;
+            data->automatic_final_target_resources.clear();
+            data->automatic_current_final_target_resources.clear();
+            data->automatic_final_target_detector.Reset();
+            data->automatic_detector.ClearFrame();
         }
-    }
-    if (sample_automatic_insertion
-            && ++data->automatic_sample_frame_count == 120u) {
-        reshade::log::message(
-                reshade::log::level::info,
-                std::format(
-                        "Pipeline insert automatic sample: {} match(es), {} render(s) across 120 presented frames.",
-                        data->automatic_match_count,
-                        data->rendered_technique_count)
-                        .c_str());
-        data->automatic_match_count = 0u;
-        data->rendered_technique_count = 0u;
-        data->automatic_sample_frame_count = 0u;
+
+        if (data->automatic_final_target_active) {
+            (void)data->automatic_final_target_detector.PromoteFirstFrameCandidate(
+                    0u,
+                    true);
+        }
     }
     std::ranges::fill(data->occurrences, 0u);
     data->rendered = false;
@@ -2408,15 +2707,19 @@ void OnPresent(
 void OnFinishPresent(
         reshade::api::command_queue* queue,
         reshade::api::swapchain* swapchain) {
-    if (swapchain->get_device()->get_api() != reshade::api::device_api::d3d12) return;
-
     auto* data = renodx::utils::data::Get<EffectInsertionDeviceData>(swapchain->get_device());
     if (data == nullptr) return;
 
     bool release_effect_runtime_lock = false;
     {
         const std::lock_guard lock(data->mutex);
-        if (data->effect_runtime_present_lock_held) {
+        // OnPresent promotes and clears the game writers, but ReShade's normal
+        // presentation work executes afterward. Discard those late writers at
+        // the true presentation boundary so they cannot lead the next frame.
+        data->automatic_detector.ClearFrame();
+        data->automatic_final_target_detector.ClearFrame();
+        if (swapchain->get_device()->get_api() == reshade::api::device_api::d3d12
+                && data->effect_runtime_present_lock_held) {
             data->effect_runtime_present_lock_held = false;
             release_effect_runtime_lock = true;
         }
