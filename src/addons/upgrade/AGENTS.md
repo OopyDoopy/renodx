@@ -26,6 +26,12 @@ Do not remove or collapse this split lifecycle without proving the selected effe
 
 Automatic uses `automatic_detection::Detector` and records every observed writer even after an insertion succeeds.
 
+Automatic output modes have monotonic priority: copy mode > swapchain mode > final-target mode. A mode may move upward but never downward until Automatic is reset. Final-target mode may become swapchain or copy mode; swapchain mode may become copy mode but not final-target mode; copy mode remains latched and cannot become swapchain or ordinary final-target mode. While copy mode is latched, retain its tracked copy sources across frames where the copy event is temporarily absent and add each distinct sole swapchain-destination copy source to the tracked set. This accommodates rotating intermediate backbuffers without requiring stable resource handles.
+
+### Automatic Manual selection
+
+Automatic Manual keeps Automatic's swapchain/final-target topology detection and source-size classification, but lets the user select the true-output shader. The overlay lists the distinct `MATCH`-classified shaders for the currently tracked resource in first-observed execution order. Accumulate separate stable candidate lists for swapchain and final-target mode until Automatic is reset so transient frame contents do not make selector entries disappear. In swapchain mode these are swapchain writers; in final-target mode these are final-target writers. Persist the selected shader hash and trigger insertion only when that shader writes the active tracked resource. If it does not run, preserve the normal end-of-frame fallback. Do not use the selected swapchain writer while final-target mode is active.
+
 ### Swapchain mode
 
 For frames with multiple swapchain writers, writers are recorded in execution order as:
@@ -40,11 +46,13 @@ Prefer the first `MATCH` writer when the following writer is `OTHER`. This ident
 
 Learned candidates are keyed by `shader_hash` only. Target resources select which draws are observed; they are not part of candidate matching.
 
-Once a swapchain writer is learned, remain in swapchain mode until Automatic is reset. Do not transition from swapchain mode to final-target mode. At every present, select the best current-frame candidate using the SRV boundary heuristic, falling back to the first current-frame writer with a matching-size SRV. If the learned shader also ran, require the same replacement candidate to be promoted for two consecutive frames before replacing it. If the learned shader did not run, replace it immediately. With no learned shader, learn the promoted candidate immediately. If no eligible writer is observed, retain the previous candidate. Final-target mode may fall back permanently to swapchain mode when its single-writer condition is lost.
+Once swapchain mode is active, remain in swapchain mode until Automatic is reset or the higher-priority sole-copy topology is detected. Do not transition from swapchain mode to final-target mode. At every present, select the best current-frame candidate using the SRV boundary heuristic, falling back to the first current-frame writer with a matching-size SRV. If the learned shader also ran, require the same replacement candidate to be promoted for two consecutive frames before replacing it. If the learned shader did not run, replace it immediately. With no learned shader, learn the promoted candidate immediately. If no eligible writer is observed, retain the previous candidate. Final-target mode may fall back permanently to swapchain mode when its single-writer condition is lost.
 
 ### Final-target mode
 
 When exactly one swapchain writer is observed and it has a matching source resource, Automatic immediately treats that writer as the **final shader** and tracks its matching source as the final target. Classify and promote writers to that resource with the same per-shader SRV aggregation, output/UI boundary heuristic, matching-source requirement, fallback, and replacement confirmation used for swapchain writers. The two modes differ only in the resource whose writers they track.
+
+When no draw writes the current backbuffer and exactly one full-resource copy targets it, Automatic also enters final-target mode and tracks the copy source as the final target. Track both `copy_resource` and `copy_texture_region`; a texture-region copy is eligible only when both source and destination regions match the swapchain dimensions. Track only copies whose destination is a swapchain backbuffer; do not classify copies as shader writers or learn a synthetic shader hash. D3D12 copy records follow command-list submission ordering alongside draw-writer records. Log every Automatic output-mode transition with its reason, identifying `copy_resource` or `copy_texture_region` when a copy causes the transition.
 
 Re-evaluate the best final-target writer at the end of every frame while final-target mode remains active. Unlike the choice of swapchain versus final-target mode, final-target output learning is not permanently latched.
 
@@ -58,6 +66,12 @@ Reset final-target state and detector data when the single-writer condition no l
 ## D3D12 ordering
 
 D3D12 writer records are accumulated in `EffectInsertionCommandListData` and appended in `OnExecuteCommandList`, preserving command-list submission order. Do not promote D3D12 candidates at draw-record time.
+
+## D3D12 Automatic SRV reflection
+
+Automatic D3D12 source classification is opt-in. On the first Automatic inspection of a pixel shader, parse DXIL `!dx.resources` metadata or DXBC SM4/SM5 declarations using the proven DevKit declaration pattern, and cache only the reflected SRV `(slot, space)` bindings plus the fact that the shader was scanned. Resolve those exact bindings through the active pipeline layout and descriptor tables. Do not restore a fixed-size or unbounded descriptor-heap scan as a fallback; missing bytecode, failed reflection, unsupported shader models, and shaders without reflected SRVs classify as having no Texture2D SRV.
+
+Keep the compact parser reusable under this addon's local `utils` folder. Do not move it into or modify shared `src/utils` without explicit approval.
 
 ## RenoFX split-effect compatibility
 
