@@ -98,7 +98,7 @@ void main(
   float _639;
 
   // ACEScc
-  float3 ap1_color = renodx::color::pq::DecodeSafe(lutInput, 100.f);
+  float3 ap1_color = renodx::color::ap1::from::BT2020(renodx::color::pq::DecodeSafe(lutInput, 100.f));
 
 //   // Doesn't do anything with our hardcoded values
 // #if 0
