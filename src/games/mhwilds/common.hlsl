@@ -1,4 +1,5 @@
 #include "./shared.h"
+#include "./psycho_test17_custom.hlsl"
 
 float3 AP1toAP0(float3 color) {
   float _387 = mad(color.b, 0.1638689935207367f, mad(color.g, 0.1406790018081665f, (color.r * 0.6954519748687744f)));
@@ -372,61 +373,78 @@ float3 psychotm_test4_onlymap(
   return renodx::color::bt709::from::BT2020(bt2020_toned);
 }
 
-float3 ProcessDisplayMap(float3 color, float white_clip, float peak) {
+float3 ProcessDisplayMap(float3 color, float peak, int gamut_compression_mode = 1, float mid_gray_in = 0.18f, float mid_gray_out = 0.18f) {
   float3 outputColor = color;
   if (RENODX_TONE_MAP_TYPE == 1.f) {
     color = max(0, renodx::color::bt2020::from::BT709(color));
-    white_clip = max(100.f, white_clip);
-    outputColor = renodx::tonemap::neutwo::MaxChannel(color, peak, white_clip);
+    outputColor = renodx::tonemap::neutwo::MaxChannel(color, peak);
     outputColor = renodx::color::bt709::from::BT2020(outputColor);
     // outputColor = psychotm_test4_onlymap(color, tonemap_peak);
   } else if (RENODX_TONE_MAP_TYPE == 2.f) {
     // outputColor = renodx::tonemap::neutwo::MaxChannel(color, tonemap_peak, white_clip);
-    outputColor = psychotm_test4_onlymap(color, peak);
+    outputColor = renodx::tonemap::psycho::psychotm_test17_customized(
+      color,
+      peak,
+      RENODX_TONE_MAP_EXPOSURE,
+      RENODX_TONE_MAP_HIGHLIGHTS,
+      RENODX_TONE_MAP_SHADOWS,
+      1.0f,
+      RENODX_TONE_MAP_SATURATION,
+      RENODX_TONE_MAP_BLOWOUT,
+      100.f,
+      1.f,
+      1.f,
+      1,
+      RENODX_TONE_MAP_CONTRAST,
+      mid_gray_in,
+      mid_gray_out,
+      1.f,
+      gamut_compression_mode
+    );
   }
 
   return outputColor;
 }
 
-float3 DisplayMap(float3 color, float white_clip) {
-  renodx::draw::Config config = renodx::draw::BuildConfig();  // Pulls config values
+// float3 DisplayMap(float3 color, float white_clip, float mid_gray_in = 0.18f, float mid_gray_out = 0.18f) {
+//   renodx::draw::Config config = renodx::draw::BuildConfig();  // Pulls config values
 
-  // if (CUSTOM_TONE_MAP_PARAMETERS == 0) {
-  //   config.swap_chain_scaling_nits = renodx::color::correct::GammaSafe(config.swap_chain_scaling_nits);
-  // }
+//   // if (CUSTOM_TONE_MAP_PARAMETERS == 0) {
+//   //   config.swap_chain_scaling_nits = renodx::color::correct::GammaSafe(config.swap_chain_scaling_nits);
+//   // }
 
-  float peak_nits = config.peak_white_nits / renodx::color::srgb::REFERENCE_WHITE;  // Normalizes peak
-  float diffuse_white_nits = config.swap_chain_scaling_nits / renodx::color::srgb::REFERENCE_WHITE;  // Normalizes game brightness | swap chain scaling nits because of use in shared.h
+//   float peak_nits = config.peak_white_nits / renodx::color::srgb::REFERENCE_WHITE;  // Normalizes peak
+//   float diffuse_white_nits = config.swap_chain_scaling_nits / renodx::color::srgb::REFERENCE_WHITE;  // Normalizes game brightness | swap chain scaling nits because of use in shared.h
 
-  //peak_nits = renodx::color::correct::GammaSafe(peak_nits);
-  //diffuse_white_nits = renodx::color::correct::GammaSafe(diffuse_white_nits);
+//   //peak_nits = renodx::color::correct::GammaSafe(peak_nits);
+//   //diffuse_white_nits = renodx::color::correct::GammaSafe(diffuse_white_nits);
 
   
-  float tonemap_peak = peak_nits / diffuse_white_nits;
+//   float tonemap_peak = peak_nits / diffuse_white_nits;
 
-  if (CUSTOM_TONE_MAP_PARAMETERS == 0) {
-    tonemap_peak = renodx::color::correct::GammaSafe(tonemap_peak, true);
-  }
+//   if (CUSTOM_TONE_MAP_PARAMETERS == 0) {
+//     tonemap_peak = renodx::color::correct::GammaSafe(tonemap_peak, true);
+//   }
 
-  float3 outputColor = ProcessDisplayMap(color, white_clip, tonemap_peak);
+//   float3 outputColor = ProcessDisplayMap(color, white_clip, tonemap_peak, mid_gray_in, mid_gray_out);
 
-  if (CUSTOM_TONE_MAP_PARAMETERS == 0) {
-    outputColor = renodx::color::correct::GammaSafe(outputColor);
-  }
+//   if (CUSTOM_TONE_MAP_PARAMETERS == 0) {
+//     outputColor = renodx::color::correct::GammaSafe(outputColor);
+//   }
 
-  return outputColor;
-}
+//   return outputColor;
+// }
 
-float3 SDRDisplayMap(float3 color, float white_clip) {
-  renodx::draw::Config config = renodx::draw::BuildConfig();  // Pulls config values
+// float3 SDRDisplayMap(float3 color, float white_clip) {
+//   renodx::draw::Config config = renodx::draw::BuildConfig();  // Pulls config values
 
-  float peak = 1.f;
+//   float peak = 1.f;
 
-  if (CUSTOM_TONE_MAP_PARAMETERS == 1) {
-    peak = renodx::color::correct::GammaSafe(peak, false);
-  }
+//   if (CUSTOM_TONE_MAP_PARAMETERS == 1) {
+//     peak = renodx::color::correct::GammaSafe(peak, false);
+//   }
 
-  float3 outputColor = ProcessDisplayMap(color, white_clip, peak);
+//   float3 outputColor = ProcessDisplayMap(color, white_clip, peak);
 
-  return outputColor;
-}
+//   return outputColor;
+// }

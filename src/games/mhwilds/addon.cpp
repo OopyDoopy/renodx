@@ -161,6 +161,10 @@ renodx::mods::shader::CustomShaders custom_shaders = {
     TypicalExposureShaderEntry(0x29DD5BC9),
     TypicalExposureShaderEntry(0x6A14E51E),
     TypicalExposureShaderEntry(0x73A5953D),
+    TypicalExposureShaderEntry(0xA2A508FF),
+    TypicalExposureShaderEntry(0x2B57DA59),
+    TypicalExposureShaderEntry(0xE706CD8E),
+    TypicalExposureShaderEntry(0x2E55C7F0),
 
     // Exposure
     // RareExposureShaderEntry(0x4905680A),
@@ -205,8 +209,13 @@ const std::string build_time = __TIME__;
 float current_settings_mode = 0;
 auto last_is_hdr = false;
 
+const std::unordered_map<std::string, float> VANILLA_PLUS_VALUES = {
+    {"ToneMapType", 1.f},
+    {"ColorGradeBlowout", 20.f},
+};
+
 const std::unordered_map<std::string, float> REGRADE_VALUES = {
-    //{"ToneMapType", 1.f},
+    {"ToneMapType", 1.f},
     {"ColorGradeExposure", 1.20f},
     //{"ColorGradeHighlights", 50.f},
     //{"ColorGradeShadows", 50.f},
@@ -224,6 +233,8 @@ const std::unordered_map<std::string, float> REGRADE_VALUES = {
     {"FxLocalExposureMidGrey", 0.f},
 };
 
+renodx::utils::settings::Setting* peak_white_nits_setting = nullptr;
+renodx::utils::settings::Setting* diffuse_white_nits_setting = nullptr;
 renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "SettingsMode",
@@ -244,12 +255,12 @@ renodx::utils::settings::Settings settings = {
         .label = "Tone Mapper",
         .section = "Tone Mapping",
         .tooltip = "Sets the tone mapper type",
-        .labels = {"Vanilla", "Neutwo", "PsychoTM (Experimental)"},
+        .labels = {"Vanilla", "Vanilla+", "PsychoV"},
         //.is_enabled = []() { return last_is_hdr; },
         .parse = [](float value) { return value; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
-    new renodx::utils::settings::Setting{
+    peak_white_nits_setting =new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",
         .binding = &shader_injection.peak_white_nits,
         .default_value = 1000.f,
@@ -262,7 +273,7 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return last_is_hdr; },
         .is_visible = []() { return current_settings_mode >= 1 && last_is_hdr; },
     },
-    new renodx::utils::settings::Setting{
+    diffuse_white_nits_setting = new renodx::utils::settings::Setting{
         .key = "ToneMapGameNits",
         .binding = &shader_injection.diffuse_white_nits,
         .default_value = 203.f,
@@ -307,7 +318,23 @@ renodx::utils::settings::Settings settings = {
         .section = "Tone Mapping",
         .tooltip = "Adjusts the game's tonemapping parameters to be faithful to SDR or to custom values we prefer.",
         .labels = {"Vanilla", "Custom"},
+        .is_enabled = []() { return shader_injection.tone_map_type != 2.f; },
         .is_visible = []() { return current_settings_mode >= 1; },
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Recommended",
+        .section = "Presets",
+        .group = "button-line-1",
+        .on_change = []() {
+          for (auto* setting : settings) {
+            if (setting->key.empty()) continue;
+            if (setting->section == "Effects") continue;
+            if (!setting->can_reset) continue;
+            if (setting->is_global) continue;
+            renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+          }
+        },
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
@@ -320,7 +347,11 @@ renodx::utils::settings::Settings settings = {
             if (setting->section == "Effects") continue;
             if (!setting->can_reset) continue;
             if (setting->is_global) continue;
-            renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+            if (VANILLA_PLUS_VALUES.contains(setting->key)) {
+              renodx::utils::settings::UpdateSetting(setting->key, VANILLA_PLUS_VALUES.at(setting->key));
+            } else {
+              renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+            }
           }
         },
     },
@@ -347,7 +378,7 @@ renodx::utils::settings::Settings settings = {
         .key = "FxBlurredLuminance",
         .binding = &blurred_luminance,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
+        .default_value = 0.f,
         .can_reset = true,
         .label = "Local Exposure Blurred Luminance",
         .section = "Scene Grading",
@@ -514,14 +545,14 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .tooltip = "Adds or removes highlight color.",
         .max = 100.f,
-        .is_enabled = []() { return shader_injection.tone_map_type != 0.f; },
+        .is_enabled = []() { return shader_injection.tone_map_type == 1.f; },
         .parse = [](float value) { return value * 0.02f; },
         .is_visible = []() { return current_settings_mode >= 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeBlowout",
         .binding = &shader_injection.tone_map_blowout,
-        .default_value = 20.f,
+        .default_value = 0.f,
         .label = "Blowout",
         .section = "Color Grading",
         .tooltip = "Adds highlight desaturation due to overexposure.",
@@ -538,7 +569,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .tooltip = "Flare/Glare Compensation",
         .max = 100.f,
-        .is_enabled = []() { return shader_injection.tone_map_type != 0.f; },
+        .is_enabled = []() { return shader_injection.tone_map_type == 1.f; },
         .parse = [](float value) { return value * 0.0001f; },
         .is_visible = []() { return current_settings_mode >= 1; },
     },
@@ -811,8 +842,6 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("FxFogAmount", 50.f);
 }
 
-bool fired_on_init_swapchain = false;
-
 void OnPresent(
     reshade::api::command_queue* queue,
     reshade::api::swapchain* swapchain,
@@ -857,25 +886,26 @@ void OnPresent(
   }
 }
 
+bool fired_on_init_swapchain = false;
 void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
   last_is_hdr = renodx::utils::swapchain::IsHDRColorSpace(swapchain);
+  if (fired_on_init_swapchain) return;
+  fired_on_init_swapchain = true;
 
   auto peak = renodx::utils::swapchain::GetPeakNits(swapchain);
   if (peak.has_value()) {
-    settings[2]->default_value = roundf(peak.value());
+    peak_white_nits_setting->default_value = roundf(peak.value());
   } else {
-    settings[2]->default_value = 1000.f;
+    peak_white_nits_setting->default_value = 1000.f;
   }
-
-  settings[3]->default_value = fmin(renodx::utils::swapchain::ComputeReferenceWhite(settings[2]->default_value), 203.f);
+  //diffuse_white_nits_setting->default_value = fmin(renodx::utils::swapchain::ComputeReferenceWhite(peak_white_nits_setting->default_value), 203.f);
 }
-
-bool initialized = false;
-
 }  // namespace
 
 extern "C" __declspec(dllexport) constexpr const char* NAME = "RenoDX MH Wilds";
 extern "C" __declspec(dllexport) constexpr const char* DESCRIPTION = "RenoDX for MH Wilds";
+
+bool initialized = false;
 
 BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   switch (fdw_reason) {

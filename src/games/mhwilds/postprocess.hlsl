@@ -1,6 +1,7 @@
 #ifndef SRC_MHWILDS_POSTPROCESS_HLSL_
 #define SRC_MHWILDS_POSTPROCESS_HLSL_
 #include "./common.hlsl"
+//#include "./psycho_test17_custom.hlsl"
 
 struct LocalExposureInputs {
   float2 screenSize;
@@ -306,14 +307,14 @@ float CalculateMulLinearStartContrastFactor(
 }
 
 // Allow overriding the peak nits; all dependent factors are recomputed from it.
-float3 VanillaSDRTonemapper(float3 color, CustomTonemapParam params, float peak = -1, bool is_sdr = false) {
+float3 VanillaSDRTonemapper(float3 color, CustomTonemapParam params, float peak = -1, bool is_sdr = false, bool force_custom_params = false) {
   if (peak == -1) peak = params.maxNit;
   CustomTonemapParam vanillaParams = params;
 
   float min = 0.001f;
   if (!is_sdr) min *= (RENODX_DIFFUSE_WHITE_NITS / renodx::color::srgb::REFERENCE_WHITE);
 
-  bool custom_params = CUSTOM_TONE_MAP_PARAMETERS == 1.f;
+  bool custom_params = CUSTOM_TONE_MAP_PARAMETERS == 1.f || force_custom_params;
   if (custom_params) {
     // params.contrast *= 1.2f;
     // params.contrast = 0.18f;
@@ -374,24 +375,26 @@ float3 VanillaSDRTonemapper(float3 color, CustomTonemapParam params, float peak 
 }
 
 float3 CustomTonemap(float3 untonemapped, CustomTonemapParam params, bool is_sdr) {
-  float3 untonemapped_bt709 = renodx::color::bt709::from::AP1(untonemapped);
-
   if (is_sdr && RENODX_TONE_MAP_TYPE == 0) {
-    // float mid_gray_out = VanillaSDRTonemapper(0.18f, params).x;
-    // untonemapped_bt709 = PreTonemapSliders(untonemapped_bt709, mid_gray_out);
 
-    // // Roll off grading sliders to not clip
-    // float white_clip = 100.f;
-    // white_clip = max(100.f, PreTonemapSliders(white_clip).x);
-    // if (white_clip != 100.f) untonemapped_bt709 = ReinhardPiecewiseExtendedMaxCLL(untonemapped_bt709, 4.f, 100.f, white_clip);
-
-    float3 output_color = renodx::color::bt709::from::AP1(VanillaSDRTonemapper(renodx::color::ap1::from::BT709(untonemapped_bt709), params, -1, is_sdr));
+    float3 output_color = renodx::color::bt709::from::AP1(VanillaSDRTonemapper(untonemapped, params, -1, is_sdr));
     //output_color = PostTonemapSliders(output_color);
     return renodx::color::ap1::from::BT709(output_color);
-  } else if (RENODX_TONE_MAP_TYPE == 0.f) {
+  } 
+  else if (RENODX_TONE_MAP_TYPE == 0.f) {
     return untonemapped;
   }
+  else if (RENODX_TONE_MAP_TYPE == 2.f) {
 
+    const float mid_gray = 0.18f;
+    float mid_gray_adjusted = VanillaSDRTonemapper(mid_gray, params, -1, is_sdr, true).x;
+    float mid_gray_scale = mid_gray_adjusted / mid_gray;
+
+    return untonemapped * mid_gray_scale;
+  }
+  float3 untonemapped_bt709 = renodx::color::bt709::from::AP1(untonemapped);
+
+  //float per_channel_peak = renodx::math::Select(is_sdr, 2.f, 12.f);
   float per_channel_peak = 12.f;
   float by_luminance_peak = 100.f;
 
@@ -404,11 +407,8 @@ float3 CustomTonemap(float3 untonemapped, CustomTonemapParam params, bool is_sdr
 
   // tonemapped_bt709_ch = lerp(tonemapped_bt709_ch, tonemapped_bt709_lum, CUSTOM_SATURATION_CORRECTION);
 
-  float strength = RENODX_TONE_MAP_TYPE == 1.f ? 1.f : 0.f;
-  //float strength = 1.f;
-
-  float3 hdr_color_bt709 = renodx::color::correct::Chrominance(tonemapped_bt709_lum, tonemapped_bt709_ch, strength, 0.f, 1);
-  hdr_color_bt709 = renodx::color::correct::Hue(hdr_color_bt709, tonemapped_bt709_ch, strength, 1);
+  float3 hdr_color_bt709 = renodx::color::correct::Chrominance(tonemapped_bt709_lum, tonemapped_bt709_ch, 1.f, 0.f, 1);
+  hdr_color_bt709 = renodx::color::correct::Hue(hdr_color_bt709, tonemapped_bt709_ch, 1.f, 1);
 
   // hdr_color_bt709 = PostTonemapSliders(hdr_color_bt709);
 

@@ -51,99 +51,93 @@ SamplerState PointBorder : register(s2, space32);
 SamplerState TrilinearClamp : register(s9, space32);
 
 float3 PrepareLutInput(float3 color) {
-  return renodx::color::pq::EncodeSafe(renodx::color::ap1::from::BT709(color), 100.f);
+  //return renodx::color::pq::EncodeSafe(renodx::color::ap1::from::BT709(color), 100.f);
+  return renodx::color::ap1::from::BT709(color);
 }
 
-float3 DecodeLutOutput(float3 color, bool is_sdr = false) {
-  if (is_sdr) {
-    color = renodx::color::srgb::DecodeSafe(color);
-  } else {
-    color = renodx::color::pq::DecodeSafe(color, 100.f);
-    color = renodx::color::bt709::from::BT2020(color);
-  }
-  return color;
-}
+// float3 DecodeLutOutput(float3 color, bool is_sdr = false) {
+//   if (is_sdr) {
+//     color = renodx::color::srgb::DecodeSafe(color);
+//   } else {
+//     color = renodx::color::pq::DecodeSafe(color, 100.f);
+//     color = renodx::color::bt709::from::BT2020(color);
+//   }
+//   return color;
+// }
 
 float4 OutputTonemap(noperspective float4 SV_Position: SV_Position,
                      linear float2 TEXCOORD: TEXCOORD, bool is_sdr = false) {
   float4 _11 = SrcTexture.SampleLevel(PointBorder, float2(TEXCOORD.x, TEXCOORD.y), 0.0f);
   // float _17 = whitePaperNits * 0.009999999776482582f;  // overall brightness (defaullt 100.f);
-  float3 output_color = renodx::color::bt709::from::AP1(_11.rgb);
-  // output_color = renodx::color::srgb::DecodeSafe(output_color);
+  float3 input_color_bt709 = renodx::color::bt709::from::AP1(_11.rgb);
+
   renodx::draw::Config swapchainConfig = renodx::draw::BuildConfig();
   swapchainConfig.swap_chain_clamp_nits = 10000.f;
+  swapchainConfig.swap_chain_output_preset = 1.f;
 
-  output_color = ApplyRCAS(output_color, TEXCOORD, SrcTexture, PointBorder);
-
-  if (CUSTOM_FILM_GRAIN_STRENGTH != 0) {
-    output_color = renodx::effects::ApplyFilmGrain(
-        output_color.rgb,
-        TEXCOORD.xy,
-        CUSTOM_RANDOM,
-        CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);
-  }
+  float3 output_color_bt709 = ApplyRCAS(input_color_bt709, TEXCOORD, SrcTexture, PointBorder);
 
   renodx::lut::Config lut_config = renodx::lut::config::Create();
   lut_config.lut_sampler = TrilinearClamp;
   lut_config.size = 64u;
   lut_config.tetrahedral = true;
-  lut_config.type_input = renodx::lut::config::type::PQ;  // We manually manage encoding/decoding
+  lut_config.type_input = renodx::lut::config::type::PQ; 
   lut_config.type_output = renodx::lut::config::type::PQ;
   lut_config.scaling = 0.f;
 
+  float peak_nits = 1.f;
+  float lut_peak = 20.f; // Clip point for HDR LUT
   if (is_sdr) {
-    swapchainConfig.swap_chain_gamma_correction = 0.f;
-    // Normalize with HDR
-    swapchainConfig.swap_chain_scaling_nits = 1.f;
-    swapchainConfig.swap_chain_encoding = renodx::draw::ENCODING_SRGB;
-    swapchainConfig.swap_chain_encoding_color_space = renodx::color::convert::COLOR_SPACE_BT709;
-    swapchainConfig.swap_chain_clamp_color_space = renodx::color::convert::COLOR_SPACE_BT709;
-    swapchainConfig.graphics_white_nits = 80.f;
-    swapchainConfig.diffuse_white_nits = 80.f;
+    swapchainConfig.swap_chain_output_preset = 0.f;
 
     lut_config.type_output = renodx::lut::config::type::SRGB;
 
-    if (RENODX_TONE_MAP_TYPE != 0.f) {
-      float mid_gray = 0.18f;
-      float mid_gray_adjusted = renodx::lut::Sample(SrcLUT, lut_config, mid_gray).x;
-
-      float mid_gray_scale = mid_gray_adjusted / mid_gray;
-      float3 output_color_midgray_adjusted = output_color * mid_gray_scale;
-      float3 lut_color = ToneMapMaxCLL(output_color, 0.375f, 20.f);
-      float3 lut_color_graded = renodx::lut::Sample(SrcLUT, lut_config, lut_color);
-      output_color = renodx::tonemap::UpgradeToneMap(output_color, lut_color, lut_color_graded);
-
-      output_color = PreTonemapSliders(output_color);
-      float white_clip_adjusted = PreTonemapSliders(20.f).x;
-      output_color = PostTonemapSliders(output_color);  // Needs to go before display map to prevent hue clip
-      output_color = SDRDisplayMap(output_color, white_clip_adjusted);
-    }
-    else {
-      output_color = renodx::lut::Sample(SrcLUT, lut_config, output_color);
+    if (CUSTOM_TONE_MAP_PARAMETERS == 1 || RENODX_TONE_MAP_TYPE == 2.f) {
+      peak_nits = renodx::color::correct::GammaSafe(peak_nits, false);
     }
 
-    // Custom tonemap parameters correct the math to work well with sRGB encode/decode, so apply fix for gamma mismatch in SDR
-    if (CUSTOM_TONE_MAP_PARAMETERS == 1) {
-      output_color = renodx::color::correct::GammaSafe(output_color, true);
+  } 
+  else {
+
+    peak_nits = swapchainConfig.peak_white_nits / swapchainConfig.diffuse_white_nits;
+
+    if (CUSTOM_TONE_MAP_PARAMETERS == 0 && RENODX_TONE_MAP_TYPE != 2.f) {
+      peak_nits = renodx::color::correct::GammaSafe(peak_nits, true);
     }
-  } else if (RENODX_TONE_MAP_TYPE == 0.f) {
-    output_color = renodx::lut::Sample(SrcLUT, lut_config, output_color);
-  } else {
-    float mid_gray = 0.18f;
-    float mid_gray_adjusted = renodx::lut::Sample(SrcLUT, lut_config, mid_gray).x;
-
-    float mid_gray_scale = mid_gray_adjusted / mid_gray;
-    float3 output_color_midgray_adjusted = output_color * mid_gray_scale;
-    float3 lut_color = ToneMapMaxCLL(output_color, 0.375f, 20.f);
-    float3 lut_color_graded = renodx::lut::Sample(SrcLUT, lut_config, lut_color);
-    output_color = renodx::tonemap::UpgradeToneMap(output_color, lut_color, lut_color_graded);
-
-    output_color = PreTonemapSliders(output_color);
-    float white_clip_adjusted = PreTonemapSliders(100.f).x;
-    output_color = PostTonemapSliders(output_color);  // Needs to go before display map to prevent hue clip
-    output_color = DisplayMap(output_color, white_clip_adjusted);
   }
-  output_color = renodx::draw::SwapChainPass(output_color, TEXCOORD, swapchainConfig);
+
+  const float mid_gray = 0.18f;
+  float mid_gray_out = renodx::lut::Sample(SrcLUT, lut_config, mid_gray).x;
+
+  // NEW INVERSE SCALE
+  float scale = renodx::math::Select(RENODX_TONE_MAP_TYPE == 0, 1.f, ComputeReinhardSmoothClampScale(output_color_bt709, 0.375f, lut_peak));
+  output_color_bt709 = output_color_bt709 * scale;
+  output_color_bt709 = renodx::lut::Sample(SrcLUT, lut_config, output_color_bt709);
+  output_color_bt709 = renodx::math::DivideSafe(output_color_bt709, scale, renodx::math::FLT_MAX);
+
+  if (RENODX_TONE_MAP_TYPE != 2.f) {
+    output_color_bt709 = PreTonemapSliders(output_color_bt709);
+    output_color_bt709 = PostTonemapSliders(output_color_bt709);  // Needs to go before display map to prevent hue clip
+  }
+
+  int gamut_compression_mode = (int)(!is_sdr);  // 0 = bt.709, 1 = bt.2020
+  output_color_bt709 = ProcessDisplayMap(output_color_bt709, peak_nits, gamut_compression_mode, 0.18f, 0.18f);
+
+  if (CUSTOM_FILM_GRAIN_STRENGTH != 0) {
+    output_color_bt709 = renodx::effects::ApplyFilmGrain(
+        output_color_bt709.rgb,
+        TEXCOORD.xy,
+        CUSTOM_RANDOM,
+        CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);
+  }
+
+  if (!is_sdr && CUSTOM_TONE_MAP_PARAMETERS == 0 && RENODX_TONE_MAP_TYPE != 2.f) {
+    output_color_bt709 = renodx::color::correct::GammaSafe(output_color_bt709);
+  } else if (is_sdr && (CUSTOM_TONE_MAP_PARAMETERS == 1 || RENODX_TONE_MAP_TYPE == 2.f)) {
+    output_color_bt709 = renodx::color::correct::GammaSafe(output_color_bt709, true);
+  }
+
+  float3 output_color = renodx::draw::SwapChainPass(output_color_bt709, TEXCOORD, swapchainConfig);
 
   return float4(output_color, 1.f);
 }
