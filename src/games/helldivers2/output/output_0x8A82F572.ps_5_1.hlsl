@@ -165,7 +165,7 @@ void frag_main()
     }
     float _419 = 1.0f / float(_323);
 #if 1
-   
+
     if (RENODX_TONE_MAP_TYPE != 0.f) {
       float4 ui_color = float4(_378, _376, _374, _371) * _419;
 
