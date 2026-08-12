@@ -17,7 +17,10 @@ float3 CustomTonemap(
   } else if (RENODX_TONE_MAP_TYPE == 2.f) {
     helldivers2::tonemap::ACESCurveComponents aces_curve;
     if (CUSTOM_CURVE == 0) {
-      aces_curve = helldivers2::tonemap::FindACESCurveComponents(aces_parameters);
+      helldivers2::tonemap::ACESParameters sdr_reference_parameters = aces_parameters;
+      // Match a normalized SDR curve; the display peak only controls the final shoulder.
+      sdr_reference_parameters.target_peak_nits = sdr_reference_parameters.diffuse_white_nits;
+      aces_curve = helldivers2::tonemap::FindACESCurveComponents(sdr_reference_parameters);
     } else {
       aces_curve.midgray_in = RENODX_TONE_MAP_MID_GRAY_IN;
       aces_curve.midgray_out = RENODX_TONE_MAP_MID_GRAY_OUT;
