@@ -15,13 +15,18 @@
 
 namespace renodx::addons::upgrade::automatic_detection {
 
+enum class ShaderSourceClassification : uint8_t {
+  MATCHING,      // Has a matching-size (e.g. swapchain) SRV
+  OTHER,         // Has texture-2d SRV but not matching size
+  NO_TEXTURE2D,  // No texture-2d SRV bound to this shader
+};
+
 struct SwapchainWriter {
   uint32_t shader_hash = 0u;
   uint32_t rtv_index = 0u;
   uint64_t target_resource = 0u;
   uint32_t submission_order = 0u;
-  bool has_texture_2d_srv = false;
-  bool has_matching_source = false;
+  ShaderSourceClassification classification = ShaderSourceClassification::NO_TEXTURE2D;
 };
 
 struct SwapchainCopy {
@@ -136,40 +141,36 @@ class Detector {
     const auto matches_target = [target_resource](const SwapchainWriter& writer) {
       return target_resource == 0u || writer.target_resource == target_resource;
     };
-    struct ShaderClassification {
-      bool has_texture_2d_srv = true;
-      bool has_matching_source = true;
-    };
-    std::unordered_map<uint32_t, ShaderClassification> shader_classifications;
+    std::unordered_map<uint32_t, ShaderSourceClassification> shader_classifications;
     shader_classifications.reserve(frame_writers.size());
     for (const auto& writer : frame_writers) {
       if (!matches_target(writer)) continue;
 
       auto& classification = shader_classifications[writer.shader_hash];
-      if (!writer.has_texture_2d_srv) {
-        classification.has_texture_2d_srv = false;
-        classification.has_matching_source = false;
-      } else if (!writer.has_matching_source) {
-        classification.has_matching_source = false;
+      // Conservative: worst classification wins across all draws of this shader.
+      // Priority: NO_TEXTURE2D > OTHER > MATCHING
+      if (static_cast<uint8_t>(writer.classification) > static_cast<uint8_t>(classification)) {
+        classification = writer.classification;
       }
     }
     for (auto& writer : frame_writers) {
       if (!matches_target(writer)) continue;
-      const auto& classification = shader_classifications.at(writer.shader_hash);
-      writer.has_texture_2d_srv = classification.has_texture_2d_srv;
-      writer.has_matching_source = classification.has_matching_source;
+      const auto classification_it = shader_classifications.find(writer.shader_hash);
+      writer.classification = classification_it != shader_classifications.end()
+                                  ? classification_it->second
+                                  : ShaderSourceClassification::NO_TEXTURE2D;
     }
 
     auto writer_iterator = frame_writers.end();
     for (auto iterator = frame_writers.begin(); iterator != frame_writers.end(); ++iterator) {
-      if (!matches_target(*iterator) || !iterator->has_matching_source) continue;
+      if (!matches_target(*iterator) || iterator->classification != ShaderSourceClassification::MATCHING) continue;
       const auto next_iterator = std::ranges::find_if(
           std::next(iterator),
           frame_writers.end(),
           matches_target);
       if (next_iterator != frame_writers.end()
-          && next_iterator->has_texture_2d_srv
-          && !next_iterator->has_matching_source) {
+          && next_iterator != iterator
+          && next_iterator->classification == ShaderSourceClassification::OTHER) {
         writer_iterator = iterator;
         break;
       }
@@ -178,7 +179,7 @@ class Detector {
       writer_iterator = std::ranges::find_if(
           frame_writers,
           [&matches_target](const SwapchainWriter& writer) {
-            return matches_target(writer) && writer.has_matching_source;
+            return matches_target(writer) && writer.classification == ShaderSourceClassification::MATCHING;
           });
     }
     if (writer_iterator == frame_writers.end()) {

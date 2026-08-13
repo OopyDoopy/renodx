@@ -5,11 +5,15 @@
 
 #pragma once
 
+#include <algorithm>
 #include <charconv>
+#include <cstring>
 #include <cstdint>
 #include <regex>
+#include <span>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace renodx::addons::upgrade::utils::reflection {
@@ -116,6 +120,110 @@ inline std::vector<SrvBinding> ParseDxbcSrvBindings(std::string_view disassembly
             if (space_result.ec != std::errc()) continue;
         }
         bindings.push_back(binding);
+    }
+    return bindings;
+}
+
+inline std::vector<SrvBinding> ParseSpirvSrvBindings(std::span<const uint8_t> bytecode) {
+    constexpr uint32_t spirv_magic = 0x07230203u;
+    constexpr uint16_t op_type_image = 25u;
+    constexpr uint16_t op_type_sampled_image = 27u;
+    constexpr uint16_t op_type_array = 28u;
+    constexpr uint16_t op_type_runtime_array = 29u;
+    constexpr uint16_t op_type_pointer = 32u;
+    constexpr uint16_t op_variable = 59u;
+    constexpr uint16_t op_decorate = 71u;
+    constexpr uint32_t decoration_binding = 33u;
+    constexpr uint32_t decoration_descriptor_set = 34u;
+    constexpr uint32_t storage_class_uniform_constant = 0u;
+
+    if (bytecode.size() < 5u * sizeof(uint32_t)
+            || bytecode.size() % sizeof(uint32_t) != 0u) {
+        return {};
+    }
+
+    std::vector<uint32_t> words(bytecode.size() / sizeof(uint32_t));
+    std::memcpy(words.data(), bytecode.data(), bytecode.size());
+    if (words.front() != spirv_magic) return {};
+
+    struct Variable {
+        uint32_t type = 0u;
+        uint32_t id = 0u;
+    };
+    struct Decorations {
+        uint32_t binding = 0u;
+        uint32_t descriptor_set = 0u;
+        bool has_binding = false;
+        bool has_descriptor_set = false;
+    };
+
+    std::unordered_map<uint32_t, uint32_t> contained_types;
+    std::unordered_set<uint32_t> image_types;
+    std::unordered_map<uint32_t, Decorations> decorations;
+    std::vector<Variable> variables;
+
+    for (size_t offset = 5u; offset < words.size();) {
+        const uint16_t word_count = static_cast<uint16_t>(words[offset] >> 16u);
+        const uint16_t opcode = static_cast<uint16_t>(words[offset]);
+        if (word_count == 0u || word_count > words.size() - offset) return {};
+
+        switch (opcode) {
+            case op_type_image:
+            case op_type_sampled_image:
+                if (word_count >= 3u) image_types.insert(words[offset + 1u]);
+                break;
+            case op_type_array:
+            case op_type_runtime_array:
+                if (word_count >= 3u) contained_types[words[offset + 1u]] = words[offset + 2u];
+                break;
+            case op_type_pointer:
+                if (word_count >= 4u) contained_types[words[offset + 1u]] = words[offset + 3u];
+                break;
+            case op_variable:
+                if (word_count >= 4u && words[offset + 3u] == storage_class_uniform_constant) {
+                    variables.push_back({.type = words[offset + 1u], .id = words[offset + 2u]});
+                }
+                break;
+            case op_decorate:
+                if (word_count >= 4u) {
+                    auto& decoration = decorations[words[offset + 1u]];
+                    if (words[offset + 2u] == decoration_binding) {
+                        decoration.binding = words[offset + 3u];
+                        decoration.has_binding = true;
+                    } else if (words[offset + 2u] == decoration_descriptor_set) {
+                        decoration.descriptor_set = words[offset + 3u];
+                        decoration.has_descriptor_set = true;
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+        offset += word_count;
+    }
+
+    std::vector<SrvBinding> bindings;
+    for (const auto& variable : variables) {
+        uint32_t type = variable.type;
+        std::unordered_set<uint32_t> visited;
+        while (!image_types.contains(type) && visited.insert(type).second) {
+            const auto contained = contained_types.find(type);
+            if (contained == contained_types.end()) break;
+            type = contained->second;
+        }
+        if (!image_types.contains(type)) continue;
+
+        const auto decoration = decorations.find(variable.id);
+        if (decoration == decorations.end() || !decoration->second.has_binding) continue;
+        const SrvBinding binding = {
+            .slot = decoration->second.binding,
+            .space = decoration->second.has_descriptor_set
+                         ? decoration->second.descriptor_set
+                         : 0u,
+        };
+        if (std::ranges::find(bindings, binding) == bindings.end()) {
+            bindings.push_back(binding);
+        }
     }
     return bindings;
 }

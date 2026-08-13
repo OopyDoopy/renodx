@@ -9,6 +9,7 @@
 #include <array>
 #include <atomic>
 #include <charconv>
+#include <cmath>
 #include <cstdint>
 #include <format>
 #include <mutex>
@@ -55,6 +56,7 @@ constexpr float UPGRADE_TYPE_OUTPUT_SIZE = 1.f;
 constexpr float UPGRADE_TYPE_OUTPUT_RATIO = 2.f;
 constexpr float UPGRADE_TYPE_ANY_SIZE = 3.f;
 constexpr uint32_t MAX_SIMULTANEOUS_RENDER_TARGETS = 8u;
+constexpr float AUTOMATIC_SOURCE_SIZE_TOLERANCE = 0.01f;
 
 constexpr std::array UPGRADE_TARGETS = {
     std::pair{"R8G8B8A8_TYPELESS", reshade::api::format::r8g8b8a8_typeless},
@@ -84,7 +86,6 @@ constexpr const char* CONFIG_SECTION = "renodx-upgrade";
 enum class EffectInsertionMode : uint32_t {
     automatic = 0u,
     manual = 1u,
-    automatic_manual = 2u,
 };
 
 enum class AutomaticEffectInsertionSourceSize : uint32_t {
@@ -202,13 +203,7 @@ struct __declspec(uuid("ae845c75-7314-47b4-832c-b8ab6059772b")) EffectInsertionD
         std::vector<renodx::addons::upgrade::utils::reflection::SrvBinding> srvs;
     };
 
-    struct BindingCacheValue {
-        bool has_texture_2d_srv = false;
-        std::vector<reshade::api::resource> matching_resources;
-    };
-
     std::mutex mutex;
-    std::mutex binding_cache_mutex;
     std::recursive_mutex effect_runtime_mutex;
     bool effect_runtime_present_lock_held = false;
     std::vector<uint32_t> occurrences;
@@ -224,8 +219,6 @@ struct __declspec(uuid("ae845c75-7314-47b4-832c-b8ab6059772b")) EffectInsertionD
     std::vector<uint64_t> automatic_current_final_target_resources;
     renodx::addons::upgrade::automatic_detection::Detector automatic_final_target_detector;
     std::vector<renodx::addons::upgrade::automatic_detection::SwapchainCopy> automatic_swapchain_copies;
-    std::vector<uint32_t> automatic_manual_swapchain_candidates;
-    std::vector<uint32_t> automatic_manual_final_target_candidates;
     EffectInsertionRule render_rule = {};
     std::vector<reshade::api::resource_view> swapchain_rtvs;
     bool capture_requested = false;
@@ -238,7 +231,6 @@ struct __declspec(uuid("ae845c75-7314-47b4-832c-b8ab6059772b")) EffectInsertionD
     std::unordered_map<EffectInsertionDrawKey, uint32_t, EffectInsertionDrawKeyHash> capture_occurrences;
     std::unordered_map<uint64_t, EffectInsertionPreviewSRV> preview_srvs;
     std::unordered_map<uint32_t, ReflectedShaderBindings> reflected_shader_bindings;
-    gtl::flat_hash_map<uint32_t, BindingCacheValue> binding_cache;
 };
 
 struct __declspec(uuid("627784c3-9367-48da-ad83-cbefa3fc14fa")) EffectInsertionCommandListData {
@@ -247,13 +239,12 @@ struct __declspec(uuid("627784c3-9367-48da-ad83-cbefa3fc14fa")) EffectInsertionC
     std::vector<renodx::addons::upgrade::automatic_detection::SwapchainWriter> automatic_writers;
     std::vector<renodx::addons::upgrade::automatic_detection::SwapchainWriter> automatic_final_target_writers;
     std::vector<renodx::addons::upgrade::automatic_detection::SwapchainCopy> automatic_swapchain_copies;
+    reshade::api::pipeline_layout graphics_pipeline_layout = {0u};
+    std::vector<reshade::api::descriptor_table> graphics_descriptor_tables;
 };
 
 EffectInsertionMode active_effect_insertion_mode = EffectInsertionMode::automatic;
 EffectInsertionMode saved_effect_insertion_mode = EffectInsertionMode::automatic;
-uint32_t active_automatic_manual_shader_hash = 0u;
-uint32_t saved_automatic_manual_shader_hash = 0u;
-uint32_t draft_automatic_manual_shader_hash = 0u;
 AutomaticEffectInsertionSourceSize active_automatic_effect_insertion_source_size =
     AutomaticEffectInsertionSourceSize::swapchain;
 AutomaticEffectInsertionSourceSize saved_automatic_effect_insertion_source_size =
@@ -618,6 +609,8 @@ void SaveEffectInsertionRules(const std::vector<EffectInsertionRule>& rules) {
             return native_command_list != nullptr
                    && native_command_list->GetType() == D3D12_COMMAND_LIST_TYPE_DIRECT;
         }
+        case reshade::api::device_api::vulkan:
+            return true;
         default:
             return false;
     }
@@ -644,8 +637,15 @@ void SaveEffectInsertionRules(const std::vector<EffectInsertionRule>& rules) {
     if (desc.type != reshade::api::resource_type::texture_2d) return false;
 
     switch (source_size) {
-        case AutomaticEffectInsertionSourceSize::swapchain:
-            return desc.texture.width == swapchain_width && desc.texture.height == swapchain_height;
+        case AutomaticEffectInsertionSourceSize::swapchain: {
+            if (swapchain_width == 0u || swapchain_height == 0u) return false;
+            const float width_error = std::abs(
+                static_cast<float>(desc.texture.width) / static_cast<float>(swapchain_width) - 1.f);
+            const float height_error = std::abs(
+                static_cast<float>(desc.texture.height) / static_cast<float>(swapchain_height) - 1.f);
+            return width_error <= AUTOMATIC_SOURCE_SIZE_TOLERANCE
+                   && height_error <= AUTOMATIC_SOURCE_SIZE_TOLERANCE;
+        }
         case AutomaticEffectInsertionSourceSize::aspect_ratio_16_9:
             return static_cast<uint64_t>(desc.texture.width) * 9u
                    == static_cast<uint64_t>(desc.texture.height) * 16u;
@@ -671,16 +671,22 @@ void SaveEffectInsertionRules(const std::vector<EffectInsertionRule>& rules) {
     return renodx::utils::resource::GetResourceFromView(device, view);
 }
 
-[[nodiscard]] std::vector<reshade::api::resource> GetMatchingPixelShaderResourcesD3D11(
+[[nodiscard]] renodx::addons::upgrade::automatic_detection::ShaderSourceClassification GetMatchingPixelShaderResourcesD3D11(
         reshade::api::command_list* cmd_list,
+        uint32_t shader_hash,
         uint32_t width,
         uint32_t height,
-    AutomaticEffectInsertionSourceSize source_size,
-    bool* has_texture_2d_srv = nullptr) {
-    std::vector<reshade::api::resource> resources;
+        AutomaticEffectInsertionSourceSize source_size,
+        std::vector<reshade::api::resource>* matching_resources_out = nullptr) {
+    (void)shader_hash;
+    std::vector<reshade::api::resource> local_matching;
+    bool found_texture_2d = false;
     auto* native_context = reinterpret_cast<ID3D11DeviceContext*>(
             static_cast<uintptr_t>(cmd_list->get_native()));  // NOLINT(performance-no-int-to-ptr)
-    if (native_context == nullptr) return resources;
+    if (native_context == nullptr) {
+        if (matching_resources_out != nullptr) *matching_resources_out = {};
+        return renodx::addons::upgrade::automatic_detection::ShaderSourceClassification::NO_TEXTURE2D;
+    }
 
     std::array<ID3D11ShaderResourceView*, 10u> views = {};
     native_context->PSGetShaderResources(0u, static_cast<uint32_t>(views.size()), views.data());
@@ -691,19 +697,35 @@ void SaveEffectInsertionRules(const std::vector<EffectInsertionRule>& rules) {
         const auto resource = GetLogicalResourceFromView(device, view);
         if (resource.handle == 0u) continue;
         const auto desc = renodx::utils::resource::GetResourceDesc(device, resource);
-        if (desc.type == reshade::api::resource_type::texture_2d
-                && has_texture_2d_srv != nullptr) {
-            *has_texture_2d_srv = true;
+        if (desc.type == reshade::api::resource_type::texture_2d) {
+            found_texture_2d = true;
         }
         if (MatchesAutomaticEffectInsertionSourceSize(desc, width, height, source_size)
-                && std::ranges::find(resources, resource) == resources.end()) {
-            resources.push_back(resource);
+                && std::ranges::find(local_matching, resource) == local_matching.end()) {
+            local_matching.push_back(resource);
         }
     }
     for (auto* native_view : views) {
         if (native_view != nullptr) native_view->Release();
     }
-    return resources;
+
+    renodx::addons::upgrade::automatic_detection::ShaderSourceClassification classification;
+    if (!local_matching.empty()) {
+        classification = renodx::addons::upgrade::automatic_detection::ShaderSourceClassification::MATCHING;
+    } else if (found_texture_2d) {
+        classification = renodx::addons::upgrade::automatic_detection::ShaderSourceClassification::OTHER;
+    } else {
+        classification = renodx::addons::upgrade::automatic_detection::ShaderSourceClassification::NO_TEXTURE2D;
+    }
+
+    if (matching_resources_out != nullptr) {
+        matching_resources_out->clear();
+        matching_resources_out->insert(
+            matching_resources_out->end(),
+            local_matching.begin(),
+            local_matching.end());
+    }
+    return classification;
 }
 
 [[nodiscard]] bool IsAutomaticEffectInsertionSourceResourceView(
@@ -748,310 +770,266 @@ void SaveEffectInsertionRules(const std::vector<EffectInsertionRule>& rules) {
             source_size);
 }
 
-[[nodiscard]] bool HasSwapchainSizedPixelShaderResourceD3D12(
+[[nodiscard]] renodx::addons::upgrade::automatic_detection::ShaderSourceClassification HasReflectedMatchingPixelShaderResource(
         reshade::api::command_list* cmd_list,
         uint32_t shader_hash,
         uint32_t width,
         uint32_t height,
         AutomaticEffectInsertionSourceSize source_size,
-        std::vector<reshade::api::resource>* matching_resources = nullptr,
-        bool* has_texture_2d_srv = nullptr) {
+        std::vector<reshade::api::resource>* matching_resources_out = nullptr) {
     auto* command_state = renodx::utils::state::GetCurrentState(cmd_list);
-    if (command_state == nullptr) return false;
+    if (command_state == nullptr) {
+        if (matching_resources_out != nullptr) *matching_resources_out = {};
+        return renodx::addons::upgrade::automatic_detection::ShaderSourceClassification::NO_TEXTURE2D;
+    }
 
     reshade::api::pipeline pipeline = {0u};
+    if (const auto* shader_state = renodx::utils::shader::GetCurrentState(cmd_list);
+            shader_state != nullptr) {
+        pipeline = shader_state->stage_states[renodx::utils::shader::PIXEL_INDEX].pipeline;
+    }
     for (const auto& [stages, candidate] : command_state->pipelines) {
+        if (pipeline.handle != 0u) break;
         if ((static_cast<uint32_t>(stages)
                 & static_cast<uint32_t>(reshade::api::pipeline_stage::pixel_shader)) != 0u) {
             pipeline = candidate;
             break;
         }
     }
-    if (pipeline.handle == 0u) return false;
+    if (pipeline.handle == 0u) {
+        reshade::log::message(
+            reshade::log::level::warning,
+            std::format(
+                "RenoDX Upgrade (reflections): shader 0x{:08X}: no bound pixel pipeline was found.",
+                shader_hash)
+                .c_str());
+        if (matching_resources_out != nullptr) *matching_resources_out = {};
+        return renodx::addons::upgrade::automatic_detection::ShaderSourceClassification::NO_TEXTURE2D;
+    }
 
     auto* device = cmd_list->get_device();
     auto* insertion_data = renodx::utils::data::Get<EffectInsertionDeviceData>(device);
-    if (insertion_data == nullptr) return false;
-    {
-        const std::lock_guard lock(insertion_data->binding_cache_mutex);
-        if (const auto cached = insertion_data->binding_cache.find(shader_hash);
-                cached != insertion_data->binding_cache.end()) {
-            if (has_texture_2d_srv != nullptr) {
-                *has_texture_2d_srv = cached->second.has_texture_2d_srv;
-            }
-            if (matching_resources != nullptr) {
-                *matching_resources = cached->second.matching_resources;
-            }
-            return !cached->second.matching_resources.empty();
-        }
+    if (insertion_data == nullptr) {
+        reshade::log::message(
+            reshade::log::level::warning,
+            "RenoDX Upgrade (reflections): insertion device data is unavailable.");
+        if (matching_resources_out != nullptr) *matching_resources_out = {};
+        return renodx::addons::upgrade::automatic_detection::ShaderSourceClassification::NO_TEXTURE2D;
     }
-
-    auto* descriptor_data = renodx::utils::data::Get<renodx::utils::descriptor::DeviceData>(device);
-    if (descriptor_data == nullptr) return false;
-
     auto& reflected = insertion_data->reflected_shader_bindings[shader_hash];
     if (!reflected.scanned) {
         reflected.scanned = true;
         try {
             auto shader_data = renodx::utils::shader::GetShaderData(pipeline, shader_hash);
             if (!shader_data.has_value()) {
-            reshade::log::message(
-                reshade::log::level::warning,
-                std::format(
-                    "RenoDX Upgrade DXIL reflection: shader 0x{:08X}, pipeline 0x{:X}: bytecode unavailable.",
-                    shader_hash,
-                    pipeline.handle)
-                    .c_str());
+                reshade::log::message(
+                    reshade::log::level::warning,
+                    std::format(
+                        "RenoDX Upgrade (reflections): shader 0x{:08X}, pipeline 0x{:X}: bytecode unavailable.",
+                        shader_hash,
+                        pipeline.handle)
+                        .c_str());
             } else {
-            const auto version = renodx::utils::shader::compiler::directx::DecodeShaderVersion(
-                shader_data.value());
-            if (version.GetMajor() >= 6u) {
-                reflected.srvs = renodx::addons::upgrade::utils::reflection::ParseDxilSrvBindings(
-                    renodx::utils::shader::compiler::directx::DisassembleShader(
-                        shader_data.value()));
-            } else if (version.GetMajor() >= 4u) {
-                reflected.srvs = renodx::addons::upgrade::utils::reflection::ParseDxbcSrvBindings(
-                    renodx::utils::shader::compiler::directx::DisassembleShader(
-                        shader_data.value()));
-            }
-            reshade::log::message(
-                reshade::log::level::info,
-                std::format(
-                    "RenoDX Upgrade shader reflection: shader 0x{:08X}, pipeline 0x{:X}, SM {}.{}, format {}, {} reflected SRV binding(s).",
-                    shader_hash,
-                    pipeline.handle,
-                    version.GetMajor(),
-                    version.GetMinor(),
-                    version.GetMajor() >= 6u ? "DXIL" : "DXBC",
-                    reflected.srvs.size())
-                    .c_str());
-            if (version.GetMajor() >= 4u) {
-                for (const auto& srv : reflected.srvs) {
+                if (device->get_api() == reshade::api::device_api::vulkan) {
+                    reflected.srvs = renodx::addons::upgrade::utils::reflection::ParseSpirvSrvBindings(
+                        shader_data.value());
+                } else {
+                    const auto version = renodx::utils::shader::compiler::directx::DecodeShaderVersion(
+                        shader_data.value());
+                    if (version.GetMajor() >= 6u) {
+                        reflected.srvs = renodx::addons::upgrade::utils::reflection::ParseDxilSrvBindings(
+                            renodx::utils::shader::compiler::directx::DisassembleShader(shader_data.value()));
+                    } else if (version.GetMajor() >= 4u) {
+                        reflected.srvs = renodx::addons::upgrade::utils::reflection::ParseDxbcSrvBindings(
+                            renodx::utils::shader::compiler::directx::DisassembleShader(shader_data.value()));
+                    }
+                }
                 reshade::log::message(
                     reshade::log::level::info,
                     std::format(
-                        "RenoDX Upgrade shader reflection: shader 0x{:08X}: t{}, space{}.",
+                        "RenoDX Upgrade (reflections): shader 0x{:08X}, pipeline 0x{:X}: {} reflected sampled-image binding(s).",
                         shader_hash,
-                        srv.slot,
-                        srv.space)
+                        pipeline.handle,
+                        reflected.srvs.size())
                         .c_str());
-                }
-            }
             }
         } catch (const std::exception& exception) {
             reflected.srvs.clear();
             reshade::log::message(
                 reshade::log::level::error,
                 std::format(
-                    "RenoDX Upgrade DXIL reflection: shader 0x{:08X}, pipeline 0x{:X}: {}",
+                    "RenoDX Upgrade (reflections): shader 0x{:08X}, pipeline 0x{:X}: {}",
                     shader_hash,
                     pipeline.handle,
                     exception.what())
                     .c_str());
         }
     }
-    if (reflected.srvs.empty()) return false;
-
-        reshade::log::message(
-            reshade::log::level::debug,
-            std::format(
-                "RenoDX Upgrade DXIL bindings: inspect shader 0x{:08X}, pipeline 0x{:X}, layout 0x{:X}, target {}x{}.",
-                shader_hash,
-                pipeline.handle,
-                command_state->graphics_pipeline_layout.handle,
-                width,
-                height)
-                .c_str());
-
-    bool found = false;
-    renodx::utils::shader::GetPipelineShaderDetails(
-            pipeline,
-            [&](const renodx::utils::shader::PipelineShaderDetails& shader_details) {
-                if (shader_details.layout != command_state->graphics_pipeline_layout) {
-                    reshade::log::message(
-                            reshade::log::level::debug,
-                            std::format(
-                                    "RenoDX Upgrade DXIL bindings: shader 0x{:08X}: pipeline layout 0x{:X} does not match bound layout 0x{:X}.",
-                                    shader_hash,
-                                    shader_details.layout.handle,
-                                    command_state->graphics_pipeline_layout.handle)
-                                    .c_str());
-                    return;
-                }
-                renodx::utils::pipeline_layout::GetPipelineLayoutData(
-                        shader_details.layout,
-                        [&](const renodx::utils::pipeline_layout::PipelineLayoutData* layout_data) {
-                            for (uint32_t parameter_index = 0u;
-                                    parameter_index < layout_data->params.size()
-                                    && (matching_resources != nullptr || !found);
-                                    ++parameter_index) {
-                                if (parameter_index >= command_state->graphics_descriptor_tables.size()) continue;
-                                const auto descriptor_table = command_state->graphics_descriptor_tables[parameter_index];
-                                if (descriptor_table.handle == 0u) continue;
-
-                                const auto& parameter = layout_data->params[parameter_index];
-                                const reshade::api::descriptor_range* ranges = nullptr;
-                                uint32_t range_count = 0u;
-                                switch (parameter.type) {
-                                    case reshade::api::pipeline_layout_param_type::descriptor_table:
-                                        ranges = parameter.descriptor_table.ranges;
-                                        range_count = parameter.descriptor_table.count;
-                                        break;
-                                    case reshade::api::pipeline_layout_param_type::descriptor_table_with_static_samplers:
-                                        ranges = parameter.descriptor_table_with_static_samplers.ranges;
-                                        range_count = parameter.descriptor_table_with_static_samplers.count;
-                                        break;
-                                    default:
-                                        continue;
-                                }
-
-                                for (const auto& srv : reflected.srvs) {
-                                    if (matching_resources == nullptr && found) break;
-                                    bool resolved_range = false;
-                                    for (uint32_t range_index = 0u; range_index < range_count; ++range_index) {
-                                        const auto& range = ranges[range_index];
-                                        if (range.count == 0u
-                                            || (static_cast<uint32_t>(range.visibility)
-                                                & static_cast<uint32_t>(reshade::api::shader_stage::pixel)) == 0u) {
-                                            continue;
-                                        }
-                                        switch (range.type) {
-                                            case reshade::api::descriptor_type::shader_resource_view:
-                                            case reshade::api::descriptor_type::sampler_with_resource_view:
-                                            case reshade::api::descriptor_type::buffer_shader_resource_view:
-                                                break;
-                                            default:
-                                                continue;
-                                        }
-                                        if (range.dx_register_space != srv.space
-                                            || srv.slot < range.dx_register_index
-                                            || (range.count != UINT32_MAX
-                                                && srv.slot - range.dx_register_index >= range.count)) {
-                                            continue;
-                                        }
-                                        resolved_range = true;
-
-                                        reshade::api::descriptor_heap heap = {0u};
-                                        uint32_t base_offset = 0u;
-                                        device->get_descriptor_heap_offset(
-                                            descriptor_table,
-                                            range.binding + srv.slot - range.dx_register_index,
-                                            0u,
-                                            &heap,
-                                            &base_offset);
-
-                                        reshade::api::resource_view resource_view = {0u};
-                                        {
-                                            const std::shared_lock lock(descriptor_data->mutex);
-                                            const auto heap_pair = descriptor_data->heaps.find(heap.handle);
-                                            if (heap_pair != descriptor_data->heaps.end()
-                                                    && base_offset < heap_pair->second.size()) {
-                                                const auto& descriptor = heap_pair->second[base_offset];
-                                                if (descriptor.HasResourceView()) {
-                                                    resource_view = descriptor.resource_view;
-                                                }
-                                            }
-                                        }
-
-                                        const auto resource = GetLogicalResourceFromView(device, resource_view);
-                                        reshade::api::resource_desc resource_desc = {};
-                                        if (resource.handle != 0u) {
-                                            resource_desc = renodx::utils::resource::GetResourceDesc(device, resource);
-                                        }
-                                        const bool matches = IsAutomaticEffectInsertionSourceResourceView(
-                                                device, resource_view, width, height, source_size);
-                                        reshade::log::message(
-                                                reshade::log::level::debug,
-                                                std::format(
-                                                        "RenoDX Upgrade DXIL bindings: shader 0x{:08X} t{}, space{} -> parameter {}, range {}, table 0x{:X}, binding {}, heap 0x{:X}[{}], view 0x{:X}, resource 0x{:X}, type {}, format {}, size {}x{}, match {}.",
-                                                        shader_hash,
-                                                        srv.slot,
-                                                        srv.space,
-                                                        parameter_index,
-                                                        range_index,
-                                                        descriptor_table.handle,
-                                                        range.binding + srv.slot - range.dx_register_index,
-                                                        heap.handle,
-                                                        base_offset,
-                                                        resource_view.handle,
-                                                        resource.handle,
-                                                        static_cast<uint32_t>(resource_desc.type),
-                                                        static_cast<uint32_t>(resource_desc.texture.format),
-                                                        resource_desc.texture.width,
-                                                        resource_desc.texture.height,
-                                                        matches ? "yes" : "no")
-                                                        .c_str());
-                                        if (resource_view.handle != 0u) {
-                                            if (resource.handle != 0u && has_texture_2d_srv != nullptr) {
-                                                if (resource_desc.type == reshade::api::resource_type::texture_2d) {
-                                                    *has_texture_2d_srv = true;
-                                                }
-                                            }
-                                            if (matches) {
-                                                found = true;
-                                                if (matching_resources == nullptr) break;
-                                                if (resource.handle != 0u
-                                                        && std::ranges::find(
-                                                                   *matching_resources,
-                                                                   resource)
-                                                               == matching_resources->end()) {
-                                                    matching_resources->push_back(resource);
-                                                }
-                                            }
-                                        }
-                                        break;
-                                    }
-                                    if (!resolved_range) {
-                                        reshade::log::message(
-                                                reshade::log::level::debug,
-                                                std::format(
-                                                        "RenoDX Upgrade DXIL bindings: shader 0x{:08X} t{}, space{} has no matching visible SRV descriptor range.",
-                                                        shader_hash,
-                                                        srv.slot,
-                                                        srv.space)
-                                                        .c_str());
-                                    }
-                                }
-                            }
-                        });
-            });
-    {
-        const std::lock_guard lock(insertion_data->binding_cache_mutex);
-        insertion_data->binding_cache.emplace(
-            shader_hash,
-            EffectInsertionDeviceData::BindingCacheValue{
-                .has_texture_2d_srv = has_texture_2d_srv != nullptr && *has_texture_2d_srv,
-                .matching_resources = matching_resources != nullptr
-                                      ? *matching_resources
-                                      : std::vector<reshade::api::resource>{},
-            });
+    if (reflected.srvs.empty()) {
+        if (matching_resources_out != nullptr) *matching_resources_out = {};
+        return renodx::addons::upgrade::automatic_detection::ShaderSourceClassification::NO_TEXTURE2D;
     }
-    return found;
+
+    auto* descriptor_data = renodx::utils::data::Get<renodx::utils::descriptor::DeviceData>(device);
+    if (descriptor_data == nullptr) {
+        if (matching_resources_out != nullptr) *matching_resources_out = {};
+        return renodx::addons::upgrade::automatic_detection::ShaderSourceClassification::NO_TEXTURE2D;
+    }
+
+    const bool is_vulkan = device->get_api() == reshade::api::device_api::vulkan;
+    const auto* local_state = is_vulkan
+                                  ? renodx::utils::data::Get<EffectInsertionCommandListData>(cmd_list)
+                                  : nullptr;
+    const auto& descriptor_tables = local_state != nullptr
+                                        ? local_state->graphics_descriptor_tables
+                                        : command_state->graphics_descriptor_tables;
+    if (descriptor_tables.empty()) {
+        if (matching_resources_out != nullptr) *matching_resources_out = {};
+        return renodx::addons::upgrade::automatic_detection::ShaderSourceClassification::NO_TEXTURE2D;
+    }
+
+    std::vector<reshade::api::resource> local_matching;
+    bool found_texture_2d = false;
+
+    uint32_t table_index = UINT32_MAX;
+    if (is_vulkan) {
+        for (const auto& srv : reflected.srvs) {
+            if (srv.space < descriptor_tables.size()
+                    && descriptor_tables[srv.space].handle != 0u) {
+                table_index = srv.space;
+                break;
+            }
+        }
+    } else {
+        const auto table_iterator = std::ranges::find_if(
+            descriptor_tables,
+            [](const reshade::api::descriptor_table table) {
+                return table.handle != 0u;
+            });
+        if (table_iterator != descriptor_tables.end()) {
+            table_index = static_cast<uint32_t>(
+                std::distance(descriptor_tables.begin(), table_iterator));
+        }
+    }
+    if (table_index == UINT32_MAX) {
+        if (matching_resources_out != nullptr) *matching_resources_out = {};
+        return renodx::addons::upgrade::automatic_detection::ShaderSourceClassification::NO_TEXTURE2D;
+    }
+
+    const auto descriptor_table = descriptor_tables[table_index];
+    // Resource dimensions are only used to classify this shader during discovery.
+    for (const auto& srv : reflected.srvs) {
+        if (is_vulkan && srv.space != table_index) continue;
+
+            // Look up the resource at this SRV slot in the bound descriptor table.
+            reshade::api::descriptor_heap heap = {0u};
+            uint32_t base_offset = 0u;
+            device->get_descriptor_heap_offset(
+                descriptor_table,
+                srv.slot,
+                0u,
+                &heap,
+                &base_offset);
+
+            reshade::api::resource_view resource_view = {0u};
+            {
+                const std::shared_lock lock(descriptor_data->mutex);
+                const auto heap_pair = descriptor_data->heaps.find(heap.handle);
+                if (heap_pair != descriptor_data->heaps.end()
+                        && base_offset < heap_pair->second.size()) {
+                    const auto& descriptor = heap_pair->second[base_offset];
+                    if (descriptor.HasResourceView()) {
+                        resource_view = descriptor.resource_view;
+                    }
+                }
+            }
+
+            if (resource_view.handle == 0u) continue;
+
+            const auto resource = GetLogicalResourceFromView(device, resource_view);
+            reshade::api::resource_desc resource_desc = {};
+            if (resource.handle != 0u) {
+                resource_desc = renodx::utils::resource::GetResourceDesc(device, resource);
+            }
+
+            const bool matches = IsAutomaticEffectInsertionSourceResourceView(
+                device, resource_view, width, height, source_size);
+
+            reshade::log::message(
+                reshade::log::level::debug,
+                std::format(
+                    "RenoDX Upgrade (reflections): shader 0x{:08X}, binding {}, set/space {} -> table 0x{:X}, heap 0x{:X}[{}], view 0x{:X}, resource 0x{:X}, type {}, format {}, size {}x{}, target {}x{}, match {}.",
+                    shader_hash,
+                    srv.slot,
+                    srv.space,
+                    descriptor_table.handle,
+                    heap.handle,
+                    base_offset,
+                    resource_view.handle,
+                    resource.handle,
+                    static_cast<uint32_t>(resource_desc.type),
+                    static_cast<uint32_t>(
+                        resource_desc.type == reshade::api::resource_type::texture_2d
+                            ? resource_desc.texture.format
+                            : reshade::api::format::unknown),
+                    resource_desc.type == reshade::api::resource_type::texture_2d
+                        ? resource_desc.texture.width
+                        : 0u,
+                    resource_desc.type == reshade::api::resource_type::texture_2d
+                        ? resource_desc.texture.height
+                        : 0u,
+                    width,
+                    height,
+                    matches ? "yes" : "no")
+                    .c_str());
+
+            if (resource.handle != 0u) {
+                if (resource_desc.type == reshade::api::resource_type::texture_2d) {
+                    found_texture_2d = true;
+                }
+            }
+            if (matches) {
+                if (std::ranges::find(local_matching, resource) == local_matching.end()) {
+                    local_matching.push_back(resource);
+                }
+            }
+    }
+
+    // Determine classification: MATCHING > OTHER > NO_TEXTURE2D
+    renodx::addons::upgrade::automatic_detection::ShaderSourceClassification classification;
+    if (!local_matching.empty()) {
+        classification = renodx::addons::upgrade::automatic_detection::ShaderSourceClassification::MATCHING;
+    } else if (found_texture_2d) {
+        classification = renodx::addons::upgrade::automatic_detection::ShaderSourceClassification::OTHER;
+    } else {
+        classification = renodx::addons::upgrade::automatic_detection::ShaderSourceClassification::NO_TEXTURE2D;
+    }
+
+    if (matching_resources_out != nullptr) {
+        *matching_resources_out = std::move(local_matching);
+    }
+    return classification;
 }
 
-[[nodiscard]] std::vector<reshade::api::resource> GetMatchingPixelShaderResources(
+[[nodiscard]] renodx::addons::upgrade::automatic_detection::ShaderSourceClassification GetMatchingPixelShaderResources(
         reshade::api::command_list* cmd_list,
-    uint32_t shader_hash,
+        uint32_t shader_hash,
         uint32_t width,
         uint32_t height,
         AutomaticEffectInsertionSourceSize source_size,
-        bool* has_texture_2d_srv = nullptr) {
+        std::vector<reshade::api::resource>* matching_resources_out = nullptr) {
     if (cmd_list->get_device()->get_api() == reshade::api::device_api::d3d11) {
         return GetMatchingPixelShaderResourcesD3D11(
-            cmd_list, width, height, source_size, has_texture_2d_srv);
+            cmd_list, shader_hash, width, height, source_size, matching_resources_out);
     }
 
-    std::vector<reshade::api::resource> resources;
-        const bool found = HasSwapchainSizedPixelShaderResourceD3D12(
-            cmd_list,
-            shader_hash,
-            width,
-            height,
-            source_size,
-            &resources,
-            has_texture_2d_srv);
-        (void)found;
-    return resources;
+    return HasReflectedMatchingPixelShaderResource(
+        cmd_list,
+        shader_hash,
+        width,
+        height,
+        source_size,
+        matching_resources_out);
 }
 
 [[nodiscard]] bool FindSwapchainEffectInsertionRule(
@@ -1064,14 +1042,13 @@ void SaveEffectInsertionRules(const std::vector<EffectInsertionRule>& rules) {
 
     for (uint32_t rtv_index = 0u; rtv_index < command_list_data->current_render_targets.size(); ++rtv_index) {
         const auto render_target = command_list_data->current_render_targets[rtv_index];
-        const auto resource = renodx::utils::resource::GetResourceFromView(device, render_target);
-        if (resource.handle == 0u) continue;
-
         bool is_swapchain = false;
-        renodx::utils::resource::GetResourceInfo(
-                resource,
-                [&is_swapchain](const renodx::utils::resource::ResourceInfo& info) {
+        reshade::api::resource resource = {0u};
+        renodx::utils::resource::GetResourceViewInfo(
+                render_target,
+                [&is_swapchain, &resource](const renodx::utils::resource::ResourceViewInfo& info) {
                     is_swapchain = info.is_swap_chain;
+                    resource = info.original_resource;
                 });
         if (!is_swapchain) continue;
 
@@ -1082,7 +1059,9 @@ void SaveEffectInsertionRules(const std::vector<EffectInsertionRule>& rules) {
                 .rtv_index = rtv_index,
         };
         if (target_resource != nullptr) {
-            *target_resource = GetLogicalResourceFromView(device, render_target);
+            *target_resource = resource.handle != 0u
+                                   ? resource
+                                   : GetLogicalResourceFromView(device, render_target);
         }
         return true;
     }
@@ -1311,7 +1290,6 @@ struct EffectInsertionCallback {
         const uint32_t shader_hash = renodx::utils::shader::GetCurrentPixelShaderHash(shader_state);
         if (shader_hash == 0u) return {};
         EffectInsertionMode mode = EffectInsertionMode::automatic;
-        uint32_t automatic_manual_shader_hash = 0u;
         AutomaticEffectInsertionSourceSize automatic_source_size =
             AutomaticEffectInsertionSourceSize::swapchain;
         std::vector<EffectInsertionRule> rules;
@@ -1320,10 +1298,8 @@ struct EffectInsertionCallback {
         {
             const std::lock_guard lock(active_effect_insertion_rule_mutex);
             mode = active_effect_insertion_mode;
-            automatic_manual_shader_hash = active_automatic_manual_shader_hash;
             automatic_source_size = active_automatic_effect_insertion_source_size;
             rules = active_effect_insertion_rules;
-            if (active_effect_insertion_techniques.empty()) return {};
         }
 
         auto* runtime_data = renodx::utils::data::Get<renodx::utils::swapchain::DeviceData>(device);
@@ -1353,39 +1329,31 @@ struct EffectInsertionCallback {
                 insertion_data->automatic_final_target_resources.clear();
                 insertion_data->automatic_current_final_target_resources.clear();
                 insertion_data->automatic_final_target_detector.Reset();
-                insertion_data->automatic_manual_swapchain_candidates.clear();
-                insertion_data->automatic_manual_final_target_candidates.clear();
                 insertion_data->rendered = false;
             }
-                if (mode == EffectInsertionMode::automatic
-                    || mode == EffectInsertionMode::automatic_manual) {
+                if (mode == EffectInsertionMode::automatic) {
                 bool learned_final_target = false;
                 if (insertion_data->automatic_final_target_active) {
                     for (const uint64_t target_resource : insertion_data->automatic_final_target_resources) {
                         EffectInsertionRule target_rule = {};
                         if (!FindEffectInsertionRuleForResource(context.cmd_list, target_resource, target_rule)) continue;
-                    bool has_texture_2d_srv = false;
                     const auto target_desc = renodx::utils::resource::GetResourceDesc(
                             device,
                             reshade::api::resource{target_resource});
-                    const bool has_matching_source = !GetMatchingPixelShaderResources(
+                    if (target_desc.texture.width == 0u || target_desc.texture.height == 0u) continue;
+                    const auto classification = GetMatchingPixelShaderResources(
                             context.cmd_list,
                             shader_hash,
                             target_desc.texture.width,
                             target_desc.texture.height,
-                            automatic_source_size,
-                            &has_texture_2d_srv)
-                                                               .empty();
-                    const bool is_learned = mode == EffectInsertionMode::automatic_manual
-                                                ? shader_hash == automatic_manual_shader_hash
-                                                : insertion_data->automatic_final_target_detector.IsLearned(
-                                                          shader_hash);
+                            automatic_source_size);
+                        const bool is_learned = insertion_data->automatic_final_target_detector.IsLearned(
+                            shader_hash);
                     const automatic_detection::SwapchainWriter writer = {
                         .shader_hash = shader_hash,
                         .rtv_index = target_rule.rtv_index,
                         .target_resource = target_resource,
-                        .has_texture_2d_srv = has_texture_2d_srv,
-                        .has_matching_source = has_matching_source,
+                        .classification = classification,
                     };
                     if (device->get_api() == reshade::api::device_api::d3d12) {
                         auto* command_list_data = renodx::utils::data::Get<EffectInsertionCommandListData>(
@@ -1411,29 +1379,25 @@ struct EffectInsertionCallback {
                 reshade::api::resource swapchain_resource = {0u};
                 bool learned_swapchain = false;
                 if (FindSwapchainEffectInsertionRule(context.cmd_list, rule, &swapchain_resource)) {
-                    bool has_texture_2d_srv = false;
                     const auto swapchain_desc = renodx::utils::resource::GetResourceDesc(
                             device,
                             swapchain_resource);
-                    const auto matching_resources = GetMatchingPixelShaderResources(
+                        if (swapchain_desc.texture.width == 0u || swapchain_desc.texture.height == 0u) return {};
+                    std::vector<reshade::api::resource> matching_resources;
+                    const auto classification = GetMatchingPixelShaderResources(
                             context.cmd_list,
                             shader_hash,
                             swapchain_desc.texture.width,
                             swapchain_desc.texture.height,
                             automatic_source_size,
-                            &has_texture_2d_srv);
+                            &matching_resources);
                     const automatic_detection::SwapchainWriter writer = {
                         .shader_hash = shader_hash,
                         .rtv_index = rule.rtv_index,
                         .target_resource = swapchain_resource.handle,
-                        .has_texture_2d_srv = has_texture_2d_srv,
-                        .has_matching_source = !matching_resources.empty(),
+                        .classification = classification,
                     };
-                          learned_swapchain = mode == EffectInsertionMode::automatic_manual
-                                          ? !insertion_data->automatic_final_target_active
-                                              && shader_hash == automatic_manual_shader_hash
-                                    : insertion_data->automatic_detector.IsLearned(
-                                          shader_hash);
+                      learned_swapchain = insertion_data->automatic_detector.IsLearned(shader_hash);
                     if (device->get_api() == reshade::api::device_api::d3d12) {
                         auto* command_list_data = renodx::utils::data::Get<EffectInsertionCommandListData>(
                                 context.cmd_list);
@@ -1448,7 +1412,7 @@ struct EffectInsertionCallback {
                         command_list_data->automatic_writers.push_back(writer);
                         if (command_list_data->automatic_writers.size() == 1u) {
                             insertion_data->automatic_current_final_target_resources.clear();
-                            for (const auto resource : matching_resources) {
+                            for (const auto& resource : matching_resources) {
                                 insertion_data->automatic_current_final_target_resources.push_back(resource.handle);
                             }
                         }
@@ -1456,7 +1420,7 @@ struct EffectInsertionCallback {
                         insertion_data->automatic_detector.Record(writer);
                         if (insertion_data->automatic_detector.GetFrameWriterCount() == 1u) {
                             insertion_data->automatic_current_final_target_resources.clear();
-                            for (const auto resource : matching_resources) {
+                            for (const auto& resource : matching_resources) {
                                 insertion_data->automatic_current_final_target_resources.push_back(resource.handle);
                             }
                         }
@@ -1607,19 +1571,6 @@ void ApplyAutomaticEffectInsertionSourceSize(AutomaticEffectInsertionSourceSize 
     saved_automatic_effect_insertion_source_size = source_size;
     const std::lock_guard lock(active_effect_insertion_rule_mutex);
     active_automatic_effect_insertion_source_size = source_size;
-    ++active_effect_insertion_rule_revision;
-}
-
-void ApplyAutomaticManualShaderHash(uint32_t shader_hash) {
-    reshade::set_config_value(
-            nullptr,
-            CONFIG_SECTION,
-            "EffectInsertAutomaticManualShaderHash",
-            shader_hash);
-    saved_automatic_manual_shader_hash = shader_hash;
-    draft_automatic_manual_shader_hash = shader_hash;
-    const std::lock_guard lock(active_effect_insertion_rule_mutex);
-    active_automatic_manual_shader_hash = shader_hash;
     ++active_effect_insertion_rule_revision;
 }
 
@@ -1776,7 +1727,7 @@ void RenderEffectInsertionDrawView() {
         insertion_data = renodx::utils::data::Get<EffectInsertionDeviceData>(tracked_swapchain->get_device());
     }
     if (insertion_data == nullptr) {
-        ImGui::TextDisabled("Draw capture is available for D3D11 and D3D12 swapchains.");
+        ImGui::TextDisabled("Draw capture is available for D3D11, D3D12, and Vulkan swapchains.");
         return;
     }
 
@@ -2063,13 +2014,6 @@ void RenderEffectInsertionTechniqueSettings(reshade::api::effect_runtime* runtim
         }
         updated_techniques = std::move(unique_techniques);
     }
-    for (auto& available : available_techniques) {
-        if (std::ranges::find(updated_techniques, available.identifier) != updated_techniques.end()
-            && available.enabled) {
-            runtime->set_technique_state(available.handle, false);
-            available.enabled = false;
-        }
-    }
     constexpr ImGuiTableFlags table_flags = ImGuiTableFlags_Borders
                                             | ImGuiTableFlags_RowBg
                                             | ImGuiTableFlags_Resizable
@@ -2091,10 +2035,6 @@ void RenderEffectInsertionTechniqueSettings(reshade::api::effect_runtime* runtim
             if (ImGui::Checkbox("##insert", &insert)) {
                 if (insert) {
                     updated_techniques.push_back(available.identifier);
-                    if (available.enabled) {
-                        runtime->set_technique_state(available.handle, false);
-                        available.enabled = false;
-                    }
                 } else {
                     updated_techniques.erase(selected);
                 }
@@ -2214,9 +2154,16 @@ void RenderAutomaticDebugInfo() {
                     writer.submission_order,
                     writer.rtv_index,
                     static_cast<unsigned long long>(writer.target_resource),
-                    writer.has_matching_source
-                        ? "MATCH"
-                        : (writer.has_texture_2d_srv ? "OTHER" : "NO_TEXTURE2D"),
+                    [&writer]() {
+                        switch (writer.classification) {
+                            case automatic_detection::ShaderSourceClassification::MATCHING:
+                                return "MATCH";
+                            case automatic_detection::ShaderSourceClassification::OTHER:
+                                return "OTHER";
+                            default:
+                                return "NO_TEXTURE2D";
+                        }
+                    }(),
                     last_promotion.has_value() && last_promotion->writer_index == index
                             ? "  PROMOTED"
                             : "");
@@ -2273,9 +2220,16 @@ void RenderAutomaticDebugInfo() {
                     writer.submission_order,
                     writer.rtv_index,
                     static_cast<unsigned long long>(writer.target_resource),
-                    writer.has_matching_source
-                        ? "MATCH"
-                        : (writer.has_texture_2d_srv ? "OTHER" : "NO_TEXTURE2D"),
+                    [&writer]() {
+                        switch (writer.classification) {
+                            case automatic_detection::ShaderSourceClassification::MATCHING:
+                                return "MATCH";
+                            case automatic_detection::ShaderSourceClassification::OTHER:
+                                return "OTHER";
+                            default:
+                                return "NO_TEXTURE2D";
+                        }
+                    }(),
                     last_final_target_promotion.has_value()
                             && last_final_target_promotion->writer_index == index
                         ? "  PROMOTED"
@@ -2308,18 +2262,10 @@ void RenderEffectInsertionSettings(reshade::api::effect_runtime* runtime) {
         ApplyEffectInsertionConfiguration(EffectInsertionMode::automatic, saved_effect_insertion_rules);
     }
     ImGui::SameLine();
-    if (ImGui::RadioButton(
-            "Automatic Manual",
-            &mode_value,
-            static_cast<int>(EffectInsertionMode::automatic_manual))) {
-        ApplyEffectInsertionConfiguration(EffectInsertionMode::automatic_manual, saved_effect_insertion_rules);
-    }
-    ImGui::SameLine();
     if (ImGui::RadioButton("Manual", &mode_value, static_cast<int>(EffectInsertionMode::manual))) {
         ApplyEffectInsertionConfiguration(EffectInsertionMode::manual, saved_effect_insertion_rules);
     }
-    if (saved_effect_insertion_mode == EffectInsertionMode::automatic
-            || saved_effect_insertion_mode == EffectInsertionMode::automatic_manual) {
+    if (saved_effect_insertion_mode == EffectInsertionMode::automatic) {
         int source_size_value = static_cast<int>(saved_automatic_effect_insertion_source_size);
         ImGui::TextUnformatted("Automatic source SRV size");
         if (ImGui::RadioButton(
@@ -2338,56 +2284,8 @@ void RenderEffectInsertionSettings(reshade::api::effect_runtime* runtime) {
         ImGui::TextWrapped(
                 "Learns the post-process draw before UI-like work. Games with multiple swapchain writers use "
                 "swapchain mode; games with one stable true-output writer use its matching source texture in final mode.");
-        if (saved_effect_insertion_mode == EffectInsertionMode::automatic_manual) {
-            std::vector<uint32_t> matching_shader_hashes;
-            bool final_target_active = false;
-            if (tracked_swapchain != nullptr) {
-                if (auto* insertion_data = renodx::utils::data::Get<EffectInsertionDeviceData>(
-                            tracked_swapchain->get_device());
-                    insertion_data != nullptr) {
-                    const std::lock_guard lock(insertion_data->mutex);
-                    final_target_active = insertion_data->automatic_final_target_active;
-                    matching_shader_hashes = final_target_active
-                                                 ? insertion_data->automatic_manual_final_target_candidates
-                                                 : insertion_data->automatic_manual_swapchain_candidates;
-                }
-            }
-            const auto preview = draft_automatic_manual_shader_hash == 0u
-                                   ? std::string("None")
-                                   : std::format("0x{:08X}", draft_automatic_manual_shader_hash);
-            if (ImGui::BeginCombo("True output shader", preview.c_str())) {
-                for (const uint32_t shader_hash : matching_shader_hashes) {
-                    const bool selected = draft_automatic_manual_shader_hash == shader_hash;
-                    const auto label = std::format("0x{:08X}", shader_hash);
-                    if (ImGui::Selectable(label.c_str(), selected)) {
-                        draft_automatic_manual_shader_hash = shader_hash;
-                    }
-                    if (selected) ImGui::SetItemDefaultFocus();
-                }
-                ImGui::EndCombo();
-            }
-            if (matching_shader_hashes.empty()) {
-                ImGui::TextDisabled(
-                        "No MATCH writers detected for the current %s resource.",
-                        final_target_active ? "final-target" : "swapchain");
-            }
-            if (ImGui::Button("Save true output shader")) {
-                ApplyAutomaticManualShaderHash(draft_automatic_manual_shader_hash);
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Clear true output shader")) {
-                ApplyAutomaticManualShaderHash(0u);
-            }
-            if (saved_automatic_manual_shader_hash == 0u) {
-                ImGui::TextDisabled("No true output shader is saved.");
-            } else {
-                ImGui::TextDisabled(
-                        "Saved true output shader: 0x%08X",
-                        saved_automatic_manual_shader_hash);
-            }
-        }
         RenderAutomaticDebugInfo();
-        ImGui::TextDisabled("Automatic matching inspects the live D3D11/D3D12 pixel-shader bindings.");
+        ImGui::TextDisabled("Automatic matching inspects the live D3D11/D3D12/Vulkan pixel-shader bindings.");
         return;
     }
 
@@ -2534,7 +2432,7 @@ void RenderEffectInsertionSettings(reshade::api::effect_runtime* runtime) {
             "Select at least one ReShade technique for the active insert point.");
         }
     ImGui::TextDisabled("Renders only the selected ReShade techniques once per frame after the selected draw.");
-    ImGui::TextDisabled("D3D11 immediate contexts and D3D12 direct lists outside render passes are supported.");
+    ImGui::TextDisabled("D3D11 immediate contexts, D3D12 direct lists outside render passes, and Vulkan graphics lists are supported.");
     ImGui::TextDisabled("D3D12 occurrence selection follows recording order and is intended for serially recorded passes.");
 }
 
@@ -2548,17 +2446,9 @@ void ConfigureEffectInsertion() {
     reshade::get_config_value(nullptr, CONFIG_SECTION, "EffectInsertMode", mode);
     if (mode == static_cast<uint32_t>(EffectInsertionMode::manual)) {
         saved_effect_insertion_mode = EffectInsertionMode::manual;
-    } else if (mode == static_cast<uint32_t>(EffectInsertionMode::automatic_manual)) {
-        saved_effect_insertion_mode = EffectInsertionMode::automatic_manual;
     } else {
         saved_effect_insertion_mode = EffectInsertionMode::automatic;
     }
-    reshade::get_config_value(
-            nullptr,
-            CONFIG_SECTION,
-            "EffectInsertAutomaticManualShaderHash",
-            saved_automatic_manual_shader_hash);
-    draft_automatic_manual_shader_hash = saved_automatic_manual_shader_hash;
     saved_effect_insertion_rules = LoadEffectInsertionRules(legacy_rule);
         uint32_t automatic_source_size = static_cast<uint32_t>(AutomaticEffectInsertionSourceSize::swapchain);
         reshade::get_config_value(
@@ -2574,7 +2464,6 @@ void ConfigureEffectInsertion() {
     manual_effect_insertion_rules_dirty = false;
     selected_effect_insertion_techniques = LoadEffectInsertionTechniques();
     active_effect_insertion_mode = saved_effect_insertion_mode;
-    active_automatic_manual_shader_hash = saved_automatic_manual_shader_hash;
     active_automatic_effect_insertion_source_size = saved_automatic_effect_insertion_source_size;
     active_effect_insertion_rules = saved_effect_insertion_rules;
     active_effect_insertion_techniques = selected_effect_insertion_techniques;
@@ -2714,12 +2603,10 @@ void OnDestroySwapchain(reshade::api::swapchain* swapchain, bool resize) {
 }
 
 void OnInitCommandList(reshade::api::command_list* cmd_list) {
-    if (cmd_list->get_device()->get_api() != reshade::api::device_api::d3d12) return;
     renodx::utils::data::Create<EffectInsertionCommandListData>(cmd_list);
 }
 
 void OnDestroyCommandList(reshade::api::command_list* cmd_list) {
-    if (cmd_list->get_device()->get_api() != reshade::api::device_api::d3d12) return;
     renodx::utils::data::Delete<EffectInsertionCommandListData>(cmd_list);
 }
 
@@ -2732,6 +2619,30 @@ void OnResetCommandList(reshade::api::command_list* cmd_list) {
     data->automatic_writers.clear();
     data->automatic_final_target_writers.clear();
     data->automatic_swapchain_copies.clear();
+    data->graphics_pipeline_layout = {0u};
+    data->graphics_descriptor_tables.clear();
+}
+
+void OnBindDescriptorTables(
+        reshade::api::command_list* cmd_list,
+        reshade::api::shader_stage stages,
+        reshade::api::pipeline_layout layout,
+        uint32_t first,
+        uint32_t count,
+    const reshade::api::descriptor_table* tables) {
+    if (cmd_list->get_device()->get_api() != reshade::api::device_api::vulkan
+            || (static_cast<uint32_t>(stages)
+                & static_cast<uint32_t>(reshade::api::shader_stage::pixel)) == 0u) return;
+    auto* data = renodx::utils::data::Get<EffectInsertionCommandListData>(cmd_list);
+    if (data == nullptr) return;
+    if (data->graphics_pipeline_layout != layout) data->graphics_descriptor_tables.clear();
+    data->graphics_pipeline_layout = layout;
+    if (data->graphics_descriptor_tables.size() < first + count) {
+        data->graphics_descriptor_tables.resize(first + count);
+    }
+    for (uint32_t index = 0u; index < count; ++index) {
+        data->graphics_descriptor_tables[first + index] = tables[index];
+    }
 }
 
 void RecordSwapchainCopy(
@@ -2889,7 +2800,8 @@ void OnExecuteCommandList(
 
 void OnInitDevice(reshade::api::device* device) {
     if (device->get_api() != reshade::api::device_api::d3d11
-            && device->get_api() != reshade::api::device_api::d3d12) {
+            && device->get_api() != reshade::api::device_api::d3d12
+            && device->get_api() != reshade::api::device_api::vulkan) {
         return;
     }
     renodx::utils::data::Create<EffectInsertionDeviceData>(device);
@@ -2955,9 +2867,7 @@ void OnReshadeOverlay(reshade::api::effect_runtime* runtime) {
         inserted_techniques = active_effect_insertion_techniques;
     }
         const bool render_automatic_mode_fallback =
-            (mode == EffectInsertionMode::automatic
-                    || mode == EffectInsertionMode::automatic_manual)
-            && !insertion_rendered;
+            mode == EffectInsertionMode::automatic && !insertion_rendered;
         if (!insertion_rendered && !render_automatic_mode_fallback) return;
 
     std::vector<reshade::api::effect_technique> techniques_to_render;
@@ -3042,9 +2952,7 @@ void OnPresent(
     bool use_automatic_insertion = false;
     {
         const std::lock_guard lock(active_effect_insertion_rule_mutex);
-        use_automatic_insertion = (active_effect_insertion_mode == EffectInsertionMode::automatic
-                       || active_effect_insertion_mode == EffectInsertionMode::automatic_manual)
-                                  && !active_effect_insertion_techniques.empty();
+        use_automatic_insertion = active_effect_insertion_mode == EffectInsertionMode::automatic;
     }
     const std::lock_guard lock(data->mutex);
     if (use_automatic_insertion) {
@@ -3069,6 +2977,10 @@ void OnPresent(
                     data->automatic_swapchain_copies,
                     current_back_buffer_resource,
                     &automatic_detection::SwapchainCopy::target_resource);
+                if (copy_iterator == data->automatic_swapchain_copies.end()) {
+                    data->automatic_detector.ClearFrame();
+                    return;
+                }
                 data->automatic_current_final_target_resources = {copy_iterator->source_resource};
                 if (std::ranges::find(
                             data->automatic_final_target_resources,
@@ -3086,6 +2998,10 @@ void OnPresent(
                 data->automatic_swapchain_copies,
                 current_back_buffer_resource,
                 &automatic_detection::SwapchainCopy::target_resource);
+            if (copy_iterator == data->automatic_swapchain_copies.end()) {
+                data->automatic_detector.ClearFrame();
+                return;
+            }
             data->automatic_output_mode = AutomaticOutputMode::copy;
             transition_reason = std::format(
                 "no swapchain draw writer and one swapchain-sized {} to the current backbuffer",
@@ -3117,6 +3033,10 @@ void OnPresent(
                 data->automatic_detector.GetFrameWriters(),
                 current_back_buffer_resource,
                 &automatic_detection::SwapchainWriter::target_resource);
+            if (writer_iterator == data->automatic_detector.GetFrameWriters().end()) {
+                data->automatic_detector.ClearFrame();
+                return;
+            }
             const auto& writer = *writer_iterator;
             data->automatic_true_output_shader_hash = writer.shader_hash;
             data->automatic_true_output_resource = writer.target_resource;
@@ -3159,26 +3079,6 @@ void OnPresent(
             (void)data->automatic_final_target_detector.PromoteFirstFrameCandidate(
                     0u,
                     true);
-        }
-        const auto cache_matching_candidates = [](
-                                                       const std::vector<automatic_detection::SwapchainWriter>& writers,
-                                                       std::vector<uint32_t>* candidates) {
-            for (const auto& writer : writers) {
-                if (!writer.has_matching_source
-                        || std::ranges::find(*candidates, writer.shader_hash) != candidates->end()) {
-                    continue;
-                }
-                candidates->push_back(writer.shader_hash);
-            }
-        };
-        if (data->automatic_final_target_active) {
-            cache_matching_candidates(
-                    data->automatic_final_target_detector.GetLastFrameWriters(),
-                    &data->automatic_manual_final_target_candidates);
-        } else {
-            cache_matching_candidates(
-                    data->automatic_detector.GetLastFrameWriters(),
-                    &data->automatic_manual_swapchain_candidates);
         }
         data->automatic_swapchain_copies.clear();
     }
@@ -3273,7 +3173,10 @@ void ConfigureSwapchain() {
     .tooltip = "Selects the upgraded swapchain format and color space. None leaves the game's swapchain unchanged.",
         .labels = {"None", "scRGB (RGBA16F)", "HDR10 (RGB10A2)"},
   });
-  renodx::mods::swapchain::use_swapchain_upgrade = output_setting->GetValue() != 0.f;
+
+  renodx::mods::swapchain::use_resize_buffer = output_setting->GetValue() == 0.f;
+  renodx::mods::swapchain::use_resize_buffer_on_demand = output_setting->GetValue() == 0.f;
+  
   renodx::mods::swapchain::SetUseHDR10(output_setting->GetValue() == 2.f);
   renodx::utils::device_proxy::SetIntermediateFormat(
       reshade::api::format::r16g16b16a16_float);
@@ -3531,6 +3434,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD reason, LPVOID reserved) {
                     reshade::register_event<reshade::addon_event::init_command_list>(OnInitCommandList);
                     reshade::register_event<reshade::addon_event::destroy_command_list>(OnDestroyCommandList);
                     reshade::register_event<reshade::addon_event::reset_command_list>(OnResetCommandList);
+                    reshade::register_event<reshade::addon_event::bind_descriptor_tables>(OnBindDescriptorTables);
                     reshade::register_event<reshade::addon_event::execute_command_list>(OnExecuteCommandList);
                     reshade::register_event<reshade::addon_event::copy_resource>(OnCopyResource);
                     reshade::register_event<reshade::addon_event::copy_texture_region>(OnCopyTextureRegion);
@@ -3566,6 +3470,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD reason, LPVOID reserved) {
                     reshade::unregister_event<reshade::addon_event::copy_resource>(OnCopyResource);
                     reshade::unregister_event<reshade::addon_event::copy_texture_region>(OnCopyTextureRegion);
                     reshade::unregister_event<reshade::addon_event::reset_command_list>(OnResetCommandList);
+                    reshade::unregister_event<reshade::addon_event::bind_descriptor_tables>(OnBindDescriptorTables);
                     reshade::unregister_event<reshade::addon_event::destroy_command_list>(OnDestroyCommandList);
                     reshade::unregister_event<reshade::addon_event::init_command_list>(OnInitCommandList);
                     reshade::unregister_event<reshade::addon_event::init_device>(OnInitDevice);
