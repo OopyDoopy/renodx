@@ -181,6 +181,7 @@ renodx::mods::shader::CustomShaders custom_shaders = {
     FogShaderEntry(0x7271B316),
     FogShaderEntry(0xA109191F),
     FogShaderEntry(0x1DDF8C9F),
+    FogShaderEntry(0x22CBC7C3),
 
     // Sharpening (Bypass)
     {
