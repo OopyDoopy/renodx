@@ -15,25 +15,13 @@ float3 CustomTonemap(
   if (RENODX_TONE_MAP_TYPE == 1.f) {
     return helldivers2::tonemap::ApplyACES(untonemapped_bt709, aces_parameters);
   } else if (RENODX_TONE_MAP_TYPE == 2.f) {
-    helldivers2::tonemap::ACESCurveComponents aces_curve;
-    if (CUSTOM_CURVE == 0) {
-      helldivers2::tonemap::ACESParameters sdr_reference_parameters = aces_parameters;
-      // Match a normalized SDR curve; the display peak only controls the final shoulder.
-      sdr_reference_parameters.target_peak_nits = sdr_reference_parameters.diffuse_white_nits;
-      aces_curve = helldivers2::tonemap::FindACESCurveComponents(sdr_reference_parameters);
-    } else {
-      aces_curve.midgray_in = RENODX_TONE_MAP_MID_GRAY_IN;
-      aces_curve.midgray_out = RENODX_TONE_MAP_MID_GRAY_OUT;
-      aces_curve.relative_slope = 1.f;
-    }
-
     float3 tonemapped_bt709 = renodx::tonemap::psycho::psychotm_customized(
         untonemapped_bt709,
         RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS,
         RENODX_TONE_MAP_EXPOSURE,
         RENODX_TONE_MAP_HIGHLIGHTS,
         RENODX_TONE_MAP_SHADOWS,
-        aces_curve.relative_slope * RENODX_TONE_MAP_CONTRAST,
+        (CUSTOM_CURVE == 0 ? 1.46f : 1.f) * RENODX_TONE_MAP_CONTRAST,
         RENODX_TONE_MAP_SATURATION,
         RENODX_TONE_MAP_BLOWOUT,
         RENODX_TONE_MAP_FLARE,
@@ -43,8 +31,8 @@ float3 CustomTonemap(
         0,
         0,
         1.f,
-        aces_curve.midgray_in,
-        aces_curve.midgray_out
+        CUSTOM_CURVE == 0 ? 0.18f : RENODX_TONE_MAP_MID_GRAY_IN,
+        CUSTOM_CURVE == 0 ? 0.10f : RENODX_TONE_MAP_MID_GRAY_OUT
       );
     return renodx::color::pq::EncodeSafe(
         renodx::color::bt2020::from::BT709(tonemapped_bt709),
