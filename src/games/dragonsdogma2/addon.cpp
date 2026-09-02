@@ -115,9 +115,10 @@ renodx::utils::settings::Settings settings = {
         .section = "Tone Mapping",
         .tooltip = "Sets the value of peak white in nits",
         .min = 80.f,
-        .max = 4000.f,
+        .max = 10000.f,
         //.is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         //.is_visible = []() { return current_settings_mode >= 1.f; },
+        .is_logarithmic = true,
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapGameNits",
@@ -297,6 +298,16 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
+      new renodx::utils::settings::Setting{
+        .key = "FxFXAA",
+        .binding = &shader_injection.custom_fxaa,
+        .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+        .default_value = 0.f,
+        .label = "FXAA",
+        .section = "Effects",
+        .tooltip = "Enables the game's FXAA pass. Vanilla is On (not ideal with DLSS/FSR).",
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+      },
         new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Reset All",
@@ -548,22 +559,23 @@ void SetupPrototypeHooks() {
 
 void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("ToneMapType", 0.f);
-//   renodx::utils::settings::UpdateSetting("ToneMapPeakNits", 1000.f);
-//   renodx::utils::settings::UpdateSetting("ToneMapGameNits", 203.f);
-//   renodx::utils::settings::UpdateSetting("ToneMapUINits", 203.f);
-//   renodx::utils::settings::UpdateSetting("ColorGradeExposure", 1.f);
-//   renodx::utils::settings::UpdateSetting("ColorGradeHighlights", 50.f);
-//   renodx::utils::settings::UpdateSetting("ColorGradeShadows", 50.f);
-//   renodx::utils::settings::UpdateSetting("ColorGradeContrast", 50.f);
-//   renodx::utils::settings::UpdateSetting("ColorGradeSaturation", 50.f);
-//   renodx::utils::settings::UpdateSetting("ColorGradeAdaptiveContrast", 50.f);
-//   renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 0.f);
-//   renodx::utils::settings::UpdateSetting("ColorGradeFlare", 0.f);
-//   //renodx::utils::settings::UpdateSetting("SwapChainCustomColorSpace", 0.f);
-//   renodx::utils::settings::UpdateSetting("GammaCorrection", 0.f);
-//   renodx::utils::settings::UpdateSetting("FxFilmGrainType", 0.f);
-//   renodx::utils::settings::UpdateSetting("FxFilmGrain", 50.f);
-//   renodx::utils::settings::UpdateSetting("FxVignette", 100.f);
+  renodx::utils::settings::UpdateSetting("ToneMapPeakNits", 1000.f);
+  renodx::utils::settings::UpdateSetting("ToneMapGameNits", 203.f);
+  renodx::utils::settings::UpdateSetting("ToneMapUINits", 203.f);
+  renodx::utils::settings::UpdateSetting("ColorGradeExposure", 1.f);
+  renodx::utils::settings::UpdateSetting("ColorGradeHighlights", 50.f);
+  renodx::utils::settings::UpdateSetting("ColorGradeShadows", 50.f);
+  renodx::utils::settings::UpdateSetting("ColorGradeContrast", 50.f);
+  renodx::utils::settings::UpdateSetting("ColorGradeSaturation", 50.f);
+  renodx::utils::settings::UpdateSetting("ColorGradeAdaptiveContrast", 50.f);
+  renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 0.f);
+  renodx::utils::settings::UpdateSetting("ColorGradeFlare", 0.f);
+  //renodx::utils::settings::UpdateSetting("SwapChainCustomColorSpace", 0.f);
+  renodx::utils::settings::UpdateSetting("GammaCorrection", 0.f);
+  renodx::utils::settings::UpdateSetting("FxFilmGrainType", 0.f);
+  renodx::utils::settings::UpdateSetting("FxFilmGrain", 50.f);
+  renodx::utils::settings::UpdateSetting("FxVignette", 100.f);
+  renodx::utils::settings::UpdateSetting("FxFXAA", 1.f);
 }
 
 bool fired_on_init_swapchain = false;
