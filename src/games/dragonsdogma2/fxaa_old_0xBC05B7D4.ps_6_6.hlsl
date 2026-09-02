@@ -1,3 +1,5 @@
+#include "./shared.h"
+
 Texture2D<float4> HDRImage : register(t0);
 
 cbuffer SceneInfo : register(b0) {
@@ -36,6 +38,11 @@ float4 main(
   float _10 = screenInverseSize.x * SV_Position.x;
   float _11 = screenInverseSize.y * SV_Position.y;
   float4 _14 = HDRImage.SampleLevel(BilinearClamp, float2(_10, _11), 0.0f);
+
+  if (CUSTOM_FXAA == 0.f) {
+    return _14;
+  }
+
   float4 _19 = HDRImage.GatherGreen(BilinearClamp, float2(_10, _11));
   float4 _23 = HDRImage.GatherGreen(BilinearClamp, float2(_10, _11));
   float _33 = max(max(_23.z, _23.x), max(_19.z, max(_19.x, _14.y)));

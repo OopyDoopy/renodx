@@ -28,6 +28,7 @@
 #define CUSTOM_FILM_GRAIN_STRENGTH             shader_injection.custom_film_grain
 #define CUSTOM_RANDOM                          shader_injection.custom_random
 #define CUSTOM_VIGNETTE                        shader_injection.custom_vignette
+#define CUSTOM_FXAA                            shader_injection.custom_fxaa
 
 //#define TONEMAP_UNDER_UI                      shader_injection.tonemap_under_ui
 
@@ -59,6 +60,8 @@ struct ShaderInjectData {
   float custom_film_grain;
   float custom_random;
   float custom_vignette;
+  float custom_fxaa;
+  float custom_reserved;
   //float tonemap_under_ui;
 };
 
