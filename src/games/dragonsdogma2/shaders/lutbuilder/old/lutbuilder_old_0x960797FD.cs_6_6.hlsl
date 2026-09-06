@@ -1,34 +1,5 @@
-#include "./common.hlsl"
-#include "./lutbuilder.hlsli"
-
-// Texture2D<float4> OCIO_lut1d_0 : register(t0);
-
-// Texture3D<float4> OCIO_lut3d_1 : register(t1);
-
-// RWTexture3D<float4> OutLUT : register(u0);
-
-// cbuffer HDRMapping : register(b0) {
-//   float whitePaperNits : packoffset(c000.x);
-//   float configImageAlphaScale : packoffset(c000.y);
-//   float displayMaxNits : packoffset(c000.z);
-//   float displayMinNits : packoffset(c000.w);
-//   float4 displayMaxNitsRect : packoffset(c001.x);
-//   float4 standardMaxNitsRect : packoffset(c002.x);
-//   float4 mdrOutRangeRect : packoffset(c003.x);
-//   uint drawMode : packoffset(c004.x);
-//   float gammaForHDR : packoffset(c004.y);
-//   float2 configDrawRectSize : packoffset(c004.z);
-//   float displayMaxNitsST2084 : packoffset(c005.x);
-//   float displayMinNitsST2084 : packoffset(c005.y);
-//   float2 targetInvSize : packoffset(c005.z);
-//   uint drawModeOnMDRPass : packoffset(c006.x);
-//   float saturationForHDR : packoffset(c006.y);
-//   float whitePaperNitsForOverlay : packoffset(c006.z);
-// };
-
-// SamplerState BilinearClamp : register(s5, space32);
-
-// SamplerState TrilinearClamp : register(s9, space32);
+#include "../../../shared.h"
+#include "../../common/lutbuilder.hlsli"
 
 [numthreads(8, 8, 8)]
 void main(
@@ -43,6 +14,14 @@ void main(
   float _14 = _11 * 0.01587301678955555f;
   float _15 = _12 * 0.01587301678955555f;
   float _16 = _13 * 0.01587301678955555f;
+  if (RENODX_TONE_MAP_OPTIMIZATION != 0.f && RENODX_TONE_MAP_TYPE == 1.f) {
+    const float3 source_ap1 = renodx::color::pq::DecodeSafe(
+        float3(_14, _15, _16),
+        RENODX_DIFFUSE_WHITE_NITS);
+    OutLUT[int3((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y), (uint)(SV_DispatchThreadID.z))] =
+        float4(GenerateOptimizedPrismHDR(source_ap1), 1.f);
+    return;
+  }
   float _30;
   float _44;
   float _58;
@@ -57,31 +36,6 @@ void main(
   float _397;
   float _398;
   float _399;
-
-#ifndef VANILLA_LUTBUILDER
-  // Replace ACEScct decode with PQ decode
-
-  float3 input_color_ap1 = renodx::color::pq::DecodeSafe(float3(_14, _15, _16), 100.f);
-  float3 input_color_ap0 = mul(renodx::color::AP1_TO_AP0_MAT, input_color_ap1);
-  float3 input_color_bt709 = renodx::color::bt709::from::AP1(input_color_ap1);
-
-  // Find mid gray from tone mapping (second lut), need to encode using the format from the first lut
-  const float mid_gray = 0.18f;
-  const float mid_gray_ap0 = mul(renodx::color::BT709_TO_AP0_MAT, float3(mid_gray, mid_gray, mid_gray)).x;
-  const float mid_gray_encoded = renodx::color::pq::Encode(mid_gray_ap0, 100.f);
-  float out_mid_gray = renodx::color::bt709::from::BT2020(renodx::color::pq::Decode(SecondLut(mid_gray_encoded).x, 100.f)).x;
-  float3 input_color_bt709_scaled = (input_color_bt709 * 0.5f) * (out_mid_gray / mid_gray); // 0.5f to account for the first LUT halving brightness
-
-  float3 tonemapped_graded = renodx::color::bt709::from::BT2020(renodx::color::pq::DecodeSafe(CompleteLutSampling(input_color_ap0), 100.f));
-
-  float3 color_tonemapped = renodx::tonemap::neutwo::MaxChannel(input_color_bt709_scaled, 10.f);
-
-  float3 upgraded_tone_map = UpgradeToneMapMaxChannel(input_color_bt709_scaled, color_tonemapped, tonemapped_graded);
-
-  float3 output_color = renodx::color::pq::EncodeSafe(renodx::color::bt2020::from::BT709(upgraded_tone_map), 100.f);
-
-  OutLUT[int3((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y), (uint)(SV_DispatchThreadID.z))] = float4(output_color, 1.0f);
-#else
 
   if (!(!(_14 <= -0.3013699948787689f))) {
     _30 = (exp2((_11 * 0.2780952751636505f) + -8.720000267028809f) + -3.0517578125e-05f);
@@ -262,27 +216,10 @@ void main(
     _397 = min(((((2.0f - (_372 + _372)) * _368) + (_372 * _352)) * _372), _330);
     _398 = min(((((2.0f - (_373 + _373)) * _368) + (_373 * _352)) * _373), _331);
     _399 = min(((((2.0f - (_374 + _374)) * _368) + (_374 * _352)) * _374), _332);
-    // float3 output_color = renodx::color::pq::EncodeSafe(first_lut, 100.f);
-    // float3 output_color = renodx::color::pq::DecodeSafe(second_lut, 100.f);
-    // float3 display_mapped = renodx::tonemap::neutwo::MaxChannel(upgraded_tone_map, calculated_peak);
-    // display_mapped = renodx::color::correct::GammaSafe(display_mapped);
-    // display_mapped = renodx::color::bt2020::from::BT709(display_mapped);
-    // float3 output_color = renodx::color::pq::EncodeSafe(display_mapped, whitePaperNits);
-    // _397 = output_color.x;
-    // _398 = output_color.y;
-    // _399 = output_color.z;
   } else {
     _397 = _330;
     _398 = _331;
     _399 = _332;
   }
-  // float3 pq_color = float3(_397, _398, _399);
-  // float3 linear_bt709 = renodx::color::bt709::from::BT2020(renodx::color::pq::DecodeSafe(pq_color, 100.f));
-  // linear_bt709 = renodx::color::correct::GammaSafe(linear_bt709);
-  // pq_color = renodx::color::pq::EncodeSafe(renodx::color::bt2020::from::BT709(linear_bt709), 100.f);
-  // _397 = pq_color.x;
-  // _398 = pq_color.y;
-  // _399 = pq_color.z;
   OutLUT[int3((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y), (uint)(SV_DispatchThreadID.z))] = float4(_397, _398, _399, 1.0f);
-#endif
 }

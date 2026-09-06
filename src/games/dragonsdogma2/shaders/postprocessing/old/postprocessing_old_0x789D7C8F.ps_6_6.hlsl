@@ -1,4 +1,4 @@
-#include "./common.hlsl"
+#include "../../common/common.hlsl"
 
 Texture2D<float> ReadonlyDepth : register(t0);
 
@@ -151,6 +151,33 @@ SamplerState BilinearClamp : register(s5, space32);
 SamplerState BilinearBorder : register(s6, space32);
 
 SamplerState TrilinearClamp : register(s9, space32);
+
+float3 SampleColorCorrectLUT(Texture3D<float4> lut, float3 color) {
+  float3 lut_uv = log2(select(
+      color < 3.0517578125e-05f,
+      (color * 0.5f) + 1.52587890625e-05f,
+      color)) * 0.05707760155200958f + 0.5547950267791748f;
+  lut_uv = (lut_uv * fOneMinusTextureInverseSize) + fHalfTextureInverseSize;
+  return exp2(
+      lut.SampleLevel(TrilinearClamp, lut_uv, 0.0f).rgb * 17.520000457763672f
+      - 9.720000267028809f);
+}
+
+float3 SampleColorCorrectLUTs(float3 color) {
+  float3 working_color = SampleColorCorrectLUT(tTextureMap0, color);
+
+  if (fTextureBlendRate > 0.0f) {
+    float3 lut_color = SampleColorCorrectLUT(tTextureMap1, color);
+    working_color = lerp(working_color, lut_color, fTextureBlendRate);
+  }
+
+  if (fTextureBlendRate2 > 0.0f) {
+    float3 lut_color = SampleColorCorrectLUT(tTextureMap2, working_color);
+    working_color = lerp(working_color, lut_color, fTextureBlendRate2);
+  }
+
+  return working_color;
+}
 
 float4 main(
   noperspective float4 SV_Position : SV_Position,
@@ -875,6 +902,20 @@ float4 main(
           _2045 = _1910;
           _2046 = _1913;
         }
+      }
+      if (RENODX_TONE_MAP_TYPE != 0.f
+          && (SCENE_GRADE_LUT_SCALING > 0.f || SCENE_GRADE_LUT_STRENGTH < 1.f)) {
+        const float3 lut_input = float3(_1848, _1849, _1850);
+        const float3 lut_black = SampleColorCorrectLUTs(0.f);
+        const float3 lut_mid = SampleColorCorrectLUTs(saturate(lut_black));
+        const float3 lut_corrected = ApplySceneGradeLUT(
+            lut_input,
+            float3(_2044, _2045, _2046),
+            lut_black,
+            lut_mid);
+        _2044 = lut_corrected.x;
+        _2045 = lut_corrected.y;
+        _2046 = lut_corrected.z;
       }
       _2057 = mad(_2046, (fColorMatrix[2].x), mad(_2045, (fColorMatrix[1].x), (_2044 * (fColorMatrix[0].x))));
       _2058 = mad(_2046, (fColorMatrix[2].y), mad(_2045, (fColorMatrix[1].y), (_2044 * (fColorMatrix[0].y))));
