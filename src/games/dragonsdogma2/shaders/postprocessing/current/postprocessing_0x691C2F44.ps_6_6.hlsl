@@ -1,4 +1,4 @@
-#include "./common.hlsl"
+#include "../../common/common.hlsl"
 
 Texture2D<float> ReadonlyDepth : register(t0);
 
@@ -155,6 +155,31 @@ SamplerState BilinearClamp : register(s5, space32);
 SamplerState BilinearBorder : register(s6, space32);
 
 SamplerState TrilinearClamp : register(s9, space32);
+
+float3 SampleColorCorrectLUT(Texture3D<float4> lut, float3 color) {
+  float3 lut_uv = renodx::color::acescct::EncodeSafe(color);
+  lut_uv = (lut_uv * fOneMinusTextureInverseSize) + fHalfTextureInverseSize;
+  return max(
+      renodx::color::acescct::DecodeSafe(
+          lut.SampleLevel(TrilinearClamp, lut_uv, 0.0f).rgb),
+      0.0f);
+}
+
+float3 SampleColorCorrectLUTs(float3 color) {
+  float3 working_color = SampleColorCorrectLUT(tTextureMap0, color);
+
+  if (fTextureBlendRate > 0.0f) {
+    float3 lut_color = SampleColorCorrectLUT(tTextureMap1, color);
+    working_color = lerp(working_color, lut_color, fTextureBlendRate);
+  }
+
+  if (fTextureBlendRate2 > 0.0f) {
+    float3 lut_color = SampleColorCorrectLUT(tTextureMap2, working_color);
+    working_color = lerp(working_color, lut_color, fTextureBlendRate2);
+  }
+
+  return working_color;
+}
 
 float4 main(
   noperspective float4 SV_Position : SV_Position,
@@ -1223,6 +1248,20 @@ float4 main(
                       _2478 = _2185;
                       _2479 = _2186;
                     }
+                  }
+                  if (RENODX_TONE_MAP_TYPE != 0.f
+                      && (SCENE_GRADE_LUT_SCALING > 0.f || SCENE_GRADE_LUT_STRENGTH < 1.f)) {
+                    const float3 lut_input = float3(_2072, _2073, _2074);
+                    const float3 lut_black = SampleColorCorrectLUTs(0.f);
+                    const float3 lut_mid = SampleColorCorrectLUTs(saturate(lut_black));
+                    const float3 lut_corrected = ApplySceneGradeLUT(
+                        lut_input,
+                        float3(_2477, _2478, _2479),
+                        lut_black,
+                        lut_mid);
+                    _2477 = lut_corrected.x;
+                    _2478 = lut_corrected.y;
+                    _2479 = lut_corrected.z;
                   }
                   _2496 = max((mad(_2479, (fColorMatrix[2].x), mad(_2478, (fColorMatrix[1].x), (_2477 * (fColorMatrix[0].x)))) + (fColorMatrix[3].x)), 0.0f);
                   _2497 = max((mad(_2479, (fColorMatrix[2].y), mad(_2478, (fColorMatrix[1].y), (_2477 * (fColorMatrix[0].y)))) + (fColorMatrix[3].y)), 0.0f);

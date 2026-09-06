@@ -1,7 +1,7 @@
-#include "./common.hlsl"
+#include "../../../shared.h"
 
 #define LUTBUILDER_NEW_CBUFFER_LAYOUT
-#include "./lutbuilder.hlsli"
+#include "../../common/lutbuilder.hlsli"
 
 [numthreads(8, 8, 8)]
 void main(
@@ -10,38 +10,20 @@ void main(
   uint3 SV_GroupThreadID : SV_GroupThreadID,
   uint SV_GroupIndex : SV_GroupIndex
 ) {
-#ifndef VANILLA_LUTBUILDER
-  // The updated permutation retains the same PQ LUT contract as the original.
-  float3 input_color_ap1 = renodx::color::pq::DecodeSafe(float3(SV_DispatchThreadID) / 63.f, 100.f);
-  float3 input_color_ap0 = mul(renodx::color::AP1_TO_AP0_MAT, input_color_ap1);
-  float3 input_color_bt709 = renodx::color::bt709::from::AP1(input_color_ap1);
-
-  const float mid_gray = 0.18f;
-  const float mid_gray_ap0 = mul(renodx::color::BT709_TO_AP0_MAT, mid_gray.xxx).x;
-  const float mid_gray_encoded = renodx::color::pq::Encode(mid_gray_ap0, 100.f);
-  float out_mid_gray = renodx::color::bt709::from::BT2020(
-    renodx::color::pq::Decode(SecondLut(mid_gray_encoded).x, 100.f)).x;
-  float3 input_color_bt709_scaled = input_color_bt709 * 0.5f * (out_mid_gray / mid_gray);
-
-  float3 tonemapped_graded = renodx::color::bt709::from::BT2020(
-    renodx::color::pq::DecodeSafe(CompleteLutSampling(input_color_ap0), 100.f));
-  float3 color_tonemapped = renodx::tonemap::neutwo::MaxChannel(input_color_bt709_scaled, 10.f);
-  float3 upgraded_tone_map = UpgradeToneMapMaxChannel(
-    input_color_bt709_scaled,
-    color_tonemapped,
-    tonemapped_graded);
-  float3 output_color = renodx::color::pq::EncodeSafe(
-    renodx::color::bt2020::from::BT709(upgraded_tone_map), 100.f);
-
-  OutLUT[int3(SV_DispatchThreadID)] = float4(output_color, 1.f);
-  return;
-#endif
   float _11 = float((uint)SV_DispatchThreadID.x);
   float _12 = float((uint)SV_DispatchThreadID.y);
   float _13 = float((uint)SV_DispatchThreadID.z);
   float _14 = _11 * 0.01587301678955555f;
   float _15 = _12 * 0.01587301678955555f;
   float _16 = _13 * 0.01587301678955555f;
+  if (RENODX_TONE_MAP_OPTIMIZATION != 0.f && RENODX_TONE_MAP_TYPE == 1.f) {
+    const float3 source_ap1 = renodx::color::pq::DecodeSafe(
+        float3(_14, _15, _16),
+        RENODX_DIFFUSE_WHITE_NITS);
+    OutLUT[int3((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y), (uint)(SV_DispatchThreadID.z))] =
+        float4(GenerateOptimizedPrismHDR(source_ap1), 1.f);
+    return;
+  }
   float _30;
   float _44;
   float _58;
