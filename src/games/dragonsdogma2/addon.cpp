@@ -176,6 +176,11 @@ void OnPrismSettingChange(float previous_value, float current_value) {
   MarkTonemapLutDirty();
 }
 
+void OnPresetChanged() {
+  ResolvePrismInjection();
+  MarkTonemapLutDirty();
+}
+
 void OnLutBuilderDrawn(reshade::api::command_list* command_list) {
   (void)command_list;
   tonemap_lut_needs_refresh.store(false, std::memory_order_relaxed);
@@ -1059,11 +1064,12 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       break;
   }
 
+  if (fdw_reason == DLL_PROCESS_ATTACH) {
+    renodx::utils::settings::on_preset_changed_callbacks.emplace_back(&OnPresetChanged);
+  }
   renodx::utils::settings::Use(fdw_reason, &settings, &OnPresetOff);
   if (fdw_reason == DLL_PROCESS_ATTACH) {
     MarkTonemapLutDirty();
-  }
-  if (fdw_reason == DLL_PROCESS_ATTACH) {
     ResolvePrismInjection();
   }
   renodx::mods::shader::Use(fdw_reason, custom_shaders, &shader_injection);
