@@ -108,7 +108,6 @@ void main(
   min16int _31 = ((min16int)(((min16int)(((min16int)(((min16int)(_14 & 1)) | ((min16uint)((min16int)(min16int((uint)(SV_GroupID.x))) << 4)))) | ((min16int)(_16 & 2)))) | ((min16int)(_19 & 4)))) | ((min16int)(_22 & 8));
   min16int _36 = ((min16int)(((min16int)(((min16int)(((min16int)(_16 & 1)) | ((min16uint)((min16int)(min16int((uint)(SV_GroupID.y))) << 4)))) | ((min16int)(_19 & 2)))) | ((min16int)(_22 & 4)))) | ((min16int)(((min16int)((min16uint)(_14) >> 4)) & 8));
   float4 _48 = GUIImage.SampleLevel(PointClamp, float2(((float((min16uint)_31) + 0.5f) * screenInverseSize.x), ((float((min16uint)_36) + 0.5f) * screenInverseSize.y)), 0.0f);
-  _48.xyz = renodx::color::correct::GammaSafe(_48.xyz);
   float _69;
   float _70;
   float _71;
@@ -134,6 +133,10 @@ void main(
     _70 = _48.y;
     _71 = _48.z;
   }
+  const float3 corrected_color = renodx::color::correct::GammaSafe(float3(_69, _70, _71));
+  _69 = corrected_color.x;
+  _70 = corrected_color.y;
+  _71 = corrected_color.z;
   bool _74 = (max(max(_69, _70), _71) == 0.0f);
   bool _75 = (_48.w == 0.0f);
   if (!(_75 && _74)) {
