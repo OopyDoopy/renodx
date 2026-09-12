@@ -965,14 +965,16 @@ int HookAgsGetGpuInfo(void* context, AmdAgsGpuInfo* gpu_info) {
   return result;
 }
 
-void SetupPrototypeHooks() {
-  static bool setup_complete = false;
-  static renodx::utils::vtable::HookItem g_ags_hook_items[] = {
-      {"agsInitialize", reinterpret_cast<void**>(&real_ags_initialize), reinterpret_cast<void*>(&HookAgsInitialize)},
-      {"agsGetGPUInfo", reinterpret_cast<void**>(&real_ags_get_gpu_info), reinterpret_cast<void*>(&HookAgsGetGpuInfo)},
-  };
+HMODULE ags_module = nullptr;
+bool ags_hooks_installed = false;
 
-  if (setup_complete) return;
+renodx::utils::vtable::HookItem ags_hook_items[] = {
+    {"agsInitialize", reinterpret_cast<void**>(&real_ags_initialize), reinterpret_cast<void*>(&HookAgsInitialize)},
+    {"agsGetGPUInfo", reinterpret_cast<void**>(&real_ags_get_gpu_info), reinterpret_cast<void*>(&HookAgsGetGpuInfo)},
+};
+
+void SetupPrototypeHooks() {
+  if (ags_hooks_installed) return;
 
   HMODULE h_ags = GetModuleHandleW(L"amd_ags_x64.dll");
   if (h_ags == nullptr) {
@@ -982,12 +984,21 @@ void SetupPrototypeHooks() {
     return;
   }
 
-  if (!renodx::utils::vtable::Hook(h_ags, g_ags_hook_items)) {
+  if (!renodx::utils::vtable::Hook(h_ags, ags_hook_items)) {
     reshade::log::message(reshade::log::level::error, "Failed to hook AMD AGS FreeSync HDR capability queries");
     return;
   }
 
-  setup_complete = true;
+  ags_module = h_ags;
+  ags_hooks_installed = true;
+}
+
+void TeardownPrototypeHooks() {
+  if (!ags_hooks_installed) return;
+
+  renodx::utils::vtable::Unhook(ags_module, ags_hook_items);
+  ags_module = nullptr;
+  ags_hooks_installed = false;
 }
 
 void OnPresetOff() {
@@ -1038,6 +1049,12 @@ void OnInitSwapchain(reshade::api::swapchain* swapchain, bool resize) {
 extern "C" __declspec(dllexport) constexpr const char* NAME = "RenoDX";
 extern "C" __declspec(dllexport) constexpr const char* DESCRIPTION = "RenoDX for Dragon's Dogma 2";
 
+extern "C" __declspec(dllexport) void AddonUninit(HMODULE addon_module, HMODULE reshade_module) {
+  (void)addon_module;
+  (void)reshade_module;
+  TeardownPrototypeHooks();
+}
+
 bool initialized = false;
 
 BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
@@ -1058,6 +1075,9 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
       break;
     case DLL_PROCESS_DETACH:
+      if (lpv_reserved == nullptr) {
+        TeardownPrototypeHooks();
+      }
       reshade::unregister_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
 
       reshade::unregister_addon(h_module);
