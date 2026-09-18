@@ -97,6 +97,7 @@ struct ShaderInjectData {
 #define RENODX_INTERMEDIATE_ENCODING                 renodx::draw::ENCODING_NONE
 #define RENODX_SWAP_CHAIN_DECODING                   renodx::draw::ENCODING_NONE
 #define RENODX_SWAP_CHAIN_GAMMA_CORRECTION           renodx::draw::GAMMA_CORRECTION_NONE
+#define RENODX_SWAP_CHAIN_OUTPUT_PRESET              renodx::draw::SWAP_CHAIN_OUTPUT_PRESET_SCRGB
 #define RENODX_GAMMA_CORRECTION                      renodx::draw::GAMMA_CORRECTION_NONE
 
 #ifndef __cplusplus
