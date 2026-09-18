@@ -68,6 +68,23 @@
   values to gamma 2.2, decode back to AP1-linear, and blend back to the input
   by LUT strength.
 
+## Latest DevKit permutation update
+
+- `0xAB118912` is `POSTPROCESS_FRAG_FX_COMBINE_HDR_0`; its 11 bindings and
+  four-LUT grading layout match `grading.frag.slang`.
+- `0xD4D0D7DA` is `POSTPROCESS_FRAG_COMBINEHDR_0`; its two bindings and
+  piecewise curve match `tonemap.frag.slang`.
+- `0xB13AB7CA` is `POSTPROCESS_COMP_CONVERTHDR_SCRGB_0`; it still emits the
+  original linear scRGB result after decoding the HDR LUT, so no new PQ encode
+  is present in this permutation. The final replacement preserves that signal
+  for the game's scRGB path; the shared output proxy also selects scRGB.
+- `0x3DC98C04` is `POSTPROCESS_COMP_CONVERTHDR_HDR10_0`; it writes the HDR LUT
+  result directly to an `R10G10B10A2` target. Its custom branch uses an
+  explicit HDR10/PQ `SwapChainPass` configuration while leaving the shared
+  non-frame-generation output preset on scRGB.
+- The latest capture still uses `0x7A10D6D6` for the pre-tonemap pass; no new
+  replacement is needed for that active permutation.
+
 ## Build And Validation
 
 - Preferred validation target: `nomanssky-shaders`.
