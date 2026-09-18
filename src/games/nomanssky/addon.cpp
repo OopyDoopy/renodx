@@ -74,6 +74,8 @@ constexpr std::array<std::array<float, 4>, 3> RECOMMENDED_PRISM_MATRIX = {{
 
 renodx::mods::shader::CustomShaders custom_shaders = {
   FinalShaderEntry(0x9610E0B4),
+  FinalShaderEntry(0xB13AB7CA),
+  FinalShaderEntry(0x3DC98C04),
   __ALL_CUSTOM_SHADERS,
 };
 
@@ -801,7 +803,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       renodx::mods::swapchain::swap_chain_proxy_pixel_shader = __swap_chain_proxy_pixel_shader;
       renodx::mods::swapchain::target_format = target_format;
 
-      //renodx::mods::swapchain::SetUseHDR10();
+      // No Man's Sky's non-frame-generation path remains scRGB.
 
       renodx::utils::settings::on_preset_changed_callbacks.emplace_back(&ResolvePrismInjection);
       ResolvePrismInjection();
