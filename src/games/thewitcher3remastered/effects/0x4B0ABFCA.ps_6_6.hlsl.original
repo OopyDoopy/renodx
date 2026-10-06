@@ -1,0 +1,264 @@
+struct ShaderCommonEnvProbeParams {
+  float ShaderCommonEnvProbeParams_000;
+  float3 ShaderCommonEnvProbeParams_004;
+  float3 ShaderCommonEnvProbeParams_016;
+  row_major float4x4 ShaderCommonEnvProbeParams_028;
+  float4 ShaderCommonEnvProbeParams_092;
+  row_major float4x4 ShaderCommonEnvProbeParams_108;
+  int ShaderCommonEnvProbeParams_172;
+};
+
+struct ShaderCullingEnvProbeParams {
+  row_major float4x3 ShaderCullingEnvProbeParams_000;
+  float3 ShaderCullingEnvProbeParams_048;
+  int ShaderCullingEnvProbeParams_060;
+};
+
+struct ShaderWorldTear {
+  float4 ShaderWorldTear_000;
+  float4 ShaderWorldTear_016;
+  float ShaderWorldTear_032;
+  float ShaderWorldTear_036;
+  float ShaderWorldTear_040;
+  float ShaderWorldTear_044;
+};
+
+struct ShaderWorldTearArray {
+  int ShaderWorldTearArray_000;
+  float ShaderWorldTearArray_004;
+  float ShaderWorldTearArray_008;
+  float ShaderWorldTearArray_012;
+  ShaderWorldTear ShaderWorldTearArray_016[10];
+};
+
+struct ShaderWorldTearConstants {
+  int4 ShaderWorldTearConstants_000[16];
+};
+
+
+Texture2D<float4> t0 : register(t0);
+
+Texture2D<float4> t1 : register(t1);
+
+cbuffer cb3 : register(b3) {
+  float4 CustomPixelConsts_000 : packoffset(c000.x);
+  float4 CustomPixelConsts_016 : packoffset(c001.x);
+  float4 CustomPixelConsts_032 : packoffset(c002.x);
+  float4 CustomPixelConsts_048 : packoffset(c003.x);
+  float4 CustomPixelConsts_064 : packoffset(c004.x);
+  float4 CustomPixelConsts_080 : packoffset(c005.x);
+  float4 CustomPixelConsts_096 : packoffset(c006.x);
+  float4 CustomPixelConsts_112 : packoffset(c007.x);
+  float4 CustomPixelConsts_128 : packoffset(c008.x);
+  float4 CustomPixelConsts_144 : packoffset(c009.x);
+  float4 CustomPixelConsts_160 : packoffset(c010.x);
+  float4 CustomPixelConsts_176 : packoffset(c011.x);
+  float4 CustomPixelConsts_192 : packoffset(c012.x);
+  float4 CustomPixelConsts_208 : packoffset(c013.x);
+  float4 CustomPixelConsts_224 : packoffset(c014.x);
+  float4 CustomPixelConsts_240 : packoffset(c015.x);
+  float4 CustomPixelConsts_256 : packoffset(c016.x);
+  float4 CustomPixelConsts_272 : packoffset(c017.x);
+  float4 CustomPixelConsts_288 : packoffset(c018.x);
+  float4 CustomPixelConsts_304 : packoffset(c019.x);
+  float4 CustomPixelConsts_320 : packoffset(c020.x);
+  row_major float4x4 CustomPixelConsts_336 : packoffset(c021.x);
+};
+
+cbuffer cb12 : register(b12) {
+  float cb12_000x : packoffset(c000.x);
+  float cb12_000y : packoffset(c000.y);
+  float cb12_000z : packoffset(c000.z);
+  float cb12_021x : packoffset(c021.x);
+  float cb12_021y : packoffset(c021.y);
+  float cb12_022x : packoffset(c022.x);
+  float cb12_022y : packoffset(c022.y);
+  float cb12_073z : packoffset(c073.z);
+  float cb12_073w : packoffset(c073.w);
+  float cb12_211x : packoffset(c211.x);
+  float cb12_211y : packoffset(c211.y);
+  float cb12_211z : packoffset(c211.z);
+  float cb12_211w : packoffset(c211.w);
+  float cb12_212x : packoffset(c212.x);
+  float cb12_212y : packoffset(c212.y);
+  float cb12_212z : packoffset(c212.z);
+  float cb12_212w : packoffset(c212.w);
+  float cb12_213x : packoffset(c213.x);
+  float cb12_213y : packoffset(c213.y);
+  float cb12_213z : packoffset(c213.z);
+  float cb12_213w : packoffset(c213.w);
+  float cb12_214x : packoffset(c214.x);
+  float cb12_214y : packoffset(c214.y);
+  float cb12_214z : packoffset(c214.z);
+  float cb12_214w : packoffset(c214.w);
+  float cb12_287x : packoffset(c287.x);
+  uint cb12_padding : packoffset(c340.w);
+};
+
+SamplerState s0 : register(s0);
+
+float4 main(
+  noperspective float4 SV_Position : SV_Position
+) : SV_Target {
+  float4 SV_Target = 0;
+  int _11 = int(SV_Position.x);
+  int _12 = int(SV_Position.y);
+  float _13 = float((int)(_11));
+  float _14 = float((int)(_12));
+  float _17 = cb12_287x * _13;
+  float _18 = cb12_287x * _14;
+  uint _19 = uint(_17);
+  uint _20 = uint(_18);
+  float4 _22 = t1.Load(int3(_19, _20, 0));
+  bool _24 = !(_22.x >= SV_Position.z);
+  float _115;
+  [branch]
+  if (!_24) {
+    if (true) discard;
+  }
+  float _29 = cb12_022x * _22.x;
+  float _31 = _29 + cb12_022y;
+  float _34 = _31 * cb12_021x;
+  float _36 = _34 + cb12_021y;
+  float _37 = 1.0f / _36;
+  float _38 = max(_37, -3.4028234663852886e+38f);
+  float _39 = min(_38, 3.4028234663852886e+38f);
+  float _43 = _39 - CustomPixelConsts_000.x;
+  float _45 = _43 * CustomPixelConsts_000.w;
+  float _46 = saturate(_45);
+  float _47 = sqrt(_46);
+  float _48 = _47 * CustomPixelConsts_000.z;
+  float _49 = saturate(_48);
+  float _50 = cb12_021y + cb12_021x;
+  float _51 = 1.0f / _50;
+  float _52 = max(_51, -3.4028234663852886e+38f);
+  float _53 = min(_52, 3.4028234663852886e+38f);
+  float _54 = _53 * 0.9990000128746033f;
+  bool _55 = !(_39 >= _54);
+  if (!_55) {
+    float _77 = cb12_211x * _13;
+    float _78 = mad(cb12_212x, _14, _77);
+    float _79 = mad(cb12_213x, _22.x, _78);
+    float _80 = _79 + cb12_214x;
+    float _81 = cb12_211y * _13;
+    float _82 = mad(cb12_212y, _14, _81);
+    float _83 = mad(cb12_213y, _22.x, _82);
+    float _84 = _83 + cb12_214y;
+    float _85 = cb12_211z * _13;
+    float _86 = mad(cb12_212z, _14, _85);
+    float _87 = mad(cb12_213z, _22.x, _86);
+    float _88 = _87 + cb12_214z;
+    float _89 = cb12_211w * _13;
+    float _90 = mad(cb12_212w, _14, _89);
+    float _91 = mad(cb12_213w, _22.x, _90);
+    float _92 = _91 + cb12_214w;
+    float _93 = _80 / _92;
+    float _94 = _84 / _92;
+    float _95 = _88 / _92;
+    float _100 = _93 - cb12_000x;
+    float _101 = _94 - cb12_000y;
+    float _102 = _95 - cb12_000z;
+    float _103 = dot(float3(_100, _101, _102), float3(_100, _101, _102));
+    float _104 = rsqrt(_103);
+    float _105 = _102 * _104;
+    float _108 = _105 - CustomPixelConsts_032.x;
+    float _110 = _108 * CustomPixelConsts_032.y;
+    float _111 = 1.0f - _110;
+    float _112 = saturate(_111);
+    float _113 = _112 * _49;
+    _115 = _113;
+  } else {
+    _115 = _49;
+  }
+  bool _116 = !(_115 <= 0.009999999776482582f);
+  [branch]
+  if (!_116) {
+    if (true) discard;
+  }
+  float _124 = cb12_073z * SV_Position.x;
+  float _125 = _124 * cb12_287x;
+  float _126 = cb12_073w * SV_Position.y;
+  float _127 = _126 * cb12_287x;
+  float _128 = cb12_287x * _115;
+  float _129 = _128 * cb12_073z;
+  float _130 = _128 * cb12_073w;
+  float4 _133 = t0.SampleLevel(s0, float2(_125, _127), 0.0f);
+  float _138 = _129 * 0.5f;
+  float _139 = _130 * 1.5f;
+  float _140 = _125 - _138;
+  float _141 = _127 - _139;
+  float4 _142 = t0.SampleLevel(s0, float2(_140, _141), 0.0f);
+  float _147 = _129 * 1.5f;
+  float _148 = _130 * 0.5f;
+  float _149 = _147 + _125;
+  float _150 = _127 - _148;
+  float4 _151 = t0.SampleLevel(s0, float2(_149, _150), 0.0f);
+  float _156 = _138 + _125;
+  float _157 = _139 + _127;
+  float4 _158 = t0.SampleLevel(s0, float2(_156, _157), 0.0f);
+  float _163 = _125 - _147;
+  float _164 = _148 + _127;
+  float4 _165 = t0.SampleLevel(s0, float2(_163, _164), 0.0f);
+  float _170 = _129 * 2.0f;
+  float _171 = _125 - _170;
+  float _172 = _127 - _130;
+  float4 _173 = t0.SampleLevel(s0, float2(_171, _172), 0.0f);
+  float _178 = _130 * 2.0f;
+  float _179 = _129 + _125;
+  float _180 = _127 - _178;
+  float4 _181 = t0.SampleLevel(s0, float2(_179, _180), 0.0f);
+  float _186 = _170 + _125;
+  float _187 = _130 + _127;
+  float4 _188 = t0.SampleLevel(s0, float2(_186, _187), 0.0f);
+  float _193 = _125 - _129;
+  float _194 = _178 + _127;
+  float4 _195 = t0.SampleLevel(s0, float2(_193, _194), 0.0f);
+  float _200 = _151.x + _142.x;
+  float _201 = _200 + _158.x;
+  float _202 = _201 + _165.x;
+  float _203 = _202 * 4.0f;
+  float _204 = _173.x + _133.x;
+  float _205 = _204 + _181.x;
+  float _206 = _205 + _203;
+  float _207 = _206 + _188.x;
+  float _208 = _207 + _195.x;
+  float _209 = _151.y + _142.y;
+  float _210 = _209 + _158.y;
+  float _211 = _210 + _165.y;
+  float _212 = _211 * 4.0f;
+  float _213 = _173.y + _133.y;
+  float _214 = _213 + _181.y;
+  float _215 = _214 + _212;
+  float _216 = _215 + _188.y;
+  float _217 = _216 + _195.y;
+  float _218 = _151.z + _142.z;
+  float _219 = _218 + _158.z;
+  float _220 = _219 + _165.z;
+  float _221 = _220 * 4.0f;
+  float _222 = _173.z + _133.z;
+  float _223 = _222 + _181.z;
+  float _224 = _223 + _221;
+  float _225 = _224 + _188.z;
+  float _226 = _225 + _195.z;
+  float _227 = _151.w + _142.w;
+  float _228 = _227 + _158.w;
+  float _229 = _228 + _165.w;
+  float _230 = _229 * 4.0f;
+  float _231 = _173.w + _133.w;
+  float _232 = _231 + _181.w;
+  float _233 = _232 + _230;
+  float _234 = _233 + _188.w;
+  float _235 = _234 + _195.w;
+  float _236 = max(0.0010000000474974513f, _235);
+  float _237 = _208 / _236;
+  float _238 = _217 / _236;
+  float _239 = _226 / _236;
+  float _240 = _237 * 0.0416666679084301f;
+  float _241 = _238 * 0.0416666679084301f;
+  float _242 = _239 * 0.0416666679084301f;
+  SV_Target.x = _240;
+  SV_Target.y = _241;
+  SV_Target.z = _242;
+  SV_Target.w = 0.0f;
+  return SV_Target;
+}
