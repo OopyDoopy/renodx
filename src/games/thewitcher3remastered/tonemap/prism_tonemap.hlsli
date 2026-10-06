@@ -93,14 +93,6 @@ float3 ApplyPrismGrading(
   return mul(config.outset_matrix, color);
 }
 
-float MeasurePrismBlackNits(
-    AgxToneCurveSettings agx_curve,
-    renodx::tonemap::prism::Config config) {
-  // Zero input is clamped to AgX's lower log endpoint by the curve evaluator.
-  const float3 black = AgxApplyExtendedToneCurveOnly(0.0f.xxx, agx_curve);
-  return min(black.r, min(black.g, black.b)) * config.diffuse_white_nits;
-}
-
 float3 ApplyPrismGradingForCurrentOutput(
     float3 scene_bt709,
     AgxToneCurveSettings agx_curve,
@@ -128,37 +120,27 @@ float3 ApplyPrismGradingForCurrentOutput(
   float3 color = mul(config.inset_matrix, scene_bt709);
   if (agx_curve_available) {
     if (agx_curve.use_parametric_curve && PRISM_BLACK_FLOOR < 1.0f) {
-      const float vanilla_low_shoulder = agx_curve.low_shoulder;
-      const float target_black_nits = 0.0001f;
-      float upper = min(vanilla_low_shoulder, 0.9999f);
-      float lower = min(upper, 0.0f);
-      agx_curve.low_shoulder = upper;
-      if (MeasurePrismBlackNits(agx_curve, config) > target_black_nits) {
-        agx_curve.low_shoulder = lower;
-        [loop]
-        for (int iteration = 0; iteration < 8; ++iteration) {
-          if (MeasurePrismBlackNits(agx_curve, config) <= target_black_nits) break;
-          lower -= exp2(float(iteration));
-          agx_curve.low_shoulder = lower;
+      const float a = agx_curve.pivot * agx_curve.curve_scale;
+      const float p = agx_curve.low_power;
+      const float target = 0.0001f / diffuse_white_nits;
+      if (a > 0.5f && p > 0.0f
+          && all(agx_curve.post_curve_scale > 0.0f)
+          && all(agx_curve.post_curve_power > 0.0f)
+          && target >= pow(0.0001f, 2.2000000477f)) {
+        const float3 target_curve = pow(target.xxx,
+            rcp(2.2000000477f * agx_curve.post_curve_power)) / agx_curve.post_curve_scale;
+        // A minimum-channel target permits the largest of the per-channel curve limits.
+        const float y = max(target_curve.r, max(target_curve.g, target_curve.b));
+        const float d = 0.5f - y;
+        if (d > 0.0f && d < a) {
+          const float original_norm = a / pow(pow(2.0f * a, p) - 1.0f, rcp(p));
+          const float solved_norm = a / pow(pow(a / d, p) - 1.0f, rcp(p));
+          const float minimum_low_shoulder = min(
+              agx_curve.low_shoulder, 1.0f - solved_norm / original_norm);
+          agx_curve.low_shoulder = lerp(
+              minimum_low_shoulder, agx_curve.low_shoulder, saturate(PRISM_BLACK_FLOOR));
         }
-        if (MeasurePrismBlackNits(agx_curve, config) <= target_black_nits) {
-          [loop]
-          for (int iteration = 0; iteration < 24; ++iteration) {
-            agx_curve.low_shoulder = (lower + upper) * 0.5f;
-            if (MeasurePrismBlackNits(agx_curve, config) <= target_black_nits) {
-              lower = agx_curve.low_shoulder;
-            } else {
-              upper = agx_curve.low_shoulder;
-            }
-          }
-        } else {
-          // No bracket: retain vanilla rather than applying an unverified extreme toe.
-          lower = vanilla_low_shoulder;
-        }
-      } else {
-        lower = vanilla_low_shoulder;
       }
-      agx_curve.low_shoulder = lerp(lower, vanilla_low_shoulder, saturate(PRISM_BLACK_FLOOR));
     }
     color = AgxApplyExtendedToneCurveOnly(color, agx_curve);
   }
