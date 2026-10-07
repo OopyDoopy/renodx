@@ -1285,9 +1285,10 @@ struct EffectInsertionCallback {
         if (device == nullptr || !IsEffectInsertionSupportedCommandList(context.cmd_list)) return {};
         if (!IsEffectInsertionOutsideRenderPass(context.cmd_list)) return {};
 
-        auto* shader_state = renodx::utils::command_action::GetShaderState(&context);
-        if (shader_state == nullptr) return {};
-        const uint32_t shader_hash = renodx::utils::shader::GetCurrentPixelShaderHash(shader_state);
+        const uint32_t shader_hash = renodx::utils::state::GetCurrentShaderHash(
+            context.cmd_list,
+            reshade::api::pipeline_stage::pixel_shader,
+            &context.bound_state_cache);
         if (shader_hash == 0u) return {};
         EffectInsertionMode mode = EffectInsertionMode::automatic;
         AutomaticEffectInsertionSourceSize automatic_source_size =
@@ -1469,10 +1470,10 @@ struct EffectInsertionDrawCaptureCallback {
         auto* insertion_data = renodx::utils::data::Get<EffectInsertionDeviceData>(device);
         if (insertion_data == nullptr) return {};
 
-        auto* shader_state = renodx::utils::command_action::GetShaderState(&context);
-        const uint32_t shader_hash = shader_state != nullptr
-                                       ? renodx::utils::shader::GetCurrentPixelShaderHash(shader_state)
-                                       : 0u;
+        const uint32_t shader_hash = renodx::utils::state::GetCurrentShaderHash(
+            context.cmd_list,
+            reshade::api::pipeline_stage::pixel_shader,
+            &context.bound_state_cache);
         if (shader_hash == 0u) return {};
 
         auto* swapchain_state = renodx::utils::command_action::GetSwapchainState(&context);
