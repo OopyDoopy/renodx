@@ -46,6 +46,7 @@ void OnFinalHDRDrawn([[maybe_unused]] reshade::api::command_list* cmd_list) {
 renodx::mods::shader::CustomShaders custom_shaders = {
     {0x8F5737B5, {.crc32 = 0x8F5737B5, .code = __0x8F5737B5, .on_drawn = &OnFinalHDRDrawn}},
     {0x496222DA, {.crc32 = 0x496222DA, .code = __0x496222DA, .on_drawn = &OnFinalHDRDrawn}},
+    {0x9F54CB3F, {.crc32 = 0x9F54CB3F, .code = __0x9F54CB3F, .on_drawn = &OnFinalHDRDrawn}},
     __ALL_CUSTOM_SHADERS,
 };
 
