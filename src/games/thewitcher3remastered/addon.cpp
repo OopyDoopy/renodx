@@ -558,7 +558,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Controls the toe of the curve. 0 targets a perfect black floor, 100 is vanilla.",
         .min = 0.f,
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 2.f; },
+        .is_enabled = []() { return true; },
         .parse = [](float value) { return value * 0.01f; },
         .on_change_value = &OnPrismSettingChange,
         .is_visible = []() { return current_settings_mode >= 0.f; },

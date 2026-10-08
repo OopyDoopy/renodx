@@ -97,6 +97,7 @@ float3 ApplyPrismGradingForCurrentOutput(
     float3 scene_bt709,
     AgxToneCurveSettings agx_curve,
     bool agx_curve_available,
+    float exposure_scale,
     float anchor_in,
     float anchor_out,
     float contrast_scale = 1.f) {
@@ -110,7 +111,7 @@ float3 ApplyPrismGradingForCurrentOutput(
   const float safe_anchor_out = LAST_IS_HDR
       ? min(max(anchor_out, renodx::math::FLT_MIN), peak - 0.0001f)
       : max(anchor_out, renodx::math::FLT_MIN);
-  const renodx::tonemap::prism::Config config =
+  renodx::tonemap::prism::Config config =
       CreatePrismConfig(
           peak,
           diffuse_white_nits,
@@ -119,29 +120,29 @@ float3 ApplyPrismGradingForCurrentOutput(
           contrast_scale);
   float3 color = mul(config.inset_matrix, scene_bt709);
   if (agx_curve_available) {
-    if (agx_curve.use_parametric_curve && PRISM_BLACK_FLOOR < 1.0f) {
-      const float a = agx_curve.pivot * agx_curve.curve_scale;
-      const float p = agx_curve.low_power;
-      const float target = 0.0001f / diffuse_white_nits;
-      if (a > 0.5f && p > 0.0f
-          && all(agx_curve.post_curve_scale > 0.0f)
-          && all(agx_curve.post_curve_power > 0.0f)
-          && target >= pow(0.0001f, 2.2000000477f)) {
-        const float3 target_curve = pow(target.xxx,
-            rcp(2.2000000477f * agx_curve.post_curve_power)) / agx_curve.post_curve_scale;
-        // A minimum-channel target permits the largest of the per-channel curve limits.
-        const float y = max(target_curve.r, max(target_curve.g, target_curve.b));
-        const float d = 0.5f - y;
-        if (d > 0.0f && d < a) {
-          const float original_norm = a / pow(pow(2.0f * a, p) - 1.0f, rcp(p));
-          const float solved_norm = a / pow(pow(a / d, p) - 1.0f, rcp(p));
-          const float minimum_low_shoulder = min(
-              agx_curve.low_shoulder, 1.0f - solved_norm / original_norm);
-          agx_curve.low_shoulder = lerp(
-              minimum_low_shoulder, agx_curve.low_shoulder, saturate(PRISM_BLACK_FLOOR));
-        }
-      }
-    }
+    AgxApplyBlackFloor(
+        agx_curve.low_shoulder,
+        agx_curve.post_curve_scale,
+        agx_curve.post_curve_power,
+        agx_curve.curve_scale,
+        agx_curve.low_power,
+        agx_curve.pivot,
+        agx_curve.use_parametric_curve,
+        diffuse_white_nits);
+    const float inflection_input = AgxToneCurveInflectionInput(
+        agx_curve.log_range_scale,
+        agx_curve.use_parametric_curve,
+        float4(
+            agx_curve.curve_scale,
+            agx_curve.low_power,
+            agx_curve.low_shoulder,
+            agx_curve.pivot),
+        exposure_scale);
+    const float3 grading_anchor = AgxApplyExtendedToneCurveOnly(
+        mul(config.inset_matrix, inflection_input.xxx),
+        agx_curve);
+    config.anchor_in = grading_anchor;
+    config.anchor_out = grading_anchor;
     color = AgxApplyExtendedToneCurveOnly(color, agx_curve);
   }
   color = renodx::tonemap::prism::ApplyChromaGrading(color, config);

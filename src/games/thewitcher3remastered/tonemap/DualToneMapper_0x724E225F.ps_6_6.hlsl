@@ -499,6 +499,62 @@ float3 ApplyGameToneMap(
             exposureAndHighPower.y);
 }
 
+float ComputeVanillaTonemapPeak(
+    uint mode,
+    float4 curveScaleAndSaturation,
+    float4 curvePowerAndLogRange,
+    float4 exposureAndHighPower,
+    float4 curveParameters,
+    bool useParametricCurve)
+{
+    if (mode == 2u)
+    {
+        // Passthrough has no finite output ceiling.
+        return 0.0f;
+    }
+
+    if (mode == 1u)
+    {
+        float maximumInput = max(curvePowerAndLogRange.w * 90.5096664429f, 1.0e-6f);
+        float logMin = log(curvePowerAndLogRange.w * (1.0f / 1024.0f));
+        float logMax = log(curvePowerAndLogRange.w * 90.5096664429f);
+        float normalized = saturate(
+            (clamp(log(maximumInput), logMin, logMax) - logMin)
+            / (logMax - logMin));
+        float curved = useParametricCurve
+            ? ParametricToneCurve(
+                normalized,
+                curveParameters.x,
+                exposureAndHighPower.w,
+                curveParameters.y,
+                curveParameters.z,
+                curveParameters.w)
+            : PolynomialToneCurve(normalized);
+        curved = pow(
+            max(curved * curveScaleAndSaturation.x, 0.0f),
+            curvePowerAndLogRange.x);
+        return pow(max(curved, 0.0000999999975f), 2.2000000477f);
+    }
+
+    float A = curveScaleAndSaturation.x;
+    float B = curveScaleAndSaturation.y;
+    float C = curveScaleAndSaturation.z;
+    float D = curvePowerAndLogRange.x;
+    float E = curvePowerAndLogRange.y;
+    float F = curvePowerAndLogRange.z;
+    float white = max(HableRaw(11.1999998093f, A, B, C, D, E, F), 1.0e-6f);
+    float asymptote = max(1.0f - E / F, 0.0f);
+    return max(asymptote * exposureAndHighPower.y / white, 0.0f);
+}
+
+float BlendVanillaTonemapPeaks(float peakA, float peakB, float blend)
+{
+    if (blend == 0.0f) return peakA;
+    if (blend == 1.0f) return peakB;
+    if (peakA <= 0.0f || peakB <= 0.0f) return 0.0f;
+    return max(lerp(peakA, peakB, blend), 0.0f);
+}
+
 
 // -----------------------------------------------------------------------------
 // Main
@@ -539,6 +595,25 @@ float4 ps_main(PSInput input) : SV_Target0
     float4 B_Curve        = gCustom[20];
     bool useParametricCurveA = gShared[221].w > 0.0f;
     bool useParametricCurveB = useParametricCurveA;
+    float vanillaTonemapPeakA = 0.0f;
+    float vanillaTonemapPeakB = 0.0f;
+    if (RENODX_TONE_MAP_TYPE >= 1.0f && all(pixel == 0))
+    {
+        vanillaTonemapPeakA = ComputeVanillaTonemapPeak(
+            (uint)A_ModeExposure.x,
+            A_ScaleSat,
+            A_PowerLog,
+            A_Exposure,
+            A_Curve,
+            useParametricCurveA);
+        vanillaTonemapPeakB = ComputeVanillaTonemapPeak(
+            (uint)B_ModeExposure.x,
+            B_ScaleSat,
+            B_PowerLog,
+            B_Exposure,
+            B_Curve,
+            useParametricCurveB);
+    }
     if ((uint)A_ModeExposure.x == 1u)
     {
         AgxModifyCurveParameters(
@@ -552,6 +627,33 @@ float4 ps_main(PSInput input) : SV_Target0
             B_ScaleSat, B_PowerLog, B_Exposure, B_Curve, useParametricCurveB,
             RENODX_TONE_MAP_TYPE == 2.0f
                 && PRISM_BLACK_FLOOR < 1.0f);
+    }
+    if (RENODX_TONE_MAP_TYPE < 2.0f)
+    {
+        if ((uint)A_ModeExposure.x == 1u)
+        {
+            AgxApplyBlackFloor(
+                A_Curve.z,
+                A_ScaleSat.xyz,
+                A_PowerLog.xyz,
+                A_Curve.x,
+                A_Curve.y,
+                A_Curve.w,
+                useParametricCurveA,
+                LAST_IS_HDR ? max(RENODX_DIFFUSE_WHITE_NITS, 0.000001f) : 100.0f);
+        }
+        if ((uint)B_ModeExposure.x == 1u)
+        {
+            AgxApplyBlackFloor(
+                B_Curve.z,
+                B_ScaleSat.xyz,
+                B_PowerLog.xyz,
+                B_Curve.x,
+                B_Curve.y,
+                B_Curve.w,
+                useParametricCurveB,
+                LAST_IS_HDR ? max(RENODX_DIFFUSE_WHITE_NITS, 0.000001f) : 100.0f);
+        }
     }
 
 
@@ -591,6 +693,10 @@ float4 ps_main(PSInput input) : SV_Target0
             0.0722000003f);
     float alphaA = abs(dot(exposedA, bt709Luma));
     float alphaB = abs(dot(exposedB, bt709Luma));
+    float vanillaTonemapPeak = BlendVanillaTonemapPeaks(
+        vanillaTonemapPeakA,
+        vanillaTonemapPeakB,
+        gCustom[13].x);
 
     const AgxToneCurveSettings agxCurveA = {
         A_ScaleSat.xyz,
@@ -634,6 +740,7 @@ float4 ps_main(PSInput input) : SV_Target0
             exposedA,
             agxCurveA,
             (uint)A_ModeExposure.x == 1u,
+            totalExposureScaleA,
             matchedAnchorInA,
             matchedAnchorOutA,
             matchedSlopeScaleA);
@@ -641,6 +748,7 @@ float4 ps_main(PSInput input) : SV_Target0
             exposedB,
             agxCurveB,
             (uint)B_ModeExposure.x == 1u,
+            totalExposureScaleB,
             matchedAnchorInB,
             matchedAnchorOutB,
             matchedSlopeScaleB);
@@ -668,7 +776,12 @@ float4 ps_main(PSInput input) : SV_Target0
                 log2(max(matchedAnchorInB, 0.000001f) / 0.18f),
                 matchedSlopeScaleB);
         }
-        return float4(prismOutput, lerp(alphaA, alphaB, prismBlend));
+        return float4(
+            prismOutput,
+            EncodePostProcessingPeak(
+                vanillaTonemapPeak,
+                input.position,
+                lerp(alphaA, alphaB, prismBlend)));
     }
 
     // Match each branch's grade pivot to its own AgX inflection after its
@@ -770,7 +883,7 @@ float4 ps_main(PSInput input) : SV_Target0
     }
     return float4(
         finalRGB,
-        finalAlpha);
+        EncodePostProcessingPeak(vanillaTonemapPeak, input.position, finalAlpha));
 }
 
 

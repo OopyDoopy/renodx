@@ -158,6 +158,46 @@ struct AgxToneCurveSettings {
     float vanilla_bend_blend;
 };
 
+void AgxApplyBlackFloor(
+    inout float lowShoulder,
+    float3 postCurveScale,
+    float3 postCurvePower,
+    float curveScale,
+    float lowPower,
+    float pivot,
+    bool useParametricCurve,
+    float diffuseWhiteNits)
+{
+    if (!useParametricCurve || PRISM_BLACK_FLOOR >= 1.0f)
+    {
+        return;
+    }
+
+    const float a = pivot * curveScale;
+    const float p = lowPower;
+    const float target = 0.0001f / diffuseWhiteNits;
+    if (a > 0.5f && p > 0.0f
+        && all(postCurveScale > 0.0f)
+        && all(postCurvePower > 0.0f)
+        && target >= pow(0.0001f, 2.2000000477f))
+    {
+        const float3 targetCurve = pow(target.xxx,
+            rcp(2.2000000477f * postCurvePower)) / postCurveScale;
+        // A minimum-channel target permits the largest of the per-channel curve limits.
+        const float y = max(targetCurve.r, max(targetCurve.g, targetCurve.b));
+        const float d = 0.5f - y;
+        if (d > 0.0f && d < a)
+        {
+            const float originalNorm = a / pow(pow(2.0f * a, p) - 1.0f, rcp(p));
+            const float solvedNorm = a / pow(pow(a / d, p) - 1.0f, rcp(p));
+            const float minimumLowShoulder = min(
+                lowShoulder, 1.0f - solvedNorm / originalNorm);
+            lowShoulder = lerp(
+                minimumLowShoulder, lowShoulder, saturate(PRISM_BLACK_FLOOR));
+        }
+    }
+}
+
 float AgxSignedPower(float x, float power)
 {
     if (x == 0.0f)
