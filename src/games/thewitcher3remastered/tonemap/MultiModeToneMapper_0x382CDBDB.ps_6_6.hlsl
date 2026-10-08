@@ -330,6 +330,54 @@ float3 ApplyLogDomainToneMap(
     return outColor;
 }
 
+float ComputeVanillaTonemapPeak(
+    uint mode,
+    float4 curveScaleAndSaturation,
+    float4 curvePowerAndLogRange,
+    float4 exposureAndHighPower,
+    float4 curveParameters,
+    bool useParametricCurve)
+{
+    if (mode == 2u)
+    {
+        // Passthrough has no finite output ceiling.
+        return 0.0f;
+    }
+
+    if (mode == 1u)
+    {
+        float maximumInput = max(curvePowerAndLogRange.w * 90.5096664429f, 1.0e-6f);
+        float logMin = log(curvePowerAndLogRange.w * (1.0f / 1024.0f));
+        float logMax = log(curvePowerAndLogRange.w * 90.5096664429f);
+        float normalized = saturate(
+            (clamp(log(maximumInput), logMin, logMax) - logMin)
+            / (logMax - logMin));
+        float curved = useParametricCurve
+            ? ParametricToneCurve(
+                normalized,
+                curveParameters.x,
+                exposureAndHighPower.w,
+                curveParameters.y,
+                curveParameters.z,
+                curveParameters.w)
+            : PolynomialToneCurve(normalized);
+        curved = pow(
+            max(curved * curveScaleAndSaturation.x, 0.0f),
+            curvePowerAndLogRange.x);
+        return pow(max(curved, 0.0000999999975f), 2.2000000477f);
+    }
+
+    float A = curveScaleAndSaturation.x;
+    float B = curveScaleAndSaturation.y;
+    float C = curveScaleAndSaturation.z;
+    float D = curvePowerAndLogRange.x;
+    float E = curvePowerAndLogRange.y;
+    float F = curvePowerAndLogRange.z;
+    float white = max(HableRaw(11.1999998093f, A, B, C, D, E, F), 1.0e-6f);
+    float asymptote = max(1.0f - E / F, 0.0f);
+    return max(asymptote * exposureAndHighPower.y / white, 0.0f);
+}
+
 
 // -----------------------------------------------------------------------------
 // Main
@@ -350,12 +398,31 @@ float4 ps_main(PSInput input) : SV_Target0
     float4 C16 = gCustom[16];
     float4 C19 = gCustom[19];
     bool useParametricCurve = gShared[221].w > 0.0f;
+    float vanillaTonemapPeak = 0.0f;
+    if (RENODX_TONE_MAP_TYPE >= 1.0f && all(pixel == 0))
+    {
+        vanillaTonemapPeak = ComputeVanillaTonemapPeak(
+            (uint)C4.x, C7, C8, C16, C19, useParametricCurve);
+    }
     if ((uint)C4.x == 1u)
     {
         AgxModifyCurveParameters(
             C7, C8, C16, C19, useParametricCurve,
             RENODX_TONE_MAP_TYPE == 2.0f
                 && PRISM_BLACK_FLOOR < 1.0f);
+
+        if (RENODX_TONE_MAP_TYPE < 2.0f)
+        {
+            AgxApplyBlackFloor(
+                C19.z,
+                C7.xyz,
+                C8.xyz,
+                C19.x,
+                C19.y,
+                C19.w,
+                useParametricCurve,
+                LAST_IS_HDR ? max(RENODX_DIFFUSE_WHITE_NITS, 0.000001f) : 100.0f);
+        }
     }
 
     // C4:
@@ -436,7 +503,6 @@ float4 ps_main(PSInput input) : SV_Target0
 
     float outputAlpha =
         abs(dot(exposed, bt709Luma));
-
     const AgxToneCurveSettings agxCurve = {
         C7.xyz,
         C8.xyz,
@@ -454,6 +520,15 @@ float4 ps_main(PSInput input) : SV_Target0
     uint mode = (uint)C4.x;
     float3 outputColor;
 
+    if (RENODX_TONE_MAP_TYPE == 1.0f)
+    {
+        exposed = ApplyVanillaPlusGrading(
+            exposed,
+            mode == 1u
+                ? AgxToneCurveInflectionInput(C8.w, useParametricCurve, C19, totalExposureScale)
+                : 0.18f * totalExposureScale);
+    }
+
 #if 0
     outputColor = exposed;
     return float4(outputColor, outputAlpha);
@@ -470,6 +545,7 @@ float4 ps_main(PSInput input) : SV_Target0
             exposed,
             agxCurve,
             mode == 1u,
+            totalExposureScale,
             matchedAnchorIn,
             matchedAnchorOut,
             matchedSlopeScale);
@@ -486,7 +562,9 @@ float4 ps_main(PSInput input) : SV_Target0
                 log2(max(matchedAnchorIn, 0.000001f) / 0.18f),
                 matchedSlopeScale);
         }
-        return float4(outputColor, outputAlpha);
+        return float4(
+            outputColor,
+            EncodePostProcessingPeak(vanillaTonemapPeak, input.position, outputAlpha));
     }
 
     if (mode == 2u)
@@ -561,7 +639,7 @@ float4 ps_main(PSInput input) : SV_Target0
     }
     return float4(
         outputColor,
-        outputAlpha);
+        EncodePostProcessingPeak(vanillaTonemapPeak, input.position, outputAlpha));
 }
 
 

@@ -1,4 +1,4 @@
-#include "../shared.h"
+#include "../include/common.hlsl"
 
 struct ShaderCommonEnvProbeParams {
   float ShaderCommonEnvProbeParams_000;
@@ -91,17 +91,47 @@ float4 main(noperspective float4 SV_Position : SV_Position) : SV_Target {
       minimum_uv,
       maximum_uv);
 
-  float3 upper_left = t0.SampleLevel(s0, upper_left_uv, 0.f).rgb;
-  float3 upper_right = t0.SampleLevel(
+  float4 upper_left = t0.SampleLevel(s0, upper_left_uv, 0.f);
+  float4 upper_right = t0.SampleLevel(
       s0,
       float2(lower_right_uv.x, upper_left_uv.y),
-      0.f).rgb;
-  float3 lower_left = t0.SampleLevel(
+      0.f);
+  float4 lower_left = t0.SampleLevel(
       s0,
       float2(upper_left_uv.x, lower_right_uv.y),
-      0.f).rgb;
-  float3 lower_right = t0.SampleLevel(s0, lower_right_uv, 0.f).rgb;
-  float3 average = (upper_left + upper_right + lower_left + lower_right) * 0.25f;
+      0.f);
+  float4 lower_right = t0.SampleLevel(s0, lower_right_uv, 0.f);
+
+  float bloom_peak = DecodePostProcessingPeak(t0.Load(int3(0, 0, 0)).a);
+  if (bloom_peak > 0.f) {
+    static const float bloom_extension_gain = 2.f;
+    upper_left = ClampPostProcessing(
+        upper_left,
+        bloom_peak,
+        CustomPixelConsts_144.rgb,
+        CUSTOM_BLOOM,
+        bloom_extension_gain);
+    upper_right = ClampPostProcessing(
+        upper_right,
+        bloom_peak,
+        CustomPixelConsts_144.rgb,
+        CUSTOM_BLOOM,
+        bloom_extension_gain);
+    lower_left = ClampPostProcessing(
+        lower_left,
+        bloom_peak,
+        CustomPixelConsts_144.rgb,
+        CUSTOM_BLOOM,
+        bloom_extension_gain);
+    lower_right = ClampPostProcessing(
+        lower_right,
+        bloom_peak,
+        CustomPixelConsts_144.rgb,
+        CUSTOM_BLOOM,
+        bloom_extension_gain);
+  }
+
+  float3 average = (upper_left.rgb + upper_right.rgb + lower_left.rgb + lower_right.rgb) * 0.25f;
   bool has_energy = dot(abs(average), 1.f.xxx) > 1.0000000116860974e-7f;
   average = has_energy ? average : 0.f.xxx;
 
@@ -163,6 +193,6 @@ float4 main(noperspective float4 SV_Position : SV_Position) : SV_Target {
 
   // Apply Bloom at the bright-pass source, before the bloom pyramid is blurred
   // and composited back over the scene.
-  bloom_source *= CUSTOM_BLOOM;
+  bloom_source *= bloom_peak > 0.f ? 1.f : CUSTOM_BLOOM;
   return float4(bloom_source, 0.f);
 }
