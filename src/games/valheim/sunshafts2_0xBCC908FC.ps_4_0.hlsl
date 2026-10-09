@@ -42,11 +42,11 @@ void main(
   }
 
   
-  if (RENODX_TONE_MAP_TYPE == 0.f) {
-    o0.xyzw = (0.166666672 * CUSTOM_SUN_SHAFTS) * r0.xyzw;  // vanilla
-  }
-  else {
-    o0.xyzw = (CUSTOM_SUN_SHAFTS * (0.166666672 * 0.4)) * r0.xyzw;  // reduce transparency
-  }
+  //if (RENODX_TONE_MAP_TYPE == 0.f) {
+    o0.xyzw = 0.166666672 * r0.xyzw;  // vanilla
+  //}
+  // else {
+  //   o0.xyzw = (CUSTOM_SUN_SHAFTS * (0.166666672 * 0.4)) * r0.xyzw;  // reduce transparency
+  // }
   return;
 }

@@ -1,15 +1,15 @@
 #ifndef SRC_VALHEIM_SHARED_H_
 #define SRC_VALHEIM_SHARED_H_
 
-#define RENODX_RENO_DRT_TONE_MAP_METHOD        renodx::tonemap::renodrt::config::tone_map_method::HERMITE_SPLINE
-#define RENODX_RENO_DRT_NEUTRAL_SDR_TONE_MAP_METHOD   renodx::tonemap::renodrt::config::tone_map_method::HERMITE_SPLINE
-
-#define RENODX_RENDER_MODE                   shader_injection.render_mode_setting
 #define RENODX_PEAK_WHITE_NITS               shader_injection.peak_white_nits
 #define RENODX_DIFFUSE_WHITE_NITS            shader_injection.diffuse_white_nits
 #define RENODX_GRAPHICS_WHITE_NITS           shader_injection.graphics_white_nits
+#define RENODX_SWAP_CHAIN_OUTPUT_PRESET     shader_injection.swap_chain_output_preset
+#define RENODX_SDR_ENCODING                 shader_injection.sdr_encoding
 #define RENODX_TONE_MAP_TYPE                 shader_injection.tone_map_type
-//#define CUSTOM_TONE_MAP_CONFIGURATION        shader_injection.custom_tone_map_configuration
+#define RENODX_TONE_MAP_CURVE                shader_injection.tone_map_curve
+#define RENODX_TONE_MAP_MID_GRAY_IN          shader_injection.tone_map_mid_gray_in
+#define RENODX_TONE_MAP_MID_GRAY_OUT         shader_injection.tone_map_mid_gray_out
 #define RENODX_TONE_MAP_EXPOSURE             shader_injection.tone_map_exposure
 #define RENODX_TONE_MAP_HIGHLIGHTS           shader_injection.tone_map_highlights
 #define RENODX_TONE_MAP_SHADOWS              shader_injection.tone_map_shadows
@@ -23,18 +23,21 @@
 #define RENODX_TONE_MAP_HUE_SHIFT            0.f
 #define RENODX_TONE_MAP_HUE_CORRECTION       1.f
 #define RENODX_TONE_MAP_PER_CHANNEL          0.f
-#define RENODX_GAMMA_CORRECTION              shader_injection.gamma_correction
-#define RENODX_SWAP_CHAIN_CLAMP_COLOR_SPACE  color::convert::COLOR_SPACE_BT2020
-#define RENODX_SWAP_CHAIN_DECODING           0
-#define RENODX_INTERMEDIATE_ENCODING         0
 #define CUSTOM_LUT_STRENGTH                  shader_injection.custom_lut_strength
 #define CUSTOM_LUT_SCALING                   shader_injection.custom_lut_scaling
+#define CUSTOM_LUT_SCALING_TARGET            shader_injection.custom_lut_scaling_target
 #define CUSTOM_LUT_TETRAHEDRAL               1.f
-// #define CUSTOM_SCENE_GRADE_METHOD              shader_injection.scene_grade_method
-// #define CUSTOM_SCENE_GRADE_HUE_CORRECTION      shader_injection.scene_grade_hue_correction
-// #define CUSTOM_SCENE_GRADE_SATURATION_CORRECTION shader_injection.scene_grade_saturation_correction
-#define CUSTOM_SCENE_GRADE_BLOWOUT_RESTORATION shader_injection.scene_grade_blowout_restoration
-// #define CUSTOM_SCENE_GRADE_HUE_SHIFT           shader_injection.scene_grade_hue_shift
+#define PRISM_INSET_00                       shader_injection.prism_inset_00
+#define PRISM_INSET_01                       shader_injection.prism_inset_01
+#define PRISM_INSET_02                       shader_injection.prism_inset_02
+#define PRISM_INSET_10                       shader_injection.prism_inset_10
+#define PRISM_INSET_11                       shader_injection.prism_inset_11
+#define PRISM_INSET_12                       shader_injection.prism_inset_12
+#define PRISM_INSET_20                       shader_injection.prism_inset_20
+#define PRISM_INSET_21                       shader_injection.prism_inset_21
+#define PRISM_INSET_22                       shader_injection.prism_inset_22
+#define PRISM_HIGHLIGHT_CONTRAST             shader_injection.prism_highlight_contrast
+#define PRISM_SHADOW_CONTRAST                shader_injection.prism_shadow_contrast
 #define CUSTOM_FILM_GRAIN_STRENGTH           shader_injection.custom_film_grain
 #define CUSTOM_RANDOM                        shader_injection.custom_random
 #define CUSTOM_CHROMATIC_ABERRATION          shader_injection.custom_chromatic_aberration
@@ -45,18 +48,14 @@
 // Must be 32bit aligned
 // Should be 4x32
 struct ShaderInjectData {
-  float render_mode_setting;
   float peak_white_nits;
   float diffuse_white_nits;
   float graphics_white_nits;
   float tone_map_type;
-  //float custom_tone_map_configuration;
-  float gamma_correction;
-  // float scene_grade_method;
-  // float scene_grade_hue_correction;
-  // float scene_grade_saturation_correction;
-  float scene_grade_blowout_restoration;
-  // float scene_grade_hue_shift;
+  float tone_map_curve;
+  float tone_map_mid_gray_in;
+  float tone_map_mid_gray_out;
+  float custom_lut_scaling_target;
   float tone_map_exposure;
   float tone_map_highlights;
   float tone_map_shadows;
@@ -74,6 +73,19 @@ struct ShaderInjectData {
   float custom_lens_dirt;
   float custom_film_grain;
   float custom_random;
+  float prism_inset_00;
+  float prism_inset_01;
+  float prism_inset_02;
+  float prism_inset_10;
+  float prism_inset_11;
+  float prism_inset_12;
+  float prism_inset_20;
+  float prism_inset_21;
+  float prism_inset_22;
+  float prism_highlight_contrast;
+  float prism_shadow_contrast;
+  float swap_chain_output_preset;
+  float sdr_encoding;
 };
 
 #ifndef __cplusplus

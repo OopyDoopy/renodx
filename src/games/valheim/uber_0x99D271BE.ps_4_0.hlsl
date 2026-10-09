@@ -30,6 +30,24 @@ cbuffer cb0 : register(b0)
   float4 cb0[13];
 }
 
+float3 SampleLutPQ(float3 color) {
+  float3 pq_color = saturate(LutEncode(color));
+  const float texel_size = cb0[12].x;
+  const float slice = cb0[12].y;
+  const float max_index = cb0[12].z;
+
+  const float z_position = pq_color.z * max_index;
+  const float z_integer = floor(z_position);
+  const float z_fraction = z_position - z_integer;
+  const float2 uv = float2(
+      z_integer * slice + pq_color.x * max_index * texel_size + texel_size * 0.5f,
+      pq_color.y * max_index * slice + slice * 0.5f);
+
+  const float3 color0 = t5.SampleLevel(s5_s, uv, 0).rgb;
+  const float3 color1 = t5.SampleLevel(s5_s, uv + float2(slice, 0), 0).rgb;
+  return lerp(color0, color1, z_fraction);
+}
+
 // 3Dmigoto declarations
 #define cmp -
 
@@ -120,49 +138,19 @@ void main(
   r0.xyz = cb0[12].www * r0.xyz;
 
   float3 untonemapped = r0.gbr;
-  r0.gbr = LutEncode(untonemapped);
 
-  // arri encode start
-  // r0.xyz = r0.xyz * float3(5.55555582,5.55555582,5.55555582) + float3(0.0479959995,0.0479959995,0.0479959995);
-  // r0.xyz = log2(r0.xyz);
-  // r0.xyz = saturate(r0.xyz * float3(0.0734997839,0.0734997839,0.0734997839) + float3(0.386036009,0.386036009,0.386036009));
-  // arri encode end
-
-  if (RENODX_TONE_MAP_TYPE != 0.f) {
-    renodx::lut::Config lut_config = renodx::lut::config::Create();
-    lut_config.lut_sampler = s5_s;
-    lut_config.strength = CUSTOM_LUT_STRENGTH;
-    lut_config.scaling = CUSTOM_LUT_SCALING;
-    lut_config.precompute = cb0[12].xyz;
-    lut_config.tetrahedral = CUSTOM_LUT_TETRAHEDRAL == 1.f;
-    lut_config.type_input = renodx::lut::config::type::PQ;
-    lut_config.type_output = renodx::lut::config::type::LINEAR;
-    lut_config.recolor = 0.0f;
-
-    float3 neutral_sdr = renodx::tonemap::renodrt::NeutralSDR(untonemapped);
-    float3 lut_sampling_color = lerp(untonemapped, neutral_sdr, CUSTOM_SCENE_GRADE_BLOWOUT_RESTORATION);
-    float3 tonemapped_bt709 = renodx::lut::Sample(
-        lut_sampling_color,
-        lut_config,
-        t5);
-
-    o0.rgb = CustomUpgradeToneMap(untonemapped, tonemapped_bt709, neutral_sdr);
+  float3 graded_color = SampleLutPQ(untonemapped);
+  if (RENODX_TONE_MAP_TYPE == 0.f) {
+    o0.rgb = saturate(graded_color);
   } else {
-    // LUT sampling
-    r0.yzw = cb0[12].zzz * r0.xyz;
-    r0.y = floor(r0.y);
-    r1.xy = float2(0.5, 0.5) * cb0[12].xy;
-    r1.yz = r0.zw * cb0[12].xy + r1.xy;
-    r1.x = r0.y * cb0[12].y + r1.y;
-    r3.xyzw = t5.Sample(s5_s, r1.xz).xyzw;
-    r2.z = cb0[12].y;
-    r0.zw = r1.xz + r2.zw;
-    r1.xyzw = t5.Sample(s5_s, r0.zw).xyzw;
-    r0.x = r0.x * cb0[12].z + -r0.y;
-    r0.yzw = r1.xyz + -r3.xyz;
-
-    o0.xyz = saturate(r0.xxx * r0.yzw + r3.xyz);
-    //o0.xyz = r0.xxx * r0.yzw + r3.xyz;
+    float3 lut_black = SampleLutPQ(float3(0, 0, 0));
+    float3 lut_mid = SampleLutPQ(lut_black);
+    graded_color = ApplySceneGradeLUT(
+        untonemapped,
+        graded_color,
+        lut_black,
+        lut_mid);
+    o0.rgb = graded_color;
   }
 
   o0.w = 1;

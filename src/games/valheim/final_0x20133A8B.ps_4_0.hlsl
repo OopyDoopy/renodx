@@ -1,4 +1,4 @@
-#include "./shared.h"
+#include "./common.hlsl"
 
 
 SamplerState BlitSampler_s : register(s0);
@@ -9,7 +9,7 @@ void main(
     float4 v1: SV_POSITION0,
     out float4 o0: SV_Target0) {
   o0.xyzw = BlitTexture.Sample(BlitSampler_s, v0.xy).xyzw;
-  o0.rgb = renodx::draw::SwapChainPass(o0.rgb);
+    o0.rgb = FinalPass(o0.rgb);
   return;
 }
 
