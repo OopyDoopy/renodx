@@ -49,7 +49,6 @@ cbuffer SharedPixelConsts : register(b12)
 };
 
 #include "./prism_tonemap.hlsli"
-#include "../include/common.hlsl"
 #include "./agx_tonemap.hlsli"
 
 struct PSInput

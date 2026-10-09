@@ -2,7 +2,6 @@
 #define SRC_THEWITCHER3REMASTERED_FINAL_HDR_PASS_HLSLI_
 
 #include "../tonemap/prism_tonemap.hlsli"
-#include "../include/common.hlsl"
 #include "./agx_custom_tonemap.hlsli"
 
 float3 TheWitcher3RemasteredMapFinalHDRScene(
@@ -58,7 +57,7 @@ float4 TheWitcher3RemasteredEncodeFinalHDR(
     float3 output_color_reference_white,
     float output_alpha) {
   float peak_scale = RENODX_PEAK_WHITE_NITS / 100.f;
-  float3 sanitized_output = SanitizeGamutInput(output_color_reference_white);
+  float3 sanitized_output = SanitizeGamutInputBT2020(output_color_reference_white);
   float3 gamut_compressed = renodx::color::gamut::GamutCompressBT2020(sanitized_output);
   float3 clamped_color = min(max(gamut_compressed, 0.f), peak_scale.xxx);
   return float4(renodx::color::pq::Encode(clamped_color, 100.f), output_alpha);

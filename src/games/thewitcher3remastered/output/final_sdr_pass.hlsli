@@ -12,7 +12,7 @@ float3 TheWitcher3RemasteredCompositeFinalSDRUI(
 
   // Scene tonemapping already ran in the final grading shader. Gamut-fit both
   // layers and preserve the game's UI alpha composite here.
-  float3 sanitized_ui_color = SanitizeGamutInput(ui_color_bt709);
+  float3 sanitized_ui_color = SanitizeGamutInputBT709(ui_color_bt709);
   float3 ui_color = renodx::color::gamut::GamutCompressBT709(sanitized_ui_color);
   return HandleUICompositing(
       float4(ui_color, ui_alpha),

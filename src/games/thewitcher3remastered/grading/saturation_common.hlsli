@@ -1,5 +1,4 @@
 #include "../tonemap/prism_tonemap.hlsli"
-#include "../include/common.hlsl"
 #include "../include/pixel_constants.hlsli"
 #include "../output/agx_custom_tonemap.hlsli"
 
@@ -55,7 +54,7 @@ SaturationGrade ApplySaturationGrade(float3 source_linear) {
   bool use_upgraded_grading = CUSTOM_GRADING_IMPROVEMENTS == 1.f
                               && RENODX_TONE_MAP_TYPE != 0.f;
   float3 shaped_gamma = ApplyVanillaSaturationShaper(source_linear);
-  result.ungraded = renodx::color::gamma::Decode(shaped_gamma);
+  result.ungraded = source_linear;
 
   float3 grading_input = result.ungraded;
 

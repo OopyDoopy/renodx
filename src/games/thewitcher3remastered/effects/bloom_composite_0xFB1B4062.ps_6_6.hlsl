@@ -16,6 +16,7 @@ float4 main(
     linear float2 TEXCOORD_1 : TEXCOORD1) : SV_Target {
   float3 bloom_sample = t0.Sample(s0, TEXCOORD).rgb;
   float4 scene_sample = t1.Sample(s1, TEXCOORD_1);
+
   float scene_luminance = dot(
       scene_sample.rgb,
       float3(0.3f, 0.59f, 0.11f));
