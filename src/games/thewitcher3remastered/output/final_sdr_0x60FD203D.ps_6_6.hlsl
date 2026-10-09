@@ -27,7 +27,7 @@ cbuffer cb3 : register(b3) {
   row_major float4x4 CustomPixelConsts_336 : packoffset(c021.x);
 };
 
-#include "./final_sdr_pass.hlsli"
+#include "./final_common.hlsli"
 
 SamplerState s1 : register(s1);
 
@@ -138,11 +138,13 @@ float4 main(
   float3 scene_linear = renodx::color::gamma::DecodeSafe(scene_color_gamma, 2.2f);
   if (CUSTOM_FILM_GRAIN_STRENGTH > 0.f
       || (CUSTOM_SHARPNESS > 0.f && CUSTOM_SHARPENING_TYPE == 1.f)) {
-    scene_linear = TheWitcher3RemasteredApplyFinalSDRSceneEffects(
+    scene_linear = ApplyPostprocessing(
         scene_linear,
         TEXCOORD,
         t0,
-        s1);
+        s1,
+        true,
+        true);
     scene_color_gamma = renodx::color::gamma::EncodeSafe(scene_linear, 2.2f);
   }
 

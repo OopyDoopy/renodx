@@ -60,7 +60,7 @@ struct PSOutput
 };
 
 #include "../shared.h"
-#include "./final_hdr_pass.hlsli"
+#include "./final_common.hlsli"
 
 // -----------------------------------------------------------------------------
 // Utility helpers
@@ -499,6 +499,14 @@ PSOutput ps_main(PSInput input)
         SignedPow(earlyComposite.b, C2.z),
         pow(earlyAlpha, C2.z));
 
+    sampledLinear = ApplyPostprocessing(
+        sampledLinear,
+        input.texcoord,
+        gTexture0,
+        gSampler,
+        true,
+        false);
+
     // The sampled source is dimmed underneath the loaded source as its alpha
     // increases. Exact coefficient from the DXIL.
     float underlayDim =
@@ -747,6 +755,28 @@ PSOutput ps_main(PSInput input)
 
         framegenGradedScene *= gain;
     }
+
+    float3 gradedWorkingBt709 = renodx::color::bt709::from::BT2020(gradedWorking);
+    gradedWorkingBt709 = ApplyPostprocessing(
+        gradedWorkingBt709,
+        input.texcoord,
+        gTexture0,
+        gSampler,
+        false,
+        true);
+    gradedWorking = renodx::color::bt2020::from::BT709(gradedWorkingBt709);
+
+    float3 framegenGradedSceneBt709 =
+        renodx::color::bt709::from::BT2020(framegenGradedScene);
+    framegenGradedSceneBt709 = ApplyPostprocessing(
+        framegenGradedSceneBt709,
+        input.texcoord,
+        gTexture0,
+        gSampler,
+        false,
+        true);
+    framegenGradedScene =
+        renodx::color::bt2020::from::BT709(framegenGradedSceneBt709);
 
     // If the region texture did not replace the normal composite, blend the
     // loaded source over the graded working color using its alpha.
