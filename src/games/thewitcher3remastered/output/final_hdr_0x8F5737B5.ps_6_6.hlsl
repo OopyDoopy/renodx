@@ -51,8 +51,7 @@ struct PSOutput
 };
 
 #include "../shared.h"
-#include "./final_hdr_pass.hlsli"
-#include "./lilium_rcas.hlsl"
+#include "./final_common.hlsli"
 
 // -----------------------------------------------------------------------------
 // Utility helpers
@@ -493,11 +492,13 @@ PSOutput ps_main(PSInput input)
 
     // Sharpen the scene source for the final color path without changing the
     // separate secondary output above.
-    sampledLinear = ApplyRCAS(
+    sampledLinear = ApplyPostprocessing(
         sampledLinear,
         input.texcoord,
         gTexture0,
-        gSampler);
+        gSampler,
+        true,
+        false);
 
     // The sampled source is dimmed underneath the loaded source as its alpha
     // increases. Exact coefficient from the DXIL.
@@ -677,11 +678,13 @@ PSOutput ps_main(PSInput input)
     // Film grain is generated in linear BT.709 and applied after scene grading,
     // but before the final output pass's tone mapping and UI composition.
     float3 gradedWorkingBt709 = renodx::color::bt709::from::BT2020(gradedWorking);
-    gradedWorkingBt709 = renodx::effects::ApplyFilmGrain(
+    gradedWorkingBt709 = ApplyPostprocessing(
         gradedWorkingBt709,
         input.texcoord,
-        CUSTOM_RANDOM,
-        CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);
+        gTexture0,
+        gSampler,
+        false,
+        true);
     gradedWorking = renodx::color::bt2020::from::BT709(gradedWorkingBt709);
 
     // If the region texture did not replace the normal composite, blend the
