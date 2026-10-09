@@ -16,12 +16,10 @@ float4 main(
 
   float tonemap_scale;
   float gamut_compression_scale;
-  float3 gamut_adaptive_state_lms;
   float3 lut_input = ColorGradeLUTInput(
       source.rgb,
       tonemap_scale,
-      gamut_compression_scale,
-      gamut_adaptive_state_lms);
+      gamut_compression_scale);
 
   float3 first_lut_sample = LUTSampling(lut_input, lut_input, t1, s1);
   float3 second_lut_sample = LUTSampling(first_lut_sample, lut_input, t2, s2);
@@ -30,8 +28,7 @@ float4 main(
   float3 graded_hdr = ColorGradeLUTOutput(
       graded_sdr,
       tonemap_scale,
-      gamut_compression_scale,
-      gamut_adaptive_state_lms);
+      gamut_compression_scale);
 
   return float4(lerp(source.rgb, graded_hdr, CUSTOM_LUT_STRENGTH), source.a);
 }

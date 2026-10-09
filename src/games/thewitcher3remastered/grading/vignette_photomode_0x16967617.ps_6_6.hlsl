@@ -34,6 +34,6 @@ float4 main(
       gamma_color,
       CustomPixelConsts_112.rgb * CUSTOM_VIGNETTE_BLACK_LEVEL,
       vignette);
-    vignetted_gamma = ApplyOutputRange(vignetted_gamma);
-    return float4(ApplyFinalGradingTonemap(vignetted_gamma), source.a);
+  vignetted_gamma = ApplyOutputRange(vignetted_gamma);
+  return float4(ApplyFinalGradingTonemap(vignetted_gamma), source.a);
 }

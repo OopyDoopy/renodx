@@ -4,6 +4,7 @@
 #include "../shared.h"
 #include "../prism/prism.hlsl"
 #include "./agx_tonemap.hlsli"
+#include "../include/common.hlsl"
 
 float3x3 InvertPrismInset(float3x3 matrix) {
   float determinant = dot(matrix[0], cross(matrix[1], matrix[2]));
@@ -102,15 +103,15 @@ float3 ApplyPrismGradingForCurrentOutput(
     float anchor_out,
     float contrast_scale = 1.f) {
   const float diffuse_white_nits = LAST_IS_HDR
-      ? max(RENODX_DIFFUSE_WHITE_NITS, 0.000001f)
-      : 100.f;
+                                       ? max(RENODX_DIFFUSE_WHITE_NITS, 0.000001f)
+                                       : 100.f;
   const float peak = LAST_IS_HDR
-      ? max(RENODX_PEAK_WHITE_NITS / diffuse_white_nits, 0.1801f)
-      : 1.f;
+                         ? max(RENODX_PEAK_WHITE_NITS / diffuse_white_nits, 0.1801f)
+                         : 1.f;
   const float safe_anchor_in = max(anchor_in, renodx::math::FLT_MIN);
   const float safe_anchor_out = LAST_IS_HDR
-      ? min(max(anchor_out, renodx::math::FLT_MIN), peak - 0.0001f)
-      : max(anchor_out, renodx::math::FLT_MIN);
+                                    ? min(max(anchor_out, renodx::math::FLT_MIN), peak - 0.0001f)
+                                    : max(anchor_out, renodx::math::FLT_MIN);
   renodx::tonemap::prism::Config config =
       CreatePrismConfig(
           peak,
@@ -118,6 +119,8 @@ float3 ApplyPrismGradingForCurrentOutput(
           safe_anchor_in,
           safe_anchor_out,
           contrast_scale);
+  //   config.inset_matrix = renodx::color::BT709_TO_BT2020_MAT;
+  //   config.outset_matrix = renodx::color::BT2020_TO_BT709_MAT;
   float3 color = mul(config.inset_matrix, scene_bt709);
   if (agx_curve_available) {
     AgxApplyBlackFloor(
@@ -156,7 +159,10 @@ float3 ApplyPrismGradingForCurrentOutput(
       config.shadow_contrast,
       config.highlights,
       config.shadows);
-  return mul(config.outset_matrix, color);
+
+  color = renodx::tonemap::neutwo::PerChannel(color, 100.f);  // Needed to prevent clipping issues on the r16g16b16a16_float texture
+  float3 prism_graded_bt709 = mul(config.outset_matrix, color);
+  return prism_graded_bt709;
 }
 
 float3 ApplyPrismShoulder(
