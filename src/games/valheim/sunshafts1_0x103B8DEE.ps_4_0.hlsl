@@ -38,6 +38,12 @@ void main(
 
   r0.xy = v1.xy * cb0[7].xy + cb0[7].zw;
   r0.xyzw = t1.Sample(s0_s, r0.xy).xyzw;
+
+  // r0.xyz = renodx::tonemap::neutwo::MaxChannel(r0.xyz);
+  float y_in = renodx::color::y::from::BT709(r0.rgb);
+  float y_out = renodx::tonemap::Neutwo(y_in);
+  r0.xyz = renodx::color::correct::Luminance(r0.xyz, y_in, y_out);
+
   //r0 = saturate(r0);
   r0.xyz = -cb0[2].xyz + r0.xyz;
   r0.xyz = max(float3(0,0,0), r0.xyz);
@@ -45,23 +51,13 @@ void main(
   r0.yz = cb0[5].xy + -w1.xy;
   r0.y = dot(r0.yz, r0.yz);
   r0.y = sqrt(r0.y);
-
   r0.y = saturate(cb0[5].w + -r0.y);
-
   r0.x = r0.x * r0.y;
   r0.yz = w1.xy * cb0[10].xy + cb0[10].zw;
   r1.xyzw = t0.Sample(s1_s, r0.yz).xyzw;
   r0.y = cb1[7].x * r1.x + cb1[7].y;
-
-  if (RENODX_TONE_MAP_TYPE == 0.f) {
-    r0.y = 1 / r0.y;
-    r0.y = cmp(0.99000001 < r0.y);
-  } else {
-    r0.y = 100 / r0.y;               // removing unclamps comparison range
-    r0.y = cmp(99.99000001 < r0.y); //raising to 1 un-blasts the screen with light
-  }
-
-
+  r0.y = 1 / r0.y;
+  r0.y = cmp(0.99000001 < r0.y);
   o0.xyzw = r0.yyyy ? r0.xxxx : 0;
   return;
 }
