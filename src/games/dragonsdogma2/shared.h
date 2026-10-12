@@ -15,6 +15,8 @@
 #define RENODX_TONE_MAP_HIGHLIGHTS             shader_injection.tone_map_highlights
 #define RENODX_TONE_MAP_SHADOWS                shader_injection.tone_map_shadows
 #define RENODX_TONE_MAP_CONTRAST               shader_injection.tone_map_contrast
+#define RENODX_TONE_MAP_HIGHLIGHT_CONTRAST     shader_injection.tone_map_highlight_contrast
+#define RENODX_TONE_MAP_SHADOW_CONTRAST        shader_injection.tone_map_shadow_contrast
 #define RENODX_TONE_MAP_SATURATION             shader_injection.tone_map_saturation
 #define RENODX_TONE_MAP_HIGHLIGHT_SATURATION   shader_injection.tone_map_highlight_saturation
 #define RENODX_TONE_MAP_BLOWOUT                shader_injection.tone_map_blowout
@@ -38,9 +40,9 @@ struct ShaderInjectData {
   float graphics_white_nits;
   float tone_map_type;
   float tone_map_curve;
+  float tone_map_highlight_contrast;
+  float tone_map_shadow_contrast;
   // Legacy slots retained to preserve the injected cbuffer layout.
-  float tone_map_hue_correction;
-  float vanilla_curve_match;
   float scene_grade_saturation_correction;
   float scene_grade_blowout_restoration;
 

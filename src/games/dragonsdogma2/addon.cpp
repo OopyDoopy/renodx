@@ -16,13 +16,14 @@
 
 #include "../../mods/shader.hpp"
 #include "../../utils/platform.hpp"
-#include "./prism/prism.hpp"
-#include "./prism/prism_ui.hpp"
+#include "../../utils/random.hpp"
 #include "../../utils/settings.hpp"
 #include "../../utils/swapchain.hpp"
-#include "../../utils/random.hpp"
 #include "../../utils/vtable.hpp"
+#include "./prism/prism.hpp"
+#include "./prism/prism_ui.hpp"
 #include "./shared.h"
+
 
 namespace {
 
@@ -47,11 +48,10 @@ float prism_blue_hue = 0.f;
 float prism_use_hand_tuned_matrix = 0.f;
 
 constexpr std::array<std::array<float, 4>, 3> HAND_TUNED_PRISM_MATRIX = {{
-  {{0.601409376f, 0.319229364f, 0.059557181f, 0.f}},
-  {{0.119388245f, 0.964542985f, -0.091308258f, 0.f}},
-  {{0.033780906f, 0.162302926f, 0.870757520f, 0.f}},
+  {{0.635588825f, 0.330627859f, 0.033783328f, 0.f}},
+  {{0.109389909f, 0.758677542f, 0.131932527f, 0.f}},
+  {{0.045342881f, 0.145099327f, 0.809557796f, 0.f}},
 }};
-
 
 renodx::mods::shader::CustomShaders custom_shaders = {__ALL_CUSTOM_SHADERS};
 
@@ -59,6 +59,7 @@ const std::string build_date = __DATE__;
 const std::string build_time = __TIME__;
 
 float current_settings_mode = 0;
+float developer_mode_enabled = 0.f;
 float disable_reshade_logging = 1.f;
 
 int GetPrismPrimaryMode() {
@@ -73,20 +74,27 @@ bool IsTonemapRealtime() {
   return RENODX_TONE_MAP_OPTIMIZATION == 0.f;
 }
 
+bool IsPrismDeveloperMenuVisible() {
+  return developer_mode_enabled != 0.f
+         && current_settings_mode >= 2.f
+      && RENODX_TONE_MAP_TYPE == 2.f;
+}
+
 bool IsPrismAuthoringEnabled() {
-  return RENODX_TONE_MAP_TYPE == 1.f
-      && IsTonemapRealtime()
-      && prism_use_hand_tuned_matrix == 0.f;
+  return RENODX_TONE_MAP_TYPE == 2.f
+         && IsTonemapRealtime()
+         && IsPrismDeveloperMenuVisible()
+         && prism_use_hand_tuned_matrix == 0.f;
 }
 
 renodx::utils::prism::Gamut GetPrismGamut() {
   switch (GetPrismPrimaryMode()) {
-    case 0: return renodx::utils::prism::Gamut::BT709;
-    case 1: return renodx::utils::prism::Gamut::DCI_P3;
-    case 2: return renodx::utils::prism::Gamut::BT2020;
-    case 3: return renodx::utils::prism::Gamut::AP1;
-    case 4: return renodx::utils::prism::Gamut::LMS_BT709_WHITE;
-    case 5: return renodx::utils::prism::Gamut::BT2020;
+    case 0:  return renodx::utils::prism::Gamut::BT709;
+    case 1:  return renodx::utils::prism::Gamut::DCI_P3;
+    case 2:  return renodx::utils::prism::Gamut::BT2020;
+    case 3:  return renodx::utils::prism::Gamut::AP1;
+    case 4:  return renodx::utils::prism::Gamut::LMS_BT709_WHITE;
+    case 5:  return renodx::utils::prism::Gamut::BT2020;
     default: return renodx::utils::prism::Gamut::AP1;
   }
 }
@@ -159,7 +167,7 @@ void ResolvePrismInjection() {
 
 void MarkTonemapLutDirty() {
   tonemap_lut_needs_refresh.store(
-      RENODX_TONE_MAP_OPTIMIZATION != 0.f && RENODX_TONE_MAP_TYPE == 1.f,
+      RENODX_TONE_MAP_OPTIMIZATION != 0.f && RENODX_TONE_MAP_TYPE != 0.f,
       std::memory_order_relaxed);
 }
 
@@ -199,8 +207,17 @@ void AttachLutBuilderCallbacks() {
   }
 }
 
-
 renodx::utils::settings::Settings settings = {
+    new renodx::utils::settings::Setting{
+        .key = "DragonsDogma2DeveloperMode",
+        .binding = &developer_mode_enabled,
+        .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+        .default_value = 0.f,
+        .can_reset = false,
+        .label = "Developer Mode",
+        .is_global = true,
+        .is_visible = []() { return false; },
+    },
     new renodx::utils::settings::Setting{
         .key = "SettingsMode",
         .binding = &current_settings_mode,
@@ -208,16 +225,16 @@ renodx::utils::settings::Settings settings = {
         .default_value = 0.f,
         .can_reset = false,
         .label = "Settings Mode",
-        .labels = {"Simple", "Intermediate", "Advanced"},
+        .labels = {"Simple", "Advanced", "Developer"},
         .is_global = true,
     },
-      new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
         .label = "This menu is truly advanced and should be ignored by most people",
         .section = "Warning",
         .tint = 0xFF0000,
         .is_visible = []() { return current_settings_mode >= 2.f; },
-      },
+    },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
         .label = "Requires changing brightness options or restarting the game to apply tonemapping changes.",
@@ -227,23 +244,23 @@ renodx::utils::settings::Settings settings = {
           return tonemap_lut_needs_refresh.load(std::memory_order_relaxed);
         },
         .is_sticky = true,
-      },
+    },
     new renodx::utils::settings::Setting{
         .key = "ToneMapType",
         .binding = &shader_injection.tone_map_type,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
+        .default_value = 2.f,
         .can_reset = true,
         .label = "Tone Mapper",
         .section = "Tone Mapping",
-        .tooltip = "Sets the tone mapper type.\nVanilla uses the game's original LUT and tone mapping.\nPrism replaces the game's tone mapper with a custom tone mapper, hand tuned to enhance the look of the game faithfully.",
-        .labels = {"Vanilla", "Prism"},
+        .tooltip = "Vanilla uses the game's original tone mapping.\nVanilla+ uses an ACES-like system on my handtuned curve.\nPrism uses my handtuned working space on my handtuned curve.",
+        .labels = {"Vanilla", "Vanilla+", "Prism"},
         .is_enabled = []() { return IsTonemapRealtime(); },
         .parse = [](float value) { return value; },
         .on_change_value = &OnTonemapSettingChange,
         .is_visible = []() { return current_settings_mode >= 0.f; },
     },
-      new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
         .key = "ToneMapCurve",
         .binding = &RENODX_TONE_MAP_CURVE,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -252,10 +269,10 @@ renodx::utils::settings::Settings settings = {
         .section = "Tone Mapping",
         .tooltip = "Recommended uses my hand tuned configuration. Custom starts from scratch and you need to heavily adjust the look.",
         .labels = {"Recommended", "Custom"},
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 1.f && IsTonemapRealtime(); },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && IsTonemapRealtime(); },
         .on_change_value = &OnTonemapSettingChange,
-        .is_visible = []() { return current_settings_mode >= 2.f; },
-      },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
     new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",
         .binding = &shader_injection.peak_white_nits,
@@ -296,8 +313,8 @@ renodx::utils::settings::Settings settings = {
         .max = 500.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f; },
         .is_visible = []() { return current_settings_mode >= 0.f && is_hdr_color_space; },
-      },
-      new renodx::utils::settings::Setting{
+    },
+    new renodx::utils::settings::Setting{
         .key = "SDRLUTEncoding",
         .binding = &shader_injection.sdr_encoding,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -312,52 +329,52 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return !is_hdr_color_space; },
     },
     new renodx::utils::settings::Setting{
-      .key = "SceneGradeLUTStrength",
-      .binding = &SCENE_GRADE_LUT_STRENGTH,
-      .default_value = 100.f,
-      .label = "LUT Strength",
-      .section = "Scene Grading",
-      .tooltip = "Adjusts the strength of the scene color-grading LUTs.",
-      .max = 100.f,
-      .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f; },
-      .parse = [](float value) { return value * 0.01f; },
-          .is_visible = []() { return current_settings_mode >= 1.f; },
+        .key = "SceneGradeLUTStrength",
+        .binding = &SCENE_GRADE_LUT_STRENGTH,
+        .default_value = 100.f,
+        .label = "LUT Strength",
+        .section = "Scene Grading",
+        .tooltip = "Adjusts the strength of the scene color-grading LUTs.",
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
-      .key = "SceneGradeLUTScaling",
-      .binding = &SCENE_GRADE_LUT_SCALING,
-      .default_value = 100.f,
-      .label = "LUT Scaling",
-      .section = "Scene Grading",
-      .tooltip = "Scales the color down proportionate to the amount of black level raise.",
-      .max = 100.f,
-      .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f; },
-      .parse = [](float value) { return value * 0.01f; },
-          .is_visible = []() { return current_settings_mode >= 1.f; },
+        .key = "SceneGradeLUTScaling",
+        .binding = &SCENE_GRADE_LUT_SCALING,
+        .default_value = 100.f,
+        .label = "LUT Scaling",
+        .section = "Scene Grading",
+        .tooltip = "Scales the color down proportionate to the amount of black level raise.",
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
-      .key = "SceneGradeLUTScalingTarget",
-      .binding = &SCENE_GRADE_LUT_SCALING_TARGET,
-      .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
-      .default_value = 0.f,
-      .label = "LUT Scaling Target",
-      .section = "Scene Grading",
-      .tooltip = "Hue Preserving uses the minimum channel, fully preserving the tint of the LUT while lowering the raise as much as possible\nPerfect Black uses the maximum channel, ensuring that LUTs will always reach black",
-      .labels = {"Hue Preserving", "Perfect Black"},
-      .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f; },
+        .key = "SceneGradeLUTScalingTarget",
+        .binding = &SCENE_GRADE_LUT_SCALING_TARGET,
+        .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+        .default_value = 0.f,
+        .label = "LUT Scaling Target",
+        .section = "Scene Grading",
+        .tooltip = "Hue Preserving uses the minimum channel, fully preserving the tint of the LUT while lowering the raise as much as possible\nPerfect Black uses the maximum channel, ensuring that LUTs will always reach black",
+        .labels = {"Hue Preserving", "Perfect Black"},
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeExposure",
         .binding = &shader_injection.tone_map_exposure,
-      .default_value = 1.f,
+        .default_value = 1.f,
         .label = "Exposure",
         .section = "Color Grading",
         .max = 2.f,
         .format = "%.2f",
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && IsTonemapRealtime(); },
         .on_change_value = &OnTonemapSettingChange,
-          .is_visible = []() { return current_settings_mode >= 1.f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeHighlights",
@@ -369,7 +386,43 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && IsTonemapRealtime(); },
         .parse = [](float value) { return value * 0.02f; },
         .on_change_value = &OnTonemapSettingChange,
-          .is_visible = []() { return current_settings_mode >= 1.f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeHighlightContrast",
+        .binding = &shader_injection.tone_map_highlight_contrast,
+        .default_value = 50.f,
+        .label = "Highlight Contrast",
+        .section = "Color Grading",
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && IsTonemapRealtime(); },
+        .parse = [](float value) { return value * 0.02f; },
+        .on_change_value = &OnTonemapSettingChange,
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeContrast",
+        .binding = &shader_injection.tone_map_contrast,
+        .default_value = 50.f,
+        .label = "Contrast",
+        .section = "Color Grading",
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && IsTonemapRealtime(); },
+        .parse = [](float value) { return value * 0.02f; },
+        .on_change_value = &OnTonemapSettingChange,
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeShadowContrast",
+        .binding = &shader_injection.tone_map_shadow_contrast,
+        .default_value = 50.f,
+        .label = "Shadow Contrast",
+        .section = "Color Grading",
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && IsTonemapRealtime(); },
+        .parse = [](float value) { return value * 0.02f; },
+        .on_change_value = &OnTonemapSettingChange,
+        .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeShadows",
@@ -381,19 +434,20 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && IsTonemapRealtime(); },
         .parse = [](float value) { return value * 0.02f; },
         .on_change_value = &OnTonemapSettingChange,
-          .is_visible = []() { return current_settings_mode >= 1.f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
-        .key = "ColorGradeContrast",
-        .binding = &shader_injection.tone_map_contrast,
-      .default_value = 50.f,
-        .label = "Contrast",
+        .key = "ColorGradeFlare",
+        .binding = &shader_injection.tone_map_flare,
+        .default_value = 0.f,
+        .label = "Flare",
         .section = "Color Grading",
+        .tooltip = "Flare/Glare Compensation",
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && IsTonemapRealtime(); },
-        .parse = [](float value) { return value * 0.02f; },
+        .parse = [](float value) { return value * 0.001f; },
         .on_change_value = &OnTonemapSettingChange,
-          .is_visible = []() { return current_settings_mode >= 1.f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeSaturation",
@@ -405,9 +459,9 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && IsTonemapRealtime(); },
         .parse = [](float value) { return value * 0.02f; },
         .on_change_value = &OnTonemapSettingChange,
-          .is_visible = []() { return current_settings_mode >= 1.f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
     },
-      new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
         .key = "ColorGradeHighlightSaturation",
         .binding = &shader_injection.tone_map_highlight_saturation,
         .default_value = 50.f,
@@ -415,12 +469,12 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .tooltip = "Adjusts saturation in highlights.",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 1.f && IsTonemapRealtime(); },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && IsTonemapRealtime(); },
         .parse = [](float value) { return value * 0.02f; },
         .on_change_value = &OnTonemapSettingChange,
-          .is_visible = []() { return current_settings_mode >= 1.f; },
-      },
-        new renodx::utils::settings::Setting{
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "ColorGradeBlowout",
         .binding = &shader_injection.tone_map_blowout,
         .default_value = 0.f,
@@ -431,21 +485,7 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && IsTonemapRealtime(); },
         .parse = [](float value) { return fmax(0.0001f, value * 0.01f); },
         .on_change_value = &OnTonemapSettingChange,
-          .is_visible = []() { return current_settings_mode >= 1.f; },
-    },
-
-    new renodx::utils::settings::Setting{
-        .key = "ColorGradeFlare",
-        .binding = &shader_injection.tone_map_flare,
-      .default_value = 0.f,
-        .label = "Flare",
-        .section = "Color Grading",
-        .tooltip = "Flare/Glare Compensation",
-        .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && IsTonemapRealtime(); },
-        .parse = [](float value) { return value * 0.001f; },
-        .on_change_value = &OnTonemapSettingChange,
-          .is_visible = []() { return current_settings_mode >= 1.f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeMidGrayIn",
@@ -456,39 +496,39 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Controls the pivot point used by grading sliders. When mismatched with Mid Gray Out, average brightness is scaled linearly.",
         .max = 1.f,
         .format = "%.2f",
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 1.f && RENODX_TONE_MAP_CURVE != 0.f && IsTonemapRealtime(); },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && RENODX_TONE_MAP_CURVE != 0.f && IsTonemapRealtime(); },
         .parse = [](float value) { return value; },
         .on_change_value = &OnTonemapSettingChange,
-           .is_visible = []() { return current_settings_mode >= 2.f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeMidGrayOut",
         .binding = &RENODX_TONE_MAP_MID_GRAY_OUT,
-      .default_value = 0.18f,
+        .default_value = 0.18f,
         .label = "Mid Gray Out",
         .section = "Color Grading",
         .tooltip = "Controls the output level corresponding to Mid Gray In. When mismatched, average brightness is scaled linearly.",
         .max = 1.f,
         .format = "%.2f",
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 1.f && RENODX_TONE_MAP_CURVE != 0.f && IsTonemapRealtime(); },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && RENODX_TONE_MAP_CURVE != 0.f && IsTonemapRealtime(); },
         .parse = [](float value) { return value; },
         .on_change_value = &OnTonemapSettingChange,
-            .is_visible = []() { return current_settings_mode >= 2.f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
     },
-      new renodx::utils::settings::Setting{
-          .key = "PrismMatrixSource",
-          .binding = &prism_use_hand_tuned_matrix,
-          .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
-          .default_value = 1.f,
-          .label = "Primary Matrix",
-          .section = "Prism Primaries",
-          .tooltip = "Selects between Prism's generated primary matrix and the hand-tuned matrix.",
-          .labels = {"Prism Controls", "Recommended"},
-          .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 1.f && IsTonemapRealtime(); },
-          .on_change_value = &OnPrismSettingChange,
-          .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
-        },
-        new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
+        .key = "PrismMatrixSource",
+        .binding = &prism_use_hand_tuned_matrix,
+        .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+        .default_value = 1.f,
+        .label = "Primary Matrix",
+        .section = "Prism Primaries",
+        .tooltip = "Selects between Prism's generated primary matrix and the hand-tuned matrix.",
+        .labels = {"Prism Controls", "Recommended"},
+        .is_enabled = []() { return IsPrismDeveloperMenuVisible() && IsTonemapRealtime(); },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
         .key = "PrismPrimaryMode",
         .binding = &prism_primary_mode,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -499,9 +539,9 @@ renodx::utils::settings::Settings settings = {
         .labels = {"BT.709", "DCI-P3", "BT.2020", "AP1", "LMS", "Custom"},
         .is_enabled = []() { return IsPrismAuthoringEnabled() && IsTonemapRealtime(); },
         .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
-      },
-      new renodx::utils::settings::Setting{
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
         .key = "PrismTemperature",
         .binding = &prism_temperature,
         .default_value = 6501.7344f,
@@ -513,9 +553,9 @@ renodx::utils::settings::Settings settings = {
         .format = "%.0f K",
         .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
         .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
-      },
-      new renodx::utils::settings::Setting{
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
         .key = "PrismTint",
         .binding = &prism_tint,
         .default_value = 0.0031730535f,
@@ -527,9 +567,9 @@ renodx::utils::settings::Settings settings = {
         .format = "%.4f",
         .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
         .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
-      },
-      new renodx::utils::settings::Setting{
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
         .key = "PrismStrength",
         .binding = &prism_strength,
         .default_value = 100.f,
@@ -541,9 +581,9 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
         .parse = [](float value) { return value * 0.01f; },
         .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
-      },
-      new renodx::utils::settings::Setting{
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
         .key = "PrismGlobalReach",
         .binding = &prism_global_reach,
         .default_value = 100.f,
@@ -555,9 +595,9 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
         .parse = [](float value) { return value * 0.01f; },
         .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
-      },
-      new renodx::utils::settings::Setting{
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
         .key = "PrismGlobalHue",
         .binding = &prism_global_hue,
         .default_value = 0.f,
@@ -569,9 +609,9 @@ renodx::utils::settings::Settings settings = {
         .format = "%.1f°",
         .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
         .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
-      },
-      new renodx::utils::settings::Setting{
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
         .key = "PrismRedReach",
         .binding = &prism_red_reach,
         .default_value = 100.f,
@@ -583,9 +623,9 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
         .parse = [](float value) { return value * 0.01f; },
         .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
-      },
-      new renodx::utils::settings::Setting{
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
         .key = "PrismRedHue",
         .binding = &prism_red_hue,
         .default_value = 0.f,
@@ -597,9 +637,9 @@ renodx::utils::settings::Settings settings = {
         .format = "%.1f°",
         .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
         .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
-      },
-      new renodx::utils::settings::Setting{
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
         .key = "PrismGreenReach",
         .binding = &prism_green_reach,
         .default_value = 100.f,
@@ -611,9 +651,9 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
         .parse = [](float value) { return value * 0.01f; },
         .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
-      },
-      new renodx::utils::settings::Setting{
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
         .key = "PrismGreenHue",
         .binding = &prism_green_hue,
         .default_value = 0.f,
@@ -625,9 +665,9 @@ renodx::utils::settings::Settings settings = {
         .format = "%.1f°",
         .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
         .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
-      },
-      new renodx::utils::settings::Setting{
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
         .key = "PrismBlueReach",
         .binding = &prism_blue_reach,
         .default_value = 100.f,
@@ -639,9 +679,9 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
         .parse = [](float value) { return value * 0.01f; },
         .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
-      },
-      new renodx::utils::settings::Setting{
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
         .key = "PrismBlueHue",
         .binding = &prism_blue_hue,
         .default_value = 0.f,
@@ -653,9 +693,9 @@ renodx::utils::settings::Settings settings = {
         .format = "%.1f°",
         .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
         .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
-      },
-      new renodx::utils::settings::Setting{
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::CUSTOM,
         .section = "Prism Primaries",
         .on_draw = []() {
@@ -676,14 +716,10 @@ renodx::utils::settings::Settings settings = {
               matrix_text.size() + 1,
               matrix_size,
               ImGuiInputTextFlags_ReadOnly);
-          return false;
-        },
-        .is_visible = []() {
-          return current_settings_mode >= 2.f
-             && RENODX_TONE_MAP_TYPE == 1.f;
-        },
-      },
-            new renodx::utils::settings::Setting{
+          return false; },
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
         .key = "FxFilmGrainType",
         .binding = &shader_injection.custom_film_grain_type,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -692,9 +728,9 @@ renodx::utils::settings::Settings settings = {
         .section = "Effects",
         .tooltip = "Selects between original or RenoDX film grain",
         .labels = {"Vanilla", "Perceptual"},
-          .is_visible = []() { return current_settings_mode >= 0.f; },
+        .is_visible = []() { return current_settings_mode >= 0.f; },
     },
-        new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
         .key = "FxFilmGrain",
         .binding = &shader_injection.custom_film_grain,
         .default_value = 30.f,
@@ -704,9 +740,9 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return CUSTOM_FILM_GRAIN_TYPE != 0; },
         .parse = [](float value) { return value * 0.01f; },
-          .is_visible = []() { return current_settings_mode >= 0.f; },
+        .is_visible = []() { return current_settings_mode >= 0.f; },
     },
-        new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
         .key = "FxVignette",
         .binding = &shader_injection.custom_vignette,
         .default_value = 100.f,
@@ -715,9 +751,9 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Adjusts vignette strength.",
         .max = 100.f,
         .parse = [](float value) { return value * 0.01f; },
-          .is_visible = []() { return current_settings_mode >= 0.f; },
+        .is_visible = []() { return current_settings_mode >= 0.f; },
     },
-      new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
         .key = "FxFXAA",
         .binding = &shader_injection.custom_fxaa,
         .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
@@ -725,9 +761,9 @@ renodx::utils::settings::Settings settings = {
         .label = "FXAA",
         .section = "Effects",
         .tooltip = "Enables the game's FXAA pass. Vanilla is On (not ideal with DLSS/FSR).",
-          .is_visible = []() { return current_settings_mode >= 0.f; },
-      },
-      new renodx::utils::settings::Setting{
+        .is_visible = []() { return current_settings_mode >= 0.f; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "ToneMapOptimization",
         .binding = &RENODX_TONE_MAP_OPTIMIZATION,
         .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
@@ -739,24 +775,23 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return true; },
         .on_change_value = [](float, float) { MarkTonemapLutDirty(); },
         .is_visible = []() { return current_settings_mode >= 0.f; },
-      },
-    new renodx::utils::settings::Setting{
-      .key = "DisableReShadeLogging",
-      .binding = &disable_reshade_logging,
-      .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
-      .default_value = 1.f,
-      .label = "Disable Logging",
-      .section = "Utility",
-      .tooltip = "The game causes ReShade to write an abnormal amount of info into the log, quickly ballooning in size and potentially hampering CPU performance. Disable logging by default to prevent this problem.\nThis option is provided in case logging is needed for troubleshooting.",
-      .labels = {"Off", "On"},
-      .parse = [](float value) {
-        reshade::set_config_value(nullptr, "INSTALL", "Logging", value == 0.f ? 1 : 0);
-        return value;
-      },
-      .is_global = true,
-      .is_visible = []() { return current_settings_mode >= 1.f; },
     },
-        new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
+        .key = "DisableReShadeLogging",
+        .binding = &disable_reshade_logging,
+        .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+        .default_value = 1.f,
+        .label = "Disable Logging",
+        .section = "Utility",
+        .tooltip = "The game causes ReShade to write an abnormal amount of info into the log, quickly ballooning in size and potentially hampering CPU performance. Disable logging by default to prevent this problem.\nThis option is provided in case logging is needed for troubleshooting.",
+        .labels = {"Off", "On"},
+        .parse = [](float value) {
+        reshade::set_config_value(nullptr, "INSTALL", "Logging", value == 0.f ? 1 : 0);
+        return value; },
+        .is_global = true,
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Reset All",
         .section = "Options",
@@ -767,8 +802,7 @@ renodx::utils::settings::Settings settings = {
             if (!setting->can_reset) continue;
             renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
           }
-          ResolvePrismInjection();
-        },
+          ResolvePrismInjection(); },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
@@ -790,7 +824,7 @@ renodx::utils::settings::Settings settings = {
           renodx::utils::platform::Launch("https://github.com/clshortfuse/renodx");
         },
     },
-        new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "More RenoDX Mods",
         .section = "Links",
@@ -799,7 +833,7 @@ renodx::utils::settings::Settings settings = {
           renodx::utils::platform::Launch("https://github.com/clshortfuse/renodx/wiki/Mods/");
         },
     },
-        new renodx::utils::settings::Setting{
+    new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
         .label = "Jon's Ko-Fi",
         .section = "Links",
@@ -1010,11 +1044,13 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("SceneGradeLUTStrength", 100.f);
   renodx::utils::settings::UpdateSetting("SceneGradeLUTScaling", 100.f);
   renodx::utils::settings::UpdateSetting("SceneGradeLUTScalingTarget", 1.f);
-  renodx::utils::settings::UpdateSetting("PrismMatrixSource", 0.f);
+  renodx::utils::settings::UpdateSetting("PrismMatrixSource", 1.f);
   renodx::utils::settings::UpdateSetting("ColorGradeExposure", 1.f);
   renodx::utils::settings::UpdateSetting("ColorGradeHighlights", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeShadows", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeContrast", 50.f);
+  renodx::utils::settings::UpdateSetting("ColorGradeHighlightContrast", 50.f);
+  renodx::utils::settings::UpdateSetting("ColorGradeShadowContrast", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeSaturation", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeHighlightSaturation", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 0.f);
@@ -1089,6 +1125,15 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   }
   renodx::utils::settings::Use(fdw_reason, &settings, &OnPresetOff);
   if (fdw_reason == DLL_PROCESS_ATTACH) {
+    if (developer_mode_enabled == 0.f) {
+      if (auto* settings_mode = renodx::utils::settings::FindSetting("SettingsMode");
+          settings_mode != nullptr) {
+        settings_mode->labels.resize(2);
+        if (current_settings_mode >= 2.f) {
+          renodx::utils::settings::UpdateSetting("SettingsMode", 1.f);
+        }
+      }
+    }
     MarkTonemapLutDirty();
     ResolvePrismInjection();
   }

@@ -62,7 +62,8 @@ float4 CustomLutSampling(float2 uv, float white_paper_nits) {
   float calculated_peak = RENODX_PEAK_WHITE_NITS / calculated_diffuse_white;
   float3 output_color = ungraded_bt709;
 
-  if (RENODX_TONE_MAP_TYPE == 1.f && RENODX_TONE_MAP_OPTIMIZATION != 0.f) {
+  if ((RENODX_TONE_MAP_TYPE == 1.f || RENODX_TONE_MAP_TYPE == 2.f)
+      && RENODX_TONE_MAP_OPTIMIZATION != 0.f) {
     const float3 post_processed_ap1 = renodx::color::ap1::from::BT709(
         CustomPostProcessing(ungraded_bt709, uv));
     const float3 lut_uv = renodx::color::pq::EncodeSafe(
@@ -80,18 +81,26 @@ float4 CustomLutSampling(float2 uv, float white_paper_nits) {
     return float4(SrcLUT.SampleLevel(TrilinearClamp, acescct * 0.984375f + 0.0078125f, 0.f).xyz, 1.f);
   }
 
-  if (RENODX_TONE_MAP_TYPE == 1.f && RENODX_TONE_MAP_OPTIMIZATION == 0.f) {
+  if (RENODX_TONE_MAP_TYPE == 2.f && RENODX_TONE_MAP_OPTIMIZATION == 0.f) {
     output_color = ApplyPrismToneMap(
         ungraded_bt709,
       calculated_peak,
         calculated_diffuse_white);
+  } else if (RENODX_TONE_MAP_TYPE == 1.f) {
+    output_color = renodx::color::bt709::from::AP1(
+        ApplyVanillaPlusToneMap(
+            source.xyz,
+            calculated_peak,
+            calculated_diffuse_white));
   }
 
   output_color = CustomPostProcessing(output_color, uv);
-  output_color = renodx::color::gamut::GamutCompressBT2020(output_color);
+  output_color = renodx::color::bt2020::from::BT709(output_color);
+  output_color = renodx::color::gamut::GamutCompressBT2020(
+      SanitizeGamutInputBT2020(output_color));
 
   return float4(renodx::color::pq::EncodeSafe(
-      renodx::color::bt2020::from::BT709(output_color), calculated_diffuse_white), 1.f);
+      output_color, calculated_diffuse_white), 1.f);
 }
 
 float4 CustomLutSamplingSDR(float2 uv) {
@@ -100,7 +109,8 @@ float4 CustomLutSamplingSDR(float2 uv) {
 
   float3 output_color = ungraded_bt709;
 
-  if (RENODX_TONE_MAP_TYPE == 1.f && RENODX_TONE_MAP_OPTIMIZATION != 0.f) {
+  if ((RENODX_TONE_MAP_TYPE == 1.f || RENODX_TONE_MAP_TYPE == 2.f)
+      && RENODX_TONE_MAP_OPTIMIZATION != 0.f) {
     const float3 post_processed_ap1 = renodx::color::ap1::from::BT709(
       CustomPostProcessing(ungraded_bt709, uv));
     const float3 lut_uv = renodx::color::pq::EncodeSafe(post_processed_ap1, 100.f);
@@ -115,12 +125,16 @@ float4 CustomLutSamplingSDR(float2 uv) {
     return float4(SrcLUT.SampleLevel(TrilinearClamp, acescct * 0.984375f + 0.0078125f, 0.f).xyz, 1.f);
   }
 
-  if (RENODX_TONE_MAP_TYPE == 1.f && RENODX_TONE_MAP_OPTIMIZATION == 0.f) {
+  if (RENODX_TONE_MAP_TYPE == 2.f && RENODX_TONE_MAP_OPTIMIZATION == 0.f) {
     output_color = ApplyPrismToneMap(ungraded_bt709, 1.f, 100.f);
+  } else if (RENODX_TONE_MAP_TYPE == 1.f) {
+    output_color = renodx::color::bt709::from::AP1(
+        ApplyVanillaPlusToneMap(source.xyz, 1.f, 100.f));
   }
 
   output_color = CustomPostProcessing(output_color, uv);
-  output_color = renodx::color::gamut::GamutCompressBT709(output_color);
+  output_color = renodx::color::gamut::GamutCompressBT709(
+      SanitizeGamutInputBT709(output_color));
   output_color = EncodePrismSDR(output_color);
   return float4(output_color, 1.f);
 }
