@@ -29,6 +29,29 @@ float3 DecodePrismSDR(float3 color) {
   return renodx::color::gamma::DecodeSafe(color, 2.4f);
 }
 
+float3 SanitizeGamutInput(float3 color, float3x3 gamut_xyz) {
+  const float3 luminance_weights = gamut_xyz[1];
+  const float luminance = dot(color, luminance_weights);
+
+  [branch]
+  if (luminance >= 0.f) {
+    return color;
+  }
+
+  const float3 positive = max(color, 0.f);
+  const float positive_luminance = dot(positive, luminance_weights);
+  const float scale = positive_luminance / (positive_luminance - luminance);
+  return mad(color - positive, scale, positive);
+}
+
+float3 SanitizeGamutInputBT709(float3 color) {
+  return SanitizeGamutInput(color, renodx::color::BT709_TO_XYZ_MAT);
+}
+
+float3 SanitizeGamutInputBT2020(float3 color) {
+  return SanitizeGamutInput(color, renodx::color::BT2020_TO_XYZ_MAT);
+}
+
 // Applies the LUT floor correction in the shader's native AP1-linear space.
 // lut_mid must be sampled from the LUT chain using the saturated lut_black.
 float3 ApplySceneGradeLUT(
@@ -81,6 +104,66 @@ float3x3 InvertMatrix(float3x3 matrix) {
       cross(matrix[0], matrix[1]) * determinant_rcp));
 }
 
+renodx::tonemap::prism::Config CreatePrismToneMapConfig(
+    float peak_value,
+    float diffuse_white_nits,
+    float3x3 inset_matrix,
+    float3x3 outset_matrix,
+    float3 yf_weights,
+    float3 yf_neutral_axis,
+    float yf_neutral_axis_yf_rcp,
+    float3x3 working_to_lms_matrix,
+    float3x3 lms_to_working_matrix) {
+  const bool recommended_curve = RENODX_TONE_MAP_CURVE == 0.f;
+  float prism_highlights = RENODX_TONE_MAP_HIGHLIGHTS;
+  float prism_shadows = RENODX_TONE_MAP_SHADOWS;
+  float prism_saturation = RENODX_TONE_MAP_SATURATION;
+  float prism_highlight_saturation = RENODX_TONE_MAP_HIGHLIGHT_SATURATION;
+  float prism_blowout = RENODX_TONE_MAP_BLOWOUT;
+  float prism_flare = RENODX_TONE_MAP_FLARE;
+  float prism_mid_gray_in = RENODX_TONE_MAP_MID_GRAY_IN;
+  float prism_mid_gray_out = RENODX_TONE_MAP_MID_GRAY_OUT;
+  float prism_contrast = RENODX_TONE_MAP_CONTRAST;
+  float prism_highlight_contrast = RENODX_TONE_MAP_HIGHLIGHT_CONTRAST;
+  float prism_shadow_contrast = RENODX_TONE_MAP_SHADOW_CONTRAST;
+
+  if (recommended_curve) {
+    prism_contrast = 1.2f * RENODX_TONE_MAP_CONTRAST;
+    prism_shadows = 0.6f * RENODX_TONE_MAP_SHADOWS;
+    prism_shadow_contrast = 0.6f * RENODX_TONE_MAP_SHADOW_CONTRAST;
+    prism_flare = 0.004f + RENODX_TONE_MAP_FLARE;
+    prism_mid_gray_in = 0.18f;
+    prism_mid_gray_out = 0.15f;
+  }
+
+  return renodx::tonemap::prism::config::CreateResolved(
+      peak_value.xxx,
+      diffuse_white_nits,
+      prism_mid_gray_in.xxx,
+      prism_mid_gray_out.xxx,
+      inset_matrix,
+      outset_matrix,
+      yf_weights,
+      yf_neutral_axis,
+      yf_neutral_axis_yf_rcp,
+      working_to_lms_matrix,
+      lms_to_working_matrix,
+      1.7f,
+      renodx::tonemap::prism::CONTRAST_FUNCTION_ANCHORED,
+      prism_highlights,
+      prism_shadows,
+      prism_contrast,
+      prism_saturation,
+      prism_highlight_saturation,
+      prism_blowout,
+      prism_flare,
+      prism_highlight_contrast,
+      prism_shadow_contrast,
+      renodx::tonemap::prism::CHROMA_SPACE_PRISM,
+      renodx::tonemap::prism::CHROMA_SPACE_PRISM,
+      renodx::tonemap::prism::CHROMA_SPACE_PRISM);
+}
+
 float3 ApplyPrismToneMap(
     float3 untonemapped_bt709,
     float peak_value,
@@ -108,64 +191,22 @@ float3 ApplyPrismToneMap(
   const float yf_neutral_axis_yf_rcp = rcp(max(
       dot(yf_neutral_axis, yf_weights),
       renodx::math::FLT_MIN));
-  const bool recommended_curve = RENODX_TONE_MAP_CURVE == 0.f;
   float prism_exposure = RENODX_TONE_MAP_EXPOSURE;
-  float prism_highlights = RENODX_TONE_MAP_HIGHLIGHTS;
-  float prism_shadows = RENODX_TONE_MAP_SHADOWS;
-  float prism_saturation = RENODX_TONE_MAP_SATURATION;
-  float prism_highlight_saturation = RENODX_TONE_MAP_HIGHLIGHT_SATURATION;
-  float prism_blowout = RENODX_TONE_MAP_BLOWOUT;
-  float prism_flare = RENODX_TONE_MAP_FLARE;
-  float prism_mid_gray_in = RENODX_TONE_MAP_MID_GRAY_IN;
-  float prism_mid_gray_out = RENODX_TONE_MAP_MID_GRAY_OUT;
-  float prism_contrast = RENODX_TONE_MAP_CONTRAST;
-
-  if (recommended_curve) {
-    // Scale controls are normalized around their neutral UI values.
-    prism_exposure = 0.35f * RENODX_TONE_MAP_EXPOSURE;
-    prism_highlights = RENODX_TONE_MAP_HIGHLIGHTS;
-    prism_shadows = RENODX_TONE_MAP_SHADOWS;
-    prism_saturation = RENODX_TONE_MAP_SATURATION;
-    prism_highlight_saturation = RENODX_TONE_MAP_HIGHLIGHT_SATURATION;
-    prism_contrast = 1.2f * RENODX_TONE_MAP_CONTRAST;
-
-    // Flare is additive and the UI's neutral value is zero. Blowout's
-    // 0.0001 value is only the parser's safety floor, not a grading value.
-    prism_flare = 0.015f + RENODX_TONE_MAP_FLARE;
-    prism_blowout = RENODX_TONE_MAP_BLOWOUT;
-
-    // Anchors are absolute luminance values, not scale controls.
-    prism_mid_gray_in = 0.18f;
-    prism_mid_gray_out = 0.15f;
+  if (RENODX_TONE_MAP_CURVE == 0.f) {
+    prism_exposure = 0.4f * RENODX_TONE_MAP_EXPOSURE;
   }
 
   const renodx::tonemap::prism::Config prism_config =
-      renodx::tonemap::prism::config::CreateResolved(
-          peak_value.xxx,
+      CreatePrismToneMapConfig(
+          peak_value,
           diffuse_white_nits,
-          prism_mid_gray_in.xxx,
-          prism_mid_gray_out.xxx,
           inset_matrix,
           outset_matrix,
           yf_weights,
           yf_neutral_axis,
           yf_neutral_axis_yf_rcp,
           working_to_lms_matrix,
-          lms_to_working_matrix,
-          1.5f,
-          renodx::tonemap::prism::CONTRAST_FUNCTION_ANCHORED,
-          prism_highlights,
-          prism_shadows,
-          prism_contrast,
-          prism_saturation,
-          prism_highlight_saturation,
-          prism_blowout,
-          prism_flare,
-          1.f,
-          1.f,
-          renodx::tonemap::prism::CHROMA_SPACE_PRISM,
-          renodx::tonemap::prism::CHROMA_SPACE_PRISM,
-          renodx::tonemap::prism::CHROMA_SPACE_PRISM);
+          lms_to_working_matrix);
 
   return renodx::tonemap::prism::BT709(
       untonemapped_bt709 * prism_exposure,
@@ -177,9 +218,11 @@ float3 GenerateOptimizedPrismHDR(float3 source_ap1) {
       renodx::color::bt709::from::AP1(source_ap1),
       RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS,
       RENODX_DIFFUSE_WHITE_NITS);
-  output_color = renodx::color::gamut::GamutCompressBT2020(output_color);
+  output_color = renodx::color::bt2020::from::BT709(output_color);
+  output_color = renodx::color::gamut::GamutCompressBT2020(
+      SanitizeGamutInputBT2020(output_color));
   return renodx::color::pq::EncodeSafe(
-      renodx::color::bt2020::from::BT709(output_color),
+      output_color,
       RENODX_DIFFUSE_WHITE_NITS);
 }
 
@@ -188,7 +231,64 @@ float3 GenerateOptimizedPrismSDR(float3 source_ap1) {
       renodx::color::bt709::from::AP1(source_ap1),
       1.f,
       100.f);
-  output_color = renodx::color::gamut::GamutCompressBT709(output_color);
+  output_color = renodx::color::gamut::GamutCompressBT709(
+      SanitizeGamutInputBT709(output_color));
+  return EncodePrismSDR(output_color);
+}
+
+float3 ApplyVanillaPlusToneMap(
+  float3 source_ap1,
+  float peak_value,
+  float diffuse_white_nits) {
+  const float3 yf_weights = float3(
+      renodx::color::yf::from::AP1(float3(1.f, 0.f, 0.f)),
+      renodx::color::yf::from::AP1(float3(0.f, 1.f, 0.f)),
+      renodx::color::yf::from::AP1(float3(0.f, 0.f, 1.f)));
+  const float3 yf_neutral_axis = 1.f.xxx;
+  const float yf_neutral_axis_yf_rcp = rcp(max(
+      dot(yf_neutral_axis, yf_weights),
+      renodx::math::FLT_MIN));
+  const renodx::tonemap::prism::Config prism_config =
+      CreatePrismToneMapConfig(
+          peak_value,
+          diffuse_white_nits,
+          renodx::color::IDENTITY_MAT,
+          renodx::color::IDENTITY_MAT,
+          yf_weights,
+          yf_neutral_axis,
+          yf_neutral_axis_yf_rcp,
+          renodx::color::IDENTITY_MAT,
+          renodx::color::IDENTITY_MAT);
+  float exposure = RENODX_TONE_MAP_EXPOSURE;
+  if (RENODX_TONE_MAP_CURVE == 0.f) {
+    exposure *= 0.4f;
+  }
+
+  const float3 exposed_ap1 = source_ap1 * exposure;
+  const float3 rrt_ap1 = renodx::tonemap::aces::RRT(
+      mul(renodx::color::AP1_TO_AP0_MAT, exposed_ap1));
+  return renodx::tonemap::prism::Apply(rrt_ap1, prism_config);
+}
+
+float3 GenerateOptimizedVanillaPlusHDR(float3 source_ap1) {
+  float3 output_color = renodx::color::bt709::from::AP1(
+      ApplyVanillaPlusToneMap(
+          source_ap1,
+          RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS,
+          RENODX_DIFFUSE_WHITE_NITS));
+  output_color = renodx::color::bt2020::from::BT709(output_color);
+  output_color = renodx::color::gamut::GamutCompressBT2020(
+      SanitizeGamutInputBT2020(output_color));
+  return renodx::color::pq::EncodeSafe(
+      output_color,
+      RENODX_DIFFUSE_WHITE_NITS);
+}
+
+float3 GenerateOptimizedVanillaPlusSDR(float3 source_ap1) {
+  float3 output_color = renodx::color::bt709::from::AP1(
+      ApplyVanillaPlusToneMap(source_ap1, 1.f, 100.f));
+  output_color = renodx::color::gamut::GamutCompressBT709(
+      SanitizeGamutInputBT709(output_color));
   return EncodePrismSDR(output_color);
 }
 

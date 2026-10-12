@@ -42,12 +42,16 @@ void main(
   float _14 = _11 * 0.01587301678955555f;
   float _15 = _12 * 0.01587301678955555f;
   float _16 = _13 * 0.01587301678955555f;
-  if (RENODX_TONE_MAP_OPTIMIZATION != 0.f && RENODX_TONE_MAP_TYPE == 1.f) {
+  if (RENODX_TONE_MAP_OPTIMIZATION != 0.f
+      && (RENODX_TONE_MAP_TYPE == 1.f || RENODX_TONE_MAP_TYPE == 2.f)) {
     const float3 source_ap1 = renodx::color::pq::DecodeSafe(
         float3(_14, _15, _16),
         100.f);
+    const float3 output_color = (RENODX_TONE_MAP_TYPE == 1.f)
+                    ? GenerateOptimizedVanillaPlusSDR(source_ap1)
+                    : GenerateOptimizedPrismSDR(source_ap1);
     OutLUT[int3((uint)(SV_DispatchThreadID.x), (uint)(SV_DispatchThreadID.y), (uint)(SV_DispatchThreadID.z))] =
-        float4(GenerateOptimizedPrismSDR(source_ap1), 1.f);
+      float4(output_color, 1.f);
     return;
   }
   float _30;
