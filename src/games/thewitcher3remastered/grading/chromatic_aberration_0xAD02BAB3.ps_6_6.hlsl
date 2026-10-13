@@ -11,6 +11,7 @@ float4 main(
   float4 source = SampleChromaticAberration(TEXCOORD, t0, s1);
   SaturationGrade grade = ApplySaturationGrade(source.rgb);
   float3 gamma_color = ApplyUserColorGrading(grade);
+  gamma_color = ApplyAnalyticVignette(gamma_color, TEXCOORD_2);
   gamma_color = ApplyOutputRange(gamma_color);
   return float4(ApplyFinalGradingTonemap(gamma_color), source.a);
 }

@@ -259,7 +259,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Tone Mapping",
         .tooltip = "Vanilla (AgX): Vanilla SDR/HDR output. HDR has an inverse tone mapping option so you can see the native HDR or original SDR output.\n"
         "Vanilla+ (AgX Extended): Extends the original AgX curve and reworks the grading chain to be HDR friendly, before getting mapped to the display for either SDR or HDR modes.\n"
-        "Prism: Uses our custom tone mapping solution with a custom working space. Can use the original tone curve, our recommended one, or define your own.",
+        "RenoDX (Prism): Uses our custom tone mapping solution with a custom working space. Uses the Vanilla+ curve.",
         .labels = {"Vanilla (AgX)", "Vanilla+ (AgX Extended)", "RenoDX (Prism)"},
         .parse = [](float value) { return value; },
         .on_change_value = &OnPrismSettingChange,
@@ -482,7 +482,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Sets the value of peak white in nits.",
         .min = 80.f,
         .max = 10000.f,
-        .is_enabled = []() { return shader_injection.last_is_hdr; },
+        .is_enabled = []() { return shader_injection.last_is_hdr && shader_injection.tone_map_type != 0.f; },
         .is_visible = []() { return current_settings_mode >= 0 && shader_injection.last_is_hdr; },
         .is_logarithmic = true,
     },
@@ -496,6 +496,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Sets the value of 100% white in nits.",
         .min = 80.f,
         .max = 500.f,
+        .is_enabled = []() { return shader_injection.last_is_hdr && shader_injection.tone_map_type != 0.f; },
         .is_visible = []() { return shader_injection.last_is_hdr; },
         .is_logarithmic = true,
     },
@@ -508,6 +509,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Sets the brightness of UI and HUD elements in nits.",
         .min = 80.f,
         .max = 500.f,
+        .is_enabled = []() { return shader_injection.last_is_hdr && shader_injection.tone_map_type != 0.f; },
         .is_visible = []() { return shader_injection.last_is_hdr; },
         .is_logarithmic = true,
     },
@@ -526,7 +528,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ToneMapAgxVanillaBend",
         .binding = &shader_injection.agx_vanilla_bend,
-        .default_value = 66.f,
+        .default_value = 20.f,
         .label = "Shoulder Blend",
         .section = "Tone Mapping",
         .tooltip = "Blends the extended shoulder strength toward the vanilla tonemapper.",
@@ -1145,6 +1147,7 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("SDROutputEncoding", 1.f);
   renodx::utils::settings::UpdateSetting("ToneMapAgxVanillaBend", 0.f);
   renodx::utils::settings::UpdateSetting("VideoPlayback", 0.f);
+  renodx::utils::settings::UpdateSetting("ToneMapInverseToneMap", 1.f);
 
   renodx::utils::settings::UpdateSetting("SceneGradeHueCorrection", 0.f);
   renodx::utils::settings::UpdateSetting("LutGradeStrength", 100.f);
