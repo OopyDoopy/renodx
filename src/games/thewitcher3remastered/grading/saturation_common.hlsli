@@ -56,7 +56,7 @@ SaturationGrade ApplySaturationGrade(float3 source_linear) {
   float3 shaped_gamma = ApplyVanillaSaturationShaper(source_linear);
   result.ungraded = source_linear;
 
-  float3 grading_input = result.ungraded;
+  float3 grading_input = exp2(log2(max(0.f, shaped_gamma)) * 2.200000047683716f);
 
   [branch]
   if (use_upgraded_grading) {
@@ -71,7 +71,9 @@ SaturationGrade ApplySaturationGrade(float3 source_linear) {
   float lower_mask = saturate((game_luminance - CustomPixelConsts_160.x) * CustomPixelConsts_160.y);
   float upper_mask = saturate((game_luminance - CustomPixelConsts_160.z) * CustomPixelConsts_160.w);
 
-  float luminance = renodx::color::y::from::BT709(grading_input);
+  float luminance = dot(
+      float3(0.2125999927520752f, 0.7152000069618225f, 0.0722000002861023f),
+      grading_input);
   float4 lower_grade = lerp(CustomPixelConsts_192, CustomPixelConsts_176, lower_mask);
   float3 channel_grade = lerp(lower_grade.rgb, CustomPixelConsts_208.rgb, upper_mask);
   float saturation = lerp(lower_grade.a, CustomPixelConsts_208.a, upper_mask);

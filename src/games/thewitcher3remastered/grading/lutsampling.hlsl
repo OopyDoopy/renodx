@@ -71,7 +71,7 @@ float3 LUTSampling(float3 color, float3 color_coord, Texture2D<float4> lut, Samp
   LUTSamplingCoordinates values = VanillaSamplingCoords(gamma_color_coord);
   float3 output_color = VanillaSampling(values, lut, sampler);
 
-  if (CUSTOM_LUT_SCALING != 0.f) {
+  if (RENODX_TONE_MAP_TYPE != 0.f && CUSTOM_LUT_SCALING != 0.f) {
     float lutBlackGamma = 0.f;
     LUTSamplingCoordinates lutBlackCoords = VanillaSamplingCoords(lutBlackGamma.xxx);
     float3 lutBlack = saturate(VanillaSampling(lutBlackCoords, lut, sampler));

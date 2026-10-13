@@ -208,7 +208,7 @@ float CustomGammaEncode(float color) {
      return renodx::color::gamma::EncodeSafe(color);
   }
   color = max(0, color);
-  return renodx::color::gamma::Encode(color);
+  return exp2(log2(color) * 0.4545454680919647f);
 }
 
 float3 CustomColorGrading(float3 ungraded, float3 graded) {

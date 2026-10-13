@@ -20,12 +20,18 @@ float4 main(
       gamut_compression_scale);
 
   float3 lut_sample = LUTSampling(lut_input, lut_input, t1, s1);
-  float3 graded_sdr = VanillaOutput1(lut_sample, lut_input);
+  float3 graded_sdr = VanillaOutput1(
+      lut_sample,
+      (RENODX_TONE_MAP_TYPE == 0.f || CUSTOM_GRADING_IMPROVEMENTS == 0.f)
+          ? source.rgb
+          : lut_input);
 
   float3 graded_hdr = ColorGradeLUTOutput(
       graded_sdr,
       tonemap_scale,
       gamut_compression_scale);
 
-  return float4(lerp(source.rgb, graded_hdr, CUSTOM_LUT_STRENGTH), source.a);
+  return float4(
+      lerp(source.rgb, graded_hdr, RENODX_TONE_MAP_TYPE == 0.f ? 1.f : CUSTOM_LUT_STRENGTH),
+      source.a);
 }
