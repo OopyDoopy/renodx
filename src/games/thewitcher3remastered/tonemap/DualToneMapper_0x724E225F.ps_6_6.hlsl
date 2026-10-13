@@ -596,7 +596,9 @@ float4 ps_main(PSInput input) : SV_Target0
     bool useParametricCurveB = useParametricCurveA;
     float vanillaTonemapPeakA = 0.0f;
     float vanillaTonemapPeakB = 0.0f;
-    if (RENODX_TONE_MAP_TYPE >= 1.0f && all(pixel == 0))
+    if (RENODX_TONE_MAP_TYPE >= 1.0f
+        && CUSTOM_BLOOM_BEFORE_TONEMAP == 0.0f
+        && all(pixel == 0))
     {
         vanillaTonemapPeakA = ComputeVanillaTonemapPeak(
             (uint)A_ModeExposure.x,

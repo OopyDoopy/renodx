@@ -45,6 +45,7 @@
 #define CUSTOM_VIDEO                           shader_injection.custom_video
 
 #define CUSTOM_BLOOM                           shader_injection.custom_bloom
+#define CUSTOM_BLOOM_BEFORE_TONEMAP            shader_injection.custom_bloom_before_tonemap
 #define CUSTOM_VIGNETTE                        shader_injection.custom_vignette
 #define CUSTOM_VIGNETTE_BLACK_LEVEL            shader_injection.custom_vignette_black_level
 #define CUSTOM_SDR_OUTPUT_ENCODING             shader_injection.custom_sdr_output_encoding
@@ -132,6 +133,7 @@ struct ShaderInjectData {
   float prism_yf_neutral_reciprocal;
   float prism_black_floor;
   float custom_debug_show_agx_curve_values;
+  float custom_bloom_before_tonemap;
 };
 
 #ifndef __cplusplus

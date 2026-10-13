@@ -102,7 +102,10 @@ float4 main(noperspective float4 SV_Position : SV_Position) : SV_Target {
       0.f);
   float4 lower_right = t0.SampleLevel(s0, lower_right_uv, 0.f);
 
-  float bloom_peak = DecodePostProcessingPeak(t0.Load(int3(0, 0, 0)).a);
+  float bloom_peak = 0.f;
+  if (CUSTOM_BLOOM_BEFORE_TONEMAP == 0.f) {
+    bloom_peak = DecodePostProcessingPeak(t0.Load(int3(0, 0, 0)).a);
+  }
   if (bloom_peak > 0.f) {
     static const float bloom_extension_gain = 2.f;
     upper_left = ClampPostProcessing(

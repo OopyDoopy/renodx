@@ -183,12 +183,12 @@ float4 ClampPostProcessing(
 }
 
 float EncodePostProcessingPeak(float peak, float4 position) {
-  if (RENODX_TONE_MAP_TYPE < 2.f) return 1.f;
+  if (RENODX_TONE_MAP_TYPE == 0.f || CUSTOM_BLOOM_BEFORE_TONEMAP != 0.f) return 1.f;
   return all(uint2(position.xy) == 0u) ? peak : 1.f;
 }
 
 float EncodePostProcessingPeak(float peak, float4 position, float original_alpha) {
-  if (RENODX_TONE_MAP_TYPE < 1.f) return original_alpha;
+  if (RENODX_TONE_MAP_TYPE == 0.f || CUSTOM_BLOOM_BEFORE_TONEMAP != 0.f) return original_alpha;
   return all(uint2(position.xy) == 0u) ? peak : original_alpha;
 }
 
