@@ -37,13 +37,34 @@ ShaderInjectData shader_injection;
 bool final_hdr_drawn_this_frame = false;
 bool final_hdr_draw_history[10] = {};
 uint32_t final_hdr_draw_history_index = 0;
+bool bloom_drawn_this_frame = false;
+bool tonemap_drawn_this_frame = false;
+bool bloom_was_first_this_frame = false;
+// The pass order is stable until the application restarts.
+bool bloom_tonemap_order_detected = false;
 
 void OnFinalHDRDrawn([[maybe_unused]] reshade::api::command_list* cmd_list) {
     shader_injection.last_is_hdr = true;
   final_hdr_drawn_this_frame = true;
 }
 
+void OnBloomDrawn([[maybe_unused]] reshade::api::command_list* cmd_list) {
+  if (bloom_tonemap_order_detected || bloom_drawn_this_frame) return;
+
+  bloom_drawn_this_frame = true;
+  bloom_was_first_this_frame = !tonemap_drawn_this_frame;
+}
+
+void OnToneMapDrawn([[maybe_unused]] reshade::api::command_list* cmd_list) {
+  if (bloom_tonemap_order_detected) return;
+
+  tonemap_drawn_this_frame = true;
+}
+
 renodx::mods::shader::CustomShaders custom_shaders = {
+    {0x0BF2A7DC, {.crc32 = 0x0BF2A7DC, .code = __0x0BF2A7DC, .on_drawn = &OnBloomDrawn}},
+    {0x382CDBDB, {.crc32 = 0x382CDBDB, .code = __0x382CDBDB, .on_drawn = &OnToneMapDrawn}},
+    {0x724E225F, {.crc32 = 0x724E225F, .code = __0x724E225F, .on_drawn = &OnToneMapDrawn}},
     {0x8F5737B5, {.crc32 = 0x8F5737B5, .code = __0x8F5737B5, .on_drawn = &OnFinalHDRDrawn}},
     {0x496222DA, {.crc32 = 0x496222DA, .code = __0x496222DA, .on_drawn = &OnFinalHDRDrawn}},
     {0x9F54CB3F, {.crc32 = 0x9F54CB3F, .code = __0x9F54CB3F, .on_drawn = &OnFinalHDRDrawn}},
@@ -1201,6 +1222,16 @@ void OnPresent(
     const reshade::api::rect* dest_rect,
     uint32_t dirty_rect_count,
     const reshade::api::rect* dirty_rects) {
+    if (!bloom_tonemap_order_detected) {
+        if (bloom_drawn_this_frame && tonemap_drawn_this_frame) {
+            shader_injection.custom_bloom_before_tonemap = bloom_was_first_this_frame ? 1.f : 0.f;
+            bloom_tonemap_order_detected = true;
+        }
+        bloom_drawn_this_frame = false;
+        tonemap_drawn_this_frame = false;
+        bloom_was_first_this_frame = false;
+    }
+
   constexpr uint32_t hdr_detection_window_frames = 10;
   final_hdr_draw_history[final_hdr_draw_history_index] = final_hdr_drawn_this_frame;
   final_hdr_draw_history_index =

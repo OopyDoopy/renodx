@@ -398,7 +398,9 @@ float4 ps_main(PSInput input) : SV_Target0
     float4 C19 = gCustom[19];
     bool useParametricCurve = gShared[221].w > 0.0f;
     float vanillaTonemapPeak = 0.0f;
-    if (RENODX_TONE_MAP_TYPE >= 1.0f && all(pixel == 0))
+    if (RENODX_TONE_MAP_TYPE >= 1.0f
+        && CUSTOM_BLOOM_BEFORE_TONEMAP == 0.0f
+        && all(pixel == 0))
     {
         vanillaTonemapPeak = ComputeVanillaTonemapPeak(
             (uint)C4.x, C7, C8, C16, C19, useParametricCurve);
