@@ -136,6 +136,7 @@ float4 main(
 
   float3 scene_color_gamma = float3(_232, _233, _234);
   float3 scene_linear = renodx::color::gamma::DecodeSafe(scene_color_gamma, 2.2f);
+  float final_ui_alpha = TheWitcher3RemasteredFinalUIAlpha(_26.w);
   if (CUSTOM_FILM_GRAIN_STRENGTH > 0.f
       || (CUSTOM_SHARPNESS > 0.f && CUSTOM_SHARPENING_TYPE == 1.f)) {
     scene_linear = ApplyPostprocessing(
@@ -153,15 +154,15 @@ float4 main(
     float _251 = pow(scene_color_gamma.x, _235);
     float _252 = pow(scene_color_gamma.y, _235);
     float _253 = pow(scene_color_gamma.z, _235);
-    SV_Target.x = exp2(log2(((pow(_229, _235) - _251) * _26.w) + _251) * CustomPixelConsts_032.z);
-    SV_Target.y = exp2(log2(((pow(_230, _235) - _252) * _26.w) + _252) * CustomPixelConsts_032.z);
-    SV_Target.z = exp2(log2(((pow(_231, _235) - _253) * _26.w) + _253) * CustomPixelConsts_032.z);
+    SV_Target.x = exp2(log2(((pow(_229, _235) - _251) * final_ui_alpha) + _251) * CustomPixelConsts_032.z);
+    SV_Target.y = exp2(log2(((pow(_230, _235) - _252) * final_ui_alpha) + _252) * CustomPixelConsts_032.z);
+    SV_Target.z = exp2(log2(((pow(_231, _235) - _253) * final_ui_alpha) + _253) * CustomPixelConsts_032.z);
   } else {
     float3 ui_linear = renodx::color::gamma::DecodeSafe(float3(_229, _230, _231), 2.2f);
     float3 output_linear = TheWitcher3RemasteredCompositeFinalSDRUI(
         scene_linear,
         ui_linear,
-      _26.w);
+        final_ui_alpha);
     SV_Target.rgb = TheWitcher3RemasteredEncodeFinalSDR(output_linear);
   }
 

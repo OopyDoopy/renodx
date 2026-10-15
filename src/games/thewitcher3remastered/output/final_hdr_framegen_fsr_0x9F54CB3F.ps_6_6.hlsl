@@ -779,13 +779,14 @@ PSOutput ps_main(PSInput input)
     // loaded source over the graded working color using its alpha.
     float3 finalLinear2020 = gradedWorking;
     float finalAlpha = 1.0f;
+    float finalUiAlpha = TheWitcher3RemasteredFinalUIAlpha(loadColor.a);
 
     if (shouldCompositeLoadColor)
     {
         if (RENODX_TONE_MAP_TYPE == 0.0f)
         {
             finalLinear2020 =
-                lerp(gradedWorking, gradedLoad, loadColor.a);
+                lerp(gradedWorking, gradedLoad, finalUiAlpha);
         }
 
         // Exact alpha expression in the DXIL:
@@ -823,7 +824,7 @@ PSOutput ps_main(PSInput input)
         // With no UI/load contribution and no region replacement, the normal
         // scene and framegen scene are identical. Reuse the already mapped and
         // encoded output instead of running the scene tone mapper a second time.
-        if (shouldCompositeLoadColor && loadColor.a == 0.0f)
+        if (shouldCompositeLoadColor && finalUiAlpha == 0.0f)
         {
             output.target2 = output.target0;
         }

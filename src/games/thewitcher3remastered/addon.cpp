@@ -598,6 +598,16 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return IsPrismDeveloperMenuVisible(); },
         .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
     },
+    new renodx::utils::settings::Setting{
+        .key = "HideUI",
+        .binding = &shader_injection.custom_hide_ui,
+        .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+        .default_value = 0.f,
+        .label = "Hide UI",
+        .section = "Developer",
+        .tooltip = "Hides the UI layer blended by the final output shaders.",
+        .is_visible = []() { return developer_mode_enabled != 0.f && current_settings_mode >= 2.f; },
+    },
     //   new renodx::utils::settings::Setting{
     //     .key = "CustomGammaType",
     //     .binding = &CUSTOM_GAMMA_TYPE,
@@ -1162,6 +1172,7 @@ renodx::utils::settings::Settings settings = {
 
 void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("ToneMapType", 0.f);
+    renodx::utils::settings::UpdateSetting("HideUI", 0.f);
   renodx::utils::settings::UpdateSetting("ToneMapPeakNits", 1000.f);
   renodx::utils::settings::UpdateSetting("ToneMapGameNits", 203.f);
   renodx::utils::settings::UpdateSetting("ToneMapUINits", 203.f);
