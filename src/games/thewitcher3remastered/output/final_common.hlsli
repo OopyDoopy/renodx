@@ -60,11 +60,16 @@ float3 TheWitcher3RemasteredMapFinalHDRScene(
   return scene_linear_bt2020 * (RENODX_DIFFUSE_WHITE_NITS / reference_white_nits);
 }
 
+float TheWitcher3RemasteredFinalUIAlpha(float ui_alpha) {
+  return CUSTOM_HIDE_UI > 0.f ? 0.f : ui_alpha;
+}
+
 float3 TheWitcher3RemasteredCompositeFinalHDRUI(
     float3 scene_color_reference_white,
     float3 ui_color_bt2020,
     float ui_alpha,
     bool composite_ui) {
+  ui_alpha = TheWitcher3RemasteredFinalUIAlpha(ui_alpha);
   if (!composite_ui || ui_alpha <= 0.f) return scene_color_reference_white;
 
   float3 ui_color = ui_color_bt2020
@@ -122,6 +127,7 @@ float3 TheWitcher3RemasteredCompositeFinalSDRUI(
     float3 scene_color_bt709,
     float3 ui_color_bt709,
     float ui_alpha) {
+  ui_alpha = TheWitcher3RemasteredFinalUIAlpha(ui_alpha);
   if (ui_alpha <= 0.f) return scene_color_bt709;
 
   // Scene tonemapping already ran in the final grading shader. Gamut-fit both

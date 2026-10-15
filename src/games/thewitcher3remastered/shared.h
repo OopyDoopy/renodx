@@ -49,6 +49,7 @@
 #define CUSTOM_VIGNETTE                        shader_injection.custom_vignette
 #define CUSTOM_VIGNETTE_BLACK_LEVEL            shader_injection.custom_vignette_black_level
 #define CUSTOM_SDR_OUTPUT_ENCODING             shader_injection.custom_sdr_output_encoding
+#define CUSTOM_HIDE_UI                         shader_injection.custom_hide_ui
 #define LAST_IS_HDR                            shader_injection.last_is_hdr
 #define PRISM_INSET_00                         shader_injection.prism_inset_00
 #define PRISM_INSET_01                         shader_injection.prism_inset_01
@@ -134,6 +135,7 @@ struct ShaderInjectData {
   float prism_black_floor;
   float custom_debug_show_agx_curve_values;
   float custom_bloom_before_tonemap;
+  float custom_hide_ui;
 };
 
 #ifndef __cplusplus
