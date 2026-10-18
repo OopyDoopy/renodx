@@ -991,7 +991,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "PsychoVCustom31Compression",
         .binding = &shader_injection.psychov_compression,
-        .default_value = 3.5f,
+        .default_value = 0.f,
         .label = "Compression (0 = Auto)",
         .section = "PsychoV-31 (Custom)",
         .tooltip = "0 selects automatic compression. Positive values set the custom C-infinity shoulder strength.",
