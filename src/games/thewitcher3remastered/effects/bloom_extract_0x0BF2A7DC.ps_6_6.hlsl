@@ -112,25 +112,25 @@ float4 main(noperspective float4 SV_Position : SV_Position) : SV_Target {
         upper_left,
         bloom_peak,
         CustomPixelConsts_144.rgb,
-        CUSTOM_BLOOM,
+        1.f,
         bloom_extension_gain);
     upper_right = ClampPostProcessing(
         upper_right,
         bloom_peak,
         CustomPixelConsts_144.rgb,
-        CUSTOM_BLOOM,
+        1.f,
         bloom_extension_gain);
     lower_left = ClampPostProcessing(
         lower_left,
         bloom_peak,
         CustomPixelConsts_144.rgb,
-        CUSTOM_BLOOM,
+        1.f,
         bloom_extension_gain);
     lower_right = ClampPostProcessing(
         lower_right,
         bloom_peak,
         CustomPixelConsts_144.rgb,
-        CUSTOM_BLOOM,
+        1.f,
         bloom_extension_gain);
   }
 
@@ -194,8 +194,7 @@ float4 main(noperspective float4 SV_Position : SV_Position) : SV_Target {
       * CustomPixelConsts_096.x;
   float3 bloom_source = masked_bloom * bloom_scale;
 
-  // Apply Bloom at the bright-pass source, before the bloom pyramid is blurred
-  // and composited back over the scene.
-  bloom_source *= bloom_peak > 0.f ? 1.f : CUSTOM_BLOOM;
+  // This extraction is also used by shafts. Keep its HDR reference fixed;
+  // Bloom strength belongs to the final additive composites, not this input.
   return float4(bloom_source, 0.f);
 }

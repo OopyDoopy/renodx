@@ -339,6 +339,5 @@ float4 main(
   SV_Target.y = _894;
   SV_Target.z = _895;
   SV_Target.w = 1.f;
-  SV_Target.rgb *= CUSTOM_SUNSHAFTS_STRENGTH;
   return SV_Target;
 }

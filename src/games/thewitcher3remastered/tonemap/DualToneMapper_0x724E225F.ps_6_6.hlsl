@@ -405,8 +405,9 @@ float3 ApplyLogDomainToneMap(
     float3 outColor =
         mul(LOG_OUTSET_MATRIX, curved);
 
+    // Preserve the native encoding floor except in PsychoV's zero-anchored reference.
     outColor =
-        max(outColor, 0.0000999999975f);
+        max(outColor, (RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31) ? 0.0f : 0.0000999999975f);
 
     outColor =
         pow(outColor, 2.2000000477f);
@@ -615,21 +616,22 @@ float4 ps_main(PSInput input) : SV_Target0
             B_Curve,
             useParametricCurveB);
     }
-    if ((uint)A_ModeExposure.x == 1u)
+    if ((uint)A_ModeExposure.x == 1u && RENODX_TONE_MAP_TYPE != WITCHER_TONE_MAP_PSYCHOV_CUSTOM31)
     {
         AgxModifyCurveParameters(
             A_ScaleSat, A_PowerLog, A_Exposure, A_Curve, useParametricCurveA,
             RENODX_TONE_MAP_TYPE == 2.0f
                 && PRISM_BLACK_FLOOR < 1.0f);
     }
-    if ((uint)B_ModeExposure.x == 1u)
+    if ((uint)B_ModeExposure.x == 1u && RENODX_TONE_MAP_TYPE != WITCHER_TONE_MAP_PSYCHOV_CUSTOM31)
     {
         AgxModifyCurveParameters(
             B_ScaleSat, B_PowerLog, B_Exposure, B_Curve, useParametricCurveB,
             RENODX_TONE_MAP_TYPE == 2.0f
                 && PRISM_BLACK_FLOOR < 1.0f);
     }
-    if (RENODX_TONE_MAP_TYPE < 2.0f)
+    if (RENODX_TONE_MAP_TYPE < 2.0f
+        || (RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31))
     {
         if ((uint)A_ModeExposure.x == 1u)
         {
@@ -725,6 +727,35 @@ float4 ps_main(PSInput input) : SV_Target0
         useParametricCurveB,
         shader_injection.agx_vanilla_bend,
     };
+
+    if (RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31)
+    {
+        if (RENODX_PSYCHOV_CONTRAST_CURVE != 0.f)
+            exposedA = WitcherApplyNaturalContrast(exposedA, ApplyGameToneMap(0.18f.xxx, (uint)A_ModeExposure.x,
+                A_ScaleSat, A_PowerLog, A_Exposure, A_Curve, useParametricCurveA, false, 0.f));
+        else if ((uint)A_ModeExposure.x == 1u)
+            exposedA = WitcherApplyNativeContrast(exposedA, ApplyGameToneMap(
+                max(renodx::color::y::from::BT709(exposedA), 0.000001f).xxx, 1u,
+                A_ScaleSat, A_PowerLog, A_Exposure, A_Curve, useParametricCurveA,
+                true, shader_injection.agx_vanilla_bend));
+        else
+            exposedA *= WitcherNativeBrightnessScale(ApplyGameToneMap(0.18f.xxx, (uint)A_ModeExposure.x,
+                A_ScaleSat, A_PowerLog, A_Exposure, A_Curve, useParametricCurveA, false, 0.f));
+        if (RENODX_PSYCHOV_CONTRAST_CURVE != 0.f)
+            exposedB = WitcherApplyNaturalContrast(exposedB, ApplyGameToneMap(0.18f.xxx, (uint)B_ModeExposure.x,
+                B_ScaleSat, B_PowerLog, B_Exposure, B_Curve, useParametricCurveB, false, 0.f));
+        else if ((uint)B_ModeExposure.x == 1u)
+            exposedB = WitcherApplyNativeContrast(exposedB, ApplyGameToneMap(
+                max(renodx::color::y::from::BT709(exposedB), 0.000001f).xxx, 1u,
+                B_ScaleSat, B_PowerLog, B_Exposure, B_Curve, useParametricCurveB,
+                true, shader_injection.agx_vanilla_bend));
+        else
+            exposedB *= WitcherNativeBrightnessScale(ApplyGameToneMap(0.18f.xxx, (uint)B_ModeExposure.x,
+                B_ScaleSat, B_PowerLog, B_Exposure, B_Curve, useParametricCurveB, false, 0.f));
+        // Match each environment before blending, retaining native exposure and alpha.
+        return float4(lerp(exposedA, exposedB, gCustom[13].x),
+            EncodePostProcessingPeak(vanillaTonemapPeak, input.position, lerp(alphaA, alphaB, gCustom[13].x)));
+    }
 
     if (RENODX_TONE_MAP_TYPE == 2.0f)
     {

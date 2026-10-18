@@ -36,6 +36,6 @@ float4 main(
       gamut_compression_scale);
 
   return float4(
-      lerp(source.rgb, graded_hdr, RENODX_TONE_MAP_TYPE == 0.f ? 1.f : CUSTOM_LUT_STRENGTH),
+      ApplySceneGrading(source.rgb, graded_hdr, CUSTOM_LUT_STRENGTH),
       source.a);
 }

@@ -35,5 +35,5 @@ float4 main(noperspective float4 SV_Position : SV_Position) : SV_Target {
       * CUSTOM_LENS_DIRT;
   float3 dirt_modulation = dirt * CustomPixelConsts_112.rgb
       + CustomPixelConsts_096.rgb;
-  return float4(dirt_modulation * bloom, 0.f);
+  return float4(dirt_modulation * bloom * CUSTOM_BLOOM, 0.f);
 }

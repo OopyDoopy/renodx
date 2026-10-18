@@ -27,21 +27,6 @@ float PhotomodeShapeChannel(float color, float noise, float luminance, float lum
       (CustomPixelConsts_224.x * exp2(log2(vanilla_input) * CustomPixelConsts_128.x))
           + CustomPixelConsts_224.y);
   float vanilla_output = exp2(log2(shaped_input) * CustomPixelConsts_224.z);
-  if (CUSTOM_GRADING_IMPROVEMENTS != 1.f || RENODX_TONE_MAP_TYPE == 0.f) {
-    return vanilla_output;
-  }
-
-  float signed_input = curve_input + noise;
-  float extended_shaped_input = CustomPixelConsts_224.x
-      * renodx::math::SignPow(signed_input, CustomPixelConsts_128.x)
-      + CustomPixelConsts_224.y;
-  float extended_output = renodx::math::SignPow(extended_shaped_input, CustomPixelConsts_224.z);
-  if (curve_input < 0.0f || curve_input > 1.0f
-      || signed_input < 0.0f || signed_input > 1.0f
-      || extended_output < 0.0f || extended_output > 1.0f) {
-    return extended_output;
-  }
-
   return vanilla_output;
 }
 
@@ -55,11 +40,11 @@ float4 main(
   float _18 = (TEXCOORD.y - CustomPixelConsts_272.y) / CustomPixelConsts_272.y;
   float _22 = sqrt((_18 * _18) + (_17 * _17));
   float _25 = saturate((_22 - CustomPixelConsts_256.y) * CustomPixelConsts_256.z);
-  float4 _28 = t0.SampleLevel(s1, float2(TEXCOORD.x, TEXCOORD.y), 0.0f);
+  float4 _28 = SampleRenoDXChromaticAberration(TEXCOORD, t0, s1);
   float _59;
   float _60;
   [branch]
-  if (_25 > 0.0f) {
+  if (_25 > 0.0f && (RENODX_TONE_MAP_TYPE == 0.f || CUSTOM_CA_MODE == 0.f)) {
     float _43 = ((_25 * _25) * CustomPixelConsts_256.x) * min(max((1.0f / _22), -3.4028234663852886e+38f), 3.4028234663852886e+38f);
     float _45 = (_17 * CustomPixelConsts_272.z) * _43;
     float _47 = (_18 * CustomPixelConsts_272.w) * _43;
@@ -197,59 +182,50 @@ float4 main(
   float _473 = _469 * _469;
   float _474 = _470 * _470;
   float _486 = (CustomPixelConsts_304.x * 105.0f) * dot(float4((_471 * _471), (_472 * _472), (_473 * _473), (_474 * _474)), float4(dot(float3((_443 * _423), (_443 * _424), (_443 * _383)), float3(_173, _174, _175)), dot(float3((_444 * _425), (_444 * _426), (_444 * _384)), float3(_194, _195, _196)), dot(float3((_445 * _431), (_445 * _432), (_445 * _385)), float3(_200, _201, _202)), dot(float3((_446 * _433), (_446 * _434), (_446 * _386)), float3(_203, _204, _205))));
-  float _526 = PhotomodeShapeChannel(_130, _486, _133, _136);
-  float _527 = PhotomodeShapeChannel(_131, _486, _133, _136);
-  float _528 = PhotomodeShapeChannel(_132, _486, _133, _136);
-  float _529 = dot(float3(0.29899999499320984f, 0.5870000123977661f, 0.11400000005960464f), float3(_526, _527, _528));
-  float _535 = saturate((_529 - CustomPixelConsts_160.x) * CustomPixelConsts_160.y);
-  float _540 = saturate((_529 - CustomPixelConsts_160.z) * CustomPixelConsts_160.w);
-  float _550;
-  float _551;
-  float _552;
+  float3 gamma_color;
   if (CUSTOM_GRADING_IMPROVEMENTS == 1.f && RENODX_TONE_MAP_TYPE != 0.f) {
-    _550 = renodx::math::SignPow(_526, 2.200000047683716f);
-    _551 = renodx::math::SignPow(_527, 2.200000047683716f);
-    _552 = renodx::math::SignPow(_528, 2.200000047683716f);
+    // Keep photo exposure, contrast, white balance, saturation and grain before
+    // the shared gameplay grade, as in Hartapfel. PsychoV needs the same HDR
+    // proxy/reconstruction and the scene controls need the pre-shaper reference.
+    float3 photo_scene = (((float3(_130, _131, _132) * _136) - _133)
+                             * CustomPixelConsts_288.z)
+        + _133 + _486;
+    gamma_color = ApplyUserColorGrading(ApplySaturationGrade(photo_scene));
   } else {
+    float _526 = PhotomodeShapeChannel(_130, _486, _133, _136);
+    float _527 = PhotomodeShapeChannel(_131, _486, _133, _136);
+    float _528 = PhotomodeShapeChannel(_132, _486, _133, _136);
+    float _529 = dot(float3(0.29899999499320984f, 0.5870000123977661f, 0.11400000005960464f), float3(_526, _527, _528));
+    float _535 = saturate((_529 - CustomPixelConsts_160.x) * CustomPixelConsts_160.y);
+    float _540 = saturate((_529 - CustomPixelConsts_160.z) * CustomPixelConsts_160.w);
+    float _550;
+    float _551;
+    float _552;
     _550 = exp2(log2(saturate(_526)) * 2.200000047683716f);
     _551 = exp2(log2(saturate(_527)) * 2.200000047683716f);
     _552 = exp2(log2(saturate(_528)) * 2.200000047683716f);
-  }
-  float _553 = dot(float3(0.2125999927520752f, 0.7152000069618225f, 0.0722000002861023f), float3(_550, _551, _552));
-  float _572 = ((CustomPixelConsts_176.x - CustomPixelConsts_192.x) * _535) + CustomPixelConsts_192.x;
-  float _573 = ((CustomPixelConsts_176.y - CustomPixelConsts_192.y) * _535) + CustomPixelConsts_192.y;
-  float _574 = ((CustomPixelConsts_176.z - CustomPixelConsts_192.z) * _535) + CustomPixelConsts_192.z;
-  float _575 = ((CustomPixelConsts_176.w - CustomPixelConsts_192.w) * _535) + CustomPixelConsts_192.w;
-  float _592 = ((CustomPixelConsts_208.w - _575) * _540) + _575;
-  float grade_channel_r;
-  float grade_channel_g;
-  float grade_channel_b;
-  float _621;
-  float _622;
-  float _623;
-  if (CUSTOM_GRADING_IMPROVEMENTS == 1.f && RENODX_TONE_MAP_TYPE != 0.f) {
-    grade_channel_r = ((_592 * (_550 - _553)) + _553) * lerp(_572, CustomPixelConsts_208.x, _540);
-    grade_channel_g = ((_592 * (_551 - _553)) + _553) * lerp(_573, CustomPixelConsts_208.y, _540);
-    grade_channel_b = ((_592 * (_552 - _553)) + _553) * lerp(_574, CustomPixelConsts_208.z, _540);
-    _621 = CustomPixelConsts_144.x * renodx::math::SignPow(grade_channel_r, 0.4545454680919647f);
-    _622 = CustomPixelConsts_144.y * renodx::math::SignPow(grade_channel_g, 0.4545454680919647f);
-    _623 = CustomPixelConsts_144.z * renodx::math::SignPow(grade_channel_b, 0.4545454680919647f);
-  } else {
+    float _553 = dot(float3(0.2125999927520752f, 0.7152000069618225f, 0.0722000002861023f), float3(_550, _551, _552));
+    float _572 = ((CustomPixelConsts_176.x - CustomPixelConsts_192.x) * _535) + CustomPixelConsts_192.x;
+    float _573 = ((CustomPixelConsts_176.y - CustomPixelConsts_192.y) * _535) + CustomPixelConsts_192.y;
+    float _574 = ((CustomPixelConsts_176.z - CustomPixelConsts_192.z) * _535) + CustomPixelConsts_192.z;
+    float _575 = ((CustomPixelConsts_176.w - CustomPixelConsts_192.w) * _535) + CustomPixelConsts_192.w;
+    float _592 = ((CustomPixelConsts_208.w - _575) * _540) + _575;
+    float grade_channel_r;
+    float grade_channel_g;
+    float grade_channel_b;
+    float _621;
+    float _622;
+    float _623;
     grade_channel_r = ((_592 * (_550 - _553)) + _553) * lerp(_572, CustomPixelConsts_208.x, _540);
     grade_channel_g = ((_592 * (_551 - _553)) + _553) * lerp(_573, CustomPixelConsts_208.y, _540);
     grade_channel_b = ((_592 * (_552 - _553)) + _553) * lerp(_574, CustomPixelConsts_208.z, _540);
     _621 = CustomPixelConsts_144.x * exp2(log2(saturate(grade_channel_r)) * 0.4545454680919647f);
     _622 = CustomPixelConsts_144.y * exp2(log2(saturate(grade_channel_g)) * 0.4545454680919647f);
     _623 = CustomPixelConsts_144.z * exp2(log2(saturate(grade_channel_b)) * 0.4545454680919647f);
+    SaturationGrade photo_mode_grade = ApplySaturationGrade(float3(_59, _60, _28.z));
+    photo_mode_grade.graded_gamma = float3(_621, _622, _623);
+    gamma_color = ApplyUserColorGrading(photo_mode_grade);
   }
-  SaturationGrade photo_mode_grade;
-  if (CUSTOM_GRADING_IMPROVEMENTS == 1.f && RENODX_TONE_MAP_TYPE != 0.f) {
-    photo_mode_grade.ungraded = float3(_550, _551, _552);
-  } else {
-    photo_mode_grade = ApplySaturationGrade(float3(_59, _60, _28.z));
-  }
-  photo_mode_grade.graded_gamma = float3(_621, _622, _623);
-  float3 gamma_color = ApplyUserColorGrading(photo_mode_grade);
   float _624 = TEXCOORD_2.x + -0.5f;
   float _625 = TEXCOORD_2.y + -0.5f;
   float _636 = saturate((((sqrt((_625 * _625) + (_624 * _624)) * 2.0f) + -0.550000011920929f) + CustomPixelConsts_112.w) * 1.2195122241973877f);

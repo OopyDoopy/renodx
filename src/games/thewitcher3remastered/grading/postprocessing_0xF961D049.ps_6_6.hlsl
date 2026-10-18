@@ -8,7 +8,7 @@ float4 main(
   noperspective float4 SV_Position : SV_Position,
   linear float2 TEXCOORD : TEXCOORD
 ) : SV_Target {
-  float4 source = t0.SampleLevel(s0, TEXCOORD, 0.f);
+  float4 source = SampleRenoDXChromaticAberration(TEXCOORD, t0, s0);
   SaturationGrade grade = ApplySaturationGrade(source.rgb);
   float3 gamma_color = ApplyUserColorGrading(grade);
   gamma_color = ApplyOutputRange(gamma_color);

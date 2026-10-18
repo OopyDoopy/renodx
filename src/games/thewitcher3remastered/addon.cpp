@@ -5,7 +5,9 @@
 
 #define ImTextureID ImU64
 
+#ifndef NDEBUG
 #define DEBUG_LEVEL_0
+#endif
 
 #include <algorithm>
 #include <array>
@@ -280,8 +282,9 @@ renodx::utils::settings::Settings settings = {
         .section = "Tone Mapping",
         .tooltip = "Vanilla (AgX): Vanilla SDR/HDR output. HDR has an inverse tone mapping option so you can see the native HDR or original SDR output.\n"
         "Vanilla+ (AgX Extended): Extends the original AgX curve and reworks the grading chain to be HDR friendly, before getting mapped to the display for either SDR or HDR modes.\n"
-        "RenoDX (Prism): Uses our custom tone mapping solution with a custom working space. Uses the Vanilla+ curve.",
-        .labels = {"Vanilla (AgX)", "Vanilla+ (AgX Extended)", "RenoDX (Prism)"},
+        "RenoDX (Prism): Uses our custom tone mapping solution with a custom working space. Uses the Vanilla+ curve.\n"
+        "PsychoV-31 (Custom): Preserves exposed scene range through grading, then maps to SDR or HDR before UI composition.",
+        .labels = {"Vanilla (AgX)", "Vanilla+ (AgX Extended)", "RenoDX (Prism)", "PsychoV-31 (Custom)"},
         .parse = [](float value) { return value; },
         .on_change_value = &OnPrismSettingChange,
         .is_visible = []() { return current_settings_mode >= 0.f; },
@@ -547,6 +550,17 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode >= 0.f && !shader_injection.last_is_hdr; },
     },
     new renodx::utils::settings::Setting{
+        .key = "PsychoVContrastCurve",
+        .binding = &shader_injection.psychov_contrast_curve,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 1.f,
+        .label = "Contrast Curve",
+        .section = "Tone Mapping",
+        .tooltip = "Native retains the game's contrast. Natural keeps native middle-grey brightness with a gentle, zero-anchored shadow curve; PsychoV handles the highlight rolloff.",
+        .labels = {"Native", "Natural"},
+        .is_visible = []() { return RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "ToneMapAgxVanillaBend",
         .binding = &shader_injection.agx_vanilla_bend,
         .default_value = 20.f,
@@ -554,7 +568,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Tone Mapping",
         .tooltip = "Blends the extended shoulder strength toward the vanilla tonemapper.",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE >= 1.f; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE >= 1.f && (RENODX_TONE_MAP_TYPE != WITCHER_TONE_MAP_PSYCHOV_CUSTOM31 || RENODX_PSYCHOV_CONTRAST_CURVE == 0.f); },
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
@@ -581,7 +595,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Controls the toe of the curve. 0 targets a perfect black floor, 100 is vanilla.",
         .min = 0.f,
         .max = 100.f,
-        .is_enabled = []() { return true; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != WITCHER_TONE_MAP_PSYCHOV_CUSTOM31 || RENODX_PSYCHOV_CONTRAST_CURVE == 0.f; },
         .parse = [](float value) { return value * 0.01f; },
         .on_change_value = &OnPrismSettingChange,
         .is_visible = []() { return current_settings_mode >= 0.f; },
@@ -800,6 +814,18 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
+        .key = "SceneGradeHueShift",
+        .binding = &shader_injection.scene_grade_hue_shift,
+        .default_value = 25.f,
+        .label = "Color Grading Hue Shift",
+        .section = "Scene Grading",
+        .tooltip = "Steers grading-added pink/red (including peach/coral highlights) toward warmer hues, fading through orange and protecting yellow while preserving linear luminance and relative chroma. 0 = unchanged; 100 = up to 30 degrees per grading stage.",
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return RENODX_TONE_MAP_TYPE != 0.f && current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "GradingImprovements",
         .binding = &shader_injection.custom_grading_improvements,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -880,18 +906,6 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
-        .key = "ColorGradeFlare",
-        .binding = &shader_injection.tone_map_flare,
-        .default_value = 0.f,
-        .label = "Flare",
-        .section = "Color Grading",
-        .tooltip = "Flare/Glare Compensation",
-        .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
-        .parse = [](float value) { return value * 0.0001f; },
-        .is_visible = []() { return current_settings_mode >= 1; },
-    },
-    new renodx::utils::settings::Setting{
         .key = "ColorGradeSaturation",
         .binding = &shader_injection.tone_map_saturation,
         .default_value = 50.f,
@@ -925,6 +939,90 @@ renodx::utils::settings::Settings settings = {
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 1; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeFlare",
+        .binding = &shader_injection.tone_map_flare,
+        .default_value = 0.f,
+        .label = "Flare",
+        .section = "Color Grading",
+        .tooltip = "Flare/Glare Compensation",
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .parse = [](float value) { return value * 0.0001f; },
+        .is_visible = []() { return current_settings_mode >= 1; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PsychoVAdaptationAnchor",
+        .binding = &shader_injection.psychov_adaptation_anchor,
+        .default_value = 0.18f,
+        .label = "Adaptation Anchor",
+        .section = "PsychoV-31 (Custom)",
+        .tooltip = "Input adaptation anchor; higher values generally darken the scene.",
+        .min = 0.01f,
+        .max = 0.5f,
+        .format = "%.3f",
+        .is_visible = []() { return RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31 && current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PsychoVBackgroundAnchor",
+        .binding = &shader_injection.psychov_background_anchor,
+        .default_value = 0.18f,
+        .label = "Background Anchor",
+        .section = "PsychoV-31 (Custom)",
+        .tooltip = "Output background anchor; higher values generally brighten the scene.",
+        .min = 0.01f,
+        .max = 0.5f,
+        .format = "%.3f",
+        .is_visible = []() { return RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31 && current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PsychoVGamutCompression",
+        .binding = &shader_injection.psychov_gamut_compression,
+        .default_value = 1.f,
+        .label = "Gamut Compression",
+        .section = "PsychoV-31 (Custom)",
+        .tooltip = "0 leaves gamut unclamped; 1 maps fully to the target. SDR always targets BT.709.",
+        .min = 0.f,
+        .max = 1.f,
+        .format = "%.3f",
+        .is_visible = []() { return RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31 && current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PsychoVCustom31Compression",
+        .binding = &shader_injection.psychov_compression,
+        .default_value = 3.5f,
+        .label = "Compression (0 = Auto)",
+        .section = "PsychoV-31 (Custom)",
+        .tooltip = "0 selects automatic compression. Positive values set the custom C-infinity shoulder strength.",
+        .min = 0.f,
+        .max = 5.f,
+        .format = "%.3f",
+        .is_visible = []() { return RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31 && current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeGamma",
+        .binding = &shader_injection.tone_map_gamma,
+        .default_value = 1.f,
+        .label = "Gamma",
+        .section = "PsychoV-31 (Custom)",
+        .tooltip = "Luminance gamma before PsychoV display mapping.",
+        .min = 0.5f,
+        .max = 2.f,
+        .format = "%.3f",
+        .is_visible = []() { return RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31 && current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PsychoVGamutCompressionMode",
+        .binding = &shader_injection.psychov_gamut_compression_mode,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 2.f,
+        .label = "HDR Gamut Target",
+        .section = "PsychoV-31 (Custom)",
+        .labels = {"BT.709", "BT.2020", "Display P3"},
+        .is_enabled = []() { return shader_injection.last_is_hdr != 0.f; },
+        .parse = [](float value) { return value == 2.f ? 3.f : value; },
+        .is_visible = []() { return RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31 && current_settings_mode >= 1.f; },
     },
 
     // new renodx::utils::settings::Setting{
@@ -972,7 +1070,7 @@ renodx::utils::settings::Settings settings = {
         .default_value = 50.f,
         .label = "Bloom",
         .section = "Effects",
-        .tooltip = "Adjusts bloom response. 50 matches the Vanilla intensity reference; lower values reduce bloom and higher values extend compressed HDR highlights.",
+        .tooltip = "Scales the additive bloom contribution. 0 removes it, 50 retains the reference strength, and 100 doubles it. Requires native Bloom; works with Camera Lens Effects on or off.",
         .max = 100.f,
         .parse = [](float value) { return value * 0.02f; },
     },
@@ -992,7 +1090,7 @@ renodx::utils::settings::Settings settings = {
         .default_value = 50.f,
         .label = "Sunshafts Strength",
         .section = "Effects",
-        .tooltip = "Adjusts sunshaft response. 50 matches the Vanilla intensity reference; lower values reduce sunshafts and higher values extend compressed HDR highlights.",
+        .tooltip = "Scales the masked sky input feeding native light shafts. 0 removes it, 50 retains the reference strength, and 100 doubles the input. Requires native Light Shafts.",
         .max = 100.f,
         .parse = [](float value) { return value * 0.02f; },
         //.is_visible = []() { return current_settings_mode >= 1.f; },
@@ -1069,6 +1167,38 @@ renodx::utils::settings::Settings settings = {
             return value * 0.02f; // NIS
         }
         return value == 0 ? 0.f : exp2(-(1.f - (value * 0.01f))); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "FxChromaticAberrationMode",
+        .binding = &shader_injection.chromatic_aberration_mode,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .label = "Chromatic Aberration",
+        .section = "RenoFX",
+        .labels = {"Native", "RenoDX"},
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "FxChromaticAberrationIntensity",
+        .binding = &shader_injection.chromatic_aberration_intensity,
+        .default_value = 0.7f,
+        .label = "CA Intensity",
+        .section = "RenoFX",
+        .max = 5.f,
+        .format = "%.2f",
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && CUSTOM_CA_MODE != 0.f; },
+        .is_visible = []() { return CUSTOM_CA_MODE != 0.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "FxChromaticAberrationStartOffset",
+        .binding = &shader_injection.chromatic_aberration_start_offset,
+        .default_value = 0.7f,
+        .label = "CA Start Offset",
+        .section = "RenoFX",
+        .max = 1.f,
+        .format = "%.2f",
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f && CUSTOM_CA_MODE != 0.f; },
+        .is_visible = []() { return CUSTOM_CA_MODE != 0.f; },
     },
     new renodx::utils::settings::Setting{
         .key = "FxFilmGrain",
@@ -1171,6 +1301,18 @@ renodx::utils::settings::Settings settings = {
 };
 
 void OnPresetOff() {
+  renodx::utils::settings::UpdateSetting("PsychoVContrastCurve", 0.f);
+  renodx::utils::settings::UpdateSetting("SceneGradeHueShift", 0.f);
+  renodx::utils::settings::UpdateSetting("PsychoVAdaptationAnchor", 0.18f);
+  renodx::utils::settings::UpdateSetting("PsychoVBackgroundAnchor", 0.18f);
+  renodx::utils::settings::UpdateSetting("PsychoVGamutCompression", 1.f);
+  renodx::utils::settings::UpdateSetting("PsychoVCustom31Compression", 1.5f);
+  renodx::utils::settings::UpdateSetting("ColorGradeGamma", 1.f);
+  renodx::utils::settings::UpdateSetting("PsychoVGamutCompressionMode", 1.f);
+  renodx::utils::settings::UpdateSetting("FxChromaticAberrationMode", 0.f);
+  renodx::utils::settings::UpdateSetting("FxChromaticAberrationIntensity", 0.7f);
+  renodx::utils::settings::UpdateSetting("FxChromaticAberrationStartOffset", 0.7f);
+
   renodx::utils::settings::UpdateSetting("ToneMapType", 0.f);
     renodx::utils::settings::UpdateSetting("HideUI", 0.f);
   renodx::utils::settings::UpdateSetting("ToneMapPeakNits", 1000.f);
@@ -1274,7 +1416,10 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
 
       renodx::mods::shader::expected_constant_buffer_space = 50;
       renodx::mods::shader::expected_constant_buffer_index = 13;
+      // Keep upstream buffer-backed injection: the payload costs two root DWORDs.
       renodx::mods::shader::use_root_signature_cbv = true;
+      // No movie redirection or descriptor-heap history is needed.
+      renodx::utils::descriptor::trace_descriptor_tables = false;
       // renodx::mods::shader::allow_multiple_push_constants = true;
       // renodx::mods::shader::force_pipeline_cloning = true;
       //  renodx::mods::shader::on_create_pipeline_layout = [](auto, auto params) {

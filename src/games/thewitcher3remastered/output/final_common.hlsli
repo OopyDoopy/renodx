@@ -57,6 +57,10 @@ float3 TheWitcher3RemasteredMapFinalHDRScene(
     scene_linear_bt709 = ApplyPrismShoulderHDR(scene_linear_bt709);
     scene_linear_bt2020 = renodx::color::bt2020::from::BT709(scene_linear_bt709);
   }
+  if (RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31) {
+    scene_linear_bt2020 = renodx::color::bt2020::from::BT709(
+        WitcherToneMapPsychoVCustom31(renodx::color::bt709::from::BT2020(scene_linear_bt2020), true));
+  }
   return scene_linear_bt2020 * (RENODX_DIFFUSE_WHITE_NITS / reference_white_nits);
 }
 

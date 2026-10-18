@@ -1,6 +1,18 @@
 #ifndef SRC_THEWITCHER3_SHARED_H_
 #define SRC_THEWITCHER3_SHARED_H_
 
+#define WITCHER_TONE_MAP_PSYCHOV_CUSTOM31 3.f
+#define RENODX_PSYCHOV_CONTRAST_CURVE shader_injection.psychov_contrast_curve
+#define RENODX_PSYCHOV_ADAPTATION_ANCHOR shader_injection.psychov_adaptation_anchor
+#define RENODX_PSYCHOV_BACKGROUND_ANCHOR shader_injection.psychov_background_anchor
+#define RENODX_PSYCHOV_GAMUT_COMPRESSION shader_injection.psychov_gamut_compression
+#define RENODX_PSYCHOV_GAMUT_COMPRESSION_MODE shader_injection.psychov_gamut_compression_mode
+#define RENODX_PSYCHOV_COMPRESSION shader_injection.psychov_compression
+#define RENODX_TONE_MAP_GAMMA shader_injection.tone_map_gamma
+#define CUSTOM_CA_MODE shader_injection.chromatic_aberration_mode
+#define CUSTOM_CA_INTENSITY shader_injection.chromatic_aberration_intensity
+#define CUSTOM_CA_START_OFFSET shader_injection.chromatic_aberration_start_offset
+
 #define RENODX_TONE_MAP_TYPE                   shader_injection.tone_map_type
 #define RENODX_PEAK_WHITE_NITS                 shader_injection.peak_white_nits
 #define RENODX_DIFFUSE_WHITE_NITS              shader_injection.diffuse_white_nits
@@ -114,7 +126,7 @@ struct ShaderInjectData {
 
   //float utility_comparison;
   //float utility_hud;
-  bool last_is_hdr;
+  float last_is_hdr;  // Four bytes in both C++ and HLSL.
   float custom_sdr_output_encoding;
   float prism_inset_00;
   float prism_inset_01;
@@ -136,6 +148,19 @@ struct ShaderInjectData {
   float custom_debug_show_agx_curve_values;
   float custom_bloom_before_tonemap;
   float custom_hide_ui;
+
+  // Game-specific settings, injected through a root CBV.
+  float psychov_adaptation_anchor;
+  float psychov_background_anchor;
+  float psychov_gamut_compression;
+  float psychov_gamut_compression_mode;
+  float psychov_compression;
+  float tone_map_gamma;
+  float chromatic_aberration_mode;
+  float chromatic_aberration_intensity;
+  float chromatic_aberration_start_offset;
+  float scene_grade_hue_shift;
+  float psychov_contrast_curve;
 };
 
 #ifndef __cplusplus

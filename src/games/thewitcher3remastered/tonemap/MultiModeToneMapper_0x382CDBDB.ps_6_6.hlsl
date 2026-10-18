@@ -319,9 +319,9 @@ float3 ApplyLogDomainToneMap(
     float3 outColor =
         mul(LOG_OUTSET_MATRIX, curved);
 
-    // Exact floor and power from the DXIL.
+    // Preserve the native encoding floor except in PsychoV's zero-anchored reference.
     outColor =
-        max(outColor, 0.0000999999975f);
+        max(outColor, (RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31) ? 0.0f : 0.0000999999975f);
 
     outColor =
         pow(outColor, 2.2000000477f);
@@ -412,7 +412,8 @@ float4 ps_main(PSInput input) : SV_Target0
             RENODX_TONE_MAP_TYPE == 2.0f
                 && PRISM_BLACK_FLOOR < 1.0f);
 
-        if (RENODX_TONE_MAP_TYPE < 2.0f)
+        if (RENODX_TONE_MAP_TYPE < 2.0f
+        || (RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31))
         {
             AgxApplyBlackFloor(
                 C19.z,
@@ -520,6 +521,41 @@ float4 ps_main(PSInput input) : SV_Target0
 
     uint mode = (uint)C4.x;
     float3 outputColor;
+
+    if (RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31)
+    {
+        if (RENODX_PSYCHOV_CONTRAST_CURVE != 0.f)
+        {
+            float3 nativeMidgray = 0.18f.xxx;
+            if (mode == 1u)
+                nativeMidgray = ApplyLogDomainToneMap(nativeMidgray, C7.xyz, C7.w, C8.xyz, C8.w,
+                    C19.x, C16.w, C19.y, C19.z, C19.w, useParametricCurve, false, 0.f);
+            else if (mode == 0u)
+                nativeMidgray = ApplyHableNormalized(nativeMidgray, C7.x, C7.y, C7.z, C8.x, C8.y, C8.z, C16.y);
+            exposed = WitcherApplyNaturalContrast(exposed, nativeMidgray);
+        }
+        else if (mode == 1u)
+        {
+            // A grey gain alone loses the native toe/slope and washes out the
+            // grading input. Reuse Vanilla+'s unbounded shoulder, before PsychoV.
+            exposed = WitcherApplyNativeContrast(exposed, ApplyLogDomainToneMap(
+                max(renodx::color::y::from::BT709(exposed), 0.000001f).xxx,
+                C7.xyz, C7.w, C8.xyz, C8.w,
+                C19.x, C16.w, C19.y, C19.z, C19.w, useParametricCurve,
+                true, shader_injection.agx_vanilla_bend));
+        }
+        else
+        {
+            float3 nativeMidgray = 0.18f.xxx;
+            if (mode == 1u)
+                nativeMidgray = ApplyLogDomainToneMap(nativeMidgray, C7.xyz, C7.w, C8.xyz, C8.w,
+                    C19.x, C16.w, C19.y, C19.z, C19.w, useParametricCurve, false, 0.f);
+            else if (mode == 0u)
+                nativeMidgray = ApplyHableNormalized(nativeMidgray, C7.x, C7.y, C7.z, C8.x, C8.y, C8.z, C16.y);
+            exposed *= WitcherNativeBrightnessScale(nativeMidgray);
+        }
+        return float4(exposed, EncodePostProcessingPeak(vanillaTonemapPeak, input.position, outputAlpha));
+    }
 
     if (RENODX_TONE_MAP_TYPE == 1.0f)
     {

@@ -1,6 +1,7 @@
 #include "../shared.h"
 
 #include "../tonemap/anchored_grading.hlsli"
+#include "../tonemap/psychov_tonemap.hlsli"
 
 float3 ApplyVanillaPlusGrading(float3 color, float anchor) {
   // `color` and `anchor` are already in the exposure-adjusted linear domain.
@@ -82,6 +83,15 @@ float3 ColorGradeLUTInput(
     return abs(hdr_color);
   }
 
+  if (RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31) {
+    // Reversible luminance-axis proxy retains signed BT.2020 colours in BT.709 coordinates.
+    gamut_compression_scale = max(renodx::color::correct::ComputeGamutCompressionScale(hdr_color), 1e-6f);
+    float3 proxy = max(renodx::color::correct::GamutCompress(
+        hdr_color, renodx::color::y::from::BT709(hdr_color), gamut_compression_scale), 0.f);
+    tonemap_scale = renodx::tonemap::neutwo::ComputeMaxChannelScale(proxy);
+    return proxy * tonemap_scale;
+  }
+
   float3 lut_input = SanitizeGamutInputBT709(hdr_color);
 
   float3 adaptive_state_lms = ColorGradeGamutAdaptiveStateLMS();
@@ -105,6 +115,11 @@ float3 ColorGradeLUTOutput(
     return lut_output;
   }
 
+  if (RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31) {
+    return renodx::color::correct::GamutDecompress(
+        lut_output / max(tonemap_scale, 1e-6f), gamut_compression_scale);
+  }
+
   lut_output = renodx::math::SafeDivision(lut_output, tonemap_scale, renodx::math::FLT_MAX);
   if (gamut_compression_scale > 0.f) {
     lut_output = renodx::color::gamut::GamutDecompressBT709AdaptiveD65(
@@ -118,6 +133,9 @@ float3 ColorGradeLUTOutput(
 float3 CustomTonemapWithPeak(float3 color, float tonemap_peak, bool is_hdr) {
   if (RENODX_TONE_MAP_TYPE == 0.f) {
     return saturate(color);
+  }
+  if (RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31) {
+    return WitcherToneMapPsychoVCustom31(color, is_hdr);
   }
   if (RENODX_TONE_MAP_TYPE == 1.f) {
     tonemap_peak = is_hdr ? tonemap_peak : 1.f;
@@ -211,7 +229,60 @@ float CustomGammaEncode(float color) {
   return exp2(log2(color) * 0.4545454680919647f);
 }
 
+// Reconstructed scene-linear BT.709, including signed wide-gamut channels.
+// Select pink/red changes added by grading, then rotate hue at fixed Oklab C/L.
+// Restoring linear Y scales L and C equally; this is not chroma suppression.
+float3 ShiftSceneGradeHue(float3 ungraded, float3 graded) {
+  [branch]
+  if (RENODX_TONE_MAP_TYPE == 0.f
+      || shader_injection.scene_grade_hue_shift <= 0.f) return graded;
+
+  const float source_y = renodx::color::y::from::BT709(ungraded);
+  const float graded_y = renodx::color::y::from::BT709(graded);
+  if (!(source_y > 1e-6f && graded_y > 1e-6f)) return graded;
+  const float3 source_lab = renodx::color::oklab::from::BT709(ungraded / source_y);
+  const float3 graded_lab = renodx::color::oklab::from::BT709(graded / graded_y);
+  if (any(isnan(source_lab)) || any(isinf(source_lab))
+      || any(isnan(graded_lab)) || any(isinf(graded_lab))) return graded;
+
+  const float chroma = length(graded_lab.yz);
+  // Pink through warm red: full from -35 to 35 degrees, fading to zero
+  // at -65 and 65. Include peach/coral highlights without selecting yellow.
+  const float hue_alignment = graded_lab.y / max(chroma, 1e-6f);
+  const float hue_weight = smoothstep(0.4226182617f, 0.8191520443f, hue_alignment)
+      * smoothstep(0.01f, 0.05f, chroma / max(graded_lab.x, 1e-6f));
+  // Project the grade delta toward pink (-30 degrees): combined red gain
+  // and yellow loss count more than red gain alone.
+  // An unchanged colour or scalar exposure change has no selected grade delta.
+  const float amount = saturate(shader_injection.scene_grade_hue_shift)
+      * hue_weight * smoothstep(0.01f, 0.08f,
+          dot(graded_lab.yz - source_lab.yz, float2(0.8660254038f, -0.5f)))
+      * smoothstep(1e-6f, 1e-5f, min(source_y, graded_y));
+  if (amount == 0.f) return graded;
+
+  // At most 30 degrees per stage, never past the warm-yellow target at 90.
+  const float angle = amount * min(0.5235987756f,
+      max(0.f, 1.5707963268f - atan2(graded_lab.z, graded_lab.y)));
+  if (angle == 0.f) return graded;
+  float sin_angle, cos_angle;
+  sincos(angle, sin_angle, cos_angle);
+  float3 rotated = renodx::color::bt709::from::OkLab(float3(
+      graded_lab.x,
+      graded_lab.y * cos_angle - graded_lab.z * sin_angle,
+      graded_lab.y * sin_angle + graded_lab.z * cos_angle));
+  const float rotated_y = renodx::color::y::from::BT709(rotated);
+  if (!(rotated_y > 1e-6f && rotated_y <= renodx::math::FLT_MAX)
+      || any(isnan(rotated)) || any(isinf(rotated))) return graded;
+  // No channel clamp or new gamut boundary: PsychoV owns display gamut mapping.
+  return rotated * (graded_y / rotated_y);
+}
+
+float3 ApplySceneGrading(float3 ungraded, float3 graded, float strength) {
+  return lerp(ungraded, ShiftSceneGradeHue(ungraded, graded),
+              RENODX_TONE_MAP_TYPE == 0.f ? 1.f : strength);
+}
+
 float3 CustomColorGrading(float3 ungraded, float3 graded) {
   if (RENODX_TONE_MAP_TYPE == 0.f) return graded;
-  return lerp(ungraded, graded, CUSTOM_COLOR_GRADING);
+  return ApplySceneGrading(ungraded, graded, CUSTOM_COLOR_GRADING);
 }

@@ -10,7 +10,7 @@ float4 main(
     noperspective float4 SV_Position : SV_Position,
     linear float2 TEXCOORD : TEXCOORD,
     linear float2 TEXCOORD_2 : TEXCOORD2) : SV_Target {
-  float4 source = t0.SampleLevel(s0, TEXCOORD, 0.f);
+  float4 source = SampleRenoDXChromaticAberration(TEXCOORD, t0, s0);
   SaturationGrade grade = ApplySaturationGrade(source.rgb);
   float3 gamma_color = ApplyUserColorGrading(grade);
   float vignette_sample = t2.Sample(s2, TEXCOORD_2).x;

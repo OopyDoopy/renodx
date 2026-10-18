@@ -7,10 +7,27 @@ struct SaturationGrade {
   float3 graded_gamma;
 };
 
+float4 SampleRenoDXChromaticAberration(
+    float2 texcoord, Texture2D<float4> source_texture, SamplerState source_sampler) {
+  float4 center = source_texture.SampleLevel(source_sampler, texcoord, 0.f);
+  if (RENODX_TONE_MAP_TYPE == 0.f || CUSTOM_CA_MODE == 0.f || CUSTOM_CA_INTENSITY <= 0.f) return center;
+  const float start = saturate(CUSTOM_CA_START_OFFSET);
+  if (start >= 1.f) return center;
+  const float2 position = texcoord * 2.f - 1.f;
+  const float2 fringe = sign(position) * saturate(abs(position) - start) / (1.f - start);
+  if (all(fringe == 0.f)) return center;
+  const float2 offset = fringe * (0.5f * 0.01f * 0.007f * CUSTOM_CA_INTENSITY);
+  center.r = source_texture.SampleLevel(source_sampler, texcoord - offset * 147.f, 0.f).r;
+  center.g = source_texture.SampleLevel(source_sampler, texcoord - offset * 85.f, 0.f).g;
+  return center;
+}
+
 float4 SampleChromaticAberration(
     float2 texcoord,
     Texture2D<float4> source_texture,
     SamplerState source_sampler) {
+  if (RENODX_TONE_MAP_TYPE != 0.f && CUSTOM_CA_MODE != 0.f)
+    return SampleRenoDXChromaticAberration(texcoord, source_texture, source_sampler);
   float4 center = source_texture.SampleLevel(source_sampler, texcoord, 0.f);
   float2 normalized_position = (texcoord - CustomPixelConsts_272.xy) / CustomPixelConsts_272.xy;
   float radius = length(normalized_position);
@@ -57,11 +74,20 @@ SaturationGrade ApplySaturationGrade(float3 source_linear) {
   result.ungraded = source_linear;
 
   float3 grading_input = exp2(log2(max(0.f, shaped_gamma)) * 2.200000047683716f);
+  float tonemap_scale = 1.f;
+  float gamut_scale = 1.f;
 
   [branch]
   if (use_upgraded_grading) {
     grading_input = source_linear;
     shaped_gamma = ApplyUpgradedSaturationShaper(grading_input);
+    if (RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31) {
+      grading_input = ColorGradeLUTInput(source_linear, tonemap_scale, gamut_scale);
+      shaped_gamma = renodx::math::SignPow(
+          CustomPixelConsts_224.x * renodx::math::SignPow(grading_input, CustomPixelConsts_128.x)
+              + CustomPixelConsts_224.y,
+          CustomPixelConsts_224.z);
+    }
     grading_input = renodx::color::gamma::DecodeSafe(shaped_gamma);
   }
 
@@ -83,6 +109,11 @@ SaturationGrade ApplySaturationGrade(float3 source_linear) {
       CustomGammaEncode(graded_linear.r),
       CustomGammaEncode(graded_linear.g),
       CustomGammaEncode(graded_linear.b));
+
+  if (use_upgraded_grading && RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31) {
+    result.graded_gamma = renodx::color::gamma::EncodeSafe(ColorGradeLUTOutput(
+        renodx::color::gamma::DecodeSafe(result.graded_gamma), tonemap_scale, gamut_scale));
+  }
 
   return result;
 }
