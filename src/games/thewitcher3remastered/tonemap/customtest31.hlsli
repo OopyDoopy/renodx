@@ -894,11 +894,22 @@ float3 custom_psycho31_ApplyAnchoredCInfinityShoulder(
       distance_from_anchor,
       flat_weight,
       shoulder_range);
-  return mad(
+  float3 response = mad(
       shoulder_range,
       distance_from_anchor / response_denominator,
       // Subtracting two large values loses the anchor after strong grading.
       min(color, anchor));
+  if (RENODX_PSYCHOV_CONTRAST_CURVE == 1.f) {
+    // Natural's gentler input needs a faster approach to peak, without the
+    // native contrast extension. Leave the lower 60% of the shoulder intact.
+    // Remaining headroom becomes h * (0.02 + 0.98 * (1 - t^3)^3).
+    // The join preserves two derivatives. The 2% residual retains an
+    // asymptotic tail, so finite inputs do not meet a new clipping endpoint.
+    const float3 t = saturate(((response - anchor) / shoulder_range - 0.6f) * 2.5f);
+    const float3 weight = t * t * t;
+    response = mad(peak - response, 0.98f * weight * (3.f - weight * (3.f - weight)), response);
+  }
+  return response;
 }
 
 // Lab shoulder-weighted policy: physical WHITE-weighted pre-tonal source
