@@ -95,7 +95,8 @@ float3 WitcherToneMapPsychoVCustom31(float3 color_bt709, bool is_hdr) {
       0.f,  // SDR EOTF emulation stays off.
       0.f,  // The game-local display gamut fit below owns this operation.
       is_hdr ? (int)RENODX_PSYCHOV_GAMUT_COMPRESSION_MODE : 0,
-      response_compression);
+      response_compression,
+      RENODX_PSYCHOV_HIGHLIGHT_HUE);
   mapped_bt709 = WitcherCompressPsychoVGamut(
       mapped_bt709, color_bt709, peak, response_compression,
       is_hdr ? (int)RENODX_PSYCHOV_GAMUT_COMPRESSION_MODE : 0,

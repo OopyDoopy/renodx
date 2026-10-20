@@ -8,6 +8,7 @@
 #define RENODX_PSYCHOV_GAMUT_COMPRESSION shader_injection.psychov_gamut_compression
 #define RENODX_PSYCHOV_GAMUT_COMPRESSION_MODE shader_injection.psychov_gamut_compression_mode
 #define RENODX_PSYCHOV_COMPRESSION shader_injection.psychov_compression
+#define RENODX_PSYCHOV_HIGHLIGHT_HUE shader_injection.psychov_highlight_hue
 #define RENODX_TONE_MAP_GAMMA shader_injection.tone_map_gamma
 #define CUSTOM_CA_MODE shader_injection.chromatic_aberration_mode
 #define CUSTOM_CA_INTENSITY shader_injection.chromatic_aberration_intensity
@@ -159,8 +160,9 @@ struct ShaderInjectData {
   float chromatic_aberration_mode;
   float chromatic_aberration_intensity;
   float chromatic_aberration_start_offset;
-  float scene_grade_hue_shift;
+  float psychov_highlight_hue;
   float psychov_contrast_curve;
+  float scene_grade_hue_shift;
 };
 
 #ifndef __cplusplus

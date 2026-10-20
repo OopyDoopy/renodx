@@ -977,6 +977,18 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31 && current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
+        .key = "PsychoVCustom31HighlightHue",
+        .binding = &shader_injection.psychov_highlight_hue,
+        .default_value = 100.f,
+        .label = "Highlight Hue",
+        .section = "PsychoV-31 (Custom)",
+        .tooltip = "Controls PsychoV's internal highlight hue response. 0 uses response hue; 100 blends toward the source/response hue midpoint. The effect fades in through the shoulder, leaving the below-anchor hue behaviour unchanged. This is not a global hue rotation.",
+        .min = 0.f,
+        .max = 100.f,
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31 && current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "PsychoVGamutCompression",
         .binding = &shader_injection.psychov_gamut_compression,
         .default_value = 1.f,
@@ -1303,6 +1315,7 @@ renodx::utils::settings::Settings settings = {
 void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("PsychoVContrastCurve", 0.f);
   renodx::utils::settings::UpdateSetting("SceneGradeHueShift", 0.f);
+  renodx::utils::settings::UpdateSetting("PsychoVCustom31HighlightHue", 0.f);
   renodx::utils::settings::UpdateSetting("PsychoVAdaptationAnchor", 0.18f);
   renodx::utils::settings::UpdateSetting("PsychoVBackgroundAnchor", 0.18f);
   renodx::utils::settings::UpdateSetting("PsychoVGamutCompression", 1.f);
