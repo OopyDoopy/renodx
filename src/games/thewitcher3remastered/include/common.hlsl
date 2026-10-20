@@ -85,6 +85,9 @@ float3 ColorGradeLUTInput(
 
   if (RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31) {
     // Reversible luminance-axis proxy retains signed BT.2020 colours in BT.709 coordinates.
+    // Negative-luminance ringing has no reversible nonnegative LUT proxy.
+    // Keep its inverse at identity instead of magnifying the LUT's black tint.
+    if (!(renodx::color::y::from::BT709(hdr_color) > 0.f)) return 0.f;
     gamut_compression_scale = max(renodx::color::correct::ComputeGamutCompressionScale(hdr_color), 1e-6f);
     float3 proxy = max(renodx::color::correct::GamutCompress(
         hdr_color, renodx::color::y::from::BT709(hdr_color), gamut_compression_scale), 0.f);
@@ -116,8 +119,14 @@ float3 ColorGradeLUTOutput(
   }
 
   if (RENODX_TONE_MAP_TYPE == WITCHER_TONE_MAP_PSYCHOV_CUSTOM31) {
-    return renodx::color::correct::GamutDecompress(
-        lut_output / max(tonemap_scale, 1e-6f), gamut_compression_scale);
+    lut_output /= max(tonemap_scale, 1e-6f);
+    // Near-zero luminance with opposing signed channels makes the inverse
+    // ill-conditioned. Fade only that chroma recovery, preserving graded Y.
+    // BT.2020 colours are well above this scale and retain the exact inverse.
+    const float inverse_scale = lerp(
+        1.f, rcp(gamut_compression_scale),
+        smoothstep(0.f, 0.05f, gamut_compression_scale));
+    return lerp(renodx::color::y::from::BT709(lut_output).xxx, lut_output, inverse_scale);
   }
 
   lut_output = renodx::math::SafeDivision(lut_output, tonemap_scale, renodx::math::FLT_MAX);

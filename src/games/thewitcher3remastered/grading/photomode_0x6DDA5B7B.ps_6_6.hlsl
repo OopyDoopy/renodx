@@ -187,6 +187,10 @@ float4 main(
     // Keep photo exposure, contrast, white balance, saturation and grain before
     // the shared gameplay grade, as in Hartapfel. PsychoV needs the same HDR
     // proxy/reconstruction and the scene controls need the pre-shaper reference.
+    // Channel-separated HDR can have negative luminance. The native ratio
+    // Y / max(Y, epsilon) then becomes a large negative gain instead of unity.
+    // Preserve that signed input without reversing or amplifying its energy.
+    _136 = _133 < 0.f ? 1.f : _136;
     float3 photo_scene = (((float3(_130, _131, _132) * _136) - _133)
                              * CustomPixelConsts_288.z)
         + _133 + _486;
