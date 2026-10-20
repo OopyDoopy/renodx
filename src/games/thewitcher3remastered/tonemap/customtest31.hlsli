@@ -883,50 +883,22 @@ float3 custom_psycho31_ApplyAnchoredCInfinityShoulder(
     float3 color,
     float3 peak,
     float3 anchor,
-    float compression_strength,
-    float3 luminance_weights = 0.f) {
-  // The observer calls use LMS; the display-reference caller supplies RGB weights.
-  if (all(luminance_weights == 0.f)) {
-    luminance_weights = mul(renodx::color::BT709_TO_XYZ_MAT[1], renodx::tonemap::psychov::PSYCHO30_LMS_TO_BT709_MAT);
-  }
-  if (RENODX_PSYCHOV_CONTRAST_CURVE == 1.f) {
-    // Natural's high side approaches a 1.22 log slope with a flat join at
-    // the anchor. One luminance gain preserves the input cone/RGB ratios.
-    const float distance = max(dot(color, luminance_weights)
-        / max(dot(anchor, luminance_weights), 1e-6f) - 1.f, 0.f);
-    if (distance > 0.f) {
-      float log_shape;
-      if (distance > 1.f) {
-        const float inverse_distance = rcp(distance);
-        const float inverse_squared = inverse_distance * inverse_distance;
-        log_shape = 2.f * log2(distance) + log2(inverse_squared
-            + (1.f + inverse_squared) * exp2(-inverse_squared));
-      } else {
-        const float squared = distance * distance;
-        log_shape = log2(1.f + (1.f + squared) * exp2(-1.f / max(squared, 1e-20f)));
-      }
-      color *= 1.f + (1.f - rcp(1.f + distance)) * (exp2(0.11f * log_shape) - 1.f);
-    }
-  }
+    float compression_strength) {
   // Keep the supplied asymptotic shoulder. Strengths below ln(2) overshoot
   // its peak, so both the observer and display-reference paths use this floor.
   float3 shoulder_range = max(peak - anchor, 1e-6f);
   float3 distance_from_anchor = max(color - anchor, 0.f);
   float3 flat_weight = exp2(
       -shoulder_range / (max(compression_strength, 0.693147181f) * max(distance_from_anchor, 1e-20f)));
-  float3 response;
-  if (RENODX_PSYCHOV_CONTRAST_CURVE == 1.f) {
-    // Reciprocal form remains finite if extreme highlight inputs overflow
-    // the contrast formation; zero distance retains its exact endpoint.
-    response = mad(shoulder_range,
-        renodx::math::Select(distance_from_anchor > 0.f,
-            rcp(shoulder_range / max(distance_from_anchor, 1e-20f) + flat_weight),
-            0.f.xxx), min(color, anchor));
-  } else {
-    float3 response_denominator = mad(distance_from_anchor, flat_weight, shoulder_range);
-    response = mad(shoulder_range, distance_from_anchor / response_denominator,
-        min(color, anchor));
-  }
+  float3 response_denominator = mad(
+      distance_from_anchor,
+      flat_weight,
+      shoulder_range);
+  float3 response = mad(
+      shoulder_range,
+      distance_from_anchor / response_denominator,
+      // Subtracting two large values loses the anchor after strong grading.
+      min(color, anchor));
   if (RENODX_PSYCHOV_CONTRAST_CURVE == 1.f) {
     // Natural's gentler input needs a faster approach to peak, without the
     // native contrast extension. Leave the lower 60% of the shoulder intact.

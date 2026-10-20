@@ -48,8 +48,7 @@ float3 WitcherCompressPsychoVGamut(
   const float background_anchor = min(RENODX_PSYCHOV_BACKGROUND_ANCHOR, peak * 0.99f);
   reference = renodx::tonemap::witcher_psychov_custom31::custom_psycho31_ApplyAnchoredCInfinityShoulder(
       reference * (background_anchor / RENODX_PSYCHOV_ADAPTATION_ANCHOR),
-      peak.xxx, background_anchor.xxx, compression,
-      mul(renodx::color::BT709_TO_XYZ_MAT[1], from_target)) / peak;
+      peak.xxx, background_anchor.xxx, compression) / peak;
   const float3 normalized = mul(to_target, rgb / peak);
   const float3 delta = normalized - reference;
   const float3 demand_low = max(-delta, 0.f) / max(reference, 1e-7f);
