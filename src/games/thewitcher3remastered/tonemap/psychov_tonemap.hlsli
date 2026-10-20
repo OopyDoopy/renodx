@@ -47,7 +47,13 @@ float3 WitcherApplyNativeContrast(float3 scene, float3 native_gray) {
 // already run in the native pass; custom grading runs once in the new mapper.
 float3 WitcherToneMapPsychoVCustom31(float3 color_bt709, bool is_hdr) {
   const float white_nits = is_hdr ? max(RENODX_DIFFUSE_WHITE_NITS, 1.f) : 100.f;
-  const float peak = is_hdr ? RENODX_PEAK_WHITE_NITS / white_nits : 1.f;
+  const float target_peak = is_hdr ? RENODX_PEAK_WHITE_NITS / white_nits : 1.f;
+  // Retain Natural's established 1000/203 response as the reference for wider
+  // display ranges. Moving its shoulder out with the display peak otherwise
+  // leaves the same scene highlights below the shoulder altogether.
+  // Lower peaks still use their own bounded response, including SDR.
+  const float peak = RENODX_PSYCHOV_CONTRAST_CURVE == 1.f
+      ? min(target_peak, 1000.f / 203.f) : target_peak;
   color_bt709 = renodx::math::ZeroNaN(color_bt709);
   color_bt709 = renodx::math::Select(isinf(color_bt709), 0.f.xxx, color_bt709);
   if (RENODX_TONE_MAP_GAMMA != 1.f) {
@@ -101,6 +107,19 @@ float3 WitcherToneMapPsychoVCustom31(float3 color_bt709, bool is_hdr) {
       mapped_bt709, color_bt709, peak, response_compression,
       is_hdr ? (int)RENODX_PSYCHOV_GAMUT_COMPRESSION_MODE : 0,
       RENODX_PSYCHOV_GAMUT_COMPRESSION);
+  if (target_peak > peak) {
+    const float luminance = renodx::color::y::from::BT709(mapped_bt709);
+    if (luminance > 1.f) {
+      // Expand display headroom above diffuse white after the observer/gamut
+      // response, with one RGB gain to preserve chromaticity. The monotonic
+      // weight has a C2 join at white and reaches one only at reference peak.
+      // Its gain is <= target_peak / peak, retaining the fitted target gamut.
+      // The reference shoulder's asymptotic tail stays an asymptotic tail.
+      const float position = saturate((luminance - 1.f) / (peak - 1.f));
+      const float weight = position * position * position * (3.f - 2.f * position);
+      mapped_bt709 *= 1.f + (target_peak - peak) * weight / luminance;
+    }
+  }
   // Remove only numerical neutral-axis error at the exact grayscale endpoint.
   if (RENODX_TONE_MAP_SATURATION == 0.f) {
     return renodx::color::y::from::BT709(mapped_bt709).xxx;
