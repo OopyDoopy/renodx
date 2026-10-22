@@ -22,7 +22,7 @@ float4 main(
   float3 lut_sample = LUTSampling(lut_input, lut_input, t1, s1);
   float3 graded_sdr = VanillaOutput1(
       lut_sample,
-      (RENODX_TONE_MAP_TYPE == 0.f || CUSTOM_GRADING_IMPROVEMENTS == 0.f)
+    (RENODX_TONE_MAP_TYPE == 0.f)
           ? source.rgb
           : lut_input);
 

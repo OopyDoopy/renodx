@@ -3,6 +3,7 @@
 
 #include "../tonemap/prism_tonemap.hlsli"
 #include "./agx_custom_tonemap.hlsli"
+#include "../tonemap/lms_gamut_compression.hlsli"
 #include "./lilium_rcas.hlsl"
 
 float3 ApplyPostprocessing(
@@ -84,7 +85,10 @@ float4 TheWitcher3RemasteredEncodeFinalHDR(
     float output_alpha) {
   float peak_scale = RENODX_PEAK_WHITE_NITS / 100.f;
   float3 sanitized_output = SanitizeGamutInputBT2020(output_color_reference_white);
-  float3 gamut_compressed = renodx::color::gamut::GamutCompressBT2020(sanitized_output);
+  float3 gamut_compressed = sanitized_output;
+  if (CUSTOM_GRADING_IMPROVEMENTS == 1.f) {
+    gamut_compressed = CompressLMSRadialBT2020(sanitized_output);
+  }
   float3 clamped_color = min(max(gamut_compressed, 0.f), peak_scale.xxx);
   return float4(renodx::color::pq::Encode(clamped_color, 100.f), output_alpha);
 }
@@ -133,7 +137,7 @@ float3 TheWitcher3RemasteredCompositeFinalSDRUI(
   // Scene tonemapping already ran in the final grading shader. Gamut-fit both
   // layers and preserve the game's UI alpha composite here.
   float3 sanitized_ui_color = SanitizeGamutInputBT709(ui_color_bt709);
-  float3 ui_color = renodx::color::gamut::GamutCompressBT709(sanitized_ui_color);
+  float3 ui_color = CompressLMSRadialBT709(sanitized_ui_color);
   return HandleUICompositing(
       float4(ui_color, ui_alpha),
       float4(scene_color_bt709, 1.f)).rgb;
