@@ -26,7 +26,7 @@ float4 main(
   float3 graded_sdr = VanillaOutput3(
       first_lut_sample,
       second_lut_sample,
-      (RENODX_TONE_MAP_TYPE == 0.f || CUSTOM_GRADING_IMPROVEMENTS == 0.f)
+    (RENODX_TONE_MAP_TYPE == 0.f)
           ? source.rgb
           : lut_input);
 

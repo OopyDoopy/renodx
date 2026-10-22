@@ -78,7 +78,7 @@ float3 ColorGradeLUTInput(
   tonemap_scale = 1.f;
   gamut_compression_scale = 1.f;
 
-  if (CUSTOM_GRADING_IMPROVEMENTS == 0.f || RENODX_TONE_MAP_TYPE == 0.f) {
+  if (RENODX_TONE_MAP_TYPE == 0.f) {
     return abs(hdr_color);
   }
 
@@ -101,7 +101,7 @@ float3 ColorGradeLUTOutput(
     float3 lut_output,
     float tonemap_scale,
     float gamut_compression_scale) {
-  if (CUSTOM_GRADING_IMPROVEMENTS == 0.f || RENODX_TONE_MAP_TYPE == 0.f) {
+  if (RENODX_TONE_MAP_TYPE == 0.f) {
     return lut_output;
   }
 
@@ -211,7 +211,18 @@ float CustomGammaEncode(float color) {
   return exp2(log2(color) * 0.4545454680919647f);
 }
 
+float3 CustomGammaEncode(float3 color) {
+  return float3(
+      CustomGammaEncode(color.r),
+      CustomGammaEncode(color.g),
+      CustomGammaEncode(color.b));
+}  // Vector overload used by grading pipelines.
+
 float3 CustomColorGrading(float3 ungraded, float3 graded) {
   if (RENODX_TONE_MAP_TYPE == 0.f) return graded;
   return lerp(ungraded, graded, CUSTOM_COLOR_GRADING);
 }
+
+
+
+

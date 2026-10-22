@@ -33,8 +33,8 @@
 #define CUSTOM_RANDOM                          shader_injection.custom_random
 #define CUSTOM_LUT_STRENGTH                    shader_injection.custom_lut_strength
 #define CUSTOM_LUT_SCALING                     shader_injection.custom_lut_scaling
-#define CUSTOM_GRADING_IMPROVEMENTS             shader_injection.custom_grading_improvements
 #define CUSTOM_COLOR_GRADING                   shader_injection.custom_color_grading
+#define CUSTOM_GRADING_IMPROVEMENTS             shader_injection.custom_grading_improvements
 //#define CUSTOM_POST_MAXCLL                     shader_injection.custom_post_maxcll
 #define CUSTOM_LENS_DIRT                       shader_injection.custom_lens_dirt
 #define CUSTOM_SUNSHAFTS_STRENGTH              shader_injection.custom_sunshafts_strength
@@ -61,6 +61,12 @@
 #define PRISM_INSET_21                         shader_injection.prism_inset_21
 #define PRISM_INSET_22                         shader_injection.prism_inset_22
 #define PRISM_BLACK_FLOOR                       shader_injection.prism_black_floor
+#define CUSTOM_AGX_CURVE_STRENGTH               shader_injection.agx_curve_strength
+#define CUSTOM_AGX_TONEMAP_SATURATION           shader_injection.agx_tonemap_saturation
+#define CUSTOM_GAME_GRADING_SHAPING             shader_injection.custom_game_grading_shaping
+#define CUSTOM_GAME_GRADING_SATURATION_LOWER    shader_injection.custom_game_grading_saturation_lower
+#define CUSTOM_GAME_GRADING_SATURATION_UPPER    shader_injection.custom_game_grading_saturation_upper
+#define CUSTOM_GAME_GRADING_SATURATION_SPACE    shader_injection.custom_game_grading_saturation_space
 // #define CUSTOM_BLOOM_ROLLOFF_START                 shader_injection.custom_bloom_rolloff_start
 // #define CUSTOM_SUNSHAFT_ROLLOFF_START             shader_injection.custom_sunshaft_rolloff_start
 // #define CUSTOM_BLOOM_THRESHOLD                 shader_injection.custom_bloom_threshold
@@ -136,6 +142,12 @@ struct ShaderInjectData {
   float custom_debug_show_agx_curve_values;
   float custom_bloom_before_tonemap;
   float custom_hide_ui;
+  float agx_curve_strength;
+  float agx_tonemap_saturation;
+  float custom_game_grading_shaping;
+  float custom_game_grading_saturation_lower;
+  float custom_game_grading_saturation_upper;
+  float custom_game_grading_saturation_space;
 };
 
 #ifndef __cplusplus

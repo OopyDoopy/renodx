@@ -80,6 +80,20 @@ renodx::tonemap::prism::Config CreatePrismConfig(
   return config;
 }
 
+float3 AgxApplyExtendedToneCurveWithSaturation(
+        float3 color,
+        AgxToneCurveSettings agx_curve,
+        renodx::tonemap::prism::Config config) {
+    float3 per_channel = AgxApplyExtendedToneCurveOnly(color, agx_curve);
+    float input_yf = renodx::tonemap::prism::Yf(color, config);
+    float output_yf = renodx::tonemap::prism::Yf(per_channel, config);
+    float3 by_yf = per_channel;
+    if (input_yf > renodx::math::FLT_MIN) {
+        by_yf = color * renodx::math::SafeDivision(output_yf, input_yf, 0.f);
+    }
+    return lerp(by_yf, per_channel, saturate(CUSTOM_AGX_TONEMAP_SATURATION));
+}
+
 float3 ApplyPrismGrading(
     float3 scene_bt709,
     float peak,
@@ -141,12 +155,27 @@ float3 ApplyPrismGradingForCurrentOutput(
             agx_curve.low_shoulder,
             agx_curve.pivot),
         exposure_scale);
-    const float3 grading_anchor = AgxApplyExtendedToneCurveOnly(
-        mul(config.inset_matrix, inflection_input.xxx),
-        agx_curve);
+    const float3 midgray_input = mul(config.inset_matrix, (0.18f * exposure_scale).xxx);
+    const float3 midgray_curve = AgxApplyExtendedToneCurveWithSaturation(
+        midgray_input,
+        agx_curve,
+        config);
+    const float midgray_exposure_match = renodx::math::SafeDivision(
+        renodx::tonemap::prism::Yf(midgray_curve, config),
+        renodx::tonemap::prism::Yf(midgray_input, config),
+        1.f);
+    const float curve_strength = saturate(CUSTOM_AGX_CURVE_STRENGTH);
+    const float3 inflection_input_color = mul(config.inset_matrix, inflection_input.xxx);
+    const float3 grading_anchor = lerp(
+        inflection_input_color * midgray_exposure_match,
+        AgxApplyExtendedToneCurveWithSaturation(inflection_input_color, agx_curve, config),
+        curve_strength);
     config.anchor_in = grading_anchor;
     config.anchor_out = grading_anchor;
-    color = AgxApplyExtendedToneCurveOnly(color, agx_curve);
+    color = lerp(
+        color * midgray_exposure_match,
+        AgxApplyExtendedToneCurveWithSaturation(color, agx_curve, config),
+        curve_strength);
   }
   color = renodx::tonemap::prism::ApplyChromaGrading(color, config);
   color = renodx::tonemap::prism::ApplyAnchoredTonalGrading(

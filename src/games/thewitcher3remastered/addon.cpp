@@ -136,8 +136,8 @@ std::string FormatPrismMatrix() {
     std::ostringstream message;
     message << std::fixed << std::setprecision(9);
     const auto& matrix = prism_use_recommended_matrix != 0.f
-        ? RECOMMENDED_PRISM_MATRIX
-        : prism_resolved.inset_rows;
+            ? RECOMMENDED_PRISM_MATRIX
+            : prism_resolved.inset_rows;
     for (const auto& row : matrix) {
         message << "  [" << row[0] << ", " << row[1] << ", " << row[2] << "]\n";
     }
@@ -178,8 +178,8 @@ void ResolvePrismInjection() {
 
     prism_resolved = renodx::utils::prism::Resolve(config);
     const auto& matrix = prism_use_recommended_matrix != 0.f
-        ? RECOMMENDED_PRISM_MATRIX
-        : prism_resolved.inset_rows;
+            ? RECOMMENDED_PRISM_MATRIX
+            : prism_resolved.inset_rows;
     shader_injection.prism_inset_00 = matrix[0][0];
     shader_injection.prism_inset_01 = matrix[0][1];
     shader_injection.prism_inset_02 = matrix[0][2];
@@ -192,30 +192,30 @@ void ResolvePrismInjection() {
     if (prism_use_recommended_matrix != 0.f) {
         using renodx::utils::prism::detail::Mat3;
         const Mat3 inset = {{
-            {matrix[0][0], matrix[0][1], matrix[0][2]},
-            {matrix[1][0], matrix[1][1], matrix[1][2]},
-            {matrix[2][0], matrix[2][1], matrix[2][2]},
+                {matrix[0][0], matrix[0][1], matrix[0][2]},
+                {matrix[1][0], matrix[1][1], matrix[1][2]},
+                {matrix[2][0], matrix[2][1], matrix[2][2]},
         }};
         const auto outset = renodx::utils::prism::detail::Inverse(inset);
         const auto bt709_to_lms = renodx::utils::prism::detail::Mul(
-            renodx::utils::prism::detail::kXYZToStockmanSharpLMS,
-            renodx::utils::prism::detail::kBT709ToXYZ);
+                renodx::utils::prism::detail::kXYZToStockmanSharpLMS,
+                renodx::utils::prism::detail::kBT709ToXYZ);
         const auto bt709_to_xfyfzf = renodx::utils::prism::detail::Mul(
-            renodx::utils::prism::detail::kStockmanSharpLMSToXfYfZf,
-            bt709_to_lms);
+                renodx::utils::prism::detail::kStockmanSharpLMSToXfYfZf,
+                bt709_to_lms);
         const auto yf_bt709 = renodx::utils::prism::detail::Row(bt709_to_xfyfzf, 1);
         const float yf_weight_0 = static_cast<float>(
-            (yf_bt709.x * outset.m[0][0])
-            + (yf_bt709.y * outset.m[1][0])
-            + (yf_bt709.z * outset.m[2][0]));
+                (yf_bt709.x * outset.m[0][0])
+                + (yf_bt709.y * outset.m[1][0])
+                + (yf_bt709.z * outset.m[2][0]));
         const float yf_weight_1 = static_cast<float>(
-            (yf_bt709.x * outset.m[0][1])
-            + (yf_bt709.y * outset.m[1][1])
-            + (yf_bt709.z * outset.m[2][1]));
+                (yf_bt709.x * outset.m[0][1])
+                + (yf_bt709.y * outset.m[1][1])
+                + (yf_bt709.z * outset.m[2][1]));
         const float yf_weight_2 = static_cast<float>(
-            (yf_bt709.x * outset.m[0][2])
-            + (yf_bt709.y * outset.m[1][2])
-            + (yf_bt709.z * outset.m[2][2]));
+                (yf_bt709.x * outset.m[0][2])
+                + (yf_bt709.y * outset.m[1][2])
+                + (yf_bt709.z * outset.m[2][2]));
         const float neutral_yf = yf_weight_0 + yf_weight_1 + yf_weight_2;
         shader_injection.prism_yf_weight_0 = yf_weight_0;
         shader_injection.prism_yf_weight_1 = yf_weight_1;
@@ -224,7 +224,7 @@ void ResolvePrismInjection() {
         shader_injection.prism_yf_neutral_axis_1 = 1.f;
         shader_injection.prism_yf_neutral_axis_2 = 1.f;
         shader_injection.prism_yf_neutral_reciprocal =
-            std::abs(neutral_yf) > 1e-12f ? 1.f / neutral_yf : 1.f;
+                std::abs(neutral_yf) > 1e-12f ? 1.f / neutral_yf : 1.f;
     } else {
         shader_injection.prism_yf_weight_0 = prism_resolved.yf_weights[0];
         shader_injection.prism_yf_weight_1 = prism_resolved.yf_weights[1];
@@ -243,256 +243,49 @@ void OnPrismSettingChange(float previous_value, float current_value) {
 }
 
 renodx::utils::settings::Settings settings = {
-    new renodx::utils::settings::Setting{
-        .key = "TheWitcher3RemasteredDeveloperMode",
-        .binding = &developer_mode_enabled,
-        .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
-        .default_value = 0.f,
-        .can_reset = false,
-        .label = "Developer Mode",
-        .is_global = true,
-        .is_visible = []() { return false; },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "SettingsMode",
-        .binding = &current_settings_mode,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
-        .can_reset = false,
-        .label = "Settings Mode",
-        .labels = {"Simple", "Advanced", "Developer"},
-        .is_global = true,
-    },
-    new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "Theses options are purely to adjust to taste.",
-        .section = "NOTICE",
-        .group = "button-line-2",
-        .tint = 0xFF0000,
-        .is_visible = []() { return current_settings_mode >= 1.f; }},
-    new renodx::utils::settings::Setting{
-        .key = "ToneMapType",
-        .binding = &shader_injection.tone_map_type,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 2.f,
-        .can_reset = true,
-        .label = "Tone Mapper",
-        .section = "Tone Mapping",
-        .tooltip = "Vanilla (AgX): Vanilla SDR/HDR output. HDR has an inverse tone mapping option so you can see the native HDR or original SDR output.\n"
-        "Vanilla+ (AgX Extended): Extends the original AgX curve and reworks the grading chain to be HDR friendly, before getting mapped to the display for either SDR or HDR modes.\n"
-        "RenoDX (Prism): Uses our custom tone mapping solution with a custom working space. Uses the Vanilla+ curve.",
-        .labels = {"Vanilla (AgX)", "Vanilla+ (AgX Extended)", "RenoDX (Prism)"},
-        .parse = [](float value) { return value; },
-        .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return current_settings_mode >= 0.f; },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "PrismMatrixSource",
-        .binding = &prism_use_recommended_matrix,
-        .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
-        .default_value = 1.f,
-        .label = "Primary Matrix",
-        .section = "Prism Primaries",
-        .tooltip = "Selects between tunable Prism primary controls and the recommended hand-tuned matrix.",
-        .labels = {"Prism Controls", "Recommended"},
-        .is_enabled = []() { return IsPrismDeveloperMenuVisible(); },
-        .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "PrismPrimaryMode",
-        .binding = &prism_primary_mode,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 3.f,
-        .label = "Primary Mode",
-        .section = "Prism Primaries",
-        .tooltip = "Selects the working primary basis. Custom starts from BT.2020 and enables primary tuning.",
-        .labels = {"BT.709", "DCI-P3", "BT.2020", "AP1", "LMS", "Custom"},
-        .is_enabled = []() { return IsPrismPrimaryControlsEnabled(); },
-        .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "PrismTemperature",
-        .binding = &prism_temperature,
-        .default_value = 6501.7344f,
-        .label = "White Temperature",
-        .section = "Prism Primaries",
-        .tooltip = "Sets the custom primary white point on the Planckian locus.",
-        .min = 1667.f,
-        .max = 25000.f,
-        .format = "%.0f K",
-        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
-        .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "PrismTint",
-        .binding = &prism_tint,
-        .default_value = 0.0031730535f,
-        .label = "White Tint (Duv)",
-        .section = "Prism Primaries",
-        .tooltip = "Offsets the custom white point in CIE 1960 UCS. Positive values shift toward green.",
-        .min = -0.05f,
-        .max = 0.05f,
-        .format = "%.4f",
-        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
-        .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "PrismStrength",
-        .binding = &prism_strength,
-        .default_value = 100.f,
-        .label = "Primary Strength",
-        .section = "Prism Primaries",
-        .tooltip = "Scales all custom primary reach and hue changes.",
-        .max = 100.f,
-        .format = "%.0f%%",
-        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
-        .parse = [](float value) { return value * 0.01f; },
-        .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "PrismGlobalReach",
-        .binding = &prism_global_reach,
-        .default_value = 100.f,
-        .label = "Global Reach",
-        .section = "Prism Primaries",
-        .tooltip = "Scales all RGB basis axes. Values above 100% extrapolate the BT.2020 starting basis, capped at 200%.",
-        .max = 200.f,
-        .format = "%.0f%%",
-        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
-        .parse = [](float value) { return value * 0.01f; },
-        .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "PrismGlobalHue",
-        .binding = &prism_global_hue,
-        .default_value = 0.f,
-        .label = "Global Rotation",
-        .section = "Prism Primaries",
-        .tooltip = "Rotates all three RGB basis axes in CIE 1931 xy.",
-        .min = -180.f,
-        .max = 180.f,
-        .format = "%.1f°",
-        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
-        .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "PrismRedReach",
-        .binding = &prism_red_reach,
-        .default_value = 100.f,
-        .label = "Red Reach",
-        .section = "Prism Primaries",
-        .tooltip = "Scales the red basis axis around the authored white.",
-        .max = 200.f,
-        .format = "%.0f%%",
-        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
-        .parse = [](float value) { return value * 0.01f; },
-        .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "PrismRedHue",
-        .binding = &prism_red_hue,
-        .default_value = 0.f,
-        .label = "Red Rotation",
-        .section = "Prism Primaries",
-        .tooltip = "Rotates the red basis axis in CIE 1931 xy.",
-        .min = -45.f,
-        .max = 45.f,
-        .format = "%.1f°",
-        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
-        .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "PrismGreenReach",
-        .binding = &prism_green_reach,
-        .default_value = 100.f,
-        .label = "Green Reach",
-        .section = "Prism Primaries",
-        .tooltip = "Scales the green basis axis around the authored white.",
-        .max = 200.f,
-        .format = "%.0f%%",
-        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
-        .parse = [](float value) { return value * 0.01f; },
-        .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "PrismGreenHue",
-        .binding = &prism_green_hue,
-        .default_value = 0.f,
-        .label = "Green Rotation",
-        .section = "Prism Primaries",
-        .tooltip = "Rotates the green basis axis in CIE 1931 xy.",
-        .min = -45.f,
-        .max = 45.f,
-        .format = "%.1f°",
-        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
-        .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "PrismBlueReach",
-        .binding = &prism_blue_reach,
-        .default_value = 100.f,
-        .label = "Blue Reach",
-        .section = "Prism Primaries",
-        .tooltip = "Scales the blue basis axis around the authored white.",
-        .max = 200.f,
-        .format = "%.0f%%",
-        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
-        .parse = [](float value) { return value * 0.01f; },
-        .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "PrismBlueHue",
-        .binding = &prism_blue_hue,
-        .default_value = 0.f,
-        .label = "Blue Rotation",
-        .section = "Prism Primaries",
-        .tooltip = "Rotates the blue basis axis in CIE 1931 xy.",
-        .min = -45.f,
-        .max = 45.f,
-        .format = "%.1f°",
-        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
-        .on_change_value = &OnPrismSettingChange,
-        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
-    },
-    new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::CUSTOM,
-        .section = "Prism Primaries",
-        .on_draw = []() {
-          ResolvePrismInjection();
-                    if (prism_use_recommended_matrix == 0.f) {
-                        renodx::utils::prism::ui::DrawCIE1931Chart(prism_resolved, GetPrismGamut());
-                    } else {
-                        ImGui::TextDisabled("Recommended matrix selected; primary controls are bypassed.");
-                    }
-          ImGui::TextUnformatted("BT.709 to Prism Inset Matrix");
-          static std::string matrix_text;
-          matrix_text = FormatPrismMatrix();
-          ImVec2 matrix_size = ImGui::GetContentRegionAvail();
-          matrix_size.y = ImGui::GetTextLineHeightWithSpacing() * 4.f;
-          ImGui::InputTextMultiline(
-              "##PrismInsetMatrix",
-              matrix_text.data(),
-              matrix_text.size() + 1,
-              matrix_size,
-              ImGuiInputTextFlags_ReadOnly);
-          return false;
+        new renodx::utils::settings::Setting{
+                .key = "TheWitcher3RemasteredDeveloperMode",
+                .binding = &developer_mode_enabled,
+                .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+                .default_value = 0.f,
+                .can_reset = false,
+                .label = "Developer Mode",
+                .is_global = true,
+                .is_visible = []() { return false; },
         },
-        .is_visible = []() {
-                    return IsPrismDeveloperMenuVisible();
+        new renodx::utils::settings::Setting{
+                .key = "SettingsMode",
+                .binding = &current_settings_mode,
+                .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+                .default_value = 0.f,
+                .can_reset = false,
+                .label = "Settings Mode",
+                .labels = {"Simple", "Advanced", "Developer"},
+                .is_global = true,
         },
-    },
+        new renodx::utils::settings::Setting{
+                .value_type = renodx::utils::settings::SettingValueType::TEXT,
+                .label = "Theses options are purely to adjust to taste.",
+                .section = "NOTICE",
+                .group = "button-line-2",
+                .tint = 0xFF0000,
+                .is_visible = []() { return current_settings_mode >= 1.f; }},
+        new renodx::utils::settings::Setting{
+                .key = "ToneMapType",
+                .binding = &shader_injection.tone_map_type,
+                .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+                .default_value = 2.f,
+                .can_reset = true,
+                .label = "Tone Mapper",
+                .section = "Tone Mapping",
+                .tooltip = "Vanilla (AgX): Vanilla SDR/HDR output. HDR has an inverse tone mapping option so you can see the native HDR or original SDR output.\n"
+                "Vanilla+ (AgX Extended): Extends the original AgX curve and reworks the grading chain to be HDR friendly, before getting mapped to the display for either SDR or HDR modes.\n"
+                "RenoDX (Prism): Uses our custom tone mapping solution with a custom working space. Uses the Vanilla+ curve.",
+                .labels = {"Vanilla (AgX)", "Vanilla+ (AgX Extended)", "RenoDX (Prism)"},
+                .parse = [](float value) { return value; },
+                .on_change_value = &OnPrismSettingChange,
+                .is_visible = []() { return current_settings_mode >= 0.f; },
+        },
     peak_white_nits_setting = new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",
         .binding = &shader_injection.peak_white_nits,
@@ -559,6 +352,30 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
+        .key = "ToneMapAgxCurveStrength",
+        .binding = &shader_injection.agx_curve_strength,
+        .default_value = 100.f,
+        .label = "Vanilla+ Curve Strength",
+        .section = "Tone Mapping",
+        .tooltip = "Blends from a mid-gray exposure-matched state to the full extended AgX curve.",
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 2.f; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode >= 2.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ToneMapAgxSaturation",
+        .binding = &shader_injection.agx_tonemap_saturation,
+        .default_value = 100.f,
+        .label = "Tonemap Saturation",
+        .section = "Tone Mapping",
+        .tooltip = "Blends chrominance back to the pre-tonemapped color.",
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 2.f; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode >= 2.f; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "ToneMapInverseToneMap",
         .binding = &shader_injection.custom_inverse_tone_map,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
@@ -595,6 +412,18 @@ renodx::utils::settings::Settings settings = {
         .section = "Developer",
         .tooltip = "Draws the AgX parameters over the game image.",
         .labels = {"Off", "On"},
+        .is_enabled = []() { return IsPrismDeveloperMenuVisible(); },
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "GameGradingSaturationSpace",
+        .binding = &shader_injection.custom_game_grading_saturation_space,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 2.f,
+        .label = "Native Saturation Space",
+        .section = "Developer",
+        .tooltip = "Selects the chroma space used for native saturation controls on upgraded grading paths.",
+        .labels = {"BT.709 Y", "OKLab", "MacLeod-Boynton"},
         .is_enabled = []() { return IsPrismDeveloperMenuVisible(); },
         .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
     },
@@ -788,12 +617,36 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
-        .key = "ColorGradeStrength",
-        .binding = &shader_injection.custom_color_grading,
+        .key = "ColorGradeShaping",
+        .binding = &shader_injection.custom_game_grading_shaping,
         .default_value = 100.f,
-        .label = "Color Grading Strength",
+        .label = "Color Grading Shaping",
         .section = "Scene Grading",
-        .tooltip = "Strength of the original color grading, applied after LUTs.",
+        .tooltip = "Blends only the game's native per-channel shaper and luminance-dependent RGB channel multipliers between neutral and their original values.",
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeNativeUpperSaturation",
+        .binding = &shader_injection.custom_game_grading_saturation_upper,
+        .default_value = 100.f,
+        .label = "Color Grading Upper Saturation",
+        .section = "Scene Grading",
+        .tooltip = "Blends the game's native upper-range saturation adjustment toward neutral.",
+        .max = 100.f,
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "ColorGradeNativeLowerSaturation",
+        .binding = &shader_injection.custom_game_grading_saturation_lower,
+        .default_value = 100.f,
+        .label = "Color Grading Lower Saturation",
+        .section = "Scene Grading",
+        .tooltip = "Blends the game's native lower-range saturation adjustment toward neutral.",
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.01f; },
@@ -1080,6 +933,213 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .parse = [](float value) { return value * 0.01f; },
     },
+    new renodx::utils::settings::Setting{
+        .key = "PrismMatrixSource",
+        .binding = &prism_use_recommended_matrix,
+        .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+        .default_value = 1.f,
+        .label = "Primary Matrix",
+        .section = "Prism Primaries",
+        .tooltip = "Selects between tunable Prism primary controls and the recommended hand-tuned matrix.",
+        .labels = {"Prism Controls", "Recommended"},
+        .is_enabled = []() { return IsPrismDeveloperMenuVisible(); },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PrismPrimaryMode",
+        .binding = &prism_primary_mode,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 3.f,
+        .label = "Primary Mode",
+        .section = "Prism Primaries",
+        .tooltip = "Selects the working primary basis. Custom starts from BT.2020 and enables primary tuning.",
+        .labels = {"BT.709", "DCI-P3", "BT.2020", "AP1", "LMS", "Custom"},
+        .is_enabled = []() { return IsPrismPrimaryControlsEnabled(); },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PrismTemperature",
+        .binding = &prism_temperature,
+        .default_value = 6501.7344f,
+        .label = "White Temperature",
+        .section = "Prism Primaries",
+        .tooltip = "Sets the custom primary white point on the Planckian locus.",
+        .min = 1667.f,
+        .max = 25000.f,
+        .format = "%.0f K",
+        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PrismTint",
+        .binding = &prism_tint,
+        .default_value = 0.0031730535f,
+        .label = "White Tint (Duv)",
+        .section = "Prism Primaries",
+        .tooltip = "Offsets the custom white point in CIE 1960 UCS. Positive values shift toward green.",
+        .min = -0.05f,
+        .max = 0.05f,
+        .format = "%.4f",
+        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PrismStrength",
+        .binding = &prism_strength,
+        .default_value = 100.f,
+        .label = "Primary Strength",
+        .section = "Prism Primaries",
+        .tooltip = "Scales all custom primary reach and hue changes.",
+        .max = 100.f,
+        .format = "%.0f%%",
+        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
+        .parse = [](float value) { return value * 0.01f; },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PrismGlobalReach",
+        .binding = &prism_global_reach,
+        .default_value = 100.f,
+        .label = "Global Reach",
+        .section = "Prism Primaries",
+        .tooltip = "Scales all RGB basis axes. Values above 100% extrapolate the BT.2020 starting basis, capped at 200%.",
+        .max = 200.f,
+        .format = "%.0f%%",
+        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
+        .parse = [](float value) { return value * 0.01f; },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PrismGlobalHue",
+        .binding = &prism_global_hue,
+        .default_value = 0.f,
+        .label = "Global Rotation",
+        .section = "Prism Primaries",
+        .tooltip = "Rotates all three RGB basis axes in CIE 1931 xy.",
+        .min = -180.f,
+        .max = 180.f,
+        .format = "%.1f°",
+        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PrismRedReach",
+        .binding = &prism_red_reach,
+        .default_value = 100.f,
+        .label = "Red Reach",
+        .section = "Prism Primaries",
+        .tooltip = "Scales the red basis axis around the authored white.",
+        .max = 200.f,
+        .format = "%.0f%%",
+        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
+        .parse = [](float value) { return value * 0.01f; },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PrismRedHue",
+        .binding = &prism_red_hue,
+        .default_value = 0.f,
+        .label = "Red Rotation",
+        .section = "Prism Primaries",
+        .tooltip = "Rotates the red basis axis in CIE 1931 xy.",
+        .min = -45.f,
+        .max = 45.f,
+        .format = "%.1f°",
+        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PrismGreenReach",
+        .binding = &prism_green_reach,
+        .default_value = 100.f,
+        .label = "Green Reach",
+        .section = "Prism Primaries",
+        .tooltip = "Scales the green basis axis around the authored white.",
+        .max = 200.f,
+        .format = "%.0f%%",
+        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
+        .parse = [](float value) { return value * 0.01f; },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PrismGreenHue",
+        .binding = &prism_green_hue,
+        .default_value = 0.f,
+        .label = "Green Rotation",
+        .section = "Prism Primaries",
+        .tooltip = "Rotates the green basis axis in CIE 1931 xy.",
+        .min = -45.f,
+        .max = 45.f,
+        .format = "%.1f°",
+        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PrismBlueReach",
+        .binding = &prism_blue_reach,
+        .default_value = 100.f,
+        .label = "Blue Reach",
+        .section = "Prism Primaries",
+        .tooltip = "Scales the blue basis axis around the authored white.",
+        .max = 200.f,
+        .format = "%.0f%%",
+        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
+        .parse = [](float value) { return value * 0.01f; },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "PrismBlueHue",
+        .binding = &prism_blue_hue,
+        .default_value = 0.f,
+        .label = "Blue Rotation",
+        .section = "Prism Primaries",
+        .tooltip = "Rotates the blue basis axis in CIE 1931 xy.",
+        .min = -45.f,
+        .max = 45.f,
+        .format = "%.1f°",
+        .is_enabled = []() { return IsPrismPrimaryControlsEnabled() && IsPrismCustomMode(); },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::CUSTOM,
+        .section = "Prism Primaries",
+        .on_draw = []() {
+          ResolvePrismInjection();
+                    if (prism_use_recommended_matrix == 0.f) {
+                        renodx::utils::prism::ui::DrawCIE1931Chart(prism_resolved, GetPrismGamut());
+                    } else {
+                        ImGui::TextDisabled("Recommended matrix selected; primary controls are bypassed.");
+                    }
+          ImGui::TextUnformatted("BT.709 to Prism Inset Matrix");
+          static std::string matrix_text;
+          matrix_text = FormatPrismMatrix();
+          ImVec2 matrix_size = ImGui::GetContentRegionAvail();
+          matrix_size.y = ImGui::GetTextLineHeightWithSpacing() * 4.f;
+          ImGui::InputTextMultiline(
+              "##PrismInsetMatrix",
+              matrix_text.data(),
+              matrix_text.size() + 1,
+              matrix_size,
+              ImGuiInputTextFlags_ReadOnly);
+          return false;
+        },
+        .is_visible = []() {
+                    return IsPrismDeveloperMenuVisible();
+        },
+    },
     // new renodx::utils::settings::Setting{
     //     .key = "UtilHUD",
     //     .binding = &shader_injection.utility_hud,
@@ -1184,7 +1244,6 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("SceneGradeHueCorrection", 0.f);
   renodx::utils::settings::UpdateSetting("LutGradeStrength", 100.f);
   renodx::utils::settings::UpdateSetting("LutScaling", 0.f);
-  renodx::utils::settings::UpdateSetting("ColorGradeStrength", 100.f);
   renodx::utils::settings::UpdateSetting("GradingImprovements", 0.f);
 
   renodx::utils::settings::UpdateSetting("ColorGradeExposure", 1.f);
@@ -1193,6 +1252,9 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("ColorGradeContrast", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeHighlightContrast", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeShadowContrast", 50.f);
+    renodx::utils::settings::UpdateSetting("ColorGradeShaping", 100.f);
+    renodx::utils::settings::UpdateSetting("ColorGradeNativeLowerSaturation", 100.f);
+    renodx::utils::settings::UpdateSetting("ColorGradeNativeUpperSaturation", 100.f);
   renodx::utils::settings::UpdateSetting("ColorGradeSaturation", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeHighlightSaturation", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 0.f);
