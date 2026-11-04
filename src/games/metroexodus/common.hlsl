@@ -2,6 +2,30 @@
 
 #define LMS_WHITE renodx::color::lms::from::BT709(1.0f)
 
+float3 SanitizeGamutInput(float3 color, float3x3 gamut_xyz) {
+  const float3 luminance_weights = gamut_xyz[1];
+  const float y = dot(color, luminance_weights);
+
+  [branch]
+  if (y >= 0.f) {
+    return color;
+  }
+
+  const float3 positive = max(color, 0.f);
+  const float positive_y = dot(positive, luminance_weights);
+  const float scale = positive_y / (positive_y - y);
+
+  return mad(color - positive, scale, positive);
+}
+
+float3 SanitizeGamutInputBT709(float3 color) {
+  return SanitizeGamutInput(color, renodx::color::BT709_TO_XYZ_MAT);
+}
+
+float3 SanitizeGamutInputBT2020(float3 color) {
+  return SanitizeGamutInput(color, renodx::color::BT2020_TO_XYZ_MAT);
+}
+
 float3 CustomPostProcessing(float3 color, float2 uv) {
   //color = ApplyRCAS(color, uv, t1, s1);
   color = renodx::effects::ApplyFilmGrain(color, uv, CUSTOM_RANDOM, CUSTOM_FILM_GRAIN_STRENGTH * 0.03f);

@@ -461,14 +461,16 @@ float4 RenoDX(float3 input_color, float2 uv, float ui_blend2) {
   tonemapped_linear = renodx::color::srgb::DecodeSafe(nvg_dual_applied);
 #endif
 
+  float3 sanitized_tonemapped_linear =
+      SanitizeGamutInputBT709(tonemapped_linear);
   float gamut_compression_scale =
       renodx::color::gamut::ComputeGamutCompressionScaleBT709AdaptiveD65(
-          tonemapped_linear,
+          sanitized_tonemapped_linear,
           mid_gray_adjusted_lms,
           1.f);
   float3 tonemapped_linear_gamut_compressed =
       renodx::color::gamut::GamutCompressBT709AdaptiveD65(
-          tonemapped_linear,
+          sanitized_tonemapped_linear,
           mid_gray_adjusted_lms,
           gamut_compression_scale);
 
@@ -557,6 +559,8 @@ float4 RenoDX(float3 input_color, float2 uv, float ui_blend2) {
   float3 composited_color_linear = renodx::color::srgb::DecodeSafe(composited_color_gamma);
 
   composited_color_linear *= RENODX_GRAPHICS_WHITE_NITS;
+  composited_color_linear = SanitizeGamutInputBT2020(composited_color_linear);
+  composited_color_linear = renodx::color::gamut::GamutCompressBT2020(composited_color_linear);
 
   if (CUSTOM_CLAMP_TYPE == 0) {
     composited_color_linear = min(composited_color_linear, RENODX_PEAK_WHITE_NITS);
