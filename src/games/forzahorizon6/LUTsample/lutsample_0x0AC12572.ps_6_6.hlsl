@@ -453,9 +453,10 @@ float4 main(
     SV_Target.w = 0.0f;
     return SV_Target;
   } else {
-    _504 = (exp2(log2(select((_316 <= 0.0031308000907301903f), (_316 * 12.920000076293945f), ((exp2(log2(abs(_316)) * 0.4166666567325592f) * 1.0549999475479126f) + -0.054999999701976776f))) * ImageProcPostProcessConstBuffer_768.x) + _360);
-    _505 = (exp2(log2(select((_320 <= 0.0031308000907301903f), (_320 * 12.920000076293945f), ((exp2(log2(abs(_320)) * 0.4166666567325592f) * 1.0549999475479126f) + -0.054999999701976776f))) * ImageProcPostProcessConstBuffer_768.x) + _360);
-    _506 = (exp2(log2(select((_324 <= 0.0031308000907301903f), (_324 * 12.920000076293945f), ((exp2(log2(abs(_324)) * 0.4166666567325592f) * 1.0549999475479126f) + -0.054999999701976776f))) * ImageProcPostProcessConstBuffer_768.x) + _360);
+    const float3 display_encoded = EncodeDisplay(float3(_316, _320, _324));
+    _504 = display_encoded.x * ImageProcPostProcessConstBuffer_768.x + _360;
+    _505 = display_encoded.y * ImageProcPostProcessConstBuffer_768.x + _360;
+    _506 = display_encoded.z * ImageProcPostProcessConstBuffer_768.x + _360;
   }
   SV_Target.x = max(_504, 0.0f);
   SV_Target.y = max(_505, 0.0f);

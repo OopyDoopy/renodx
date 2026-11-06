@@ -2,16 +2,13 @@
 #define SRC_FORZAHORIZON6_SHARED_H_
 
 // // RENODX_PERMUTATIONS shader=ColourGradeHDRComposite_0x2FE5A0BE macro=TONE_MAP_TYPE
-// #define VANILLA_SDR_HDR      0  // label="Vanilla"
-// #define VANILLA_PLUS         1  // label="Vanilla+"
-// #define FULL_CUSTOM          2  // label="Custom"
+// #define RECOMMENDED          0  // label="Recommended"
+// #define FULL_CUSTOM          1  // label="Custom"
 
 #define RENODX_TONE_MAP_TYPE      shader_injection.tone_map_type
 #define RENODX_PEAK_WHITE_NITS    shader_injection.peak_white_nits
 #define RENODX_DIFFUSE_WHITE_NITS shader_injection.diffuse_white_nits
 // #define RENODX_GRAPHICS_WHITE_NITS             shader_injection.graphics_white_nits
-#define RENODX_TONE_MAP_HUE_CORRECTION shader_injection.tone_map_hue_correction
-#define RENODX_GAMMA_CORRECTION        shader_injection.gamma_correction
 #define RENODX_IS_HDR_COLOR_SPACE      shader_injection.is_hdr_color_space
 
 #define CUSTOM_TONE_MAP_CURVE shader_injection.custom_tone_map_curve
@@ -24,10 +21,14 @@
 #define RENODX_TONE_MAP_SHADOWS    shader_injection.tone_map_shadows
 #define RENODX_TONE_MAP_CONTRAST   shader_injection.tone_map_contrast
 #define RENODX_TONE_MAP_SATURATION shader_injection.tone_map_saturation
+#define RENODX_TONE_MAP_HIGHLIGHT_SATURATION shader_injection.tone_map_highlight_saturation
 #define RENODX_TONE_MAP_BLOWOUT    shader_injection.tone_map_blowout
 #define RENODX_TONE_MAP_FLARE      shader_injection.tone_map_flare
+#define RENODX_TONE_MAP_HIGHLIGHT_CONTRAST shader_injection.tone_map_highlight_contrast
+#define RENODX_TONE_MAP_SHADOW_CONTRAST shader_injection.tone_map_shadow_contrast
 #define RENODX_TONE_MAP_MID_GRAY_IN shader_injection.tone_map_mid_gray_in
 #define RENODX_TONE_MAP_MID_GRAY_OUT shader_injection.tone_map_mid_gray_out
+#define RENODX_SDR_ENCODING shader_injection.sdr_encoding
 
 #define CUSTOM_FILM_GRAIN_TYPE      shader_injection.custom_film_grain_type
 #define CUSTOM_FILM_GRAIN_STRENGTH  shader_injection.custom_film_grain
@@ -44,9 +45,6 @@ struct ShaderInjectData {
   float diffuse_white_nits;
   // float graphics_white_nits;
   float tone_map_type;
-  float tone_map_hue_correction;
-  float gamma_correction;
-
   float custom_tone_map_curve;
 
   float scene_grade_lut_strength;
@@ -57,8 +55,11 @@ struct ShaderInjectData {
   float tone_map_shadows;
   float tone_map_contrast;
   float tone_map_saturation;
+  float tone_map_highlight_saturation;
   float tone_map_blowout;
   float tone_map_flare;
+  float tone_map_highlight_contrast;
+  float tone_map_shadow_contrast;
   float tone_map_mid_gray_in;
   float tone_map_mid_gray_out;
 
@@ -69,7 +70,20 @@ struct ShaderInjectData {
   float custom_chromatic_aberration;
   float is_hdr_color_space;
   float padding_0;
-  // float tonemap_under_ui;
+
+  float prism_inset_00;
+  float prism_inset_01;
+  float prism_inset_02;
+  float prism_inset_10;
+  float prism_inset_11;
+  float prism_inset_12;
+  float prism_inset_20;
+  float prism_inset_21;
+  float prism_inset_22;
+  float prism_padding_0;
+  float prism_padding_1;
+  float prism_padding_2;
+  float sdr_encoding;
 };
 
 #ifndef __cplusplus

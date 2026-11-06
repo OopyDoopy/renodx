@@ -352,9 +352,8 @@ float4 main(
   _316 = mad(_293, (ImageProcPostProcessConstBuffer_256[1].z), mad(_292, (ImageProcPostProcessConstBuffer_256[1].y), ((ImageProcPostProcessConstBuffer_256[1].x) * _291))) + (ImageProcPostProcessConstBuffer_256[1].w);
   _320 = mad(_293, (ImageProcPostProcessConstBuffer_256[2].z), mad(_292, (ImageProcPostProcessConstBuffer_256[2].y), ((ImageProcPostProcessConstBuffer_256[2].x) * _291))) + (ImageProcPostProcessConstBuffer_256[2].w);
   _326 = (frac(frac(dot(float2(TexCoord.z, TexCoord.w), float2(0.0671105608344078f, 0.005837149918079376f))) * 52.98291778564453f) * 0.003921568859368563f) + -0.0019607844296842813f;
-  SV_Target.x = max((exp2(log2(select((_312 <= 0.0031308000907301903f), (_312 * 12.920000076293945f), ((exp2(log2(abs(_312)) * 0.4166666567325592f) * 1.0549999475479126f) + -0.054999999701976776f))) * ImageProcPostProcessConstBuffer_768.x) + _326), 0.0f);
-  SV_Target.y = max((exp2(log2(select((_316 <= 0.0031308000907301903f), (_316 * 12.920000076293945f), ((exp2(log2(abs(_316)) * 0.4166666567325592f) * 1.0549999475479126f) + -0.054999999701976776f))) * ImageProcPostProcessConstBuffer_768.x) + _326), 0.0f);
-  SV_Target.z = max((exp2(log2(select((_320 <= 0.0031308000907301903f), (_320 * 12.920000076293945f), ((exp2(log2(abs(_320)) * 0.4166666567325592f) * 1.0549999475479126f) + -0.054999999701976776f))) * ImageProcPostProcessConstBuffer_768.x) + _326), 0.0f);
+  const float3 display_encoded = EncodeDisplay(float3(_312, _316, _320));
+  SV_Target.xyz = max(display_encoded * ImageProcPostProcessConstBuffer_768.x + _326, 0.0f);
   SV_Target.w = 0.0f;
   return SV_Target;
 }
