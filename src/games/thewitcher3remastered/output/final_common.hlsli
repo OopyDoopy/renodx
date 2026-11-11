@@ -2,7 +2,7 @@
 #define SRC_THEWITCHER3REMASTERED_FINAL_COMMON_HLSLI_
 
 #include "../tonemap/prism_tonemap.hlsli"
-#include "./agx_custom_tonemap.hlsli"
+#include "../tonemap/vanilla_plus.hlsli"
 #include "../tonemap/lms_gamut_compression.hlsli"
 #include "./lilium_rcas.hlsl"
 
@@ -37,23 +37,13 @@ float3 TheWitcher3RemasteredMapFinalHDRScene(
   bool use_parametric_agx_curve) {
   const float reference_white_nits = 100.f;
   float3 scene_linear_bt2020 = scene_color_bt2020;
-  if (RENODX_TONE_MAP_TYPE == 1.f) {
-    // The AgX inset/outset matrices and tone curve operate in linear BT.709.
+  if (RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_VANILLA_PLUS) {
     float3 scene_linear_bt709 = renodx::color::bt709::from::BT2020(scene_linear_bt2020);
     float diffuse_white_nits = max(RENODX_DIFFUSE_WHITE_NITS, 0.000001f);
     float output_peak = RENODX_PEAK_WHITE_NITS / diffuse_white_nits;
-    scene_linear_bt709 = CustomAgxTonemap(
-      scene_linear_bt709,
-      agx_post_curve_scale,
-      agx_saturation,
-      agx_post_curve_power,
-      agx_log_range_scale,
-      agx_curve_params,
-      agx_high_power,
-      use_parametric_agx_curve,
-      output_peak);
+    scene_linear_bt709 = VanillaPlusShoulder(scene_linear_bt709, output_peak);
     scene_linear_bt2020 = renodx::color::bt2020::from::BT709(scene_linear_bt709);
-  } else if (RENODX_TONE_MAP_TYPE == 2.f) {
+  } else if (RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_PRISM) {
     float3 scene_linear_bt709 = renodx::color::bt709::from::BT2020(scene_linear_bt2020);
     scene_linear_bt709 = ApplyPrismShoulderHDR(scene_linear_bt709);
     scene_linear_bt2020 = renodx::color::bt2020::from::BT709(scene_linear_bt709);
@@ -84,10 +74,14 @@ float4 TheWitcher3RemasteredEncodeFinalHDR(
     float3 output_color_reference_white,
     float output_alpha) {
   float peak_scale = RENODX_PEAK_WHITE_NITS / 100.f;
-  float3 sanitized_output = SanitizeGamutInputBT2020(output_color_reference_white);
-  float3 gamut_compressed = sanitized_output;
-  if (CUSTOM_GRADING_IMPROVEMENTS == 1.f) {
-    gamut_compressed = CompressLMSRadialBT2020(sanitized_output);
+  float3 gamut_compressed = output_color_reference_white;
+  if (CUSTOM_GAME_GRADING_SATURATION_SPACE != 0.f) {
+    float3 weighted_lms = mul(
+        renodx::color::macleod_boynton::BT2020_TO_LMS_WEIGHTED_MAT,
+        SanitizeGamutInputBT2020(gamut_compressed));
+    weighted_lms = renodx::color::gamut::GamutCompressWeightedLMSCoreRGBBoundFromWeightedInput(
+        weighted_lms, DISPLAYP3_TO_LMS_WEIGHTED_MAT, 1.f);
+    gamut_compressed = mul(renodx::color::macleod_boynton::LMS_WEIGHTED_TO_BT2020_MAT, weighted_lms);
   }
   float3 clamped_color = min(max(gamut_compressed, 0.f), peak_scale.xxx);
   return float4(renodx::color::pq::Encode(clamped_color, 100.f), output_alpha);

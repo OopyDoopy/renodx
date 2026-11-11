@@ -7,7 +7,7 @@ SamplerState s1 : register(s1);
 float PhotomodeApplyExposureAndOptionalVanillaContrast(float color) {
   float exposure_applied = CustomPixelConsts_288.x * color;
   float contrast_output = ((exposure_applied - 0.5f) * CustomPixelConsts_288.y) + 0.5f;
-  if (CUSTOM_GRADING_IMPROVEMENTS == 1.f
+  if (CUSTOM_GAME_GRADING_SATURATION_SPACE != 0.f
       && RENODX_TONE_MAP_TYPE != 0.f
       && (exposure_applied < 0.0f || exposure_applied > 1.0f
           || contrast_output < 0.0f || contrast_output > 1.0f)) {
@@ -27,7 +27,7 @@ float PhotomodeShapeChannel(float color, float noise, float luminance, float lum
       (CustomPixelConsts_224.x * exp2(log2(vanilla_input) * CustomPixelConsts_128.x))
           + CustomPixelConsts_224.y);
   float vanilla_output = exp2(log2(shaped_input) * CustomPixelConsts_224.z);
-  if (CUSTOM_GRADING_IMPROVEMENTS != 1.f || RENODX_TONE_MAP_TYPE == 0.f) {
+  if (CUSTOM_GAME_GRADING_SATURATION_SPACE == 0.f || RENODX_TONE_MAP_TYPE == 0.f) {
     return vanilla_output;
   }
 
@@ -206,7 +206,7 @@ float4 main(
   float _550;
   float _551;
   float _552;
-  if (CUSTOM_GRADING_IMPROVEMENTS == 1.f && RENODX_TONE_MAP_TYPE != 0.f) {
+  if (CUSTOM_GAME_GRADING_SATURATION_SPACE != 0.f && RENODX_TONE_MAP_TYPE != 0.f) {
     _550 = renodx::math::SignPow(_526, 2.200000047683716f);
     _551 = renodx::math::SignPow(_527, 2.200000047683716f);
     _552 = renodx::math::SignPow(_528, 2.200000047683716f);
@@ -227,7 +227,7 @@ float4 main(
   float _621;
   float _622;
   float _623;
-  if (CUSTOM_GRADING_IMPROVEMENTS == 1.f && RENODX_TONE_MAP_TYPE != 0.f) {
+  if (CUSTOM_GAME_GRADING_SATURATION_SPACE != 0.f && RENODX_TONE_MAP_TYPE != 0.f) {
     grade_channel_r = ((_592 * (_550 - _553)) + _553) * lerp(_572, CustomPixelConsts_208.x, _540);
     grade_channel_g = ((_592 * (_551 - _553)) + _553) * lerp(_573, CustomPixelConsts_208.y, _540);
     grade_channel_b = ((_592 * (_552 - _553)) + _553) * lerp(_574, CustomPixelConsts_208.z, _540);
@@ -243,12 +243,13 @@ float4 main(
     _623 = CustomPixelConsts_144.z * exp2(log2(saturate(grade_channel_b)) * 0.4545454680919647f);
   }
   SaturationGrade photo_mode_grade;
-  if (CUSTOM_GRADING_IMPROVEMENTS == 1.f && RENODX_TONE_MAP_TYPE != 0.f) {
-    photo_mode_grade.ungraded = float3(_550, _551, _552);
+  if (CUSTOM_GAME_GRADING_SATURATION_SPACE != 0.f && RENODX_TONE_MAP_TYPE != 0.f) {
+    float3 photo_input = ((float3(_130, _131, _132) * _136 - _133) * CustomPixelConsts_288.z) + _133;
+    photo_mode_grade = ApplySaturationGrade(photo_input + _486);
   } else {
     photo_mode_grade = ApplySaturationGrade(float3(_59, _60, _28.z));
+    photo_mode_grade.graded_gamma = float3(_621, _622, _623);
   }
-  photo_mode_grade.graded_gamma = float3(_621, _622, _623);
   float3 gamma_color = ApplyUserColorGrading(photo_mode_grade);
   float _624 = TEXCOORD_2.x + -0.5f;
   float _625 = TEXCOORD_2.y + -0.5f;

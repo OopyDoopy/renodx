@@ -401,7 +401,13 @@ PSOutput ps_main(PSInput input)
     // absent from the DXIL.
     // -------------------------------------------------------------------------
 
-    const float4 C0  = gCustom[0];
+    float4 C0  = gCustom[0];
+    if (RENODX_TONE_MAP_TYPE == 0.0f)
+    {
+        C0.x = RENODX_DIFFUSE_WHITE_NITS;
+        C0.w = RENODX_PEAK_WHITE_NITS;
+        C0.z = saturate(RENODX_TONE_MAP_SATURATION - 1.0f);
+    }
     const float4 C1  = gCustom[1];
     const float4 C2  = gCustom[2];
     const float4 C3  = gCustom[3];
@@ -708,8 +714,8 @@ PSOutput ps_main(PSInput input)
     }
 
     // -------------------------------------------------------------------------
-    // Non-Vanilla output uses RenoDX game/UI whites and the legacy gamma-space
-    // UI composite. Keep the original constants and encoding for Vanilla.
+    // Non-Vanilla output uses separate game/UI whites and gamma-space UI
+    // composition. Vanilla scales both layers together using game brightness.
     // -------------------------------------------------------------------------
 
     if (RENODX_TONE_MAP_TYPE != 0.0f)

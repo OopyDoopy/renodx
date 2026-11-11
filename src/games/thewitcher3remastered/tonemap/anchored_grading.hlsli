@@ -1,26 +1,6 @@
 #ifndef THEWITCHER3REMASTERED_TONEMAP_ANCHORED_GRADING_HLSLI_
 #define THEWITCHER3REMASTERED_TONEMAP_ANCHORED_GRADING_HLSLI_
 
-float3 ApplyBT709AdaptiveMBPurity(
-    float3 lms_input,
-    float3 adaptive_neutral_lms,
-    float purity_scale) {
-  if (abs(purity_scale - 1.f) <= 1e-5f) return lms_input;
-
-  float3 relative_weighted = renodx::math::DivideSafe(
-      renodx::color::macleod_boynton::WeighLMS(lms_input),
-      adaptive_neutral_lms,
-      0.f.xxx);
-  float3 mb = renodx::color::macleod_boynton::from::WeightedLMS(relative_weighted);
-  float3 neutral_mb = renodx::color::macleod_boynton::from::LMS(1.f.xxx);
-  float2 mb_scaled_xy = lerp(neutral_mb.xy, mb.xy, purity_scale);
-  float3 relative_weighted_out =
-      renodx::color::macleod_boynton::WeightedLMSFromMacleodBoynton(
-          float3(mb_scaled_xy, mb.z));
-  return renodx::color::macleod_boynton::UnweighLMS(
-      relative_weighted_out * max(adaptive_neutral_lms, 1e-6f.xxx));
-}
-
 float3 ComputeCInfinityTransition(float3 position) {
   position = saturate(position);
   return 1.f / (1.f + exp2((1.f - 2.f * position) / (position * (1.f - position))));

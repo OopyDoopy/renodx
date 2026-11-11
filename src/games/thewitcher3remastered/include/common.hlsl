@@ -2,47 +2,6 @@
 
 #include "../tonemap/anchored_grading.hlsli"
 
-float3 ApplyVanillaPlusGrading(float3 color, float anchor) {
-  // `color` and `anchor` are already in the exposure-adjusted linear domain.
-  float3 adaptive_state_lms = renodx::color::lms::from::BT709(anchor.xxx);
-  float3 color_lms = renodx::color::lms::from::BT709(color);
-  float purity_scale = RENODX_TONE_MAP_SATURATION;
-
-  if (RENODX_TONE_MAP_BLOWOUT != 0.f || RENODX_TONE_MAP_HIGHLIGHT_SATURATION != 1.f) {
-    float luminance = renodx::color::yf::from::LMS(color_lms);
-    float neutral_luminance = renodx::color::yf::from::LMS(adaptive_state_lms);
-    float luminance_from_neutral = max(luminance, neutral_luminance) / neutral_luminance;
-    float rolloff_position = saturate(log2(luminance_from_neutral) / (2.75f * log2(10.f)));
-    float rolloff_position_squared = rolloff_position * rolloff_position;
-    float rolloff = rolloff_position_squared * rolloff_position
-        * mad(rolloff_position, mad(6.f, rolloff_position, -15.f), 10.f);
-
-    purity_scale *= mad(-RENODX_TONE_MAP_BLOWOUT, rolloff, 1.f);
-    float highlight_rolloff = rolloff * rolloff * lerp(1.f, rolloff, 0.5f);
-    purity_scale *= mad(
-        RENODX_TONE_MAP_HIGHLIGHT_SATURATION - 1.f,
-        highlight_rolloff * (2.f / 3.f),
-        1.f);
-  }
-
-  color_lms = ApplyBT709AdaptiveMBPurity(
-      color_lms,
-      adaptive_state_lms,
-      purity_scale);
-  color = renodx::color::bt709::from::LMS(color_lms);
-
-  return ApplyAnchoredTonalGrading(
-      color,
-      anchor.xxx,
-      anchor.xxx,
-      RENODX_TONE_MAP_CONTRAST,
-      RENODX_TONE_MAP_FLARE,
-      RENODX_TONE_MAP_HIGHLIGHT_CONTRAST,
-      RENODX_TONE_MAP_SHADOW_CONTRAST,
-      RENODX_TONE_MAP_HIGHLIGHTS,
-      RENODX_TONE_MAP_SHADOWS);
-}
-
 float3 SanitizeGamutInput(float3 color, float3x3 gamut_xyz) {
   const float3 luminance_weights = gamut_xyz[1];
   const float y = dot(color, luminance_weights);
@@ -119,7 +78,7 @@ float3 CustomTonemapWithPeak(float3 color, float tonemap_peak, bool is_hdr) {
   if (RENODX_TONE_MAP_TYPE == 0.f) {
     return saturate(color);
   }
-  if (RENODX_TONE_MAP_TYPE == 1.f) {
+  if (RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_VANILLA_PLUS) {
     tonemap_peak = is_hdr ? tonemap_peak : 1.f;
     return ApplyAnchoredCInfinityShoulder(
         color,
@@ -204,7 +163,7 @@ float4 HandleUICompositing(float4 ui_color_linear, float4 scene_color_linear) {
 }
 
 float CustomGammaEncode(float color) {
-  if (CUSTOM_GRADING_IMPROVEMENTS == 1.f && RENODX_TONE_MAP_TYPE != 0.f) {
+  if (CUSTOM_GAME_GRADING_SATURATION_SPACE != 0.f && RENODX_TONE_MAP_TYPE != 0.f) {
      return renodx::color::gamma::EncodeSafe(color);
   }
   color = max(0, color);

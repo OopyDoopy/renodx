@@ -1,6 +1,10 @@
 #ifndef SRC_THEWITCHER3_SHARED_H_
 #define SRC_THEWITCHER3_SHARED_H_
 
+#define TONE_MAP_TYPE_GAME_VANILLA 0.f
+#define TONE_MAP_TYPE_VANILLA_PLUS 1.f
+#define TONE_MAP_TYPE_PRISM 2.f
+
 #define RENODX_TONE_MAP_TYPE                   shader_injection.tone_map_type
 #define RENODX_PEAK_WHITE_NITS                 shader_injection.peak_white_nits
 #define RENODX_DIFFUSE_WHITE_NITS              shader_injection.diffuse_white_nits
@@ -34,7 +38,6 @@
 #define CUSTOM_LUT_STRENGTH                    shader_injection.custom_lut_strength
 #define CUSTOM_LUT_SCALING                     shader_injection.custom_lut_scaling
 #define CUSTOM_COLOR_GRADING                   shader_injection.custom_color_grading
-#define CUSTOM_GRADING_IMPROVEMENTS             shader_injection.custom_grading_improvements
 //#define CUSTOM_POST_MAXCLL                     shader_injection.custom_post_maxcll
 #define CUSTOM_LENS_DIRT                       shader_injection.custom_lens_dirt
 #define CUSTOM_SUNSHAFTS_STRENGTH              shader_injection.custom_sunshafts_strength
@@ -67,6 +70,7 @@
 #define CUSTOM_GAME_GRADING_SATURATION_LOWER    shader_injection.custom_game_grading_saturation_lower
 #define CUSTOM_GAME_GRADING_SATURATION_UPPER    shader_injection.custom_game_grading_saturation_upper
 #define CUSTOM_GAME_GRADING_SATURATION_SPACE    shader_injection.custom_game_grading_saturation_space
+#define CUSTOM_GAME_GRADING_SHADOW_PROTECTION   shader_injection.custom_game_grading_shadow_protection
 // #define CUSTOM_BLOOM_ROLLOFF_START                 shader_injection.custom_bloom_rolloff_start
 // #define CUSTOM_SUNSHAFT_ROLLOFF_START             shader_injection.custom_sunshaft_rolloff_start
 // #define CUSTOM_BLOOM_THRESHOLD                 shader_injection.custom_bloom_threshold
@@ -101,7 +105,7 @@ struct ShaderInjectData {
   float custom_lut_strength;
   float custom_lut_scaling;
   float custom_color_grading;
-  float custom_grading_improvements;
+  float unused_grading_improvements;
   //float custom_post_maxcll;
   float custom_lens_dirt;
   float custom_sunshafts_strength;
@@ -148,6 +152,7 @@ struct ShaderInjectData {
   float custom_game_grading_saturation_lower;
   float custom_game_grading_saturation_upper;
   float custom_game_grading_saturation_space;
+  float custom_game_grading_shadow_protection;
 };
 
 #ifndef __cplusplus

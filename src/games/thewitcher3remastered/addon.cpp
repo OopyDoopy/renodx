@@ -26,9 +26,10 @@
 #include "../../utils/platform.hpp"
 #include "../../utils/settings.hpp"
 #include "../../utils/swapchain.hpp"
-#include "./shared.h"
 #include "./prism/prism.hpp"
 #include "./prism/prism_ui.hpp"
+#include "./shared.h"
+
 
 namespace {
 
@@ -44,7 +45,7 @@ bool bloom_was_first_this_frame = false;
 bool bloom_tonemap_order_detected = false;
 
 void OnFinalHDRDrawn([[maybe_unused]] reshade::api::command_list* cmd_list) {
-    shader_injection.last_is_hdr = true;
+  shader_injection.last_is_hdr = true;
   final_hdr_drawn_this_frame = true;
 }
 
@@ -76,6 +77,10 @@ const std::string build_time = __TIME__;
 
 float current_settings_mode = 0;
 float developer_mode_enabled = 0.f;
+constexpr float SIMPLE_MENU = 0.f;
+constexpr float TONEMAP_GRADING_MENU = 1.f;
+constexpr float POST_PROCESSING_MENU = 2.f;
+constexpr float DEVELOPER_MENU = 3.f;
 
 renodx::utils::settings::Setting* peak_white_nits_setting = nullptr;
 renodx::utils::settings::Setting* diffuse_white_nits_setting = nullptr;
@@ -96,196 +101,238 @@ float prism_blue_hue = 0.f;
 float prism_use_recommended_matrix = 1.f;
 
 constexpr std::array<std::array<float, 4>, 3> RECOMMENDED_PRISM_MATRIX = {{
-        {{0.621425450f, 0.358117968f, 0.020456584f, 0.f}},
-        {{0.108147234f, 0.833376706f, 0.058476083f, 0.f}},
-        {{0.035512406f, 0.113029048f, 0.851458549f, 0.f}},
+    {{0.621425450f, 0.358117968f, 0.020456584f, 0.f}},
+    {{0.108147234f, 0.833376706f, 0.058476083f, 0.f}},
+    {{0.035512406f, 0.113029048f, 0.851458549f, 0.f}},
 }};
 
 bool IsPrismDeveloperMenuVisible() {
-    return developer_mode_enabled != 0.f
-            && current_settings_mode >= 2.f
-            && RENODX_TONE_MAP_TYPE == 2.f;
+  return developer_mode_enabled != 0.f
+         && current_settings_mode == DEVELOPER_MENU
+         && RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_PRISM;
 }
 
 bool IsPrismPrimaryControlsEnabled() {
-    return IsPrismDeveloperMenuVisible()
-            && prism_use_recommended_matrix == 0.f;
+  return IsPrismDeveloperMenuVisible()
+         && prism_use_recommended_matrix == 0.f;
 }
 
 int GetPrismPrimaryMode() {
-    return std::clamp(static_cast<int>(prism_primary_mode), 0, 5);
+  return std::clamp(static_cast<int>(prism_primary_mode), 0, 5);
 }
 
 bool IsPrismCustomMode() {
-    return GetPrismPrimaryMode() == 5;
+  return GetPrismPrimaryMode() == 5;
 }
 
 renodx::utils::prism::Gamut GetPrismGamut() {
-    switch (GetPrismPrimaryMode()) {
-        case 0: return renodx::utils::prism::Gamut::BT709;
-        case 1: return renodx::utils::prism::Gamut::DCI_P3;
-        case 2: return renodx::utils::prism::Gamut::BT2020;
-        case 3: return renodx::utils::prism::Gamut::AP1;
-        case 4: return renodx::utils::prism::Gamut::LMS_BT709_WHITE;
-        case 5: return renodx::utils::prism::Gamut::BT2020;
-        default: return renodx::utils::prism::Gamut::AP1;
-    }
+  switch (GetPrismPrimaryMode()) {
+    case 0:  return renodx::utils::prism::Gamut::BT709;
+    case 1:  return renodx::utils::prism::Gamut::DCI_P3;
+    case 2:  return renodx::utils::prism::Gamut::BT2020;
+    case 3:  return renodx::utils::prism::Gamut::AP1;
+    case 4:  return renodx::utils::prism::Gamut::LMS_BT709_WHITE;
+    case 5:  return renodx::utils::prism::Gamut::BT2020;
+    default: return renodx::utils::prism::Gamut::AP1;
+  }
 }
 
 std::string FormatPrismMatrix() {
-    std::ostringstream message;
-    message << std::fixed << std::setprecision(9);
-    const auto& matrix = prism_use_recommended_matrix != 0.f
-            ? RECOMMENDED_PRISM_MATRIX
-            : prism_resolved.inset_rows;
-    for (const auto& row : matrix) {
-        message << "  [" << row[0] << ", " << row[1] << ", " << row[2] << "]\n";
-    }
-    return message.str();
+  std::ostringstream message;
+  message << std::fixed << std::setprecision(9);
+  const auto& matrix = prism_use_recommended_matrix != 0.f
+                           ? RECOMMENDED_PRISM_MATRIX
+                           : prism_resolved.inset_rows;
+  for (const auto& row : matrix) {
+    message << "  [" << row[0] << ", " << row[1] << ", " << row[2] << "]\n";
+  }
+  return message.str();
 }
 
 void ResolvePrismInjection() {
-    auto config = renodx::utils::prism::AuthoringConfig{};
-    const auto gamut = GetPrismGamut();
-    config.gamut = gamut;
-    if (IsPrismCustomMode()) {
-        config.gamut = renodx::utils::prism::Gamut::BT2020;
-        config.allow_primary_extrapolation = true;
-        config.temperature_kelvin = prism_temperature;
-        config.tint_duv = prism_tint;
-        config.strength = prism_strength;
-        config.global_reach = prism_global_reach;
-        config.global_hue_degrees = prism_global_hue;
-        config.red_reach = prism_red_reach;
-        config.red_hue_degrees = prism_red_hue;
-        config.green_reach = prism_green_reach;
-        config.green_hue_degrees = prism_green_hue;
-        config.blue_reach = prism_blue_reach;
-        config.blue_hue_degrees = prism_blue_hue;
-    } else {
-        auto white = renodx::utils::prism::WhitePreset::D65;
-        if (gamut == renodx::utils::prism::Gamut::AP1) {
-            white = renodx::utils::prism::WhitePreset::D60;
-        } else if (gamut == renodx::utils::prism::Gamut::DCI_P3) {
-            white = renodx::utils::prism::WhitePreset::DCI;
-        }
-        const auto white_temperature_tint = renodx::utils::prism::TemperatureTintFromXY(
-                static_cast<float>(white[0]),
-                static_cast<float>(white[1]));
-        config.temperature_kelvin = white_temperature_tint.kelvin;
-        config.tint_duv = white_temperature_tint.tint_duv;
+  auto config = renodx::utils::prism::AuthoringConfig{};
+  const auto gamut = GetPrismGamut();
+  config.gamut = gamut;
+  if (IsPrismCustomMode()) {
+    config.gamut = renodx::utils::prism::Gamut::BT2020;
+    config.allow_primary_extrapolation = true;
+    config.temperature_kelvin = prism_temperature;
+    config.tint_duv = prism_tint;
+    config.strength = prism_strength;
+    config.global_reach = prism_global_reach;
+    config.global_hue_degrees = prism_global_hue;
+    config.red_reach = prism_red_reach;
+    config.red_hue_degrees = prism_red_hue;
+    config.green_reach = prism_green_reach;
+    config.green_hue_degrees = prism_green_hue;
+    config.blue_reach = prism_blue_reach;
+    config.blue_hue_degrees = prism_blue_hue;
+  } else {
+    auto white = renodx::utils::prism::WhitePreset::D65;
+    if (gamut == renodx::utils::prism::Gamut::AP1) {
+      white = renodx::utils::prism::WhitePreset::D60;
+    } else if (gamut == renodx::utils::prism::Gamut::DCI_P3) {
+      white = renodx::utils::prism::WhitePreset::DCI;
     }
+    const auto white_temperature_tint = renodx::utils::prism::TemperatureTintFromXY(
+        static_cast<float>(white[0]),
+        static_cast<float>(white[1]));
+    config.temperature_kelvin = white_temperature_tint.kelvin;
+    config.tint_duv = white_temperature_tint.tint_duv;
+  }
 
-    prism_resolved = renodx::utils::prism::Resolve(config);
-    const auto& matrix = prism_use_recommended_matrix != 0.f
-            ? RECOMMENDED_PRISM_MATRIX
-            : prism_resolved.inset_rows;
-    shader_injection.prism_inset_00 = matrix[0][0];
-    shader_injection.prism_inset_01 = matrix[0][1];
-    shader_injection.prism_inset_02 = matrix[0][2];
-    shader_injection.prism_inset_10 = matrix[1][0];
-    shader_injection.prism_inset_11 = matrix[1][1];
-    shader_injection.prism_inset_12 = matrix[1][2];
-    shader_injection.prism_inset_20 = matrix[2][0];
-    shader_injection.prism_inset_21 = matrix[2][1];
-    shader_injection.prism_inset_22 = matrix[2][2];
-    if (prism_use_recommended_matrix != 0.f) {
-        using renodx::utils::prism::detail::Mat3;
-        const Mat3 inset = {{
-                {matrix[0][0], matrix[0][1], matrix[0][2]},
-                {matrix[1][0], matrix[1][1], matrix[1][2]},
-                {matrix[2][0], matrix[2][1], matrix[2][2]},
-        }};
-        const auto outset = renodx::utils::prism::detail::Inverse(inset);
-        const auto bt709_to_lms = renodx::utils::prism::detail::Mul(
-                renodx::utils::prism::detail::kXYZToStockmanSharpLMS,
-                renodx::utils::prism::detail::kBT709ToXYZ);
-        const auto bt709_to_xfyfzf = renodx::utils::prism::detail::Mul(
-                renodx::utils::prism::detail::kStockmanSharpLMSToXfYfZf,
-                bt709_to_lms);
-        const auto yf_bt709 = renodx::utils::prism::detail::Row(bt709_to_xfyfzf, 1);
-        const float yf_weight_0 = static_cast<float>(
-                (yf_bt709.x * outset.m[0][0])
-                + (yf_bt709.y * outset.m[1][0])
-                + (yf_bt709.z * outset.m[2][0]));
-        const float yf_weight_1 = static_cast<float>(
-                (yf_bt709.x * outset.m[0][1])
-                + (yf_bt709.y * outset.m[1][1])
-                + (yf_bt709.z * outset.m[2][1]));
-        const float yf_weight_2 = static_cast<float>(
-                (yf_bt709.x * outset.m[0][2])
-                + (yf_bt709.y * outset.m[1][2])
-                + (yf_bt709.z * outset.m[2][2]));
-        const float neutral_yf = yf_weight_0 + yf_weight_1 + yf_weight_2;
-        shader_injection.prism_yf_weight_0 = yf_weight_0;
-        shader_injection.prism_yf_weight_1 = yf_weight_1;
-        shader_injection.prism_yf_weight_2 = yf_weight_2;
-        shader_injection.prism_yf_neutral_axis_0 = 1.f;
-        shader_injection.prism_yf_neutral_axis_1 = 1.f;
-        shader_injection.prism_yf_neutral_axis_2 = 1.f;
-        shader_injection.prism_yf_neutral_reciprocal =
-                std::abs(neutral_yf) > 1e-12f ? 1.f / neutral_yf : 1.f;
-    } else {
-        shader_injection.prism_yf_weight_0 = prism_resolved.yf_weights[0];
-        shader_injection.prism_yf_weight_1 = prism_resolved.yf_weights[1];
-        shader_injection.prism_yf_weight_2 = prism_resolved.yf_weights[2];
-        shader_injection.prism_yf_neutral_axis_0 = prism_resolved.yf_neutral_axis[0];
-        shader_injection.prism_yf_neutral_axis_1 = prism_resolved.yf_neutral_axis[1];
-        shader_injection.prism_yf_neutral_axis_2 = prism_resolved.yf_neutral_axis[2];
-        shader_injection.prism_yf_neutral_reciprocal = prism_resolved.yf_weights[3];
-    }
+  prism_resolved = renodx::utils::prism::Resolve(config);
+  const auto& matrix = prism_use_recommended_matrix != 0.f
+                           ? RECOMMENDED_PRISM_MATRIX
+                           : prism_resolved.inset_rows;
+  shader_injection.prism_inset_00 = matrix[0][0];
+  shader_injection.prism_inset_01 = matrix[0][1];
+  shader_injection.prism_inset_02 = matrix[0][2];
+  shader_injection.prism_inset_10 = matrix[1][0];
+  shader_injection.prism_inset_11 = matrix[1][1];
+  shader_injection.prism_inset_12 = matrix[1][2];
+  shader_injection.prism_inset_20 = matrix[2][0];
+  shader_injection.prism_inset_21 = matrix[2][1];
+  shader_injection.prism_inset_22 = matrix[2][2];
+  if (prism_use_recommended_matrix != 0.f) {
+    using renodx::utils::prism::detail::Mat3;
+    const Mat3 inset = {{
+        {matrix[0][0], matrix[0][1], matrix[0][2]},
+        {matrix[1][0], matrix[1][1], matrix[1][2]},
+        {matrix[2][0], matrix[2][1], matrix[2][2]},
+    }};
+    const auto outset = renodx::utils::prism::detail::Inverse(inset);
+    const auto bt709_to_lms = renodx::utils::prism::detail::Mul(
+        renodx::utils::prism::detail::kXYZToStockmanSharpLMS,
+        renodx::utils::prism::detail::kBT709ToXYZ);
+    const auto bt709_to_xfyfzf = renodx::utils::prism::detail::Mul(
+        renodx::utils::prism::detail::kStockmanSharpLMSToXfYfZf,
+        bt709_to_lms);
+    const auto yf_bt709 = renodx::utils::prism::detail::Row(bt709_to_xfyfzf, 1);
+    const float yf_weight_0 = static_cast<float>(
+        (yf_bt709.x * outset.m[0][0])
+        + (yf_bt709.y * outset.m[1][0])
+        + (yf_bt709.z * outset.m[2][0]));
+    const float yf_weight_1 = static_cast<float>(
+        (yf_bt709.x * outset.m[0][1])
+        + (yf_bt709.y * outset.m[1][1])
+        + (yf_bt709.z * outset.m[2][1]));
+    const float yf_weight_2 = static_cast<float>(
+        (yf_bt709.x * outset.m[0][2])
+        + (yf_bt709.y * outset.m[1][2])
+        + (yf_bt709.z * outset.m[2][2]));
+    const float neutral_yf = yf_weight_0 + yf_weight_1 + yf_weight_2;
+    shader_injection.prism_yf_weight_0 = yf_weight_0;
+    shader_injection.prism_yf_weight_1 = yf_weight_1;
+    shader_injection.prism_yf_weight_2 = yf_weight_2;
+    shader_injection.prism_yf_neutral_axis_0 = 1.f;
+    shader_injection.prism_yf_neutral_axis_1 = 1.f;
+    shader_injection.prism_yf_neutral_axis_2 = 1.f;
+    shader_injection.prism_yf_neutral_reciprocal =
+        std::abs(neutral_yf) > 1e-12f ? 1.f / neutral_yf : 1.f;
+  } else {
+    shader_injection.prism_yf_weight_0 = prism_resolved.yf_weights[0];
+    shader_injection.prism_yf_weight_1 = prism_resolved.yf_weights[1];
+    shader_injection.prism_yf_weight_2 = prism_resolved.yf_weights[2];
+    shader_injection.prism_yf_neutral_axis_0 = prism_resolved.yf_neutral_axis[0];
+    shader_injection.prism_yf_neutral_axis_1 = prism_resolved.yf_neutral_axis[1];
+    shader_injection.prism_yf_neutral_axis_2 = prism_resolved.yf_neutral_axis[2];
+    shader_injection.prism_yf_neutral_reciprocal = prism_resolved.yf_weights[3];
+  }
 }
 
 void OnPrismSettingChange(float previous_value, float current_value) {
-    (void)previous_value;
-    (void)current_value;
-    ResolvePrismInjection();
+  (void)previous_value;
+  (void)current_value;
+  ResolvePrismInjection();
 }
 
 renodx::utils::settings::Settings settings = {
-        new renodx::utils::settings::Setting{
-                .key = "TheWitcher3RemasteredDeveloperMode",
-                .binding = &developer_mode_enabled,
-                .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
-                .default_value = 0.f,
-                .can_reset = false,
-                .label = "Developer Mode",
-                .is_global = true,
-                .is_visible = []() { return false; },
-        },
-        new renodx::utils::settings::Setting{
-                .key = "SettingsMode",
-                .binding = &current_settings_mode,
-                .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-                .default_value = 0.f,
-                .can_reset = false,
-                .label = "Settings Mode",
-                .labels = {"Simple", "Advanced", "Developer"},
-                .is_global = true,
-        },
-        new renodx::utils::settings::Setting{
-                .value_type = renodx::utils::settings::SettingValueType::TEXT,
-                .label = "Theses options are purely to adjust to taste.",
-                .section = "NOTICE",
-                .group = "button-line-2",
-                .tint = 0xFF0000,
-                .is_visible = []() { return current_settings_mode >= 1.f; }},
-        new renodx::utils::settings::Setting{
-                .key = "ToneMapType",
-                .binding = &shader_injection.tone_map_type,
-                .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-                .default_value = 2.f,
-                .can_reset = true,
-                .label = "Tone Mapper",
-                .section = "Tone Mapping",
-                .tooltip = "Vanilla (AgX): Vanilla SDR/HDR output. HDR has an inverse tone mapping option so you can see the native HDR or original SDR output.\n"
-                "Vanilla+ (AgX Extended): Extends the original AgX curve and reworks the grading chain to be HDR friendly, before getting mapped to the display for either SDR or HDR modes.\n"
-                "RenoDX (Prism): Uses our custom tone mapping solution with a custom working space. Uses the Vanilla+ curve.",
-                .labels = {"Vanilla (AgX)", "Vanilla+ (AgX Extended)", "RenoDX (Prism)"},
-                .parse = [](float value) { return value; },
-                .on_change_value = &OnPrismSettingChange,
-                .is_visible = []() { return current_settings_mode >= 0.f; },
-        },
+    new renodx::utils::settings::Setting{
+        .key = "TheWitcher3RemasteredDeveloperMode",
+        .binding = &developer_mode_enabled,
+        .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+        .default_value = 0.f,
+        .can_reset = false,
+        .label = "Developer Mode",
+        .is_global = true,
+        .is_visible = []() { return false; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "SettingsMode",
+        .binding = &current_settings_mode,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .can_reset = false,
+        .label = "Settings Mode",
+        .labels = {"Simple", "Tone Mapping & Color Grading", "Post Processing", "Developer"},
+        .is_global = true,
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Recommended",
+        .section = "Presets",
+        .group = "button-line-1",
+        .tooltip = "Good vanilla friendly defaults with recommended upgrades",
+        .on_change = []() {
+                                    for (auto* setting : settings) {
+                                        if (setting->key.empty() || !setting->can_reset || setting->is_global) continue;
+                                        renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+                                    } },
+        .is_visible = []() { return current_settings_mode == SIMPLE_MENU; },
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Natural",
+        .section = "Presets",
+        .group = "button-line-1",
+        .tooltip = "Similar to recommended, but with the black levels and grading adjusted to be more natural",
+        .on_change = []() {
+                                    for (auto* setting : settings) {
+                                        if (setting->key.empty() || !setting->can_reset || setting->is_global) continue;
+                                        renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+                                    }
+                                    renodx::utils::settings::UpdateSetting("PrismBlackFloor", 0.f);
+                                    renodx::utils::settings::UpdateSetting("GameGradingShadowProtection", 100.f); },
+        .is_visible = []() { return current_settings_mode == SIMPLE_MENU; },
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Vanilla Purist",
+        .section = "Presets",
+        .group = "button-line-1",
+        .tooltip = "Uses the SDR tonemapper, unclamped, with inverse tonemapping removed",
+        .on_change = []() {
+                                    for (auto* setting : settings) {
+                                        if (setting->key.empty() || !setting->can_reset || setting->is_global) continue;
+                                        renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+                                    }
+                                    renodx::utils::settings::UpdateSetting("ToneMapType", TONE_MAP_TYPE_GAME_VANILLA);
+                                    renodx::utils::settings::UpdateSetting("ToneMapInverseToneMap", 0.f); },
+        .is_visible = []() { return current_settings_mode == SIMPLE_MENU && shader_injection.last_is_hdr; },
+    },
+    new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::TEXT,
+        .label = "Theses options are purely to adjust to taste.",
+        .section = "NOTICE",
+        .group = "button-line-2",
+        .tint = 0xFF0000,
+        .is_visible = []() { return current_settings_mode >= 1.f; }},
+    new renodx::utils::settings::Setting{
+        .key = "ToneMapType",
+        .binding = &shader_injection.tone_map_type,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = TONE_MAP_TYPE_VANILLA_PLUS,
+        .can_reset = true,
+        .label = "Tone Mapper",
+        .section = "Tone Mapping",
+        .tooltip = "Vanilla (AgX): Vanilla SDR/HDR output. HDR has an inverse tone mapping option so you can see the native HDR or original SDR output.\n"
+                   "Vanilla+ (Custom): Extends the original AgX curve and reworks the grading chain to be HDR friendly. Works in a custom wide BT.709 shaped color space, resulting in better gradients and colors more faithful to classic/next gen.",
+        .labels = {"Vanilla (AgX)", "Vanilla+ (Custom)", "RenoDX (Prism)"},
+        .parse = [](float value) { return value; },
+        .on_change_value = &OnPrismSettingChange,
+        .is_visible = []() { return current_settings_mode >= 0.f; },
+    },
     peak_white_nits_setting = new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",
         .binding = &shader_injection.peak_white_nits,
@@ -296,7 +343,7 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Sets the value of peak white in nits.",
         .min = 80.f,
         .max = 10000.f,
-        .is_enabled = []() { return shader_injection.last_is_hdr && shader_injection.tone_map_type != 0.f; },
+        .is_enabled = []() { return shader_injection.last_is_hdr; },
         .is_visible = []() { return current_settings_mode >= 0 && shader_injection.last_is_hdr; },
         .is_logarithmic = true,
     },
@@ -307,10 +354,10 @@ renodx::utils::settings::Settings settings = {
         .can_reset = true,
         .label = "Game Brightness",
         .section = "Tone Mapping",
-        .tooltip = "Sets the value of 100% white in nits.",
+        .tooltip = "Sets the value of 100% white in nits. In Vanilla HDR, this also controls UI brightness.",
         .min = 80.f,
         .max = 500.f,
-        .is_enabled = []() { return shader_injection.last_is_hdr && shader_injection.tone_map_type != 0.f; },
+        .is_enabled = []() { return shader_injection.last_is_hdr; },
         .is_visible = []() { return shader_injection.last_is_hdr; },
         .is_logarithmic = true,
     },
@@ -342,7 +389,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "ToneMapAgxVanillaBend",
         .binding = &shader_injection.agx_vanilla_bend,
-        .default_value = 20.f,
+        .default_value = 30.f,
         .label = "Shoulder Blend",
         .section = "Tone Mapping",
         .tooltip = "Blends the extended shoulder strength toward the vanilla tonemapper.",
@@ -359,7 +406,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Tone Mapping",
         .tooltip = "Blends from a mid-gray exposure-matched state to the full extended AgX curve.",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 2.f; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_PRISM || RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_VANILLA_PLUS; },
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 2.f; },
     },
@@ -371,7 +418,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Tone Mapping",
         .tooltip = "Blends chrominance back to the pre-tonemapped color.",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 2.f; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_PRISM; },
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 2.f; },
     },
@@ -419,13 +466,17 @@ renodx::utils::settings::Settings settings = {
         .key = "GameGradingSaturationSpace",
         .binding = &shader_injection.custom_game_grading_saturation_space,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 2.f,
-        .label = "Native Saturation Space",
-        .section = "Developer",
-        .tooltip = "Selects the chroma space used for native saturation controls on upgraded grading paths.",
-        .labels = {"BT.709 Y", "OKLab", "MacLeod-Boynton"},
-        .is_enabled = []() { return IsPrismDeveloperMenuVisible(); },
-        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
+        .default_value = 1.f,
+        .label = "Grading Type",
+        .section = "Scene Grading",
+        .tooltip = "Vanilla: Uses the original grading chain.\n"
+                   "Vanilla+ (MacLeod-Boynton): Unclips the vanilla grading math and adapts the saturation adjustment to use a gamut boundary aware MacLeod-Boynton color space. Less saturated in practice, but far more natural without ugly gamut clipping.\n"
+                   "OKLab: Uses the OKLab perceptual color space to rework their grading pipeline.\n"
+                   "ICtCp: Uses the ICtCp perceptual color space to rework their grading pipeline.",
+        .labels = {"Vanilla", "Vanilla+ (MacLeod-Boynton)", "OKLab", "ICtCp"},
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0.f; },
+        .parse = [](float value) { return value; },
+        .is_visible = []() { return developer_mode_enabled != 0.f && current_settings_mode == DEVELOPER_MENU && RENODX_TONE_MAP_TYPE != 0.f; },
     },
     new renodx::utils::settings::Setting{
         .key = "HideUI",
@@ -435,7 +486,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Hide UI",
         .section = "Developer",
         .tooltip = "Hides the UI layer blended by the final output shaders.",
-        .is_visible = []() { return developer_mode_enabled != 0.f && current_settings_mode >= 2.f; },
+        .is_visible = []() { return developer_mode_enabled != 0.f && current_settings_mode == DEVELOPER_MENU; },
     },
     //   new renodx::utils::settings::Setting{
     //     .key = "CustomGammaType",
@@ -629,6 +680,18 @@ renodx::utils::settings::Settings settings = {
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
+        .key = "GameGradingShadowProtection",
+        .binding = &shader_injection.custom_game_grading_shadow_protection,
+        .default_value = 0.f,
+        .label = "Color Grading Shadow Protection",
+        .section = "Scene Grading",
+        .tooltip = "Adjusts the grading to prevent overdarkening of shadows",
+        .max = 100.f,
+        .is_enabled = []() { return CUSTOM_GAME_GRADING_SATURATION_SPACE != 0.f && RENODX_TONE_MAP_TYPE != 0.f && CUSTOM_GAME_GRADING_SHAPING > 0.f; },
+        .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return current_settings_mode == TONEMAP_GRADING_MENU; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "ColorGradeNativeUpperSaturation",
         .binding = &shader_injection.custom_game_grading_saturation_upper,
         .default_value = 100.f,
@@ -650,18 +713,6 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .parse = [](float value) { return value * 0.01f; },
-        .is_visible = []() { return current_settings_mode >= 1.f; },
-    },
-    new renodx::utils::settings::Setting{
-        .key = "GradingImprovements",
-        .binding = &shader_injection.custom_grading_improvements,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 1.f,
-        .label = "Grading Improvements",
-        .section = "Scene Grading",
-        .tooltip = "Upgrades the game's color grading to prevent hue clipping.",
-        .labels = {"Vanilla", "Upgraded"},
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
@@ -750,8 +801,9 @@ renodx::utils::settings::Settings settings = {
         .default_value = 50.f,
         .label = "Saturation",
         .section = "Color Grading",
+        .tooltip = "50 is neutral. Vanilla HDR uses the game's 0–1 adjustment, so values below 50 are neutral.",
         .max = 100.f,
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0 || shader_injection.last_is_hdr; },
         .parse = [](float value) { return value * 0.02f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
@@ -905,7 +957,7 @@ renodx::utils::settings::Settings settings = {
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
         .default_value = 1.f,
         .label = "Sharpening Type",
-        .section = "RenoFX",
+        .section = "Effects",
         .tooltip = "Select sharpening method for SDR and HDR output. NIS only available with DLSS.",
         .labels = {"NIS", "Lilium's RCAS"},
     },
@@ -914,7 +966,7 @@ renodx::utils::settings::Settings settings = {
         .binding = &shader_injection.custom_sharpness,
         .default_value = 0.f,
         .label = "Sharpness",
-        .section = "RenoFX",
+        .section = "Effects",
         .tooltip = "Controls Sharpness",
         .max = 100.f,
         .parse = [](float value) { 
@@ -928,7 +980,7 @@ renodx::utils::settings::Settings settings = {
         .binding = &shader_injection.custom_film_grain,
         .default_value = 0.f,
         .label = "Film Grain",
-        .section = "RenoFX",
+        .section = "Effects",
         .tooltip = "Controls new perceptual film grain. Reduces banding.",
         .max = 100.f,
         .parse = [](float value) { return value * 0.01f; },
@@ -1134,11 +1186,8 @@ renodx::utils::settings::Settings settings = {
               matrix_text.size() + 1,
               matrix_size,
               ImGuiInputTextFlags_ReadOnly);
-          return false;
-        },
-        .is_visible = []() {
-                    return IsPrismDeveloperMenuVisible();
-        },
+          return false; },
+        .is_visible = []() { return IsPrismDeveloperMenuVisible(); },
     },
     // new renodx::utils::settings::Setting{
     //     .key = "UtilHUD",
@@ -1230,21 +1279,69 @@ renodx::utils::settings::Settings settings = {
     },
 };
 
+void ConfigureMenuGroups() {
+  for (auto* setting : settings) {
+    const auto& key = setting->key;
+    if (setting->section == "Tone Mapping") {
+      if (key == "ToneMapAgxCurveStrength" || key == "ToneMapAgxSaturation") {
+        setting->is_visible = []() { return IsPrismDeveloperMenuVisible(); };
+      } else if (key == "ToneMapPeakNits" || key == "ToneMapGameNits" || key == "ToneMapUINits") {
+        setting->is_visible = []() {
+          return shader_injection.last_is_hdr
+                 && (current_settings_mode == SIMPLE_MENU || current_settings_mode == TONEMAP_GRADING_MENU);
+        };
+      } else if (key == "SDROutputEncoding") {
+        setting->is_visible = []() {
+          return !shader_injection.last_is_hdr
+                 && (current_settings_mode == SIMPLE_MENU || current_settings_mode == TONEMAP_GRADING_MENU);
+        };
+      } else if (key == "PrismBlackFloor") {
+        setting->is_visible = []() {
+          return current_settings_mode == TONEMAP_GRADING_MENU;
+        };
+      } else if (key == "ToneMapInverseToneMap") {
+        setting->is_visible = []() { return current_settings_mode == TONEMAP_GRADING_MENU && shader_injection.last_is_hdr; };
+      } else {
+        setting->is_visible = []() { return current_settings_mode == TONEMAP_GRADING_MENU; };
+      }
+    } else if (setting->section == "Scene Grading" || setting->section == "Color Grading") {
+      setting->is_visible = []() { return current_settings_mode == TONEMAP_GRADING_MENU; };
+    } else if (setting->section == "Effects") {
+      if (key == "FxSharpeningType" || key == "FxVignetteBlackLevel" || key == "VideoPlayback") {
+        setting->is_visible = []() { return current_settings_mode == POST_PROCESSING_MENU; };
+      } else {
+        setting->is_visible = []() {
+          return current_settings_mode == SIMPLE_MENU || current_settings_mode == POST_PROCESSING_MENU;
+        };
+      }
+    } else if (setting->section == "NOTICE") {
+      setting->is_visible = []() {
+        return current_settings_mode == TONEMAP_GRADING_MENU || current_settings_mode == POST_PROCESSING_MENU;
+      };
+    }
+  }
+}
+
 void OnPresetOff() {
-  renodx::utils::settings::UpdateSetting("ToneMapType", 0.f);
-    renodx::utils::settings::UpdateSetting("HideUI", 0.f);
-  renodx::utils::settings::UpdateSetting("ToneMapPeakNits", 1000.f);
-  renodx::utils::settings::UpdateSetting("ToneMapGameNits", 203.f);
-  renodx::utils::settings::UpdateSetting("ToneMapUINits", 203.f);
+  // Display calibration has no fixed vanilla value; retain the user's settings.
+  for (auto* setting : settings) {
+    if (setting->key.empty() || !setting->can_reset || setting->is_global) continue;
+    if (setting->key == "ToneMapPeakNits" || setting->key == "ToneMapGameNits" || setting->key == "ToneMapUINits") continue;
+    renodx::utils::settings::UpdateSetting(setting->key, setting->default_value);
+  }
+  renodx::utils::settings::UpdateSetting("ToneMapType", TONE_MAP_TYPE_GAME_VANILLA);
+  renodx::utils::settings::UpdateSetting("HideUI", 0.f);
+  renodx::utils::settings::UpdateSetting("PrismBlackFloor", 100.f);
+  renodx::utils::settings::UpdateSetting("GameGradingShadowProtection", 0.f);
+  renodx::utils::settings::UpdateSetting("DebugAgxCurveCanvas", 0.f);
   renodx::utils::settings::UpdateSetting("SDROutputEncoding", 1.f);
   renodx::utils::settings::UpdateSetting("ToneMapAgxVanillaBend", 0.f);
   renodx::utils::settings::UpdateSetting("VideoPlayback", 0.f);
   renodx::utils::settings::UpdateSetting("ToneMapInverseToneMap", 1.f);
 
-  renodx::utils::settings::UpdateSetting("SceneGradeHueCorrection", 0.f);
   renodx::utils::settings::UpdateSetting("LutGradeStrength", 100.f);
   renodx::utils::settings::UpdateSetting("LutScaling", 0.f);
-  renodx::utils::settings::UpdateSetting("GradingImprovements", 0.f);
+  renodx::utils::settings::UpdateSetting("GameGradingSaturationSpace", 0.f);
 
   renodx::utils::settings::UpdateSetting("ColorGradeExposure", 1.f);
   renodx::utils::settings::UpdateSetting("ColorGradeHighlights", 50.f);
@@ -1252,17 +1349,15 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("ColorGradeContrast", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeHighlightContrast", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeShadowContrast", 50.f);
-    renodx::utils::settings::UpdateSetting("ColorGradeShaping", 100.f);
-    renodx::utils::settings::UpdateSetting("ColorGradeNativeLowerSaturation", 100.f);
-    renodx::utils::settings::UpdateSetting("ColorGradeNativeUpperSaturation", 100.f);
+  renodx::utils::settings::UpdateSetting("ColorGradeShaping", 100.f);
+  renodx::utils::settings::UpdateSetting("ColorGradeNativeLowerSaturation", 100.f);
+  renodx::utils::settings::UpdateSetting("ColorGradeNativeUpperSaturation", 100.f);
   renodx::utils::settings::UpdateSetting("ColorGradeSaturation", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeHighlightSaturation", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeBlowout", 0.f);
   renodx::utils::settings::UpdateSetting("ColorGradeFlare", 0.f);
 
-  renodx::utils::settings::UpdateSetting("SwapChainCustomColorSpace", 0.f);
   renodx::utils::settings::UpdateSetting("FxFilmGrain", 0.f);
-  renodx::utils::settings::UpdateSetting("FxPostProcessingMaxCLL", 50.f);
   renodx::utils::settings::UpdateSetting("FxBloom", 50.f);
   renodx::utils::settings::UpdateSetting("FxLensDirt", 50.f);
   renodx::utils::settings::UpdateSetting("FxSunShaftStrength", 50.f);
@@ -1271,7 +1366,7 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("FxDepthBlur", 50.f);
   renodx::utils::settings::UpdateSetting("FxSharpeningType", 0.f);
   renodx::utils::settings::UpdateSetting("FxSharpness", 50.f);
-    ResolvePrismInjection();
+  ResolvePrismInjection();
 }
 
 bool fired_on_init_swapchain = false;
@@ -1295,15 +1390,15 @@ void OnPresent(
     const reshade::api::rect* dest_rect,
     uint32_t dirty_rect_count,
     const reshade::api::rect* dirty_rects) {
-    if (!bloom_tonemap_order_detected) {
-        if (bloom_drawn_this_frame && tonemap_drawn_this_frame) {
-            shader_injection.custom_bloom_before_tonemap = bloom_was_first_this_frame ? 1.f : 0.f;
-            bloom_tonemap_order_detected = true;
-        }
-        bloom_drawn_this_frame = false;
-        tonemap_drawn_this_frame = false;
-        bloom_was_first_this_frame = false;
+  if (!bloom_tonemap_order_detected) {
+    if (bloom_drawn_this_frame && tonemap_drawn_this_frame) {
+      shader_injection.custom_bloom_before_tonemap = bloom_was_first_this_frame ? 1.f : 0.f;
+      bloom_tonemap_order_detected = true;
     }
+    bloom_drawn_this_frame = false;
+    tonemap_drawn_this_frame = false;
+    bloom_was_first_this_frame = false;
+  }
 
   constexpr uint32_t hdr_detection_window_frames = 10;
   final_hdr_draw_history[final_hdr_draw_history_index] = final_hdr_drawn_this_frame;
@@ -1315,7 +1410,7 @@ void OnPresent(
     final_hdr_seen_in_window = final_hdr_seen_in_window
                                || final_hdr_draw_history[frame_index];
   }
-    shader_injection.last_is_hdr = final_hdr_seen_in_window;
+  shader_injection.last_is_hdr = final_hdr_seen_in_window;
   final_hdr_drawn_this_frame = false;
 
   static std::mt19937 random_generator(std::chrono::system_clock::now().time_since_epoch().count());
@@ -1332,6 +1427,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   switch (fdw_reason) {
     case DLL_PROCESS_ATTACH:
       if (!reshade::register_addon(h_module)) return FALSE;
+      ConfigureMenuGroups();
       // while (IsDebuggerPresent() == 0) Sleep(100);
 
       renodx::mods::shader::expected_constant_buffer_space = 50;
@@ -1367,23 +1463,29 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   }
 
   renodx::utils::settings::Use(fdw_reason, &settings, &OnPresetOff);
-    if (fdw_reason == DLL_PROCESS_ATTACH) {
-        if (developer_mode_enabled == 0.f) {
-            auto* settings_mode = renodx::utils::settings::FindSetting("SettingsMode");
-            if (settings_mode != nullptr) {
-                settings_mode->labels.resize(2);
-                if (current_settings_mode >= 2.f) {
-                    renodx::utils::settings::UpdateSetting("SettingsMode", 1.f);
-                }
-            }
+  if (fdw_reason == DLL_PROCESS_ATTACH) {
+    if (developer_mode_enabled == 0.f) {
+      if (auto* tone_map_type = renodx::utils::settings::FindSetting("ToneMapType"); tone_map_type != nullptr) {
+        if (tone_map_type->GetValue() >= TONE_MAP_TYPE_PRISM) {
+          renodx::utils::settings::UpdateSetting("ToneMapType", TONE_MAP_TYPE_VANILLA_PLUS);
         }
-        ResolvePrismInjection();
+        tone_map_type->labels.resize(2);
+      }
+      auto* settings_mode = renodx::utils::settings::FindSetting("SettingsMode");
+      if (settings_mode != nullptr) {
+        settings_mode->labels.resize(3);
+        if (current_settings_mode >= DEVELOPER_MENU) {
+          renodx::utils::settings::UpdateSetting("SettingsMode", SIMPLE_MENU);
+        }
+      }
     }
+    ResolvePrismInjection();
+  }
   renodx::mods::shader::Use(fdw_reason, custom_shaders, &shader_injection);
 
-    if (fdw_reason == DLL_PROCESS_DETACH) {
-        reshade::unregister_addon(h_module);
-    }
+  if (fdw_reason == DLL_PROCESS_DETACH) {
+    reshade::unregister_addon(h_module);
+  }
 
   return TRUE;
 }

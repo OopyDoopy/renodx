@@ -50,6 +50,7 @@ cbuffer SharedPixelConsts : register(b12)
 
 #include "./prism_tonemap.hlsli"
 #include "./agx_tonemap.hlsli"
+#include "./vanilla_plus.hlsli"
 
 struct PSInput
 {
@@ -619,17 +620,17 @@ float4 ps_main(PSInput input) : SV_Target0
     {
         AgxModifyCurveParameters(
             A_ScaleSat, A_PowerLog, A_Exposure, A_Curve, useParametricCurveA,
-            RENODX_TONE_MAP_TYPE == 2.0f
+            RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_PRISM
                 && PRISM_BLACK_FLOOR < 1.0f);
     }
     if ((uint)B_ModeExposure.x == 1u)
     {
         AgxModifyCurveParameters(
             B_ScaleSat, B_PowerLog, B_Exposure, B_Curve, useParametricCurveB,
-            RENODX_TONE_MAP_TYPE == 2.0f
+            RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_PRISM
                 && PRISM_BLACK_FLOOR < 1.0f);
     }
-    if (RENODX_TONE_MAP_TYPE < 2.0f)
+    if (RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_GAME_VANILLA || RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_VANILLA_PLUS)
     {
         if ((uint)A_ModeExposure.x == 1u)
         {
@@ -726,7 +727,15 @@ float4 ps_main(PSInput input) : SV_Target0
         shader_injection.agx_vanilla_bend,
     };
 
-    if (RENODX_TONE_MAP_TYPE == 2.0f)
+    if (RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_VANILLA_PLUS)
+    {
+        float3 outputA = VanillaPlusGrading(exposedA, agxCurveA, (uint)A_ModeExposure.x == 1u, totalExposureScaleA);
+        float3 outputB = VanillaPlusGrading(exposedB, agxCurveB, (uint)B_ModeExposure.x == 1u, totalExposureScaleB);
+        return float4(lerp(outputA, outputB, gCustom[13].x),
+            EncodePostProcessingPeak(vanillaTonemapPeak, input.position, lerp(alphaA, alphaB, gCustom[13].x)));
+    }
+
+    if (RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_PRISM)
     {
         const bool hasInflectionMatchA = false;
         const bool hasInflectionMatchB = false;
@@ -785,32 +794,12 @@ float4 ps_main(PSInput input) : SV_Target0
                 lerp(alphaA, alphaB, prismBlend)));
     }
 
-    // Match each branch's grade pivot to its own AgX inflection after its
-    // independent game exposure and the user exposure have been applied.
-    if (RENODX_TONE_MAP_TYPE == 1.0f)
-    {
-        float inflectionAnchorA = AgxToneCurveInflectionInput(
-            A_PowerLog.w,
-            useParametricCurveA,
-            A_Curve,
-            totalExposureScaleA);
-        float inflectionAnchorB = AgxToneCurveInflectionInput(
-            B_PowerLog.w,
-            useParametricCurveB,
-            B_Curve,
-            totalExposureScaleB);
-
-        exposedA = ApplyVanillaPlusGrading(exposedA, inflectionAnchorA);
-        exposedB = ApplyVanillaPlusGrading(exposedB, inflectionAnchorB);
-    }
-
-
     // -------------------------------------------------------------------------
     // Independently tone-map BOTH passes
     // -------------------------------------------------------------------------
 
     const bool enableHighlightExtension =
-        RENODX_TONE_MAP_TYPE == 1.0f;
+        RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_VANILLA_PLUS;
 
     const float vanillaBendBlend =
         shader_injection.agx_vanilla_bend;

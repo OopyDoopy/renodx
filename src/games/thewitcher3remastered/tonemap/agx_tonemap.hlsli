@@ -2,6 +2,19 @@
 #define THEWITCHER3REMASTERED_TONEMAP_AGX_TONEMAP_HLSLI_
 
 #include "../shared.h"
+
+// D65-normalized custom working gamut enclosing BT.2020.
+static const float3x3 BT2020_TO_CUSTOM_PRIMARIES_MAT = float3x3(
+    0.962911598f, 0.003151046f, 0.033926831f,
+    0.229335471f, 0.710230844f, 0.060434168f,
+    0.030816078f, 0.082383413f, 0.887009192f);
+static const float3x3 CUSTOM_PRIMARIES_TO_BT2020_MAT = float3x3(
+    1.039789708f, 0.000000002f, -0.039770468f,
+    -0.335327217f, 1.419208998f, -0.083868493f,
+    -0.004979475f, -0.131812931f, 1.136555237f);
+static const float3 CUSTOM_PRIMARIES_LUMINANCE_WEIGHTS = float3(
+    0.045506479f, 0.954404231f, 0.000089290f);
+
 #if 0
 #include "../../../shaders/canvas.hlsl"
 #endif

@@ -35,6 +35,7 @@ cbuffer SharedPixelConsts : register(b12)
 
 #include "./prism_tonemap.hlsli"
 #include "./agx_tonemap.hlsli"
+#include "./vanilla_plus.hlsli"
 
 struct PSInput
 {
@@ -409,10 +410,10 @@ float4 ps_main(PSInput input) : SV_Target0
     {
         AgxModifyCurveParameters(
             C7, C8, C16, C19, useParametricCurve,
-            RENODX_TONE_MAP_TYPE == 2.0f
+            RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_PRISM
                 && PRISM_BLACK_FLOOR < 1.0f);
 
-        if (RENODX_TONE_MAP_TYPE < 2.0f)
+        if (RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_GAME_VANILLA || RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_VANILLA_PLUS)
         {
             AgxApplyBlackFloor(
                 C19.z,
@@ -521,21 +522,18 @@ float4 ps_main(PSInput input) : SV_Target0
     uint mode = (uint)C4.x;
     float3 outputColor;
 
-    if (RENODX_TONE_MAP_TYPE == 1.0f)
-    {
-        exposed = ApplyVanillaPlusGrading(
-            exposed,
-            mode == 1u
-                ? AgxToneCurveInflectionInput(C8.w, useParametricCurve, C19, totalExposureScale)
-                : 0.18f * totalExposureScale);
-    }
-
 #if 0
     outputColor = exposed;
     return float4(outputColor, outputAlpha);
 #endif
 
-    if (RENODX_TONE_MAP_TYPE == 2.0f)
+    if (RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_VANILLA_PLUS)
+    {
+        outputColor = VanillaPlusGrading(exposed, agxCurve, mode == 1u, totalExposureScale);
+        return float4(outputColor, EncodePostProcessingPeak(vanillaTonemapPeak, input.position, outputAlpha));
+    }
+
+    if (RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_PRISM)
     {
         const bool hasInflectionMatch = false;
         float matchedAnchorIn = 0.18f;
@@ -576,7 +574,7 @@ float4 ps_main(PSInput input) : SV_Target0
     else if (mode == 1u)
     {
         bool enableHighlightExtension =
-            RENODX_TONE_MAP_TYPE == 1.0f;
+            RENODX_TONE_MAP_TYPE == TONE_MAP_TYPE_VANILLA_PLUS;
 
         outputColor =
             ApplyLogDomainToneMap(
