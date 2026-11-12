@@ -92,19 +92,11 @@ float3 ImprovedColorGradingLUTs(float3 input_color, float lut_scaling = 1.f) {
   if (lut_scaling > 0.f) {
     const float3 lut_black = saturate(ColorGradingLUTs(0.f));
     const float3 lut_mid = saturate(ColorGradingLUTs(lut_black));
-    const float lut_black_floor = renodx::math::Min(lut_black);
+    const float3 shadow_t = saturate((lut_mid - max(0.f, input_color)) / max(lut_mid, black_floor));
+    const float3 floor_remove = select(lut_black > black_floor, lut_black * shadow_t, 0.f);
+    const float3 stretched = max(0.f, lut_corrected - floor_remove);
 
-    if (lut_black_floor > black_floor) {
-      const float mid_y = max(0.f, renodx::color::yf::from::BT709(lut_mid));
-      const float neutral_y = max(0.f, renodx::color::yf::from::BT709(input_color));
-      const float shadow_t = mid_y > 0.f
-                                 ? saturate((mid_y - neutral_y) / mid_y)
-                                 : 0.f;
-      const float3 floor_remove = lut_black_floor * shadow_t;
-      const float3 unclamped = max(0.f, lut_corrected - floor_remove);
-
-      lut_corrected = lerp(lut_corrected, unclamped, saturate(lut_scaling));
-    }
+    lut_corrected = lerp(lut_corrected, stretched, saturate(lut_scaling));
   }
   return lut_corrected;
 }
@@ -168,6 +160,12 @@ void comp_main() {
       tone_map_flare = 0.002f + RENODX_TONE_MAP_FLARE;
       grade_anchor_in = 0.18f;
       grade_anchor_out = 0.15f;
+    } else if (CUSTOM_TONE_MAP_CURVE == 1) {
+      tone_map_exposure *= 0.70f;
+      tone_map_contrast *= 1.12f;
+      tone_map_flare += 0.0005f;
+      grade_anchor_in = 0.18f;
+      grade_anchor_out = 0.18f;
     }
 #if 0
     else if (CUSTOM_TONE_MAP_CURVE == 1) {

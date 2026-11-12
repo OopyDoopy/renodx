@@ -323,13 +323,6 @@ float4 main(
     _257 = _193;
     _258 = _194;
     _259 = _195;
-
-    if (CUSTOM_FILM_GRAIN_TYPE == 2) {
-      float3 film_grain = ApplyPostProcessing(float3(_193, _194, _195), TexCoord.xy);
-      _257 = film_grain.x;
-      _258 = film_grain.y;
-      _259 = film_grain.z;
-    }
   }
   if (!(ImageProcPostProcessConstBuffer_160.w > 0.0f)) {
     [branch]
@@ -355,9 +348,7 @@ float4 main(
     _355 = (saturate(1.0f - (_334 * ((1.0f - ImageProcPostProcessConstBuffer_160.y) - ((ImageProcPostProcessConstBuffer_208.y - ImageProcPostProcessConstBuffer_160.y) * _294)))) * _258);
     _356 = (saturate(1.0f - (_334 * ((1.0f - ImageProcPostProcessConstBuffer_160.z) - ((ImageProcPostProcessConstBuffer_208.z - ImageProcPostProcessConstBuffer_160.z) * _294)))) * _259);
   }
-  SV_Target.x = _354;
-  SV_Target.y = _355;
-  SV_Target.z = _356;
+  SV_Target.xyz = float3(_354, _355, _356);
   SV_Target.w = 0.0f;
   return SV_Target;
 }

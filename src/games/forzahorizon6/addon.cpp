@@ -8,7 +8,9 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <iomanip>
+#include <optional>
 #include <sstream>
 
 #define DEBUG_LEVEL_0
@@ -19,6 +21,8 @@
 #include <include/reshade.hpp>
 
 #include "../../mods/shader.hpp"
+#include "../../utils/bitwise.hpp"
+#include "../../utils/pipeline.hpp"
 #include "../../templates/settings.hpp"
 #include "../../utils/platform.hpp"
 #include "../../utils/random.hpp"
@@ -28,6 +32,10 @@
 #include "../../utils/swapchain.hpp"
 #include "./prism/prism.hpp"
 #include "./prism/prism_ui.hpp"
+#include "./denoise.hpp"
+#include "./guides.hpp"
+#include "./nvngx_responsivity.hpp"
+#include "./sl_rr.hpp"
 #include "./shared.h"
 
 namespace {
@@ -64,12 +72,94 @@ constexpr std::array<std::array<float, 4>, 3> WARM_WHITE_PRISM_MATRIX = {{
   {{0.015750915f, 0.096747212f, 1.010492802f, 0.f}},
 }};
 
-renodx::mods::shader::CustomShaders custom_shaders = {__ALL_CUSTOM_SHADERS};
+renodx::mods::shader::CustomShaders custom_shaders = [] {
+  renodx::mods::shader::CustomShaders shaders = {__ALL_CUSTOM_SHADERS};
+  std::erase_if(shaders, [](const auto& shader) {
+    return std::ranges::any_of(denoise::bypasses, [&shader](const auto& bypass) {
+      return std::ranges::any_of(bypass.replacements, [&shader](const auto& replacement) {
+        return shader.first == replacement.hash;
+      });
+    });
+  });
+  return shaders;
+}();
 
 const std::string build_date = __DATE__;
 const std::string build_time = __TIME__;
 
 float current_settings_mode = 0;
+float developer_mode_enabled = 0.f;
+std::atomic<bool> rr_nvidia_d3d12_device{false};
+std::atomic<reshade::api::device*> rr_device = nullptr;
+
+float rr_enable_setting = 0.f;
+float rr_preset_setting = 2.f;
+float rr_debug_log_setting = 0.f;
+float rr_responsivity_setting = 0.f;
+float rr_responsivity_auto_setting = 0.f;
+
+constexpr uint32_t kRrPresetValues[3] = {
+    static_cast<uint32_t>(sl::DLSSDPreset::ePresetD),
+    static_cast<uint32_t>(sl::DLSSDPreset::ePresetE),
+    static_cast<uint32_t>(sl::DLSSDPreset::ePresetF),
+};
+
+constexpr uint32_t kGiMissLimit = 8;
+struct TierDetection {
+  std::atomic<bool> bound{false};
+  bool active = false;
+  uint32_t presents_without = 0;
+};
+TierDetection high_gi;
+TierDetection medium_gi;
+bool warned_no_gi = false;
+
+bool IsNvidiaRrVisible() {
+  return rr_nvidia_d3d12_device.load();
+}
+
+bool IsNvidiaRrAdditionalSettingsVisible() {
+  return IsNvidiaRrVisible() && current_settings_mode >= 1.f;
+}
+
+bool IsDeveloperMenuVisible() {
+  return developer_mode_enabled != 0.f && current_settings_mode >= 2.f;
+}
+
+bool RrActive() {
+  return rr_nvidia_d3d12_device.load() && rr_enable_setting != 0.f;
+}
+
+extern "C" IMAGE_DOS_HEADER __ImageBase;
+void PinModule() {
+  HMODULE self = nullptr;
+  if (GetModuleHandleExW(
+          GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
+          reinterpret_cast<LPCWSTR>(&__ImageBase), &self)
+      == 0) {
+    sl_rr::LogWarn("could NOT pin the addon module — hooks may dangle on unload");
+  }
+}
+
+void ApplyRrState() {
+  const bool active = RrActive();
+  const bool bypass_high = active && high_gi.active;
+  const bool bypass_medium = active && medium_gi.active;
+  sl_rr::SetInitInjection(rr_enable_setting != 0.f);
+  sl_rr::SetRuntimeLoad(active);
+  sl_rr::SetRrRedirect(active);
+  responsivity::enabled.store(active);
+  responsivity::SetAuto(active && rr_responsivity_auto_setting != 0.f);
+  if (!responsivity::GetAuto()) {
+    responsivity::value.store(rr_responsivity_setting);
+  }
+  guides::enabled.store(active);
+  denoise::SetEnabled(denoise::kTemporalFilterHighHash, bypass_high);
+  denoise::SetEnabled(denoise::kResolveHighHash, bypass_high);
+  denoise::SetEnabled(denoise::kTemporalFilterMediumHash, bypass_medium);
+  denoise::SetEnabled(denoise::kUpscale2xMediumHash, bypass_medium);
+  denoise::SetEnabled(denoise::kSpatialFilterDiskHash, bypass_high || bypass_medium);
+}
 
 int GetPrismMatrixSource() {
   return std::clamp(static_cast<int>(PRISM_MATRIX_SOURCE), 0, 2);
@@ -181,7 +271,18 @@ void OnPrismSettingChange(float previous_value, float current_value) {
 
 renodx::utils::settings::Setting* peak_white_nits_setting = nullptr;
 renodx::utils::settings::Setting* diffuse_white_nits_setting = nullptr;
+std::optional<float> detected_peak_nits;
 renodx::utils::settings::Settings settings = {
+  new renodx::utils::settings::Setting{
+    .key = "ForzaHorizon6DeveloperMode",
+    .binding = &developer_mode_enabled,
+    .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+    .default_value = 0.f,
+    .can_reset = false,
+    .label = "Developer Mode",
+    .is_global = true,
+    .is_visible = []() { return false; },
+  },
     new renodx::utils::settings::Setting{
         .key = "SettingsMode",
         .binding = &current_settings_mode,
@@ -189,16 +290,9 @@ renodx::utils::settings::Settings settings = {
         .default_value = 0.f,
         .can_reset = false,
         .label = "Settings Mode",
-        .labels = {"Simple", "Intermediate", "Advanced"},
+        .labels = {"Simple", "Advanced", "Developer"},
         .is_global = true,
     },
-      new renodx::utils::settings::Setting{
-        .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "This menu is truly advanced and should be ignored by most people",
-        .section = "Warning",
-        .tint = 0xFF0000,
-        .is_visible = []() { return current_settings_mode >= 2.f; },
-      },
     new renodx::utils::settings::Setting{
         .key = "ToneMapType",
         .binding = &RENODX_TONE_MAP_TYPE,
@@ -216,25 +310,41 @@ renodx::utils::settings::Settings settings = {
         .key = "ToneMapCurve",
         .binding = &CUSTOM_TONE_MAP_CURVE,
         .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
+        .default_value = 1.f,
         .label = "Tone Curve",
         .section = "Tone Mapping",
-        .tooltip = "Recommended uses the default grading values with contrast and flare tuned for Forza. Custom uses the controls exactly as set.",
-        .labels = {"Recommended", "Custom"},
+        .tooltip = "Punchy: Aesthetically similar to the vanilla tonemap's contrast profile, with some improvements.\n"
+        "Natural: Tuned to look more true to life, with balanced contrast and saturation.\n"
+        "Custom: A neutral base + shoulder. Meant to be tweaked in the advanced menu.",
+        .labels = {"Punchy", "Natural", "Custom"},
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
-        .is_visible = []() { return current_settings_mode >= 2.f; },
     },
     peak_white_nits_setting = new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",
         .binding = &RENODX_PEAK_WHITE_NITS,
-        .default_value = 1000.f,
+        .default_value = 47.f,
         .can_reset = true,
         .label = "Peak Brightness",
         .section = "Tone Mapping",
-        .tooltip = "Sets the value of peak white in nits",
-        .min = 80.f,
+        .tooltip = "Sets the peak white in nits. Auto uses the detected display peak.",
+        .min = 47.f,
         .max = 10000.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0; },
+        .parse = [](float value) {
+          if (peak_white_nits_setting != nullptr) {
+            if (value == 47.f && detected_peak_nits.has_value()) {
+              peak_white_nits_setting->format = "Auto (" + std::to_string(static_cast<int>(*detected_peak_nits + 0.5f)) + " nits)";
+            } else {
+              peak_white_nits_setting->format = (value == 47.f ? "Auto" : "%.0f");
+            }
+          }
+          return (value == 47.f ? detected_peak_nits.value_or(1000.f) : value);
+        },
+        .on_change = []() {
+          if (peak_white_nits_setting->value > 47.f && peak_white_nits_setting->value < 48.f) {
+            peak_white_nits_setting->value = (peak_white_nits_setting->value < 47.5f ? 47.f : 48.f);
+          }
+        },
         .is_visible = []() { return RENODX_IS_HDR_COLOR_SPACE != 0.f; },
         .is_logarithmic = true,
     },
@@ -286,7 +396,8 @@ renodx::utils::settings::Settings settings = {
     .value_type = renodx::utils::settings::SettingValueType::CUSTOM,
     .label = "Primary Matrix",
     .section = "Prism Primaries",
-    .tooltip = "Selects the Forza-tuned recommended matrix or its 5787 K warm-white variant.",
+    .tooltip = "Selects the hand-tuned color space used by the Prism tonemapper. Warm White will blowout to a slightly more yellowish tone.",
+    .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 1.f; },
     .on_draw = []() {
       bool changed = false;
       if (RENODX_TONE_MAP_TYPE == 1.f && GetPrismMatrixSource() == 0) {
@@ -309,12 +420,12 @@ renodx::utils::settings::Settings settings = {
         renodx::utils::settings::UpdateSetting(
             "PrismMatrixSource",
             static_cast<float>(selected_source + 1));
+        ResolvePrismInjection();
       }
       return changed;
     },
-    .on_change_value = &OnPrismSettingChange,
     .is_visible = []() {
-      return current_settings_mode == 1.f && RENODX_TONE_MAP_TYPE == 1.f;
+      return current_settings_mode == 1.f;
     },
   },
   new renodx::utils::settings::Setting{
@@ -328,7 +439,7 @@ renodx::utils::settings::Settings settings = {
     .labels = {"Prism Controls", "Recommended", "Recommended + Warm White"},
     .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 1.f; },
     .on_change_value = &OnPrismSettingChange,
-    .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
+    .is_visible = []() { return IsDeveloperMenuVisible(); },
   },
   new renodx::utils::settings::Setting{
     .key = "PrismPrimaryMode",
@@ -341,7 +452,7 @@ renodx::utils::settings::Settings settings = {
     .labels = {"BT.709", "DCI-P3", "BT.2020", "AP1", "LMS", "Custom"},
     .is_enabled = []() { return IsPrismAuthoringEnabled(); },
     .on_change_value = &OnPrismSettingChange,
-    .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
+    .is_visible = []() { return IsDeveloperMenuVisible(); },
   },
   new renodx::utils::settings::Setting{
     .key = "PrismTemperature",
@@ -355,7 +466,7 @@ renodx::utils::settings::Settings settings = {
     .format = "%.0f K",
     .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
     .on_change_value = &OnPrismSettingChange,
-    .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
+    .is_visible = []() { return IsDeveloperMenuVisible(); },
   },
   new renodx::utils::settings::Setting{
     .key = "PrismTint",
@@ -369,7 +480,7 @@ renodx::utils::settings::Settings settings = {
     .format = "%.4f",
     .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
     .on_change_value = &OnPrismSettingChange,
-    .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
+    .is_visible = []() { return IsDeveloperMenuVisible(); },
   },
   new renodx::utils::settings::Setting{
     .key = "PrismStrength",
@@ -383,7 +494,7 @@ renodx::utils::settings::Settings settings = {
     .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
     .parse = [](float value) { return value * 0.01f; },
     .on_change_value = &OnPrismSettingChange,
-    .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
+    .is_visible = []() { return IsDeveloperMenuVisible(); },
   },
   new renodx::utils::settings::Setting{
     .key = "PrismGlobalReach",
@@ -397,7 +508,7 @@ renodx::utils::settings::Settings settings = {
     .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
     .parse = [](float value) { return value * 0.01f; },
     .on_change_value = &OnPrismSettingChange,
-    .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
+    .is_visible = []() { return IsDeveloperMenuVisible(); },
   },
   new renodx::utils::settings::Setting{
     .key = "PrismGlobalHue",
@@ -411,7 +522,7 @@ renodx::utils::settings::Settings settings = {
     .format = "%.1f°",
     .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
     .on_change_value = &OnPrismSettingChange,
-    .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
+    .is_visible = []() { return IsDeveloperMenuVisible(); },
   },
   new renodx::utils::settings::Setting{
     .key = "PrismRedReach",
@@ -425,7 +536,7 @@ renodx::utils::settings::Settings settings = {
     .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
     .parse = [](float value) { return value * 0.01f; },
     .on_change_value = &OnPrismSettingChange,
-    .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
+    .is_visible = []() { return IsDeveloperMenuVisible(); },
   },
   new renodx::utils::settings::Setting{
     .key = "PrismRedHue",
@@ -439,7 +550,7 @@ renodx::utils::settings::Settings settings = {
     .format = "%.1f°",
     .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
     .on_change_value = &OnPrismSettingChange,
-    .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
+    .is_visible = []() { return IsDeveloperMenuVisible(); },
   },
   new renodx::utils::settings::Setting{
     .key = "PrismGreenReach",
@@ -453,7 +564,7 @@ renodx::utils::settings::Settings settings = {
     .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
     .parse = [](float value) { return value * 0.01f; },
     .on_change_value = &OnPrismSettingChange,
-    .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
+    .is_visible = []() { return IsDeveloperMenuVisible(); },
   },
   new renodx::utils::settings::Setting{
     .key = "PrismGreenHue",
@@ -467,7 +578,7 @@ renodx::utils::settings::Settings settings = {
     .format = "%.1f°",
     .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
     .on_change_value = &OnPrismSettingChange,
-    .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
+    .is_visible = []() { return IsDeveloperMenuVisible(); },
   },
   new renodx::utils::settings::Setting{
     .key = "PrismBlueReach",
@@ -481,7 +592,7 @@ renodx::utils::settings::Settings settings = {
     .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
     .parse = [](float value) { return value * 0.01f; },
     .on_change_value = &OnPrismSettingChange,
-    .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
+    .is_visible = []() { return IsDeveloperMenuVisible(); },
   },
   new renodx::utils::settings::Setting{
     .key = "PrismBlueHue",
@@ -495,7 +606,7 @@ renodx::utils::settings::Settings settings = {
     .format = "%.1f°",
     .is_enabled = []() { return IsPrismAuthoringEnabled() && IsPrismCustomMode(); },
     .on_change_value = &OnPrismSettingChange,
-    .is_visible = []() { return current_settings_mode >= 2.f && RENODX_TONE_MAP_TYPE == 1.f; },
+    .is_visible = []() { return IsDeveloperMenuVisible(); },
   },
   new renodx::utils::settings::Setting{
     .value_type = renodx::utils::settings::SettingValueType::CUSTOM,
@@ -521,8 +632,8 @@ renodx::utils::settings::Settings settings = {
       return false;
     },
     .is_visible = []() {
-      return current_settings_mode >= 2.f
-             && RENODX_TONE_MAP_TYPE == 1.f;
+            return IsDeveloperMenuVisible()
+              && RENODX_TONE_MAP_TYPE == 1.f;
     },
   },
     new renodx::utils::settings::Setting{
@@ -592,7 +703,7 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 1.f; },
         .parse = [](float value) { return value * 0.02f; },
-        .is_visible = []() { return current_settings_mode >= 1.f && RENODX_TONE_MAP_TYPE == 1.f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
     },
       new renodx::utils::settings::Setting{
         .key = "ColorGradeHighlightContrast",
@@ -604,7 +715,7 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 1.f; },
         .parse = [](float value) { return value * 0.02f; },
-        .is_visible = []() { return current_settings_mode >= 1.f && RENODX_TONE_MAP_TYPE == 1.f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
       },
       new renodx::utils::settings::Setting{
         .key = "ColorGradeShadowContrast",
@@ -616,7 +727,7 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 1.f; },
         .parse = [](float value) { return value * 0.02f; },
-        .is_visible = []() { return current_settings_mode >= 1.f && RENODX_TONE_MAP_TYPE == 1.f; },
+        .is_visible = []() { return current_settings_mode >= 1.f; },
       },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeSaturation",
@@ -676,7 +787,7 @@ renodx::utils::settings::Settings settings = {
         .min = 0.01f,
         .max = 1.f,
         .format = "%.2f",
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0 && CUSTOM_TONE_MAP_CURVE == 1; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0 && CUSTOM_TONE_MAP_CURVE == 2; },
         .parse = [](float value) { return value; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
@@ -690,7 +801,7 @@ renodx::utils::settings::Settings settings = {
         .min = 0.01f,
         .max = 1.f,
         .format = "%.2f",
-        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0 && CUSTOM_TONE_MAP_CURVE == 1; },
+        .is_enabled = []() { return RENODX_TONE_MAP_TYPE != 0 && CUSTOM_TONE_MAP_CURVE == 2; },
         .parse = [](float value) { return value; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
@@ -739,6 +850,122 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .parse = [](float value) { return value * 0.01f; },
         .is_visible = []() { return current_settings_mode >= 0.f; },
+    },
+    new renodx::utils::settings::Setting{
+      .value_type = renodx::utils::settings::SettingValueType::TEXT,
+      .label = "DLSS Ray Reconstruction",
+      .section = "DLSS Ray Reconstruction",
+      .is_visible = &IsNvidiaRrVisible,
+    },
+    new renodx::utils::settings::Setting{
+      .key = "RrEnable",
+      .binding = &rr_enable_setting,
+      .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+      .default_value = 0.f,
+      .label = "Enable DLSS Ray Reconstruction",
+      .section = "DLSS Ray Reconstruction",
+      .tooltip = "Redirects the game's DLSS Super Resolution evaluation to DLSS Ray Reconstruction.",
+      .on_change_value = [](float, float) { ApplyRrState(); },
+      .is_visible = &IsNvidiaRrVisible,
+    },
+    new renodx::utils::settings::Setting{
+      .key = "RrHighGiNotice",
+      .value_type = renodx::utils::settings::SettingValueType::TEXT,
+      .label = "Ray Traced Global Illumination at Medium or High enables the raw-signal denoiser bypasses.",
+      .section = "DLSS Ray Reconstruction",
+      .tint = 0xE0484C,
+      .is_visible = [] { return IsNvidiaRrVisible() && !high_gi.active && !medium_gi.active; },
+    },
+    new renodx::utils::settings::Setting{
+      .key = "RrVramNotice",
+      .value_type = renodx::utils::settings::SettingValueType::TEXT,
+      .label = "Ray Reconstruction is rendering over the DLSS VRAM budget. Expect stutter; disabling Frame Generation may free VRAM.",
+      .section = "DLSS Ray Reconstruction",
+      .tint = 0xE0484C,
+      .is_visible = [] { return IsNvidiaRrVisible() && sl_rr::GetVramWarned(); },
+    },
+    new renodx::utils::settings::Setting{
+      .key = "RrOldDllNotice",
+      .value_type = renodx::utils::settings::SettingValueType::TEXT,
+      .label = "Ray Reconstruction could not start because nvngx_dlssd.dll is out of date. Update DLSS or your GPU driver, then restart.",
+      .section = "DLSS Ray Reconstruction",
+      .tint = 0xE0484C,
+      .is_visible = [] {
+        return IsNvidiaRrVisible() && sl_rr::GetRrTrip()
+           && sl_rr::GetRrTripResult()
+              == static_cast<uint32_t>(sl::Result::eErrorExceptionHandler);
+      },
+    },
+    new renodx::utils::settings::Setting{
+      .key = "RrTrippedNotice",
+      .value_type = renodx::utils::settings::SettingValueType::TEXT,
+      .label = "Ray Reconstruction stopped after a failed evaluation. DLSS Super Resolution is running; restart the game to retry.",
+      .section = "DLSS Ray Reconstruction",
+      .tint = 0xE0484C,
+      .is_visible = [] { return IsNvidiaRrVisible() && sl_rr::GetRrTrip(); },
+    },
+    new renodx::utils::settings::Setting{
+      .key = "RrPreset",
+      .binding = &rr_preset_setting,
+      .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+      .default_value = 2.f,
+      .label = "RR preset",
+      .section = "DLSS Ray Reconstruction",
+      .tooltip = "DLSS Ray Reconstruction render preset: D (default transformer), E (latest transformer), or F (RR 4.5 default).",
+      .labels = {"D", "E", "F"},
+      .on_change_value = [](float, float value) {
+        sl_rr::SetRrPreset(kRrPresetValues[std::clamp(static_cast<int>(value), 0, 2)]);
+      },
+      .is_visible = &IsNvidiaRrAdditionalSettingsVisible,
+    },
+    new renodx::utils::settings::Setting{
+      .key = "RRResponsivity",
+      .binding = &rr_responsivity_setting,
+      .value_type = renodx::utils::settings::SettingValueType::FLOAT,
+      .default_value = 0.f,
+      .label = "RR responsivity",
+      .section = "DLSS Ray Reconstruction",
+      .tooltip = "Preset F only. Lower values favour stability; higher values favour responsiveness. Zero leaves the DLSS default unchanged.",
+      .min = -1.f,
+      .max = 1.f,
+      .format = "%.2f",
+      .is_enabled = [] { return rr_responsivity_auto_setting == 0.f; },
+      .on_change_value = [](float, float) { ApplyRrState(); },
+      .is_visible = &IsNvidiaRrAdditionalSettingsVisible,
+    },
+    new renodx::utils::settings::Setting{
+      .key = "RrResponsivityAuto",
+      .binding = &rr_responsivity_auto_setting,
+      .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+      .default_value = 0.f,
+      .label = "Speed-relative responsivity",
+      .section = "DLSS Ray Reconstruction",
+      .tooltip = "Uses camera motion to favour stability while still and responsiveness while moving.",
+      .on_change_value = [](float, float) { ApplyRrState(); },
+      .is_visible = &IsNvidiaRrAdditionalSettingsVisible,
+    },
+    new renodx::utils::settings::Setting{
+      .key = "RrDebugLog",
+      .binding = &rr_debug_log_setting,
+      .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+      .default_value = 0.f,
+      .label = "Debug logging",
+      .section = "DLSS Ray Reconstruction",
+      .tooltip = "Logs distinct RR guide and Streamline outcomes. Enable before restarting the game to route verbose Streamline and NGX logs to ReShade.log.",
+      .on_change_value = [](float, float value) { guides::SetDiagnostics(value != 0.f); },
+      .is_visible = &IsNvidiaRrAdditionalSettingsVisible,
+    },
+    new renodx::utils::settings::Setting{
+      .value_type = renodx::utils::settings::SettingValueType::BULLET,
+      .label = "Turn DLSS on in the game.",
+      .section = "DLSS Ray Reconstruction",
+      .is_visible = [] { return current_settings_mode == 0.f; },
+    },
+    new renodx::utils::settings::Setting{
+      .value_type = renodx::utils::settings::SettingValueType::BULLET,
+      .label = "Ray Traced Global Illumination at Medium or High enables the game's RTGI denoiser replacements.",
+      .section = "DLSS Ray Reconstruction",
+      .is_visible = [] { return current_settings_mode == 0.f; },
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::BUTTON,
@@ -791,9 +1018,19 @@ renodx::utils::settings::Settings settings = {
           renodx::utils::platform::LaunchURL("https://ko-fi.com/kickfister");
         },
     },
+        new renodx::utils::settings::Setting{
+        .value_type = renodx::utils::settings::SettingValueType::BUTTON,
+        .label = "Toru's Patreon",
+        .section = "Links",
+        .group = "button-line-1",
+        .tint = 0xFF5F5F,
+        .on_change = []() {
+          renodx::utils::platform::LaunchURL("https://www.patreon.com/cw/Toru77");
+        },
+    },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "Game mod by Jon (OopyDoopy/Kickfister), RenoDX Framework by Shortfuse",
+        .label = "Tonemapping and Grading by Jon (OopyDoopy/Kickfister), Ray Reconstruction by Toru, RenoDX Framework by Shortfuse",
         .section = "About",
     },
     new renodx::utils::settings::Setting{
@@ -809,6 +1046,7 @@ void OnPresetOff() {
       {"ToneMapPeakNits", 203.f},
       {"ToneMapGameNits", 203.f},
       {"ToneMapCurve", 0.f},
+      {"RrEnable", 0.f},
       {"SDRLUTEncoding", 1.f},
       {"PrismMatrixSource", 0.f},
       {"PrismPrimaryMode", 3.f},
@@ -840,22 +1078,113 @@ void OnPresetOff() {
       {"FxVignette", 100.f},
       {"FxChromaticAberration", 100.f},
   });
+  ApplyRrState();
 }
 
-bool initialized = false;
+void OnInitRayReconstructionDevice(reshade::api::device* device) {
+  if (device == nullptr) return;
+  int vendor_id = 0;
+  if (device->get_api() != reshade::api::device_api::d3d12
+      || !device->get_property(reshade::api::device_properties::vendor_id, &vendor_id)
+      || vendor_id != 0x10DE) {
+    return;
+  }
+
+  rr_device.store(device);
+  rr_nvidia_d3d12_device.store(true);
+  denoise::OnInitDevice(device);
+  ApplyRrState();
+}
 
 void OnInitSwapchain(reshade::api::swapchain* swapchain, bool /*resize*/) {
   RENODX_IS_HDR_COLOR_SPACE =
       renodx::utils::swapchain::IsHDRColorSpace(swapchain) ? 1.f : 0.f;
-  if (initialized) return;
-
-  auto peak = renodx::utils::swapchain::GetPeakNits(swapchain);
-  if (peak.has_value()) {
-    peak_white_nits_setting->default_value = roundf(peak.value());
-  } else {
-    peak_white_nits_setting->default_value = 1000.f;
+  if (const auto peak = renodx::utils::swapchain::GetPeakNits(swapchain); peak.has_value()) {
+    detected_peak_nits = *peak;
+    peak_white_nits_setting->Write();
   }
-  initialized = true;
+  OnInitRayReconstructionDevice(swapchain->get_device());
+}
+
+void OnDestroyRayReconstructionDevice(reshade::api::device* device) {
+  if (rr_device.load() != device) return;
+  rr_device.store(nullptr);
+  rr_nvidia_d3d12_device.store(false);
+  sl_rr::SetRuntimeLoad(false);
+  sl_rr::SetRrRedirect(false);
+  responsivity::enabled.store(false);
+  guides::enabled.store(false);
+  high_gi.active = false;
+  medium_gi.active = false;
+  high_gi.presents_without = 0;
+  medium_gi.presents_without = 0;
+  high_gi.bound.store(false);
+  medium_gi.bound.store(false);
+}
+
+void OnBindPipeline(
+    reshade::api::command_list* cmd_list,
+    reshade::api::pipeline_stage stage,
+    reshade::api::pipeline pipeline) {
+  (void)cmd_list;
+  if (!rr_nvidia_d3d12_device.load()
+      || !renodx::utils::bitwise::HasFlag(stage, reshade::api::pipeline_stage::compute_shader)) {
+    return;
+  }
+  renodx::utils::pipeline::GetPipelineInfo(pipeline, [](const renodx::utils::pipeline::PipelineInfo& info) {
+    for (const auto& shader : info.shader_details) {
+      if (shader.shader_hash == denoise::kTemporalFilterHighHash
+          || shader.shader_hash == denoise::kResolveHighHash) {
+        high_gi.bound.store(true);
+      }
+      if (shader.shader_hash == denoise::kTemporalFilterMediumHash) {
+        medium_gi.bound.store(true);
+      }
+    }
+  });
+}
+
+void PollTier(TierDetection& tier, const char* name) {
+  if (tier.bound.exchange(false)) {
+    tier.presents_without = 0;
+    if (!tier.active) {
+      tier.active = true;
+      if (guides::DiagGuidesEnabled()) {
+        guides::LogEvent(std::string(name) + " RTGI pipeline detected");
+      }
+      ApplyRrState();
+    }
+  } else if (++tier.presents_without >= kGiMissLimit && tier.active) {
+    tier.active = false;
+    if (guides::DiagGuidesEnabled()) {
+      guides::LogEvent(std::string(name) + " RTGI pipeline no longer bound; bypasses released");
+    }
+    ApplyRrState();
+  }
+}
+
+void OnPresent(
+    reshade::api::command_queue* queue, reshade::api::swapchain* swapchain,
+    const reshade::api::rect* source_rect, const reshade::api::rect* dest_rect,
+    uint32_t dirty_rect_count, const reshade::api::rect* dirty_rects) {
+  (void)queue;
+  (void)swapchain;
+  (void)source_rect;
+  (void)dest_rect;
+  (void)dirty_rect_count;
+  (void)dirty_rects;
+  if (!RrActive()) return;
+
+  sl_rr::Poll();
+  responsivity::Poll();
+  responsivity::UpdateMotion(sl_rr::GetCameraMotion());
+  PollTier(high_gi, "High");
+  PollTier(medium_gi, "Medium");
+  if (!high_gi.active && !medium_gi.active
+      && high_gi.presents_without >= kGiMissLimit && !warned_no_gi) {
+    warned_no_gi = true;
+    sl_rr::LogWarn("no Medium/High RTGI pipeline detected; denoiser bypasses stay off");
+  }
 }
 
 }  // namespace
@@ -869,6 +1198,15 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       if (!reshade::register_addon(h_module)) return FALSE;
 
       reshade::register_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
+      reshade::register_event<reshade::addon_event::init_device>(OnInitRayReconstructionDevice);
+      reshade::register_event<reshade::addon_event::destroy_device>(OnDestroyRayReconstructionDevice);
+      reshade::register_event<reshade::addon_event::present>(OnPresent);
+      reshade::register_event<reshade::addon_event::bind_pipeline>(OnBindPipeline);
+
+      renodx::utils::settings::use_presets = true;
+
+      // Denoiser replacements are consumed by the bind-time async path.
+      renodx::utils::shader::use_replace_async = true;
 
       renodx::utils::random::binds.push_back(&shader_injection.custom_random);
 
@@ -876,18 +1214,46 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       renodx::mods::shader::expected_constant_buffer_space = 50;
 
       renodx::utils::settings::on_preset_changed_callbacks.emplace_back(&ResolvePrismInjection);
+      renodx::utils::settings::on_preset_changed_callbacks.emplace_back(&ApplyRrState);
       ResolvePrismInjection();
 
       break;
     case DLL_PROCESS_DETACH:
       reshade::unregister_event<reshade::addon_event::init_swapchain>(OnInitSwapchain);
+      reshade::unregister_event<reshade::addon_event::init_device>(OnInitRayReconstructionDevice);
+      reshade::unregister_event<reshade::addon_event::destroy_device>(OnDestroyRayReconstructionDevice);
+      reshade::unregister_event<reshade::addon_event::present>(OnPresent);
+      reshade::unregister_event<reshade::addon_event::bind_pipeline>(OnBindPipeline);
+      sl_rr::UninstallHooks();
+      responsivity::Disarm();
       reshade::unregister_addon(h_module);
       break;
   }
 
   renodx::utils::settings::Use(fdw_reason, &settings, &OnPresetOff);
+  if (fdw_reason == DLL_PROCESS_ATTACH && developer_mode_enabled == 0.f) {
+    if (auto* settings_mode = renodx::utils::settings::FindSetting("SettingsMode");
+        settings_mode != nullptr) {
+      settings_mode->labels.resize(2);
+      if (current_settings_mode >= 2.f) {
+        renodx::utils::settings::UpdateSetting("SettingsMode", 1.f);
+      }
+    }
+  }
+  denoise::Use(fdw_reason);
+  guides::Use(fdw_reason);
   renodx::mods::shader::Use(fdw_reason, custom_shaders, &shader_injection);
   renodx::utils::random::Use(fdw_reason);
+
+  if (fdw_reason == DLL_PROCESS_ATTACH) {
+    guides::SetDiagnostics(rr_debug_log_setting != 0.f);
+    const int preset_index = std::clamp(static_cast<int>(rr_preset_setting), 0, 2);
+    sl_rr::SetRrPreset(kRrPresetValues[preset_index]);
+    ApplyRrState();
+    // Arm before later addons and before the game can initialize Streamline.
+    PinModule();
+    sl_rr::InstallLoaderHooks();
+  }
 
   return TRUE;
 }
