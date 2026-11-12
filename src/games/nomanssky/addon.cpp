@@ -12,8 +12,10 @@
 #include <algorithm>
 #include <array>
 #include <iomanip>
+#include <optional>
 #include <sstream>
 
+#include <wrl/client.h>
 
 #include <embed/shaders.h>
 
@@ -24,6 +26,7 @@
 #include "../../mods/shader.hpp"
 #include "../../templates/settings.hpp"
 #include "../../utils/date.hpp"
+#include "../../utils/directx.hpp"
 #include "../../utils/settings.hpp"
 #include "../../utils/random.hpp"
 #include "./prism/prism.hpp"
@@ -168,6 +171,10 @@ void OnPrismSettingChange(float previous_value, float current_value) {
   ResolvePrismInjection();
 }
 
+renodx::utils::settings::Setting* peak_white_nits_setting = nullptr;
+std::optional<float> detected_peak_nits;
+HMONITOR peak_monitor = nullptr;
+
 renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "SettingsMode",
@@ -211,18 +218,34 @@ renodx::utils::settings::Settings settings = {
           .is_enabled = []() { return IsPrismEnabled(); },
           .is_visible = []() { return current_settings_mode >= 2.f; },
         },
-    new renodx::utils::settings::Setting{
+    peak_white_nits_setting = new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",
         .binding = &shader_injection.peak_white_nits,
-        .default_value = 1000.f,
+        .default_value = 47.f,
         .can_reset = true,
         .label = "Peak Brightness",
         .section = "Tone Mapping",
-        .tooltip = "Sets the value of peak white in nits.",
-        .min = 80.f,
-        .max = 4000.f,
+        .tooltip = "Sets the peak white in nits. Auto uses the detected display peak, or 1000 nits if unavailable.",
+        .min = 47.f,
+        .max = 10000.f,
           .is_enabled = []() { return RENODX_TONE_MAP_TYPE == 1.f; },
+        .parse = [](float value) {
+          if (peak_white_nits_setting != nullptr) {
+            if (value == 47.f && detected_peak_nits.has_value()) {
+              peak_white_nits_setting->format = "Auto (" + std::to_string(static_cast<int>(*detected_peak_nits + 0.5f)) + " nits)";
+            } else {
+              peak_white_nits_setting->format = (value == 47.f ? "Auto" : "%.0f");
+            }
+          }
+          return (value == 47.f ? detected_peak_nits.value_or(1000.f) : value);
+        },
+        .on_change = []() {
+          if (peak_white_nits_setting->value > 47.f && peak_white_nits_setting->value < 48.f) {
+            peak_white_nits_setting->value = (peak_white_nits_setting->value < 47.5f ? 47.f : 48.f);
+          }
+        },
         .is_visible = []() { return LAST_IS_HDR == 1.f; },
+        .is_logarithmic = true,
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapGameNits",
@@ -754,6 +777,41 @@ void OnPresent(
     const reshade::api::rect* dest_rect,
     uint32_t dirty_rect_count,
     const reshade::api::rect* dirty_rects) {
+
+  auto* const monitor = MonitorFromWindow(static_cast<HWND>(swapchain->get_hwnd()), MONITOR_DEFAULTTONEAREST);
+  if (monitor != peak_monitor) {
+    peak_monitor = monitor;
+    detected_peak_nits.reset();
+    // The game uses Vulkan, so its swapchain cannot expose an IDXGISwapChain.
+    if (monitor != nullptr && renodx::utils::directx::Initialize()) {
+      Microsoft::WRL::ComPtr<IDXGIFactory1> factory;
+      if (SUCCEEDED(renodx::utils::directx::pCreateDXGIFactory1(IID_PPV_ARGS(&factory)))) {
+        for (UINT adapter_index = 0;; ++adapter_index) {
+          Microsoft::WRL::ComPtr<IDXGIAdapter1> adapter;
+          if (factory->EnumAdapters1(adapter_index, &adapter) == DXGI_ERROR_NOT_FOUND) break;
+          if (adapter.Get() == nullptr) break;
+          for (UINT output_index = 0;; ++output_index) {
+            Microsoft::WRL::ComPtr<IDXGIOutput> output;
+            if (adapter->EnumOutputs(output_index, &output) == DXGI_ERROR_NOT_FOUND) break;
+            if (output.Get() == nullptr) break;
+            DXGI_OUTPUT_DESC desc = {};
+            if (FAILED(output->GetDesc(&desc)) || desc.Monitor != monitor) continue;
+            Microsoft::WRL::ComPtr<IDXGIOutput6> output6;
+            DXGI_OUTPUT_DESC1 desc1 = {};
+            if (SUCCEEDED(output.As(&output6)) && SUCCEEDED(output6->GetDesc1(&desc1))
+                && (desc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020
+                    || desc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709)
+                && desc1.MaxLuminance > 0.f) {
+              detected_peak_nits = desc1.MaxLuminance;
+            }
+            break;
+          }
+          if (detected_peak_nits.has_value()) break;
+        }
+      }
+    }
+    peak_white_nits_setting->Write();
+  }
 
   draw_counter++;
 
