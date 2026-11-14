@@ -12,6 +12,7 @@
 #include <chrono>
 #include <iomanip>
 #include <random>
+#include <shared_mutex>
 #include <sstream>
 #include <string>
 
@@ -1433,6 +1434,23 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       renodx::mods::shader::expected_constant_buffer_space = 50;
       renodx::mods::shader::expected_constant_buffer_index = 13;
       renodx::mods::shader::use_root_signature_cbv = true;
+      // Startup can create and destroy a temporary D3D12 device. Resolve the
+      // HDR constants on the drawing device instead of retaining the first buffer.
+      for (auto& [shader_hash, custom_shader] : custom_shaders) {
+        (void)shader_hash;
+        custom_shader.views.push_back({
+            .type = reshade::api::descriptor_type::constant_buffer,
+            .slot = static_cast<uint32_t>(renodx::mods::shader::expected_constant_buffer_index),
+            .space = renodx::mods::shader::expected_constant_buffer_space,
+            .get_constants_range = [](reshade::api::command_list* cmd_list) {
+              const auto* data = renodx::utils::data::Get<renodx::mods::shader::DeviceData>(cmd_list->get_device());
+              if (data == nullptr) return reshade::api::buffer_range{};
+              const std::shared_lock lock(*data->root_signature_buffer_mutex);
+              return data->root_signature_buffer_range;
+            },
+        });
+      }
+      reshade::log::message(reshade::log::level::info, "Witcher3: device-local HDR constants fix active.");
       // renodx::mods::shader::allow_multiple_push_constants = true;
       // renodx::mods::shader::force_pipeline_cloning = true;
       //  renodx::mods::shader::on_create_pipeline_layout = [](auto, auto params) {
