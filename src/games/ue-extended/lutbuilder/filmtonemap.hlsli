@@ -154,45 +154,9 @@ float ComputeFilmicVanillaBlend() {
 // output: blue-corrected AP1 linear
 float3 ApplyExtendedToneCurveAP1(
     float3 tonemapped_blue_corrected_ap1,
-  float3 vanilla_blue_corrected_ap1,
-  float vanilla_blend) {
+    float3 vanilla_blue_corrected_ap1,
+    float vanilla_blend) {
   return lerp(tonemapped_blue_corrected_ap1, vanilla_blue_corrected_ap1, vanilla_blend);
-}
-
-// input: white-normalized LMS linear
-// output: white-normalized LMS linear
-float3 ApplyExtendedToneCurveLMS(
-    float3 untonemapped_lms_normalized,
-    unrealengine::filmtonemap::Config filmic_params) {
-  // LMS goes really wide when ran through a filmic tm
-  // So we sanitize the input and output with max(1e-7f,)
-  untonemapped_lms_normalized = max(untonemapped_lms_normalized, 1e-7f);
-
-  // AP1 clamp is needed to prevent NaNs. Emulates RRT clamping behavior.
-  float3 clamped_ap1 = clamp(
-      renodx::color::ap1::from::LMS(
-          untonemapped_lms_normalized * RENODX_BT709_LMS_WHITE),
-      0.f,
-      renodx::math::FLT16_MAX);
-  float3 curve_input_lms_normalized =
-      renodx::color::lms::from::AP1(clamped_ap1) / RENODX_BT709_LMS_WHITE;
-  float3 vanilla_lms_normalized = unrealengine::filmtonemap::ApplyToneCurve(
-      curve_input_lms_normalized,
-      filmic_params);
-  float3 tonemapped_lms_normalized = unrealengine::filmtonemap::extended::ApplyToneCurveExtended(
-      curve_input_lms_normalized,
-      vanilla_lms_normalized,
-      filmic_params);
-
-  tonemapped_lms_normalized = max(tonemapped_lms_normalized, 1e-7f);
-
-  return RestorePsychoHueAndCompressLMS(
-      curve_input_lms_normalized,
-      lerp(
-          tonemapped_lms_normalized,
-          vanilla_lms_normalized,
-          ComputeFilmicVanillaBlend()),
-      RENODX_TONE_MAP_HUE_RESTORE);
 }
 
 // input: RRT value in blue-corrected AP1 linear

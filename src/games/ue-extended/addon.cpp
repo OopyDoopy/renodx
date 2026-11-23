@@ -205,14 +205,12 @@ renodx::utils::settings::Settings settings = {
           if (value == 47.f) {
             return detected_peak_nits.value_or(1000.f);
           }
-          return value;
-        },
+          return value; },
         .on_change = []() {
           auto* peak_setting = renodx::utils::settings::FindSetting("ToneMapPeakNits");
           if (peak_setting->value > 47.f && peak_setting->value < 48.f) {
             peak_setting->value = (peak_setting->value < 47.5f ? 47.f : 48.f);
-          }
-        },
+          } },
         .is_logarithmic = true,
     },
     new renodx::utils::settings::Setting{
@@ -353,8 +351,8 @@ renodx::utils::settings::Settings settings = {
         .label = "Tonemap Scaling",
         .section = "Advanced Tone Map Settings",
         .tooltip = "AP1: Applies grading and display mapping per channel in AP1.\n"
-                   "LMS: Applies grading, filmic extension, and display mapping per channel in normalized LMS.",
-        .labels = {"AP1", "LMS"},
+                   "Prism: Applies grading and display mapping in Prism formation space.",
+        .labels = {"AP1", "Prism"},
         .is_enabled = []() { return shader_injection.tone_map_type == 1.f; },
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
@@ -410,6 +408,32 @@ renodx::utils::settings::Settings settings = {
         .tooltip = "Off uses the game's black clip. On forces zero. Allow Negative forces positive values to zero and preserves negative values, which some games may use in an unsupported way for contrast adjustments.",
         .labels = {"Off", "On", "Allow Negative"},
         .is_visible = []() { return current_settings_mode >= 1.f; },
+    },
+
+    new renodx::utils::settings::Setting{
+        .key = "OverrideToneCurveAmount",
+        .binding = &shader_injection.override_tone_curve_amount,
+        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
+        .default_value = 0.f,
+        .label = "Override Tone Curve Amount",
+        .section = "Advanced Tone Map Settings",
+        .tooltip = "Off uses the game's amount. Full forces filmic and shoulder strength to 100%. Shoulder Only forces only the shoulder to 100%.",
+        .labels = {"Off", "Full", "Shoulder Only"},
+        .is_enabled = []() { return shader_injection.tone_map_type != 0.f; },
+        .is_visible = []() { return developer_mode_enabled != 0.f && current_settings_mode >= 3.f; },
+    },
+
+    new renodx::utils::settings::Setting{
+        .key = "ClampOutputGamutBT709",
+        .binding = &shader_injection.clamp_output_gamut_bt709,
+        .value_type = renodx::utils::settings::SettingValueType::BOOLEAN,
+        .default_value = 0.f,
+        .label = "Clamp Output Gamut to BT.709",
+        .section = "Advanced Tone Map Settings",
+        .tooltip = "Clamps negative linear BT.709 channels at LUT-builder output while preserving HDR values above game white.",
+        .labels = {"Off", "On"},
+        .is_enabled = []() { return shader_injection.tone_map_type != 0.f; },
+        .is_visible = []() { return developer_mode_enabled != 0.f && current_settings_mode >= 3.f; },
     },
 
     new renodx::utils::settings::Setting{
@@ -2662,7 +2686,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
     for (auto* setting : settings) {
       if (setting->key == "UEExtendedDeveloperMode") continue;
       if (setting->key != "ToneMapType" && setting->key != "VanillaToneMapMode"
-              && (setting->key == "ToneMapPeakNits"
+          && (setting->key == "ToneMapPeakNits"
               || setting->key == "SafeLimitWhiteClip"
               || setting->key == "ToneMapGameNits"
               || setting->key == "ToneMapUINits"

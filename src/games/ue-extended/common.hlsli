@@ -5,6 +5,41 @@
 
 #define RENODX_BT709_LMS_WHITE renodx::color::lms::from::BT709(1.f.xxx)
 
+// Previous BT.2020-reference formation.
+// static const float3x3 PRISM_INSET = {
+//   0.523063634f, 0.362007069f, 0.114929299f,
+//   0.197722978f, 0.607804915f, 0.194472105f,
+//   0.116206573f, 0.235762465f, 0.648030952f};
+// static const float3x3 PRISM_INSET_TO_XYZ = {
+//   0.719127657f, 0.114816254f, 0.116512015f,
+//   -0.022700442f, 1.296282244f, -0.273581802f,
+//   -0.203282192f, -0.300774507f, 1.593114466f};
+// static const float3x3 PRISM_OUTSET = {
+//   2.414298492f, -1.409940139f, -0.004358361f,
+//   -0.785918220f, 2.351514051f, -0.565595830f,
+//   -0.210755467f, -0.519184550f, 1.729940034f};
+
+// BT.2020-reference formation, D65 white; outset is the inverse of inset.
+static const float3x3 PRISM_INSET = {
+  0.549737516f, 0.371638297f, 0.078624190f,
+  0.139220197f, 0.719788111f, 0.140991690f,
+  0.089362351f, 0.175562933f, 0.735074705f
+};
+static const float3x3 PRISM_INSET_TO_XYZ = {
+  0.700666760f, 0.098003586f, 0.151785581f,
+  0.166907707f, 0.931377814f, -0.098285521f,
+  -0.161373328f, -0.074164267f, 1.324595363f
+};
+static const float3x3 PRISM_OUTSET = {
+  2.094701286f, -1.077278804f, -0.017422490f,
+  -0.372709243f, 1.649163258f, -0.276454015f,
+  -0.165634190f, -0.262917185f, 1.428551392f
+};
+
+float3 PrismInsetToBT709(float3 color) {
+  return mul(renodx::color::XYZ_TO_BT709_MAT, mul(PRISM_INSET_TO_XYZ, color));
+}
+
 float3 SanitizeGamutInput(float3 color, float3x3 gamut_xyz) {
   const float3 luminance_weights = gamut_xyz[1];
   const float y = dot(color, luminance_weights);
@@ -129,14 +164,6 @@ float3 ApplyGammaCorrectionAP1(float3 color_bt709, bool inverse, float blue_corr
 
 // input: BT.709 linear
 // output: BT.709 linear
-float3 ApplyGammaCorrectionLMS(float3 color_bt709, bool inverse) {
-  float3 color_lms_normalized = renodx::color::lms::from::BT709(color_bt709) / RENODX_BT709_LMS_WHITE;
-  return renodx::color::bt709::from::LMS(
-      renodx::color::correct::GammaSafe(color_lms_normalized, inverse) * RENODX_BT709_LMS_WHITE);
-}
-
-// input: BT.709 linear
-// output: BT.709 linear
 float3 ApplyGammaCorrection(float3 color_bt709, bool inverse = false, float blue_correction = 0.6f) {
   if (RENODX_GAMMA_CORRECTION == 0.f) return color_bt709;
 
@@ -144,10 +171,10 @@ float3 ApplyGammaCorrection(float3 color_bt709, bool inverse = false, float blue
     return renodx::color::correct::GammaSafe(color_bt709, inverse);
   }
 
-  if (RENODX_TONE_MAP_SCALING != RENODX_TONE_MAP_SCALING_LMS) {
-    return ApplyGammaCorrectionAP1(color_bt709, inverse, blue_correction);
+  if (RENODX_TONE_MAP_SCALING == RENODX_TONE_MAP_SCALING_PRISM) {
+    return PrismInsetToBT709(renodx::color::correct::GammaSafe(mul(PRISM_INSET, color_bt709), inverse));
   }
-  return ApplyGammaCorrectionLMS(color_bt709, inverse);
+  return ApplyGammaCorrectionAP1(color_bt709, inverse, blue_correction);
 }
 
 // input: sRGB-encoded BT.709; output: BT.709 linear before EOTF emulation

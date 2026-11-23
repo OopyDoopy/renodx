@@ -96,22 +96,13 @@ float3 ApplyPostToneMapDesaturation(float3 tonemapped_blue_corrected_ap1) {
   return max(0.f, lerp(grayscale, tonemapped_blue_corrected_ap1, 0.93f));
 }
 
-// input: white-normalized LMS linear
-// output: white-normalized LMS linear
-float3 ApplyToneMapDesaturationLMS(float3 tonemapped_lms_normalized, float strength = 0.93f) {
-  float yf_white = renodx::color::yf::from::LMS(RENODX_BT709_LMS_WHITE);
-
-  float yf = renodx::color::yf::from::LMS(tonemapped_lms_normalized * RENODX_BT709_LMS_WHITE);
-
-  float grayscale = renodx::math::DivideSafe(yf, yf_white, 0.f);
-
-  return max(0.f, lerp(grayscale, tonemapped_lms_normalized, strength));
-}
-
 // input/output: same linear working space
 float3 LerpToneMapStrength(float3 tonemapped, float3 pre_tonemap, UECbufferConfig cb_config) {
   pre_tonemap = min(100.f, pre_tonemap);  // prevents artifacts during night vision in Robocop
-  return lerp(pre_tonemap, tonemapped, saturate(cb_config.ue_tonecurveammount));
+  float amount = RENODX_TONE_MAP_TYPE != 0.f && shader_injection.override_tone_curve_amount == 1.f
+                     ? 1.f
+                     : saturate(cb_config.ue_tonecurveammount);
+  return lerp(pre_tonemap, tonemapped, amount);
 }
 
 // input: AP1 linear
@@ -121,20 +112,14 @@ float3 PrepareFilmicInputAP1Path(float3 untonemapped_ap1, UECbufferConfig cb_con
 }
 
 // input: AP1 linear
-// output: white-normalized LMS linear
-float3 PrepareFilmicInputLMSPath(float3 untonemapped_ap1) {
-  float3 untonemapped_lms_normalized =
-      renodx::color::lms::from::AP1(untonemapped_ap1) / RENODX_BT709_LMS_WHITE;
-  return ApplyToneMapDesaturationLMS(untonemapped_lms_normalized, 0.96f);
-}
-
-// input: AP1 linear
 // output: AP1 linear
 void ApplyFilmicToneMap(
     float3 untonemapped_ap1,
     inout float3 tonemapped_ap1,
     UECbufferConfig cb_config) {
-  untonemapped_ap1 = max(0.f, untonemapped_ap1);  // Clamp input from lutbuilder just to be safe / potentially catch NaNs
+  if (RENODX_TONE_MAP_TYPE == 0.f || RENODX_TONE_MAP_SCALING != RENODX_TONE_MAP_SCALING_PRISM) {
+    untonemapped_ap1 = max(0.f, untonemapped_ap1);  // Preserve the existing AP1 input clamp outside Prism.
+  }
   if (RENODX_TONE_MAP_TYPE != 0.f) {
     untonemapped_ap1 *= RENODX_TONE_MAP_EXPOSURE;
   }
@@ -142,27 +127,25 @@ void ApplyFilmicToneMap(
     cb_config.ue_filmblackclip = 0.f;
   }
 
-  if (RENODX_TONE_MAP_TYPE != 0.f && RENODX_TONE_MAP_SCALING == RENODX_TONE_MAP_SCALING_LMS) {
-    float3 untonemapped_lms_normalized = PrepareFilmicInputLMSPath(untonemapped_ap1);
-    unrealengine::filmtonemap::Config filmic_params =
-        unrealengine::filmtonemap::config::Create(
-            cb_config.ue_filmslope,
-            cb_config.ue_filmtoe,
-            cb_config.ue_filmshoulder,
-            cb_config.ue_filmblackclip,
-            cb_config.ue_filmwhiteclip);
-    float3 tonemapped_lms_normalized = ApplyExtendedToneCurveLMS(
-        untonemapped_lms_normalized,
-        filmic_params);
-    tonemapped_lms_normalized = ApplyToneMapDesaturationLMS(
-        tonemapped_lms_normalized,
-        0.93f);
-    tonemapped_lms_normalized = LerpToneMapStrength(
-        tonemapped_lms_normalized,
-        untonemapped_lms_normalized,
-        cb_config);
-    tonemapped_ap1 = renodx::color::ap1::from::LMS(
-        max(0.f, tonemapped_lms_normalized) * RENODX_BT709_LMS_WHITE);
+  if (RENODX_TONE_MAP_TYPE != 0.f && RENODX_TONE_MAP_SCALING == RENODX_TONE_MAP_SCALING_PRISM) {
+    // Clamp in the wide formation hull without applying the creative outset.
+    float3 input_prism = clamp(
+        mul(PRISM_INSET, renodx::color::bt709::from::AP1(untonemapped_ap1)),
+        0.f, renodx::math::FLT16_MAX);
+    float3 untonemapped_blue_corrected_ap1 = PrepareFilmicInputAP1Path(
+        renodx::color::ap1::from::BT709(PrismInsetToBT709(input_prism)), cb_config);
+    // Filmic's log2 requires positive AP1 channels even inside the Prism hull.
+    float3 tonemapped_blue_corrected_ap1 = ApplyToneCurveExtended(
+        clamp(untonemapped_blue_corrected_ap1, 1e-7f, renodx::math::FLT16_MAX),
+        cb_config.ue_bluecorrection, cb_config.ue_filmslope, cb_config.ue_filmtoe,
+        cb_config.ue_filmshoulder, cb_config.ue_filmblackclip, cb_config.ue_filmwhiteclip);
+    tonemapped_blue_corrected_ap1 = LerpToneMapStrength(
+        tonemapped_blue_corrected_ap1, untonemapped_blue_corrected_ap1, cb_config);
+    float3 output_prism = clamp(
+        mul(PRISM_INSET, renodx::color::bt709::from::AP1(
+                             ApplyBlueCorrectionPost(tonemapped_blue_corrected_ap1, cb_config.ue_bluecorrection))),
+        0.f, renodx::math::FLT16_MAX);
+    tonemapped_ap1 = renodx::color::ap1::from::BT709(PrismInsetToBT709(output_prism));
     return;
   }
 
@@ -233,13 +216,13 @@ float ComputeFilmicSafeInversePeakRatio(
     float sample_log_input = sample_t * probe_log_peak_ratio;
     float sample_input = exp2(sample_log_input) * max(RENODX_TONE_MAP_EXPOSURE, 1e-6f);
     float sample_output = max(
-      unrealengine::filmtonemap::ApplyToneCurve(sample_input, filmic_params),
-      1e-6f);
+        unrealengine::filmtonemap::ApplyToneCurve(sample_input, filmic_params),
+        1e-6f);
     float sample_slope = max(
-      unrealengine::filmtonemap::extended::ComputeFilmicSlopeAtInput(
-        filmic_params,
-        sample_input),
-      1e-6f);
+        unrealengine::filmtonemap::extended::ComputeFilmicSlopeAtInput(
+            filmic_params,
+            sample_input),
+        1e-6f);
     float inverse_log_slope = sample_output / max(sample_input * sample_slope, 1e-6f);
 
     if (inverse_log_slope <= maximum_inverse_log_slope) {
@@ -258,13 +241,13 @@ float ComputeFilmicSafeInversePeakRatio(
     float sample_log_input = (stable_log_peak_ratio + unstable_log_peak_ratio) * 0.5f;
     float sample_input = exp2(sample_log_input) * max(RENODX_TONE_MAP_EXPOSURE, 1e-6f);
     float sample_output = max(
-      unrealengine::filmtonemap::ApplyToneCurve(sample_input, filmic_params),
-      1e-6f);
+        unrealengine::filmtonemap::ApplyToneCurve(sample_input, filmic_params),
+        1e-6f);
     float sample_slope = max(
-      unrealengine::filmtonemap::extended::ComputeFilmicSlopeAtInput(
-        filmic_params,
-        sample_input),
-      1e-6f);
+        unrealengine::filmtonemap::extended::ComputeFilmicSlopeAtInput(
+            filmic_params,
+            sample_input),
+        1e-6f);
     float inverse_log_slope = sample_output / max(sample_input * sample_slope, 1e-6f);
 
     if (inverse_log_slope <= maximum_inverse_log_slope) {
@@ -315,7 +298,7 @@ float3 CompensateHuePreservingLUTBlackRaise(
           * (common_offset_squared_magnitude + dot(channel_residual, channel_residual)),
       0.f);
 
-  //compensation_weight = lerp(1.f, compensation_weight, 0.f);
+  // compensation_weight = lerp(1.f, compensation_weight, 0.f);
 
   // Subtract one bounded scalar, preserving channel differences and keeping every channel at or above its source.
   const float removable_common_offset = max(renodx::math::Min(graded - source), 0.f);
@@ -535,7 +518,6 @@ float3 SampleLUTSRGBInSRGBOut(Texture2D<float4> lut_texture, SamplerState lut_sa
             cb_config.ue_bluecorrection);
         return color_output;
       }
-
     }
   } else {
   }
@@ -566,7 +548,6 @@ void SampleLUTUpgradeToneMap(float3 color_lut_input, SamplerState lut_sampler, T
         color_lut_input,
         RestoreLUTOutput(lutted, bridge_state),
         saturate(CUSTOM_LUT_STRENGTH));
-
   }
 
   output_r = color_output.r;
@@ -646,7 +627,6 @@ float3 Sample2LUTSRGBInSRGBOut(Texture2D<float4> lut_texture1, Texture2D<float4>
             cb_config.ue_bluecorrection);
         return color_output;
       }
-
     }
   } else {
   }
@@ -682,7 +662,6 @@ void Sample2LUTsUpgradeToneMap(float3 color_lut_input, SamplerState lut_sampler1
         color_lut_input,
         RestoreLUTOutput(lutted, bridge_state),
         saturate(CUSTOM_LUT_STRENGTH));
-
   }
 
   output_r = color_output.r;
@@ -773,7 +752,6 @@ float3 Sample3LUTSRGBInSRGBOut(
             cb_config.ue_bluecorrection);
         return color_output;
       }
-
     }
   } else {
   }
@@ -813,7 +791,6 @@ void Sample3LUTsUpgradeToneMap(
         color_lut_input,
         RestoreLUTOutput(lutted, bridge_state),
         saturate(CUSTOM_LUT_STRENGTH));
-
   }
 
   output_r = color_output.r;
@@ -905,7 +882,6 @@ float3 Sample4LUTSRGBInSRGBOut(
             cb_config.ue_bluecorrection);
         return color_output;
       }
-
     }
   } else {
   }
@@ -947,7 +923,6 @@ void Sample4LUTsUpgradeToneMap(
         color_lut_input,
         RestoreLUTOutput(lutted, bridge_state),
         saturate(CUSTOM_LUT_STRENGTH));
-
   }
 
   output_r = color_output.r;

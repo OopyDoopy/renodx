@@ -45,7 +45,6 @@
 #define CUSTOM_SLIDER_2 shader_injection.custom_slider_2
 
 #define RENODX_TONE_MAP_SCALING              shader_injection.tone_map_scaling
-#define RENODX_TONE_MAP_HUE_RESTORE          0.5f
 #define RENODX_TONE_MAP_HUE_CORRECTION       shader_injection.tone_map_hue_correction
 #define RENODX_TONE_MAP_HUE_CORRECTION_PEAK  shader_injection.tone_map_hue_correction_peak
 #define FORCE_BLUE_CORRECT                   1.f
@@ -55,7 +54,7 @@
 
 // Scaling mode values
 #define RENODX_TONE_MAP_SCALING_AP1               0.f
-#define RENODX_TONE_MAP_SCALING_LMS               1.f
+#define RENODX_TONE_MAP_SCALING_PRISM             1.f
 #define CUSTOM_LUT_SCALING_METHOD_HUE_PRESERVING  0.f
 #define CUSTOM_LUT_SCALING_METHOD_COLOR_RESTORING 1.f
 
@@ -116,6 +115,8 @@ struct ShaderInjectData {
   float tone_map_hue_correction_peak;
   float gamma_correction_ui;
   float override_black_clip;
+  float override_tone_curve_amount;
+  float clamp_output_gamut_bt709;
 };
 
 #ifndef __cplusplus

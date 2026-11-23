@@ -158,53 +158,23 @@ float3 ApplyPerChannelSaturation(float3 color, float3 peak, renodx::color::grade
   return neutral.xxx + (color - neutral.xxx) * saturation_scale;
 }
 
-// input: white-normalized LMS linear
-// output: white-normalized LMS linear
-float3 RestorePsychoHueAndCompressLMS(
-    float3 source_lms_normalized,
-    float3 target_lms_normalized,
-    float hue_restore) {
-  float3 source_lms = source_lms_normalized * RENODX_BT709_LMS_WHITE;
-  float3 target_lms = target_lms_normalized * RENODX_BT709_LMS_WHITE;
-  float3 adaptive_state_lms = 0.18f * RENODX_BT709_LMS_WHITE;
-  float3 source_relative_weighted = renodx::tonemap::psychov::psycho22_ToAdaptiveRelativeWeightedLMS(source_lms, adaptive_state_lms);
-  float3 target_relative_weighted = renodx::tonemap::psychov::psycho22_ToAdaptiveRelativeWeightedLMS(target_lms, adaptive_state_lms);
-  float3 neutral_weighted = renodx::tonemap::psychov::psycho22_AdaptiveRelativeWeightedNeutral();
-  float neutral_yf = max(neutral_weighted.x + neutral_weighted.y, 1e-6f);
-  float2 mb_neutral = neutral_weighted.xz / neutral_yf;
-  float2 source_offset = source_relative_weighted.xz
-                             * renodx::math::DivideSafe(1.f, max(source_relative_weighted.x + source_relative_weighted.y, 0.f), 0.f)
-                         - mb_neutral;
-  float target_y = max(target_relative_weighted.x + target_relative_weighted.y, 0.f);
-  float2 target_offset = target_relative_weighted.xz
-                             * renodx::math::DivideSafe(1.f, target_y, 0.f)
-                         - mb_neutral;
-  float3 reference_white_relative_weighted =
-      renodx::tonemap::psychov::psycho22_ToAdaptiveRelativeWeightedLMS(
-          RENODX_BT709_LMS_WHITE,
-          adaptive_state_lms);
-  float reference_white_y =
-      reference_white_relative_weighted.x + reference_white_relative_weighted.y;
-  float highlight_rolloff = 1.f - smoothstep(neutral_yf, reference_white_y, target_y);
-  highlight_rolloff *= highlight_rolloff;
-  float target_radius_squared = dot(target_offset, target_offset);
-  float target_radius = target_radius_squared * rsqrt(max(target_radius_squared, 1e-7f));
-  float2 restored_offset = lerp(
-      target_offset,
-      source_offset * (target_radius * rsqrt(max(dot(source_offset, source_offset), 1e-7f))),
-      saturate(hue_restore) * highlight_rolloff);
-  restored_offset *= target_radius * rsqrt(max(dot(restored_offset, restored_offset), 1e-7f));
-  target_relative_weighted = renodx::color::macleod_boynton::WeightedLMSFromMacleodBoynton(
-      float3(mb_neutral + restored_offset, target_y));
-  target_relative_weighted = renodx::tonemap::psychov::psycho22_GamutCompressAdaptiveRelativeWeightedLMSBound(
-      target_relative_weighted,
-      adaptive_state_lms,
-      renodx::color::macleod_boynton::BT2020_TO_LMS_WEIGHTED_MAT,
-      1.f);
-
-  return renodx::color::macleod_boynton::UnweighLMS(
-             renodx::tonemap::psychov::psycho22_FromAdaptiveRelativeWeightedLMS(target_relative_weighted, adaptive_state_lms))
-         / RENODX_BT709_LMS_WHITE;
+// Prism's inset white is (1, 1, 1); normalize its rounded XYZ Y weights.
+float3 ApplyPrismYChromaScale(float3 color, float chroma_scale) {
+  const float3 y_weights = PRISM_INSET_TO_XYZ[1];
+  const float3 neutral = (dot(color, y_weights) / dot(1.f.xxx, y_weights)).xxx;
+  const float3 direction = color - neutral;
+  if (chroma_scale > 1.f && all(neutral >= 0.f.xxx)) {
+    float boundary = 1e30f;
+    [unroll]
+    for (int i = 0; i < 3; ++i) {
+      if (direction[i] < 0.f) boundary = min(boundary, neutral[i] / -direction[i]);
+    }
+    if (boundary < 1e29f) {
+      const float headroom = max(boundary - 1.f, 0.f);
+      chroma_scale = 1.f + (headroom > 0.f ? renodx::tonemap::Neutwo(chroma_scale - 1.f, headroom) : 0.f);
+    }
+  }
+  return mad(direction, chroma_scale, neutral);
 }
 
 renodx::color::grade::Config CreateColorGradingConfig() {
@@ -230,26 +200,19 @@ float3 ApplyPostLUTColorGrading(
     float blue_correction) {
   renodx::color::grade::Config cg_config = CreateColorGradingConfig();
   cg_config.exposure = 1.f;
-  if (RENODX_TONE_MAP_SCALING != RENODX_TONE_MAP_SCALING_LMS) {
-    float3 color_ap1 = BlueCorrectedAP1FromBT709(color_bt709, blue_correction);
-    float3 anchor_ap1 = BlueCorrectedAP1FromBT709(mid_gray_bt709, blue_correction);
-    color_ap1 = ApplyPerChannelTonalGrading(color_ap1, anchor_ap1, cg_config);
-    float3 peak_ap1 = BlueCorrectedAP1FromBT709(peak_ratio.xxx, blue_correction);
-    return BT709FromBlueCorrectedAP1(
-        ApplyPerChannelSaturation(color_ap1, peak_ap1, cg_config),
-        blue_correction);
+  if (RENODX_TONE_MAP_SCALING == RENODX_TONE_MAP_SCALING_PRISM) {
+    float3 color_prism = mul(PRISM_INSET, color_bt709);
+    float3 anchor_prism = mul(PRISM_INSET, mid_gray_bt709);
+    color_prism = ApplyPerChannelTonalGrading(color_prism, anchor_prism, cg_config);
+    return mul(PRISM_OUTSET, color_prism);
   }
-
-  const float3 lms_white = RENODX_BT709_LMS_WHITE;
-  float3 color_lms_normalized = renodx::color::lms::from::BT709(color_bt709) / lms_white;
-  float3 anchor_lms_normalized = renodx::color::lms::from::BT709(mid_gray_bt709) / lms_white;
-  color_lms_normalized = ApplyPerChannelTonalGrading(
-      color_lms_normalized,
-      anchor_lms_normalized,
-      cg_config);
-  float3 peak_lms_normalized = renodx::color::lms::from::BT709(peak_ratio.xxx) / lms_white;
-  return renodx::color::bt709::from::LMS(
-      ApplyPerChannelSaturation(color_lms_normalized, peak_lms_normalized, cg_config) * lms_white);
+  float3 color_ap1 = BlueCorrectedAP1FromBT709(color_bt709, blue_correction);
+  float3 anchor_ap1 = BlueCorrectedAP1FromBT709(mid_gray_bt709, blue_correction);
+  color_ap1 = ApplyPerChannelTonalGrading(color_ap1, anchor_ap1, cg_config);
+  float3 peak_ap1 = BlueCorrectedAP1FromBT709(peak_ratio.xxx, blue_correction);
+  return BT709FromBlueCorrectedAP1(
+      ApplyPerChannelSaturation(color_ap1, peak_ap1, cg_config),
+      blue_correction);
 }
 
 float3 GammaCorrectHuePreserving(float3 incorrect_color) {
@@ -326,36 +289,89 @@ float3 DisplayMapAP1(float3 color_bt709, float3 mid_gray_bt709, float peak_ratio
 
 // input: BT.709 linear
 // output: BT.709 linear
-float3 DisplayMapLMS(float3 color_bt709, float3 mid_gray_bt709, float peak_ratio) {
-  const float3 lms_white = RENODX_BT709_LMS_WHITE;
-  float3 color_lms_normalized = renodx::color::lms::from::BT709(color_bt709) / lms_white;
-  float3 peak_lms_normalized = renodx::color::lms::from::BT709(peak_ratio.xxx) / lms_white;
-  float3 shoulder_lms_normalized = renodx::color::lms::from::BT709(mid_gray_bt709) / lms_white;
-  float3 displaymapped_lms_normalized = SelectDisplaymap(
-      max(0.f, color_lms_normalized),
-      peak_lms_normalized,
-      max(0.f, shoulder_lms_normalized),
-      1.5f);
-  displaymapped_lms_normalized = RestorePsychoHueAndCompressLMS(
-      color_lms_normalized,
-      displaymapped_lms_normalized,
-      RENODX_TONE_MAP_HUE_RESTORE);
-  return renodx::color::bt709::from::LMS(displaymapped_lms_normalized * lms_white);
-}
-
-// input: BT.709 linear
-// output: BT.709 linear
-float3 DisplayMapByScaling(float3 color_bt709, float3 mid_gray_bt709, float peak_ratio, float blue_correction) {
+float3 DisplayMapByScaling(float3 color_bt709, float3 mid_gray_bt709, float peak_ratio, float blue_correction, float tone_curve_amount) {
   float3 display_mapped_bt709;
-  if (RENODX_TONE_MAP_SCALING != RENODX_TONE_MAP_SCALING_LMS) {
-    display_mapped_bt709 = DisplayMapAP1(color_bt709, mid_gray_bt709, peak_ratio, blue_correction);
+  if (RENODX_TONE_MAP_SCALING == RENODX_TONE_MAP_SCALING_PRISM) {
+    float3 color_prism = mul(PRISM_INSET, color_bt709);
+    float3 anchor_prism = mul(PRISM_INSET, mid_gray_bt709);
+    float3 shoulder_prism = SelectDisplaymap(max(0.f, color_prism), peak_ratio.xxx, max(0.f, anchor_prism), 1.5f);
+    float3 mapped_bt709 = mul(PRISM_OUTSET, shoulder_prism);
+    return lerp(color_bt709, mapped_bt709, saturate(tone_curve_amount));
   } else {
-    display_mapped_bt709 = DisplayMapLMS(color_bt709, mid_gray_bt709, peak_ratio);
+    display_mapped_bt709 = DisplayMapAP1(color_bt709, mid_gray_bt709, peak_ratio, blue_correction);
   }
+  display_mapped_bt709 = lerp(color_bt709, display_mapped_bt709, saturate(tone_curve_amount));
   // Clamp per channel on game color to avoid max channel clamp of swapchainpass
   float3 display_mapped_bt2020 = renodx::color::bt2020::from::BT709(display_mapped_bt709);
   display_mapped_bt2020 = min(display_mapped_bt2020, peak_ratio);
   return renodx::color::bt709::from::BT2020(display_mapped_bt2020);
+}
+
+// Prism's first-face cube-ray compressor, followed by Y-preserving chroma.
+float3 CompressPrismDisplayGamut(float3 color_bt709, float peak, float rolloff, float anchor_out) {
+  // Keep negative channels when their combined BT.709 luminance is valid.
+  color_bt709 = SanitizeGamutInputBT709(renodx::math::ZeroNaN(color_bt709));
+  const float3x3 to_p3 = mul(renodx::color::BT709_TO_DISPLAYP3_MAT, PRISM_OUTSET);
+  const float3x3 from_p3 = mul(PRISM_INSET, renodx::color::DISPLAYP3_TO_BT709_MAT);
+  const float3 y_weights = PRISM_INSET_TO_XYZ[1];
+  float3 color = mul(PRISM_INSET, color_bt709);
+  float3 target = mul(to_p3, color);
+  const float y = dot(color, y_weights);
+  const float visible_y = max(dot(mul(from_p3, clamp(target, 0.f, peak)), y_weights), 0.f);
+  const float floor_y = 0.85f * visible_y;
+  const float width = 0.15f * visible_y;
+  float recovered_y = max(y, floor_y);
+  if (width > 0.f) {
+    const float overlap = max(width - abs(y - floor_y), 0.f) / width;
+    recovered_y += 0.25f * width * overlap * overlap;
+  }
+  const float3 neutral = (recovered_y / dot(y_weights, 1.f.xxx)).xxx;
+  const float3 origin = mul(to_p3, neutral);
+  float demand = 0.f;
+  if (all(origin >= 0.f) && all(origin <= peak)) {
+    const float3 delta = target - origin;
+    [unroll]
+    for (int i = 0; i < 3; ++i) {
+      if (delta[i] == 0.f) continue;
+      const float room = delta[i] < 0.f ? origin[i] : peak - origin[i];
+      if (room == 0.f) {
+        color = neutral;
+        demand = 0.f;
+        break;
+      }
+      demand = max(demand, abs(delta[i]) / room);
+    }
+  }
+  if (demand > 0.f) {
+    const float sharpness = 16.f;
+    const float zero_offset = 1.f - log2(1.f + exp2(sharpness)) / sharpness;
+    float origin_slope = rcp(1.f + exp2(-sharpness));
+    float near_zero = demand * origin_slope
+                      * (1.f - 0.5f * sharpness * log(2.f) * (1.f - origin_slope) * demand)
+                      / (1.f - zero_offset);
+    float mapped_demand = near_zero;
+    if (demand > 1e-4f) {
+      // Stable softplus form avoids overflow for extreme out-of-gamut colors.
+      float x = sharpness * (1.f - demand);
+      float limited = 1.f - (max(x, 0.f) + log2(1.f + exp2(-abs(x)))) / sharpness;
+      float smooth_demand = (limited - zero_offset) / (1.f - zero_offset);
+      if (demand >= 1e-3f) {
+        mapped_demand = smooth_demand;
+      } else {
+        float position = (demand - 1e-4f) / 9e-4f;
+        float transition = rcp(1.f + exp2((1.f - 2.f * position) / (position * (1.f - position))));
+        mapped_demand = lerp(near_zero, smooth_demand, transition);
+      }
+    }
+    color = lerp(neutral, color, mapped_demand / demand);
+  }
+  const float weight = rolloff * rolloff * mad(0.5f, rolloff, 0.5f);
+  const float highlight_scale = mad(RENODX_TONE_MAP_HIGHLIGHT_SATURATION - 1.f, weight * (2.f / 3.f), 1.f);
+  const float availability = lerp(1.f, rcp(1.f + peak / max(anchor_out, 1e-9f)),
+                                  saturate(RENODX_TONE_MAP_BLOWOUT * rolloff));
+  const float amount = RENODX_TONE_MAP_SATURATION * highlight_scale * availability;
+  if (abs(amount - 1.f) > 1e-5f) color = ApplyPrismYChromaScale(color, amount);
+  return renodx::math::ZeroNaN(mul(renodx::color::DISPLAYP3_TO_BT709_MAT, clamp(mul(to_p3, color), 0.f, peak)));
 }
 
 // input: BT.709 linear
@@ -367,7 +383,10 @@ float4 GenerateOutput(
     uint device,
     float blue_correction,
     float peak_ratio,
+    float tone_curve_amount,
+    float prism_highlight_rolloff,
     bool srgb_only = false) {
+  const float prism_anchor = mul(PRISM_INSET, shoulder_anchor_bt709).x;
   if (RENODX_TONE_MAP_TYPE != 0.f && RENODX_GAMMA_CORRECTION != 0.f) {
     peak_ratio = ApplyGammaCorrection(peak_ratio.xxx, true, blue_correction).x;
   }
@@ -392,7 +411,7 @@ float4 GenerateOutput(
         final_color, hue_strength,
         RENODX_TONE_MAP_HUE_CORRECTION_PEAK == 0.f ? peak_ratio : RENODX_TONE_MAP_HUE_CORRECTION_PEAK,
         renodx::math::Max(abs(shoulder_anchor_bt709)));
-    final_color = DisplayMapByScaling(final_color, shoulder_anchor_bt709, peak_ratio, blue_correction);
+    final_color = DisplayMapByScaling(final_color, shoulder_anchor_bt709, peak_ratio, blue_correction, tone_curve_amount);
   }
 
   float3 encoded_color;
@@ -400,13 +419,34 @@ float4 GenerateOutput(
   [branch]
   if (PROCESSING_PATH == 0.f) {
     if (srgb_only) {
+      if (RENODX_TONE_MAP_TYPE != 0.f && RENODX_TONE_MAP_SCALING == RENODX_TONE_MAP_SCALING_PRISM) {
+        // sRGB encoding here is an HDR intermediate, not an SDR peak limit.
+        final_color = CompressPrismDisplayGamut(final_color, peak_ratio, prism_highlight_rolloff, prism_anchor);
+      }
+      if (RENODX_TONE_MAP_TYPE != 0.f && shader_injection.clamp_output_gamut_bt709 != 0.f) {
+        final_color = max(final_color, 0.f);
+      }
       encoded_color = renodx::color::srgb::EncodeSafe(final_color);
     } else {
       final_color = ApplyGammaCorrection(final_color, false, blue_correction);
+      if (RENODX_TONE_MAP_TYPE != 0.f && RENODX_TONE_MAP_SCALING == RENODX_TONE_MAP_SCALING_PRISM) {
+        final_color = CompressPrismDisplayGamut(final_color, RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS,
+                                                prism_highlight_rolloff, ApplyGammaCorrection(prism_anchor.xxx, false, blue_correction).x);
+      }
+      if (RENODX_TONE_MAP_TYPE != 0.f && shader_injection.clamp_output_gamut_bt709 != 0.f) {
+        final_color = max(final_color, 0.f);
+      }
       float3 bt2020_color = renodx::color::bt2020::from::BT709(final_color);
       encoded_color = renodx::color::pq::EncodeSafe(bt2020_color, RENODX_DIFFUSE_WHITE_NITS);
     }
   } else {
+    if (RENODX_TONE_MAP_TYPE != 0.f && RENODX_TONE_MAP_SCALING == RENODX_TONE_MAP_SCALING_PRISM) {
+      // Preserve headroom above game white through the sRGB proxy.
+      final_color = CompressPrismDisplayGamut(final_color, peak_ratio, prism_highlight_rolloff, prism_anchor);
+    }
+    if (RENODX_TONE_MAP_TYPE != 0.f && shader_injection.clamp_output_gamut_bt709 != 0.f) {
+      final_color = max(final_color, 0.f);
+    }
     float3 srgb_color = renodx::color::srgb::EncodeSafe(final_color);
     encoded_color = ScaleScene(srgb_color);
   }

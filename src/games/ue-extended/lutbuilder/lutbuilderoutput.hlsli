@@ -26,6 +26,9 @@ float4 ProcessOutputDevice89(float3 untonemapped_ap1, float3 processed, uint out
     output = renodx::tonemap::neutwo::PerChannel(output, 1.f);
   }
 
+  if (RENODX_TONE_MAP_TYPE != 0.f && shader_injection.clamp_output_gamut_bt709 != 0.f) {
+    output = max(output, 0.f);
+  }
   return float4((output / 1.05f), 0.f);
 }
 
@@ -66,6 +69,17 @@ float4 FinalizeLutbuilderOutput(
   float3 output_bt709 = ApplyMappingAndOverlay(processed_bt709, cb_config);
   safe_mid_gray_bt709 = ApplyMappingAndOverlay(safe_mid_gray_bt709, cb_config);
 
+  float prism_highlight_rolloff = 0.f;
+  if (RENODX_TONE_MAP_TYPE != 0.f && RENODX_TONE_MAP_SCALING == RENODX_TONE_MAP_SCALING_PRISM) {
+    const float3 y_weights = PRISM_INSET_TO_XYZ[1];
+    const float anchor_y = max(dot(mul(PRISM_INSET, safe_mid_gray_bt709), y_weights), 1e-6f);
+    const float luminance = max(dot(mul(PRISM_INSET, output_bt709), y_weights), 0.f);
+    const float onset_offset = 0.75f;
+    const float position = saturate((log2(max(luminance / anchor_y, exp2(-onset_offset))) + onset_offset)
+                                    / (2.75f * log2(10.f) + onset_offset));
+    prism_highlight_rolloff = position * position * position * mad(position, mad(6.f, position, -15.f), 10.f);
+  }
+
   float peak_ratio = RENODX_PEAK_WHITE_NITS / RENODX_DIFFUSE_WHITE_NITS;
   float grading_peak_ratio = peak_ratio;
   if (RENODX_TONE_MAP_TYPE != 0.f && RENODX_GAMMA_CORRECTION != 0.f) {
@@ -102,6 +116,8 @@ float4 FinalizeLutbuilderOutput(
       outputdevice,
       cb_config.ue_bluecorrection,
       shoulder_peak_ratio,
+      shader_injection.override_tone_curve_amount != 0.f ? 1.f : cb_config.ue_tonecurveammount,
+      prism_highlight_rolloff,
       cb_config.ue_srgb_only);
 }
 
