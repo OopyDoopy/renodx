@@ -159,6 +159,23 @@ static bool s_prev_pressed[4] = {false, false, false, false};
 
 // end keybind code
 
+constexpr char UNTONEMAPPED_TONE_MAP_LABEL[] = "Untonemapped (80 nits PQ)";
+
+void UpdateToneMapOptions() {
+  auto* tone_map = renodx::utils::settings::FindSetting("ToneMapType");
+  if (tone_map == nullptr) return;
+  if (developer_mode_enabled != 0.f && current_settings_mode >= 3.f) {
+    if (tone_map->labels.size() == 2) {
+      tone_map->labels.emplace_back(UNTONEMAPPED_TONE_MAP_LABEL);
+    }
+  } else {
+    if (tone_map->GetValue() == RENODX_TONE_MAP_TYPE_UNTONEMAPPED) {
+      tone_map->Set(tone_map->default_value)->Write();
+    }
+    tone_map->labels.resize(2);
+  }
+}
+
 // bool is_hdr_path = (shader_injection.processing_path == 0.f);
 
 renodx::utils::settings::Settings settings = {
@@ -170,6 +187,7 @@ renodx::utils::settings::Settings settings = {
         .can_reset = false,
         .label = "Settings Mode",
         .labels = {"Simple", "Intermediate", "Advanced", "Developer"},
+        .on_change_value = [](float, float) { UpdateToneMapOptions(); },
         .is_global = true,
     },
     new renodx::utils::settings::Setting{
@@ -180,8 +198,8 @@ renodx::utils::settings::Settings settings = {
         .can_reset = true,
         .label = "Tone Mapper",
         .section = "Output",
-        .tooltip = "Sets the tone mapper type",
-        .labels = {"Vanilla", "UE Filmic Extended (HDR)"},
+        .tooltip = "Untonemapped affects PQ LUT output only: it preserves exposure and game LUTs, bypasses Filmic and the shoulder, and maps linear 1.0 to 80 nits independently of Peak and Game Brightness.",
+        .labels = {"Vanilla", "UE Filmic Extended (HDR)", UNTONEMAPPED_TONE_MAP_LABEL},
         .is_visible = []() { return current_settings_mode >= 1.f; },
     },
     new renodx::utils::settings::Setting{
@@ -2683,8 +2701,21 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
         settings_mode->Set(2.f)->Write();
       }
     }
+    UpdateToneMapOptions();
     for (auto* setting : settings) {
       if (setting->key == "UEExtendedDeveloperMode") continue;
+      const bool extended_tone_map_only = setting->key == "BlendFactor"
+                                          || setting->key == "ToneMapScaling"
+                                          || setting->key == "ToneMapHueCorrection"
+                                          || setting->key == "ToneMapHueCorrectionPeak";
+      const bool bypassed_when_untonemapped = extended_tone_map_only
+                                             || setting->key == "ToneMapPeakNits"
+                                             || setting->key == "SafeLimitWhiteClip"
+                                             || setting->key == "ToneMapGameNits"
+                                             || setting->key == "OverrideBlackClip"
+                                             || setting->key == "OverrideToneCurveAmount"
+                                             || setting->key == "ClampOutputGamutBT709"
+                                             || (setting->section == "Custom Color Grading" && setting->key != "ColorGradeExposure");
       if (setting->key != "ToneMapType" && setting->key != "VanillaToneMapMode"
           && (setting->key == "ToneMapPeakNits"
               || setting->key == "SafeLimitWhiteClip"
@@ -2695,20 +2726,17 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
               || setting->section == "Color Grading LUTs"
               || setting->section == "Effects")) {
         auto is_enabled = setting->is_enabled;
-        setting->is_enabled = [is_enabled]() {
-          return !(shader_injection.processing_path == 0.f
-                   && shader_injection.tone_map_type == 0.f
-                   && vanilla_tone_map_mode != 0.f)
+        setting->is_enabled = [is_enabled, bypassed_when_untonemapped]() {
+          return !(bypassed_when_untonemapped && shader_injection.tone_map_type == RENODX_TONE_MAP_TYPE_UNTONEMAPPED)
+                 && !(shader_injection.processing_path == 0.f
+                      && shader_injection.tone_map_type == 0.f
+                      && vanilla_tone_map_mode != 0.f)
                  && (is_enabled == nullptr || is_enabled());
         };
       }
       auto is_visible = setting->is_visible;
-      const bool extended_tone_map_only = setting->key == "BlendFactor"
-                                          || setting->key == "ToneMapScaling"
-                                          || setting->key == "ToneMapHueCorrection"
-                                          || setting->key == "ToneMapHueCorrectionPeak";
       setting->is_visible = [is_visible, extended_tone_map_only]() {
-        return (!extended_tone_map_only || shader_injection.tone_map_type == 1.f)
+        return (!extended_tone_map_only || shader_injection.tone_map_type != 0.f)
                && ((developer_mode_enabled != 0.f && current_settings_mode >= 3.f)
                    || is_visible == nullptr || is_visible());
       };

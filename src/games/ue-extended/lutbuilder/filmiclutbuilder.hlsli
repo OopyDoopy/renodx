@@ -111,12 +111,23 @@ float3 PrepareFilmicInputAP1Path(float3 untonemapped_ap1, UECbufferConfig cb_con
   return ApplyBlueCorrectionPre(untonemapped_ap1, cb_config.ue_bluecorrection);
 }
 
+bool UseUntonemappedPQ(uint outputdevice, UECbufferConfig cb_config) {
+  return RENODX_TONE_MAP_TYPE == RENODX_TONE_MAP_TYPE_UNTONEMAPPED
+         && PROCESSING_PATH == 0.f && !cb_config.ue_srgb_only
+         && outputdevice != 8u && outputdevice != 9u;
+}
+
 // input: AP1 linear
 // output: AP1 linear
 void ApplyFilmicToneMap(
     float3 untonemapped_ap1,
     inout float3 tonemapped_ap1,
-    UECbufferConfig cb_config) {
+    UECbufferConfig cb_config,
+    uint outputdevice) {
+  if (UseUntonemappedPQ(outputdevice, cb_config)) {
+    tonemapped_ap1 = untonemapped_ap1 * RENODX_TONE_MAP_EXPOSURE;
+    return;
+  }
   if (RENODX_TONE_MAP_TYPE == 0.f || RENODX_TONE_MAP_SCALING != RENODX_TONE_MAP_SCALING_PRISM) {
     untonemapped_ap1 = max(0.f, untonemapped_ap1);  // Preserve the existing AP1 input clamp outside Prism.
   }
@@ -183,10 +194,10 @@ void ApplyFilmicToneMap(
   return;
 }
 
-// Track the actual UE filmic output corresponding to a scene-linear mid-gray input.
-float3 ComputeFilmicMidGrayBT709(UECbufferConfig cb_config) {
+// Track the LUT input corresponding to a scene-linear mid-gray input.
+float3 ComputeFilmicMidGrayBT709(UECbufferConfig cb_config, uint outputdevice) {
   float3 mid_gray_ap1;
-  ApplyFilmicToneMap(0.18f.xxx, mid_gray_ap1, cb_config);
+  ApplyFilmicToneMap(0.18f.xxx, mid_gray_ap1, cb_config, outputdevice);
   return renodx::color::bt709::from::AP1(mid_gray_ap1);
 }
 

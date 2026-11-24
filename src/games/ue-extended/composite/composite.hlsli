@@ -82,10 +82,14 @@ bool HandleUICompositing(float4 ui_color_gamma, float4 scene_color_pq, inout flo
   float3 composited_color_gamma = ui_color_gamma.rgb + scene_color_gamma * (1.0 - ui_alpha);
   float3 composited_color_linear = renodx::color::gamma::DecodeSafe(composited_color_gamma);
 
-  // Scale to nits, then clamp in the output gamut.
-  float3 composited_bt2020 = renodx::color::bt2020::from::BT709(composited_color_linear * RENODX_GRAPHICS_WHITE_NITS);
-  composited_bt2020 = min(composited_bt2020, RENODX_PEAK_WHITE_NITS);
-  composited_color_linear = renodx::color::bt709::from::BT2020(composited_bt2020);
+  if (RENODX_TONE_MAP_TYPE != RENODX_TONE_MAP_TYPE_UNTONEMAPPED) {
+    // Scale to nits, then clamp in the output gamut.
+    float3 composited_bt2020 = renodx::color::bt2020::from::BT709(composited_color_linear * RENODX_GRAPHICS_WHITE_NITS);
+    composited_bt2020 = min(composited_bt2020, RENODX_PEAK_WHITE_NITS);
+    composited_color_linear = renodx::color::bt709::from::BT2020(composited_bt2020);
+  } else {
+    composited_color_linear *= RENODX_GRAPHICS_WHITE_NITS;
+  }
 
   // return ui alpha for better FG support
   if (output_mode == 0u) {  // HDR10

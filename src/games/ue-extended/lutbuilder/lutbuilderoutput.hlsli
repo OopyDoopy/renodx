@@ -67,6 +67,10 @@ float4 FinalizeLutbuilderOutput(
     float4 SV_Target,
     uint outputdevice) {
   float3 output_bt709 = ApplyMappingAndOverlay(processed_bt709, cb_config);
+  if (UseUntonemappedPQ(outputdevice, cb_config)) {
+    float3 output_bt2020 = renodx::color::bt2020::from::BT709(output_bt709);
+    return float4(renodx::color::pq::EncodeSafe(output_bt2020, 80.f) / 1.05f, 0.f);
+  }
   safe_mid_gray_bt709 = ApplyMappingAndOverlay(safe_mid_gray_bt709, cb_config);
 
   float prism_highlight_rolloff = 0.f;
@@ -129,13 +133,13 @@ float4 ProcessLutbuilder(float3 untonemapped_ap1, UECbufferConfig cb_config, flo
   // So we will skip everything, and just return untonemapped
 
   float3 tonemapped_ap1;
-  ApplyFilmicToneMap(untonemapped_ap1, tonemapped_ap1, cb_config);
+  ApplyFilmicToneMap(untonemapped_ap1, tonemapped_ap1, cb_config, outputdevice);
 
   // float _1161 = mad((WorkingColorSpace.FromAP1[0].z), _1151, mad((WorkingColorSpace.FromAP1[0].y), _1150, ((WorkingColorSpace.FromAP1[0].x) * _1149)));
   // float _1162 = mad((WorkingColorSpace.FromAP1[1].z), _1151, mad((WorkingColorSpace.FromAP1[1].y), _1150, ((WorkingColorSpace.FromAP1[1].x) * _1149)));
   // float _1163 = mad((WorkingColorSpace.FromAP1[2].z), _1151, mad((WorkingColorSpace.FromAP1[2].y), _1150, ((WorkingColorSpace.FromAP1[2].x) * _1149)));
   float3 tonemapped_bt709 = renodx::color::bt709::from::AP1(tonemapped_ap1);
-  float3 tracked_mid_gray_bt709 = ComputeFilmicMidGrayBT709(cb_config);
+  float3 tracked_mid_gray_bt709 = ComputeFilmicMidGrayBT709(cb_config, outputdevice);
   return FinalizeLutbuilderOutput(untonemapped_ap1, tonemapped_bt709, tracked_mid_gray_bt709, cb_config, SV_Target, outputdevice);
 }
 
@@ -144,13 +148,13 @@ float4 ProcessLutbuilder(float3 untonemapped_ap1, UECbufferConfig cb_config, flo
 // output: linear BT.709, PQ-encoded BT.2020, or sRGB-encoded BT.709
 float4 ProcessLutbuilder(float3 untonemapped_ap1, SamplerState lut_sampler, Texture2D<float4> lut_texture, UECbufferConfig cb_config, float4 SV_Target, uint outputdevice) {
   float3 tonemapped_ap1;
-  ApplyFilmicToneMap(untonemapped_ap1, tonemapped_ap1, cb_config);
+  ApplyFilmicToneMap(untonemapped_ap1, tonemapped_ap1, cb_config, outputdevice);
   float3 tonemapped_bt709 = renodx::color::bt709::from::AP1(tonemapped_ap1);
 
   float3 lutted_bt709;
   SampleLUTUpgradeToneMap(tonemapped_bt709, lut_sampler, lut_texture, lutted_bt709.r, lutted_bt709.g, lutted_bt709.b, cb_config);
 
-  float3 mid_gray_before_lut = ComputeFilmicMidGrayBT709(cb_config);
+  float3 mid_gray_before_lut = ComputeFilmicMidGrayBT709(cb_config, outputdevice);
   float3 tracked_mid_gray_bt709;
   SampleLUTUpgradeToneMap(mid_gray_before_lut, lut_sampler, lut_texture, tracked_mid_gray_bt709.r, tracked_mid_gray_bt709.g, tracked_mid_gray_bt709.b, cb_config);
 
@@ -162,13 +166,13 @@ float4 ProcessLutbuilder(float3 untonemapped_ap1, SamplerState lut_sampler, Text
 // output: linear BT.709, PQ-encoded BT.2020, or sRGB-encoded BT.709
 float4 ProcessLutbuilder(float3 untonemapped_ap1, SamplerState lut_sampler1, SamplerState lut_sampler2, Texture2D<float4> lut_texture1, Texture2D<float4> lut_texture2, UECbufferConfig cb_config, float4 SV_Target, uint outputdevice) {
   float3 tonemapped_ap1;
-  ApplyFilmicToneMap(untonemapped_ap1, tonemapped_ap1, cb_config);
+  ApplyFilmicToneMap(untonemapped_ap1, tonemapped_ap1, cb_config, outputdevice);
   float3 tonemapped_bt709 = renodx::color::bt709::from::AP1(tonemapped_ap1);
 
   float3 lutted_bt709;
   Sample2LUTsUpgradeToneMap(tonemapped_bt709, lut_sampler1, lut_sampler2, lut_texture1, lut_texture2, lutted_bt709.r, lutted_bt709.g, lutted_bt709.b, cb_config);
 
-  float3 mid_gray_before_lut = ComputeFilmicMidGrayBT709(cb_config);
+  float3 mid_gray_before_lut = ComputeFilmicMidGrayBT709(cb_config, outputdevice);
   float3 tracked_mid_gray_bt709;
   Sample2LUTsUpgradeToneMap(mid_gray_before_lut, lut_sampler1, lut_sampler2, lut_texture1, lut_texture2, tracked_mid_gray_bt709.r, tracked_mid_gray_bt709.g, tracked_mid_gray_bt709.b, cb_config);
 
@@ -180,13 +184,13 @@ float4 ProcessLutbuilder(float3 untonemapped_ap1, SamplerState lut_sampler1, Sam
 // output: linear BT.709, PQ-encoded BT.2020, or sRGB-encoded BT.709
 float4 ProcessLutbuilder(float3 untonemapped_ap1, SamplerState lut_sampler1, SamplerState lut_sampler2, SamplerState lut_sampler3, Texture2D<float4> lut_texture1, Texture2D<float4> lut_texture2, Texture2D<float4> lut_texture3, UECbufferConfig cb_config, float4 SV_Target, uint outputdevice) {
   float3 tonemapped_ap1;
-  ApplyFilmicToneMap(untonemapped_ap1, tonemapped_ap1, cb_config);
+  ApplyFilmicToneMap(untonemapped_ap1, tonemapped_ap1, cb_config, outputdevice);
   float3 tonemapped_bt709 = renodx::color::bt709::from::AP1(tonemapped_ap1);
 
   float3 lutted_bt709;
   Sample3LUTsUpgradeToneMap(tonemapped_bt709, lut_sampler1, lut_sampler2, lut_sampler3, lut_texture1, lut_texture2, lut_texture3, lutted_bt709.r, lutted_bt709.g, lutted_bt709.b, cb_config);
 
-  float3 mid_gray_before_lut = ComputeFilmicMidGrayBT709(cb_config);
+  float3 mid_gray_before_lut = ComputeFilmicMidGrayBT709(cb_config, outputdevice);
   float3 tracked_mid_gray_bt709;
   Sample3LUTsUpgradeToneMap(mid_gray_before_lut, lut_sampler1, lut_sampler2, lut_sampler3, lut_texture1, lut_texture2, lut_texture3, tracked_mid_gray_bt709.r, tracked_mid_gray_bt709.g, tracked_mid_gray_bt709.b, cb_config);
 
@@ -198,13 +202,13 @@ float4 ProcessLutbuilder(float3 untonemapped_ap1, SamplerState lut_sampler1, Sam
 // output: linear BT.709, PQ-encoded BT.2020, or sRGB-encoded BT.709
 float4 ProcessLutbuilder(float3 untonemapped_ap1, SamplerState lut_sampler1, SamplerState lut_sampler2, SamplerState lut_sampler3, SamplerState lut_sampler4, Texture2D<float4> lut_texture1, Texture2D<float4> lut_texture2, Texture2D<float4> lut_texture3, Texture2D<float4> lut_texture4, UECbufferConfig cb_config, float4 SV_Target, uint outputdevice) {
   float3 tonemapped_ap1;
-  ApplyFilmicToneMap(untonemapped_ap1, tonemapped_ap1, cb_config);
+  ApplyFilmicToneMap(untonemapped_ap1, tonemapped_ap1, cb_config, outputdevice);
   float3 tonemapped_bt709 = renodx::color::bt709::from::AP1(tonemapped_ap1);
 
   float3 lutted_bt709;
   Sample4LUTsUpgradeToneMap(tonemapped_bt709, lut_sampler1, lut_sampler2, lut_sampler3, lut_sampler4, lut_texture1, lut_texture2, lut_texture3, lut_texture4, lutted_bt709.r, lutted_bt709.g, lutted_bt709.b, cb_config);
 
-  float3 mid_gray_before_lut = ComputeFilmicMidGrayBT709(cb_config);
+  float3 mid_gray_before_lut = ComputeFilmicMidGrayBT709(cb_config, outputdevice);
   float3 tracked_mid_gray_bt709;
   Sample4LUTsUpgradeToneMap(mid_gray_before_lut, lut_sampler1, lut_sampler2, lut_sampler3, lut_sampler4, lut_texture1, lut_texture2, lut_texture3, lut_texture4, tracked_mid_gray_bt709.r, tracked_mid_gray_bt709.g, tracked_mid_gray_bt709.b, cb_config);
 

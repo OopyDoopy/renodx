@@ -10,7 +10,8 @@
 #define DEBUG_CONTROLS 0
 #endif
 
-#define RENODX_TONE_MAP_TYPE                  shader_injection.tone_map_type  // 0 - UE Vanilla (SDR), 1 - UE Filmic Extended (HDR)
+#define RENODX_TONE_MAP_TYPE                  shader_injection.tone_map_type  // 0 - UE Vanilla (SDR), 1 - UE Filmic Extended (HDR), 2 - Untonemapped PQ
+#define RENODX_TONE_MAP_TYPE_UNTONEMAPPED      2.f
 #define RENODX_PEAK_WHITE_NITS                shader_injection.peak_white_nits
 #define RENODX_DIFFUSE_WHITE_NITS             shader_injection.diffuse_white_nits
 #define RENODX_GRAPHICS_WHITE_NITS            shader_injection.graphics_white_nits
