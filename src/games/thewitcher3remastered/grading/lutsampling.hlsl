@@ -51,6 +51,28 @@ float3 VanillaOutput3(float3 lut_sampled_sdr1, float3 lut_sampled_sdr2, float3 u
   return ((lut_sampled_sdr1.xyz + ungraded_sdr.xyz) + ((((CustomPixelConsts_032.z * lut_sampled_sdr2.xyz) - ungraded_sdr.xyz) * CustomPixelConsts_032.y) - lut_sampled_sdr1.xyz) * CustomPixelConsts_032.w);
 }
 
+float3 VanillaOutput4(float3 lut_sampled_sdr1, float3 lut_sampled_sdr2, float3 lut_sampled_sdr3, float3 ungraded_sdr) {
+  float3 blend1 = lerp(lut_sampled_sdr1, lut_sampled_sdr2, CustomPixelConsts_016.x);
+  float3 delta1 = ((CustomPixelConsts_016.z * blend1) - ungraded_sdr) * CustomPixelConsts_016.y;
+  float3 delta2 = ((CustomPixelConsts_032.z * lut_sampled_sdr3) - ungraded_sdr) * CustomPixelConsts_032.y;
+  return (delta1 + ungraded_sdr) + (delta2 - delta1) * CustomPixelConsts_032.w;
+}
+
+float3 VanillaOutput5(float3 lut_sampled_sdr1, float3 lut_sampled_sdr3, float3 lut_sampled_sdr4, float3 ungraded_sdr) {
+  float3 delta1 = ((CustomPixelConsts_016.z * lut_sampled_sdr1) - ungraded_sdr) * CustomPixelConsts_016.y;
+  float3 blend2 = lerp(lut_sampled_sdr3, lut_sampled_sdr4, CustomPixelConsts_032.x);
+  float3 delta2 = ((CustomPixelConsts_032.z * blend2) - ungraded_sdr) * CustomPixelConsts_032.y;
+  return (delta1 + ungraded_sdr) + (delta2 - delta1) * CustomPixelConsts_032.w;
+}
+
+float3 VanillaOutput6(float3 lut_sampled_sdr1, float3 lut_sampled_sdr2, float3 lut_sampled_sdr3, float3 lut_sampled_sdr4, float3 ungraded_sdr) {
+  float3 blend1 = lerp(lut_sampled_sdr1, lut_sampled_sdr2, CustomPixelConsts_016.x);
+  float3 delta1 = ((CustomPixelConsts_016.z * blend1) - ungraded_sdr) * CustomPixelConsts_016.y;
+  float3 blend2 = lerp(lut_sampled_sdr3, lut_sampled_sdr4, CustomPixelConsts_032.x);
+  float3 delta2 = ((CustomPixelConsts_032.z * blend2) - ungraded_sdr) * CustomPixelConsts_032.y;
+  return (delta1 + ungraded_sdr) + (delta2 - delta1) * CustomPixelConsts_032.w;
+}
+
 float3 UnclampLUTGamma(
     float3 lut_output_gamma,
     float3 lut_black_gamma,

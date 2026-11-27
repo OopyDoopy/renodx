@@ -64,11 +64,22 @@ void OnToneMapDrawn([[maybe_unused]] reshade::api::command_list* cmd_list) {
 
 renodx::mods::shader::CustomShaders custom_shaders = {
     {0x0BF2A7DC, {.crc32 = 0x0BF2A7DC, .code = __0x0BF2A7DC, .on_drawn = &OnBloomDrawn}},
+    {0x90592B5B, {.crc32 = 0x90592B5B, .code = __0x90592B5B, .on_drawn = &OnBloomDrawn}},
     {0x382CDBDB, {.crc32 = 0x382CDBDB, .code = __0x382CDBDB, .on_drawn = &OnToneMapDrawn}},
+    {0x379FFDE7, {.crc32 = 0x379FFDE7, .code = __0x379FFDE7, .on_drawn = &OnToneMapDrawn}},
+    {0x57E431B6, {.crc32 = 0x57E431B6, .code = __0x57E431B6, .on_drawn = &OnToneMapDrawn}},
     {0x724E225F, {.crc32 = 0x724E225F, .code = __0x724E225F, .on_drawn = &OnToneMapDrawn}},
+    {0xAF88A54E, {.crc32 = 0xAF88A54E, .code = __0xAF88A54E, .on_drawn = &OnToneMapDrawn}},
+    {0x46941860, {.crc32 = 0x46941860, .code = __0x46941860, .on_drawn = &OnToneMapDrawn}},
     {0x8F5737B5, {.crc32 = 0x8F5737B5, .code = __0x8F5737B5, .on_drawn = &OnFinalHDRDrawn}},
+    {0x1057AFAD, {.crc32 = 0x1057AFAD, .code = __0x1057AFAD, .on_drawn = &OnFinalHDRDrawn}},
+    {0x1826E94C, {.crc32 = 0x1826E94C, .code = __0x1826E94C, .on_drawn = &OnFinalHDRDrawn}},
     {0x496222DA, {.crc32 = 0x496222DA, .code = __0x496222DA, .on_drawn = &OnFinalHDRDrawn}},
+    {0xDF8B3BB9, {.crc32 = 0xDF8B3BB9, .code = __0xDF8B3BB9, .on_drawn = &OnFinalHDRDrawn}},
+    {0x01EF54AC, {.crc32 = 0x01EF54AC, .code = __0x01EF54AC, .on_drawn = &OnFinalHDRDrawn}},
     {0x9F54CB3F, {.crc32 = 0x9F54CB3F, .code = __0x9F54CB3F, .on_drawn = &OnFinalHDRDrawn}},
+    {0x6C08D32C, {.crc32 = 0x6C08D32C, .code = __0x6C08D32C, .on_drawn = &OnFinalHDRDrawn}},
+    {0xEED5C522, {.crc32 = 0xEED5C522, .code = __0xEED5C522, .on_drawn = &OnFinalHDRDrawn}},
     __ALL_CUSTOM_SHADERS,
 };
 

@@ -1,0 +1,45 @@
+#include "./lutsampling.hlsl"
+
+Texture2D<float4> t0 : register(t0);
+Texture2D<float4> t1 : register(t1);
+Texture2D<float4> t2 : register(t2);
+Texture2D<float4> t3 : register(t3);
+
+SamplerState s0 : register(s0);
+SamplerState s1 : register(s1);
+SamplerState s2 : register(s2);
+SamplerState s3 : register(s3);
+
+float4 main(
+    noperspective float4 SV_Position : SV_Position,
+    linear float2 TEXCOORD : TEXCOORD) : SV_Target {
+  float2 sample_coords = clamp(TEXCOORD, CustomPixelConsts_000.xy, CustomPixelConsts_000.zw);
+  float4 source = t0.Sample(s0, sample_coords);
+
+  float tonemap_scale;
+  float gamut_compression_scale;
+  float3 lut_input = ColorGradeLUTInput(
+      source.rgb,
+      tonemap_scale,
+      gamut_compression_scale);
+
+  float3 first_lut_sample = LUTSampling(lut_input, lut_input, t1, s1);
+  float3 second_lut_sample = LUTSampling(lut_input, lut_input, t2, s2);
+  float3 third_lut_sample = LUTSampling(lut_input, lut_input, t3, s3);
+  float3 graded_sdr = VanillaOutput4(
+      first_lut_sample,
+      second_lut_sample,
+      third_lut_sample,
+      (RENODX_TONE_MAP_TYPE == 0.f)
+          ? source.rgb
+          : lut_input);
+
+  float3 graded_hdr = ColorGradeLUTOutput(
+      graded_sdr,
+      tonemap_scale,
+      gamut_compression_scale);
+
+  return float4(
+      lerp(source.rgb, graded_hdr, RENODX_TONE_MAP_TYPE == 0.f ? 1.f : CUSTOM_LUT_STRENGTH),
+      source.a);
+}
